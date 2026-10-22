@@ -1,6 +1,9 @@
 // SPDX-License-Identifier: GPL-3.0-only
 //! Restricted, source-level reconstruction of the *text configuration* modemuw.jsn.
 //! This is not a reconstruction of the proprietary executable firmware.
+pub mod elf32_prefix;
+pub mod elf_specs;
+pub mod wmfw_metadata;
 use std::fmt::Write;
 
 #[derive(Copy, Clone)]

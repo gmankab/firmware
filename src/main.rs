@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 use nabu_firmware_research::{build_modemuw, machine_name, make_ghidra_bootstrap_view, parse_elf32, parse_novatek_candidate, parse_wmfw, qcom_mdt_hash_segments, wmfw_type_name};
 use std::{env, error::Error, fs, path::PathBuf};
+use nabu_firmware_research::{elf32_prefix::write_elf32_first_page, elf_specs::KNOWN_ELFS, wmfw_metadata::{build_wmfw_header, verify_wmfw_structure}};
 
 fn run() -> Result<(), Box<dyn Error>> {
     let args: Vec<String> = env::args().skip(1).collect();
@@ -11,9 +12,37 @@ fn run() -> Result<(), Box<dyn Error>> {
         println!("TEMPORARY ANALYSIS ONLY (DO NOT FLASH): wrote {}", args[2]);
         return Ok(());
     }
+    if args.len() == 2 && args[0] == "rebuild-wmfw-header" {
+        fs::write(&args[1], build_wmfw_header())?;
+        println!("Generated 40-byte WMFW metadata header (NOT DSP firmware)");
+        return Ok(());
+    }
+    if args.len() == 2 && args[0] == "verify-wmfw-structure" {
+        let matched = verify_wmfw_structure(&fs::read(&args[1])?)?;
+        println!("Matched {} bytes of independently rebuilt WMFW metadata; NOT executable payload", matched);
+        return Ok(());
+    }
+    if args.len() == 3 && args[0] == "rebuild-elf-prefix" {
+        let spec = KNOWN_ELFS.iter().find(|x| x.name == args[1])
+            .ok_or("unknown ELF32 firmware filename")?;
+        fs::write(&args[2], write_elf32_first_page(spec)?)?;
+        println!("Generated {} bytes of metadata-only ELF header for {} (NOT firmware)", 4096, spec.name);
+        return Ok(());
+    }
+    if args.len() == 3 && args[0] == "verify-elf-prefix" {
+        let spec = KNOWN_ELFS.iter().find(|x| x.name == args[1])
+            .ok_or("unknown ELF32 firmware filename")?;
+        let expected = write_elf32_first_page(spec)?;
+        let reference = fs::read(&args[2])?;
+        if reference.len() < expected.len() || reference[..expected.len()] != expected {
+            return Err("ELF metadata-prefix byte mismatch".into());
+        }
+        println!("Byte-identical metadata prefix: {} ({} bytes; payload not rebuilt)", spec.name, expected.len());
+        return Ok(());
+    }
     if args.len() != 2 {
         return Err("usage: nabu-firmware-research <rebuild-modemuw|verify-modemuw|inspect-elf32|inspect-image> PATH \
-            OR make-ghidra-bootstrap ORIGINAL OUTPUT-ANALYSIS-ONLY".into());
+            OR make-ghidra-bootstrap ORIGINAL OUTPUT-ANALYSIS-ONLY OR rebuild-elf-prefix NAME OUTPUT OR verify-elf-prefix NAME ORIGINAL".into());
     }
     let target = PathBuf::from(&args[1]);
     match args[0].as_str() {

@@ -186,3 +186,35 @@ Authoritative source and permission for the proprietary components (or a clean-r
 - Evidence is derived from proprietary input and is NOT GPL-relicensed OEM source. Read `evidence/rea/NOTICE`.
 
 Results documented October 22, 2026. No devices have been flashed or tested, and no complete executable replacement has been built.
+
+## 2026-10-22 partial progress toward exact reconstruction (not firmware)
+
+The repository now independently reproduces the **first 4,096 bytes** of each
+of the six ELF32 files from declarative Rust ELF/program-header records
+(`src/elf32_prefix.rs`, `src/elf_specs.rs`). The complete executable firmware
+is **not** reconstructed. No OEM instruction, hash or signature bytes are
+embedded in the GPL-licensed Rust. The original `modemuw.jsn` exact build
+remains valid.
+
+```bash
+cargo test --locked --offline
+cargo build --release --locked --offline
+./target/release/nabu-firmware-research rebuild-elf-prefix a640_zap.mbn /tmp/a640-HEADER-ONLY.bin
+./target/release/nabu-firmware-research verify-elf-prefix a640_zap.mbn /path/to/original/a640_zap.mbn
+scripts/elf-byte-budget.py /path/to/original/qcom/sm8150/Xiaomi/nabu evidence/elf-byte-budget.json
+```
+
+`/tmp/a640-HEADER-ONLY.bin` is an **incomplete 4 KiB metadata page**, not
+firmware and must never be flashed. For the executable-disassembly prerequisites,
+see `evidence/next-reconstruction-plan.md` and the Ubuntu-only download/build
+script `scripts/codex-download-next-toolchain-ubuntu24.04.sh`.
+
+The public Linux WMFW format also permits deterministic regeneration of
+**128 bytes of Cirrus metadata** (40-byte header + eleven 8-byte descriptors);
+`verify-wmfw-structure` compares these bytes to the local reference file.
+This does not reproduce any HALO DSP code. All 13 unit tests pass on the
+extracted Rust 1.99.1 toolchain.
+
+```bash
+./target/release/nabu-firmware-research verify-wmfw-structure /path/to/original/cirrus/cs35l41-dsp1-spk-prot.wmfw
+```
