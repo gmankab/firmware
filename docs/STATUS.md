@@ -1,66 +1,65 @@
 # Firmware implementation status
 
-Updated **22 October 2026**. The project's practical goal is working firmware built from auditable Rust source for multiple devices, using byte-identical reconstruction as the first acceptance test. Xiaomi Nabu is the first target.
+Updated **22 October 2026**. The goal is reproducible, working firmware from auditable Rust implementations for multiple devices. Xiaomi Nabu is the first target; **byte-identical builds** are the initial acceptance test, before authentication and runtime verification on hardware.
 
 ## Verified outputs
 
-| Firmware | Independently generated, byte-identical content | Remaining work |
+| Reference file | Rebuilt from Rust and directly verified | Remaining work |
 | --- | --- | --- |
-| `modemuw.jsn` | **713 / 713 bytes**, complete | No executable code (text configuration) |
-| `a640_zap.mbn` | **1,156 / 1,968 executable-segment bytes**; 4,096-byte ELF metadata prefix | Unimplemented QRISC and IR3, other data, authentication |
-| `adsp.mbn`, `cdsp.mbn`, `modem.mbn`, `wlanmdsp.mbn` | 4,096-byte ELF metadata prefix each | Hexagon V66 programs, data, authentication |
-| `venus.mbn` | 4,096-byte ELF metadata prefix | ARM32 program, data, authentication |
-| `cs35l41-dsp1-spk-prot.wmfw` | 128 bytes of container metadata | HALO DSP executable and payloads |
-| `novatek_nt36523_fw.bin` | Reference revision and checksum verified | Identify the actual MCU ISA and firmware layout |
+| `modemuw.jsn` | **713 / 713 bytes**, complete configuration | No executable code; full reference file rebuilt |
+| `a640_zap.mbn` | **1,968 / 1,968 executable bytes**; **7,856 / 14,256 complete-file bytes (55.1%)** | Original signature (256 bytes), certificate-chain region (6,144 bytes), verified shader semantics and device testing |
+| `adsp.mbn`, `cdsp.mbn`, `modem.mbn`, `wlanmdsp.mbn` | Exact 4 KiB ELF metadata prefix; SHA-384 reference segment hashes independently validated | Hexagon V66 programs, additional data and cryptographic authentication |
+| `venus.mbn` | Exact 4 KiB ELF metadata prefix; SHA-384 reference segment hashes independently validated | ARM32 program, data and authentication |
+| `cs35l41-dsp1-spk-prot.wmfw` | 128 bytes of container metadata | Cirrus HALO DSP program and payloads |
+| `novatek_nt36523_fw.bin` | Verified source-file revision and SHA-256 | Identify processor ISA and reconstruct program and container |
 
-**Complete byte-identical files: 1 / 9.** No executable image has been built or boot-tested. A byte match below means a direct comparison with the SHA-256-verified reference, not just that a decoder accepted the instructions. The typed Rust implementations are analysis-informed; byte equality does not by itself establish independent licensing provenance.
+**Complete byte-identical reference files: 1 / 9.** The A640 executable is generated from typed Rust QRISC/IR3 operations, not embedded OEM opcode arrays. Its exact match is a byte-encoding result, not a validation of executable behavior, independent copyright provenance, or hardware support.
 
-## A640 coverage
+## A640 executable and container
 
-| Nonoverlapping implemented region | Offset(s) within executable segment | Exact bytes |
+The 1,968-byte segment now has no missing byte ranges:
+
+| Executable component | Relative offset | Bytes |
 | --- | --- | ---: |
 | QRISC security dispatch | `0x000–0x150` | 336 |
-| QRISC protected shader register setup | `0x150–0x1d4` | 132 |
-| QRISC compute register configuration | `0x1d4–0x278` | 164 |
-| IR3 shader, 63 independently encoded slots | Scattered in `0x440–0x640` | 504 |
-| QRISC idle/return routine | `0x79c–0x7b0` | 20 |
-| **Total** | | **1,156 / 1,968 (58.7%)** |
+| QRISC protected shader setup | `0x150–0x1d4` | 132 |
+| QRISC compute-register configuration | `0x1d4–0x278` | 164 |
+| QRISC compute command pipeline | `0x278–0x440` | 456 |
+| IR3 shader (all 64 slots) | `0x440–0x640` | 512 |
+| QRISC final security and event routines | `0x640–0x79c` | 348 |
+| QRISC idle and return routine | `0x79c–0x7b0` | 20 |
+| **Total** | | **1,968** |
 
-The embedded IR3 shader has **63 of 64 slots** encoded from typed Rust operations. The remaining slot (`61`) looks like a category-7 barrier, but fails Mesa's documented bit-pattern requirements. Its behavior is **not established**, and the source does not embed an unexplained vendor instruction in place of an implementation.
+**IR3 slot 61:** A typed encoder matches the original 8-byte category-7-like synchronization instruction, but the public Mesa decoder rejects this encoding. Its operational semantics remain **provisional**. Exact byte matching does not independently establish that the barrier is understood.
 
-The generic `ImagePlan` refuses to emit an image with missing bytes, reports overlap and out-of-bounds errors, and compares implemented regions independently. Its current missing ranges are:
+The remaining container gap is restricted to **`0x1138–0x2a38` (6,400 bytes)**. It comprises the image's original 256-byte OEM signature followed by a 6,144-byte certificate-chain field. Rust regenerates the ELF prefix, MBNv6 header, named 120-byte OEM image-policy metadata, three SHA-384 hash entries, executable code and zero alignment padding. A complete `.mbn` output is deliberately **disabled**, because unsigned replacements may fail Qualcomm secure authentication. See [Building](BUILDING.md).
 
-```text
-0x278–0x440  456 bytes — QRISC control program
-0x628–0x630    8 bytes — unknown IR3 instruction at slot 61
-0x640–0x79c  348 bytes — QRISC control program
-```
+## Verification
 
-The three gaps total **812 bytes**. Even after they are implemented, the full `.mbn` includes other segments, offsets, metadata, and signed content that must be accounted for separately.
-
-Reproduce the progress and source comparisons with:
+The Rust workspace has **63 unit tests** and the Python suite has **6 tests**; perform the full local check with:
 
 ```sh
-cargo run --offline --locked -p firmware-tools -- a640-coverage
+cargo test --workspace --offline --locked
+cargo build --workspace --release --offline --locked
+python3 -m unittest discover -s tests -p 'test_*.py'
+
+cargo run --offline --locked -p firmware-tools -- \
+  emit-a640-executable /tmp/a640-executable.bin
 cargo run --offline --locked -p firmware-tools -- \
   verify-a640-routines /private/a640_zap.mbn
+cargo run --offline --locked -p firmware-tools -- a640-container-coverage
+cargo run --offline --locked -p firmware-tools -- \
+  verify-mbnv6-hashes /private/a640_zap.mbn
 ```
 
-## Validation and limits
+The generic `verify-mbnv6-hashes` also succeeds on `adsp.mbn`, `cdsp.mbn`, `modem.mbn`, `venus.mbn` and `wlanmdsp.mbn` from the verified postmarketOS package. It checks segment-data integrity using SHA-384; **it does not verify signatures or hardware trust**. `tools/verify-xiaomi-nabu.sh /private/firmware-tree` performs all six SHA-384 table checks, nine file hashes, generated metadata comparisons and the A640 source comparison.
 
-- **47 Rust tests, 6 Python tests**, and an offline release build pass.
-- All nine reference files match the postmarketOS package. The Novatek revision must be the one from the package, not a different upstream checkout.
-- Six ELF prefixes, the Cirrus WMFW metadata and `modemuw.jsn` match. Typed A640 executable fragments match at their exact offsets.
-- Mesa's private OEM-derived assembly round-trip reproduced the entire A640 executable segment, but it is only a reference experiment, **not a Rust rebuild or redistributable clean-room source**.
-- The `a640_zap.mbn` ELF header identifies machine 164 (Hexagon), but this executable segment contains Adreno QRISC plus embedded IR3. Do not feed the segment to a Hexagon decompiler.
-- Secure firmware authentication, device boot, GPU operation and the legal status of decompilation-derived code are not validated.
+## Next engineering priorities
 
-## Next engineering steps
+1. Validate the exceptional IR3 synchronization instruction's actual behavior using the public ISA and, eventually, hardware traces. Preserve the current encoding-exact but semantics-unverified label.
+2. Determine whether a redistributable replacement can satisfy independent firmware authentication requirements. **Regenerating an existing OEM signature requires its signing key or the original signed data.** Merely regenerating the hash table does not suffice. Do not put original OEM certificates or signatures into GPLv3 source and claim that they were relicensed.
+3. Start typed executable reconstruction for the next Nabu firmware (Hexagon V66 or ARM32 Venus); establish code/data segment identities and trustworthy disassembly first.
+4. Add other devices through separate device modules, reusing the generic MBNv6 verification, image-layout builder and appropriate ISA encoders.
+5. Test a fully authenticated firmware image on recoverable hardware before describing it as usable firmware.
 
-1. Determine the purpose of the nonstandard IR3 slot 61 and implement its *documented or independently verified* semantics. Keep an explicit gap until then.
-2. Implement the remaining QRISC control regions from named operations, with validated branch/call targets and GPU register semantics. The `ImagePlan` catches overlaps and omissions.
-3. Construct the full, deterministic container from independent executable and data generators. Identify all hashed/signed inputs before attempting a complete binary comparison.
-4. Implement other Nabu processors in separate architecture-specific crates and add more devices through scoped device modules.
-5. Validate a complete image and authentication behavior on a recoverable test device before considering it usable firmware.
-
-Nothing here is a replacement for signed OEM executable firmware yet.
+Neither successful byte reconstruction nor matching a vendor-derived assembly listing alone guarantees a clean-room license result. The program has not been flashed or boot-tested.

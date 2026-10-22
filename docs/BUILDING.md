@@ -27,6 +27,8 @@ cargo run --offline --locked -p firmware-tools -- inspect-elf32 /path/to/elf32
 
 ```sh
 cargo run --offline --locked -p firmware-tools -- \
+  emit-a640-executable /tmp/firmware-output/a640-executable.bin
+cargo run --offline --locked -p firmware-tools -- \
   emit-a640-fragments /tmp/firmware-output
 cargo run --offline --locked -p firmware-tools -- \
   rebuild-modemuw /tmp/firmware-output/modemuw.jsn
@@ -36,15 +38,16 @@ cargo run --offline --locked -p firmware-tools -- \
   verify-modemuw /private/firmware/modemuw.jsn
 ```
 
-The firmware-tools crate also provides a **device-independent checked image planner** (`ImagePlan`). The current A640 plan inserts each generated QRISC/IR3 fragment at its verified offset, rejects overlap, compares only implemented regions and refuses to emit a full binary when any byte is unresolved:
+The firmware-tools crate also provides a **device-independent checked image planner** (`ImagePlan`). The current A640 plan inserts each generated QRISC/IR3 operation at its verified offset and rejects overlap. Its **executable segment is complete**, but the encompassing signed MBNv6 ELF has missing OEM authentication material. The full-file plan still refuses finalization:
 
 ```sh
 cargo run --offline --locked -p firmware-tools -- a640-coverage
+cargo run --offline --locked -p firmware-tools -- a640-container-coverage
 ```
 
-The result is a coverage report, **not** a flashable file. Implemented fragments must not be padded with zeroes or original vendor bytes to bypass the completeness check. A complete plan is a necessary, not sufficient, requirement for a valid signed firmware container.
+The first command should report **1,968 / 1,968 executable bytes**. The container command reports **7,856 / 14,256 bytes**, leaving the original signature and certificate-chain bytes ungenerated. The container is **not flashable**. Do not fill those gaps with placeholder signatures, extra zero padding or vendor bytes disguised as GPLv3 source. A complete layout is necessary, not sufficient, for a valid signed firmware.
 
-The A640 command emits partial `.bin` files named by the starting IR3 shader slot. Their positions matter: **do not concatenate those fragment files and flash them**. The IR3 start and end offsets are determined by the image's QRISC jump-over-shader layout, and intervening shader instructions have not all been implemented.
+`emit-a640-fragments` emits individual `.bin` files for implementation inspection. Their positions matter: **do not concatenate those fragments and flash them**. `emit-a640-executable` emits the now-complete QRISC/IR3 segment, but this is still *not* a complete `.mbn` and must not be flashed. Slot 61's typed encoding matches the original; its precise synchronization semantics have not been established.
 
 For an extracted postmarketOS firmware tree with the expected `qcom`, `cirrus`, and `novatek` paths, run the full device-specific comparison:
 
@@ -52,7 +55,16 @@ For an extracted postmarketOS firmware tree with the expected `qcom`, `cirrus`, 
 tools/verify-xiaomi-nabu.sh /private/firmware-tree
 ```
 
-This script checks all nine packaged hashes and the already implemented fragments, metadata prefixes and text configuration. It does **not** certify hardware functionality. Keep `/private/firmware-tree` outside the project checkout.
+This script checks all nine packaged hashes and the already implemented fragments, metadata prefixes and text configuration. It also validates all six Nabu Qualcomm MBNv6 SHA-384 tables and does **not** verify OEM signatures or certify hardware functionality. Keep `/private/firmware-tree` outside the project checkout.
+
+For **any** compatible device with an ELF32-wrapped Qualcomm MBNv6 image:
+
+```sh
+cargo run --offline --locked -p firmware-tools -- \
+  verify-mbnv6-hashes /private/other-device/firmware.mbn
+```
+
+This command checks the relationship between ELF segments and the SHA-384 digest table, and reports signed-region boundaries. It is **not a signature or certificate-chain verifier**; a modified attacker-produced image can carry internally consistent hashes yet fail device authentication.
 
 ## Target selection and new devices
 

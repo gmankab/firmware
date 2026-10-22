@@ -57,6 +57,21 @@ sha256sum -c /path/to/checkout/reference/xiaomi-nabu/firmware.sha256
 
 For another device, record **model, board revision, SoC, firmware package revision, file path, length, SHA-256, provenance, known loading driver**, and any expected sidecar files. A mismatched revision invalidates a claimed byte-identical result even if the functionality seems similar.
 
+## Verify Qualcomm MBNv6 hashes before decompiling executable segments
+
+A Qualcomm ELF32 MBNv6 image contains a signed hash segment distinct from executable segments. The public format places a 48-byte header, optional QTI/OEM metadata, a SHA-384 segment-hash table, and QTI/OEM signatures and certificate chains in a specific order. Use the device-independent verifier to establish which file-backed segments are covered by the table:
+
+```sh
+cargo run --offline --locked -p firmware-tools -- \
+  verify-mbnv6-hashes /private/firmware.mbn
+```
+
+The Nabu A640 example contains three SHA-384 table entries: a digest of its 148-byte ELF header and program-header table, a zero digest for the hash segment, and the digest of the 1,968-byte QRISC/IR3 program. Its MBNv6 metadata is 120 bytes, represented in Rust by named image-policy fields. Compare full lengths and hash-table indices; **do not infer that ELF wrapper `e_machine` identifies every embedded microcode ISA**.
+
+To implement a new signed format, create a checked layout of the header, metadata, hash entries, signer material and padding. Generate hash entries **from rebuilt source data**, not from a copied vendor hash table. In the final step separately validate OEM/QTI signatures and hardware trust policy; a matching SHA-384 table by itself proves neither. Never fill missing signature or certificate bytes with arbitrary placeholders and describe the result as working firmware.
+
+Public reference: Qualcomm's *Secure Boot and Image Authentication Technical Overview*, plus public MBNv6 implementations in U-Boot/coreboot. See [Building](BUILDING.md) for verification tiers and the hardware acceptance boundary.
+
 ## 3. Identify the actual file format and processor
 
 Start with inexpensive, nondestructive inspection:

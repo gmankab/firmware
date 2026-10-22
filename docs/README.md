@@ -17,7 +17,14 @@ python3 -m unittest discover -s tests -p 'test_*.py'
 cargo run --offline --locked -p firmware-tools -- inspect-image /path/to/image.mbn
 ```
 
-Generate **partial** A640 firmware components without reading an OEM executable:
+Generate the complete **1,968-byte A640 executable segment** without reading an OEM file (this is not a signed, flashable `.mbn`):
+
+```sh
+cargo run --offline --locked -p firmware-tools -- \
+  emit-a640-executable /tmp/a640-executable.bin
+```
+
+Alternatively, generate separately inspectable A640 components:
 
 ```sh
 cargo run --offline --locked -p firmware-tools -- \
@@ -38,13 +45,14 @@ cargo run --offline --locked -p firmware-tools -- \
   verify-a640-routines /path/to/a640_zap.mbn
 ```
 
-View exact coverage and the three remaining microcode gaps without using a vendor image:
+View full executable and signed-container coverage without using a vendor image:
 
 ```sh
 cargo run --offline --locked -p firmware-tools -- a640-coverage
+cargo run --offline --locked -p firmware-tools -- a640-container-coverage
 ```
 
-**Current result:** the 713-byte text configuration matches completely, and 1,156 of the 1,968 bytes in the A640 executable-marked segment match across independently encoded QRISC and IR3 fragments. Neither partial GPU code nor metadata is a working firmware replacement. See [current status](STATUS.md) for the precise remaining gaps.
+**Current result:** the 713-byte text configuration and the entire 1,968-byte A640 executable segment are byte-identical. The signed A640 container is still incomplete: only 7,856 of its 14,256 bytes can be rebuilt without OEM signing material. No rebuilt executable has been hardware-tested. See [current status](STATUS.md) for the precise remaining gaps.
 
 ## Guides
 
