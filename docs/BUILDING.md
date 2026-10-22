@@ -36,6 +36,14 @@ cargo run --offline --locked -p firmware-tools -- \
   verify-modemuw /private/firmware/modemuw.jsn
 ```
 
+The firmware-tools crate also provides a **device-independent checked image planner** (`ImagePlan`). The current A640 plan inserts each generated QRISC/IR3 fragment at its verified offset, rejects overlap, compares only implemented regions and refuses to emit a full binary when any byte is unresolved:
+
+```sh
+cargo run --offline --locked -p firmware-tools -- a640-coverage
+```
+
+The result is a coverage report, **not** a flashable file. Implemented fragments must not be padded with zeroes or original vendor bytes to bypass the completeness check. A complete plan is a necessary, not sufficient, requirement for a valid signed firmware container.
+
 The A640 command emits partial `.bin` files named by the starting IR3 shader slot. Their positions matter: **do not concatenate those fragment files and flash them**. The IR3 start and end offsets are determined by the image's QRISC jump-over-shader layout, and intervening shader instructions have not all been implemented.
 
 For an extracted postmarketOS firmware tree with the expected `qcom`, `cirrus`, and `novatek` paths, run the full device-specific comparison:

@@ -5,6 +5,7 @@
 pub mod a640_microcode;
 pub use ir3;
 pub use qrisc::{codec as qrisc_codec, program as qrisc_program, a640 as a640_routines};
+pub mod image_plan;
 pub mod elf32_prefix;
 pub mod devices;
 pub use devices::xiaomi_nabu::modemuw::build_modemuw;

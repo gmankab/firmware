@@ -5,6 +5,18 @@ use firmware_tools::{elf32_prefix::write_elf32_first_page, devices::xiaomi_nabu:
 
 fn run() -> Result<(), Box<dyn Error>> {
     let args: Vec<String> = env::args().skip(1).collect();
+    if args.len() == 1 && args[0] == "a640-coverage" {
+        let plan = firmware_tools::devices::xiaomi_nabu::a640_plan::partial_executable()?;
+        println!("A640 typed executable coverage: {} / {} bytes ({:.1}%)",
+            plan.filled_bytes(), plan.total_bytes(),
+            plan.filled_bytes() as f64 * 100.0 / plan.total_bytes() as f64);
+        for gap in plan.holes() {
+            println!("  UNIMPLEMENTED 0x{:x}..0x{:x} ({} bytes)",
+                gap.start, gap.end, gap.end-gap.start);
+        }
+        println!("Complete image emission disabled until all instruction and data ranges are implemented.");
+        return Ok(());
+    }
     if args.len() == 2 && args[0] == "emit-a640-fragments" {
         // Generate the matching fragments using typed ISA operations only.
         // No original firmware is needed to build these partial outputs.
@@ -15,16 +27,20 @@ fn run() -> Result<(), Box<dyn Error>> {
             A640_FAMILY, A640_REVISION
         )?;
         let idle = firmware_tools::a640_routines::wait_for_idle()?;
+        let launch = firmware_tools::devices::xiaomi_nabu::a640_launch::protected_shader_register_setup()?;
+        let config = firmware_tools::devices::xiaomi_nabu::a640_launch::compute_register_configuration()?;
         let shader_regions = firmware_tools::devices::xiaomi_nabu::a640_shader::verified_candidates()?;
         fs::write(output.join("a640-qrisc-security-prefix.bin"), &prefix)?;
         fs::write(output.join("a640-qrisc-wait-idle.bin"), &idle)?;
-        let mut total = prefix.len() + idle.len();
+        fs::write(output.join("a640-qrisc-launch-setup.bin"), &launch)?;
+        fs::write(output.join("a640-qrisc-compute-config.bin"), &config)?;
+        let mut total = prefix.len() + idle.len() + launch.len() + config.len();
         for region in &shader_regions {
             fs::write(output.join(format!("a640-ir3-slot-{:02}.bin", region.first_slot)), &region.bytes)?;
             total += region.bytes.len();
         }
         println!("Emitted typed A640 fragments: QRISC={} bytes + IR3={} bytes = {} total; NOT flashable firmware.",
-            prefix.len() + idle.len(), total - prefix.len() - idle.len(), total);
+            prefix.len() + idle.len() + launch.len() + config.len(), total - prefix.len() - idle.len() - launch.len() - config.len(), total);
         return Ok(());
     }
     if args.len() == 2 && args[0] == "verify-a640-routines" {
@@ -38,6 +54,16 @@ fn run() -> Result<(), Box<dyn Error>> {
         if !dispatch.starts_with(&entry) { return Err("A640 dispatch does not include preemption guard".into()); }
         if !stream.starts_with(&dispatch) { return Err("A640 typed Rust security-dispatch prefix mismatches".into()); }
         if !stream.ends_with(&idle) { return Err("A640 typed Rust wait routine mismatches".into()); }
+        let launch = firmware_tools::devices::xiaomi_nabu::a640_launch::protected_shader_register_setup()?;
+        let launch_offset = firmware_tools::devices::xiaomi_nabu::a640_launch::START_WORD * 4;
+        if stream.get(launch_offset..launch_offset+launch.len()) != Some(launch.as_slice()) {
+            return Err("A640 typed Rust protected shader-launch setup mismatches".into());
+        }
+        let config = firmware_tools::devices::xiaomi_nabu::a640_launch::compute_register_configuration()?;
+        let config_offset = firmware_tools::devices::xiaomi_nabu::a640_launch::CONFIG_START_WORD * 4;
+        if stream.get(config_offset..config_offset+config.len()) != Some(config.as_slice()) {
+            return Err("A640 typed Rust compute register configuration mismatches".into());
+        }
         // Check separately authored control and initialization operations,
         // leaving uncovered shader slots explicitly unimplemented.
         let shader = layout.shader.ok_or("A640 embedded IR3 region not detected")?;
@@ -51,9 +77,13 @@ fn run() -> Result<(), Box<dyn Error>> {
             }
             total_shader += region.bytes.len();
         }
-        println!("Exact match: {}-byte typed QRISC security prefix (including {}-byte entry guard), {}-byte idle routine, and {} bytes across {} IR3 fragments; {} distinct executable-region bytes.",
-            dispatch.len(), entry.len(), idle.len(), total_shader, shader_regions.len(),
-            dispatch.len() + idle.len() + total_shader);
+        println!("Exact match: {}-byte typed QRISC security prefix (including {}-byte entry guard), {}-byte protected shader-launch setup, {}-byte compute register configuration, {}-byte idle routine, and {} bytes across {} IR3 fragments; {} distinct executable-region bytes.",
+            dispatch.len(), entry.len(), launch.len(), config.len(), idle.len(), total_shader, shader_regions.len(),
+            dispatch.len() + launch.len() + config.len() + idle.len() + total_shader);
+        let plan = firmware_tools::devices::xiaomi_nabu::a640_plan::partial_executable()?;
+        plan.compare_known(stream)?;
+        println!("Checked image plan: {} / {} generated bytes, {} unimplemented ranges; full binary emission is disabled.",
+            plan.filled_bytes(), plan.total_bytes(), plan.holes().len());
         println!("Remaining instructions, data, and signed image are not rebuilt. OEM analysis guided operation selection.");
         return Ok(());
     }
@@ -152,8 +182,11 @@ fn run() -> Result<(), Box<dyn Error>> {
         return Ok(());
     }
     if args.len() != 2 {
-        return Err("usage: firmware-tools <rebuild-modemuw|verify-modemuw|inspect-elf32|inspect-image> PATH \
-            OR make-ghidra-bootstrap ORIGINAL OUTPUT-ANALYSIS-ONLY OR rebuild-elf-prefix NAME OUTPUT OR verify-elf-prefix NAME ORIGINAL \
+        return Err("usage: firmware-tools a640-coverage \
+            OR emit-a640-fragments OUTDIR OR verify-a640-routines ORIGINAL_MBN \
+            OR <rebuild-modemuw|verify-modemuw|inspect-elf32|inspect-image> PATH \
+            OR make-ghidra-bootstrap ORIGINAL OUTPUT-ANALYSIS-ONLY \
+            OR rebuild-elf-prefix NAME OUTPUT OR verify-elf-prefix NAME ORIGINAL \
             OR extract-a640-isa ORIGINAL_MBN OUTDIR OR verify-a640-isa-fields ORIGINAL_MBN".into());
     }
     let target = PathBuf::from(&args[1]);

@@ -38,7 +38,13 @@ cargo run --offline --locked -p firmware-tools -- \
   verify-a640-routines /path/to/a640_zap.mbn
 ```
 
-**Current result:** the 713-byte text configuration matches completely, and 820 of the 1,968 bytes in the A640 executable-marked segment match across independently encoded QRISC and IR3 fragments. Neither partial GPU code nor metadata is a working firmware replacement. See [current status](STATUS.md) for the precise remaining gaps.
+View exact coverage and the three remaining microcode gaps without using a vendor image:
+
+```sh
+cargo run --offline --locked -p firmware-tools -- a640-coverage
+```
+
+**Current result:** the 713-byte text configuration matches completely, and 1,156 of the 1,968 bytes in the A640 executable-marked segment match across independently encoded QRISC and IR3 fragments. Neither partial GPU code nor metadata is a working firmware replacement. See [current status](STATUS.md) for the precise remaining gaps.
 
 ## Guides
 

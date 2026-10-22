@@ -204,3 +204,5 @@ mod control_tests {
         assert!(relative_slots(0, usize::MAX).is_err());
     }
 }
+
+pub mod scalar;

@@ -335,3 +335,20 @@ Finally, distinguish *machine-code decoding*, *source authorship*, and *redistri
 - [Ghidra Hexagon language implementation](https://github.com/CUB3D/ghidra-hexagon-sleigh) (verify ISA/version compatibility)
 - [Linux Qualcomm MDT firmware loader](https://github.com/torvalds/linux/blob/master/drivers/soc/qcom/mdt_loader.c)
 - [Linux Cirrus WMFW definitions](https://github.com/torvalds/linux/blob/master/include/linux/firmware/cirrus/wmfw.h)
+
+
+## 13. Recovering additional IR3 categories and enforcing exact image gaps
+
+For newer Adreno images, Mesa's MIT-licensed ISA definitions are particularly useful when a standard disassembler reports an unknown opcode. Inspect `src/freedreno/isa/ir3-common.xml` together with the appropriate `ir3-catN.xml`; each XML bitset documents field widths, fixed bit patterns, generation restrictions, register classes and operand forms. **Do not** infer an operation from its three-bit category alone. A partially matching field layout can describe an invalid instruction.
+
+The device-independent `ir3` crate implements selected category-0 control, category-1 moves, category-2 integer scalar operations and category-6 local stores. A new encoder should validate every field width, reject unsupported register types, use typed operands and have synthetic tests that do not incorporate vendor-derived opcode arrays. Compare a newly generated instruction with the exact source revision only after its semantics are understood, keeping the original reference outside Git.
+
+For example, in the first Nabu target, 63 of the 64 embedded IR3 shader slots can be generated from typed instructions. The final slot resembles a category-7 global barrier, but has a bit pattern that the current Mesa schema rejects. Forcing that bit pattern into the GPL source would give a *format match without verified semantics*; it is intentionally left as a documented gap.
+
+The reusable `ImagePlan` in `firmware-tools` places generated fragments at checked offsets, rejects overlapping regions, reports every missing range and will emit a contiguous image **only when coverage is complete**. This is safer than concatenating snippets or zero-padding unknown code. To inspect the current target:
+
+```sh
+cargo run --offline --locked -p firmware-tools -- a640-coverage
+```
+
+Firmware containers often have additional non-executable load segments, signatures, certificate chains, hash tables and padding. Even a complete and byte-identical executable stream is not equivalent to a complete `.mbn` file or authenticated, usable firmware. Maintain separate verification for each level.
