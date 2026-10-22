@@ -33,5 +33,9 @@ mod venus_runtime_eventmask;
 mod venus_runtime_alloc_aligned;
 mod venus_runtime_alloc_variable;
 mod venus_runtime_callbacks;
+mod venus_runtime_ctors;
+mod venus_runtime_memfill;
+mod venus_runtime_strings;
+mod venus_runtime_exit;
 
 pub mod venus_plan;

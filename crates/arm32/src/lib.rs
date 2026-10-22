@@ -48,6 +48,17 @@ pub fn transfer_word(condition: Condition, load: bool, rd: Register, rn: Registe
        | (rn.number() << 16) | (rd.number() << 12) | signed_offset.unsigned_abs())
 }
 
+/// A32 immediate-offset LDR/STR with pre-indexing and base writeback.
+/// The base is updated before access; loading into that same base is unsafe.
+pub fn transfer_word_preindexed_writeback(condition: Condition, load: bool,
+                                         rd: Register, rn: Register,
+                                         signed_offset: i32) -> Result<u32, String> {
+    if rn == Register::PC || signed_offset.unsigned_abs() > 4095 || (load && rd == rn) {
+        return Err("invalid A32 pre-indexed transfer with writeback".into());
+    }
+    Ok(transfer_word(condition, load, rd, rn, signed_offset)? | (1 << 21))
+}
+
 /// A32 single-word LDR/STR with post-indexed immediate addressing.
 /// The memory access uses the *unmodified* base and updates that base after
 /// the transfer; unlike pre-indexed addressing, the P bit is clear.
@@ -63,6 +74,31 @@ pub fn transfer_word_postindexed(condition: Condition, load: bool, rd: Register,
        | if signed_offset >= 0 { 1 << 23 } else { 0 }
        | if load { 1 << 20 } else { 0 }
        | (rn.number() << 16) | (rd.number() << 12) | signed_offset.unsigned_abs())
+}
+
+/// ARM A32 byte LDRB/STRB with immediate pre-indexed addressing.
+pub fn transfer_byte(condition: Condition, load: bool, rd: Register,
+                     rn: Register, signed_offset: i32) -> Result<u32, String> {
+    Ok(transfer_word(condition, load, rd, rn, signed_offset)? | (1 << 22))
+}
+
+/// ARM A32 byte LDRB/STRB with post-indexed immediate addressing.
+pub fn transfer_byte_postindexed(condition: Condition, load: bool, rd: Register,
+                                 rn: Register, signed_offset: i32) -> Result<u32, String> {
+    Ok(transfer_word_postindexed(condition, load, rd, rn, signed_offset)? | (1 << 22))
+}
+
+/// ARM A32 STRH with post-indexed signed immediate offset (8-bit field).
+pub fn store_halfword_postindexed(condition: Condition, rd: Register, rn: Register,
+                                  signed_offset: i32) -> Result<u32, String> {
+    if rd == Register::PC || rn == Register::PC || signed_offset.unsigned_abs() > 255 {
+        return Err("invalid ARM32 halfword post-index operands".into());
+    }
+    let magnitude = signed_offset.unsigned_abs();
+    Ok(cond(condition) | 0x0040_00b0
+       | if signed_offset >= 0 { 1 << 23 } else { 0 }
+       | (rn.number() << 16) | (rd.number() << 12)
+       | ((magnitude & 0xf0) << 4) | (magnitude & 0x0f))
 }
 
 /// ARM A32 register-offset post-indexed word transfer (`[Rn], Rm`).
@@ -92,7 +128,7 @@ fn modified_immediate(value: u32) -> Result<u32, String> {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum DataOp { And = 0, Sub = 2, Rsb = 3, Add = 4, Tst = 8, Cmp = 10, Orr = 12, Mov = 13, Bic = 14, Mvn = 15 }
+pub enum DataOp { And = 0, Eor = 1, Sub = 2, Rsb = 3, Add = 4, Tst = 8, Cmp = 10, Orr = 12, Mov = 13, Bic = 14, Mvn = 15 }
 
 pub fn data_immediate(condition: Condition, op: DataOp, rd: Register, rn: Register,
                       value: u32) -> Result<u32, String> {
@@ -238,6 +274,14 @@ pub fn branch_exchange_with_link(condition: Condition, target: Register) -> Resu
     Ok(cond(condition) | 0x012f_ff30 | target.number())
 }
 
+/// ARM A32 SVC/SWI instruction with checked 24-bit immediate.
+pub fn supervisor_call(condition: Condition, immediate: u32) -> Result<u32, String> {
+    if immediate > 0x00ff_ffff {
+        return Err("ARM32 supervisor call immediate exceeds 24 bits".into());
+    }
+    Ok(cond(condition) | 0x0f00_0000 | immediate)
+}
+
 pub fn push_registers(condition: Condition, registers: u16) -> Result<u32, String> {
     if registers == 0 { return Err("empty ARM push register list".into()); }
     // STMDB SP!, {registers}.
@@ -264,6 +308,15 @@ mod tests {
         assert_eq!(transfer_word(Condition::Al, false, Register::R1, Register::R0, 0).unwrap(), 0xe580_1000);
         assert_eq!(msr_cpsr_control(Condition::Al, 0xd1).unwrap(), 0xe321_f0d1);
         assert_eq!(branch_exchange_with_link(Condition::Al, Register::R2).unwrap(), 0xe12f_ff32);
+        assert_eq!(supervisor_call(Condition::Al, 0).unwrap(), 0xef00_0000);
+        assert!(supervisor_call(Condition::Al, 0x0100_0000).is_err());
+        assert_eq!(transfer_word_preindexed_writeback(Condition::Al, true, Register::R0, Register::new(4).unwrap(), -4).unwrap(), 0xe534_0004);
+        assert_eq!(transfer_byte_postindexed(Condition::Mi, false, Register::R1, Register::R0, 1).unwrap(), 0x44c0_1001);
+        assert_eq!(data_register(Condition::Al, DataOp::Eor, Register::R2, Register::R1, Register::R0, Shift::Lsl, 0, false).unwrap(), 0xe021_2000);
+        assert_eq!(store_halfword_postindexed(Condition::Cs, Register::R1, Register::R0, 2).unwrap(), 0x20c0_10b2);
+        assert_eq!(transfer_byte(Condition::Cs, false, Register::R1, Register::R0, 0).unwrap(), 0x25c0_1000);
+        assert!(store_halfword_postindexed(Condition::Al, Register::R1, Register::R0, 256).is_err());
+        assert!(transfer_word_preindexed_writeback(Condition::Al, true, Register::R1, Register::R1, 4).is_err());
         assert!(branch_exchange_with_link(Condition::Al, Register::PC).is_err());
         assert_eq!(mcr(Condition::Al, 15, 0, Register::R0, 2, 0, 0).unwrap(), 0xee02_0f10);
         assert_eq!(mov_shifted_register(Condition::Al, Register::new(4).unwrap(), Register::new(4).unwrap(), Shift::Lsr, 20).unwrap(), 0xe1a0_4a24);
