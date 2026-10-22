@@ -1,0 +1,8 @@
+# SPDX-License-Identifier: GPL-3.0-only
+[package]
+name = "arm32"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Checked ARM A32 instruction encodings for firmware reconstruction"
+publish = false

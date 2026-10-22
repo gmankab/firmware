@@ -14,10 +14,14 @@ QCOM="$FW/qcom/sm8150/Xiaomi/nabu"
 EXE="$ROOT/target/release/firmware-tools"
 "$EXE" verify-modemuw "$QCOM/modemuw.jsn"
 "$EXE" verify-a640-routines "$QCOM/a640_zap.mbn"
+"$EXE" verify-venus-contiguous-boot "$QCOM/venus.mbn"
 for name in a640_zap.mbn adsp.mbn cdsp.mbn modem.mbn venus.mbn wlanmdsp.mbn; do
   "$EXE" verify-elf-prefix "$name" "$QCOM/$name"
   "$EXE" verify-mbnv6-hashes "$QCOM/$name"
+  if command -v openssl >/dev/null 2>&1; then
+    python3 "$ROOT/tools/verify-mbn-signatures.py" "$QCOM/$name" >/dev/null
+  fi
 done
 "$EXE" verify-wmfw-structure "$FW/cirrus/cs35l41-dsp1-spk-prot.wmfw"
 (cd "$FW" && sha256sum -c "$ROOT/reference/xiaomi-nabu/firmware.sha256")
-printf 'Xiaomi Nabu reference comparisons passed; A640 executable and six segment-hash tables match; no complete OEM-signed executable firmware was produced.\n'
+printf 'Xiaomi Nabu reference comparisons passed; A640 executable, Venus contiguous boot/runtime region and six MBNv6 hash tables match. OEM signatures verified when OpenSSL is installed.\n'

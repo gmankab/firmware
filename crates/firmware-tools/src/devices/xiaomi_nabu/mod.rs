@@ -13,3 +13,9 @@ pub const A640_REVISION: u16 = 0x020;
 pub mod a640_pipeline;
 pub mod a640_finalize;
 pub mod a640_container;
+
+pub mod venus_boot;
+
+pub mod venus_runtime;
+
+pub mod venus_plan;

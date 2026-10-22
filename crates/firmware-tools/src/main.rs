@@ -5,6 +5,86 @@ use firmware_tools::{elf32_prefix::write_elf32_first_page, devices::xiaomi_nabu:
 
 fn run() -> Result<(), Box<dyn Error>> {
     let args: Vec<String> = env::args().skip(1).collect();
+    if args.len() == 2 && args[0] == "emit-venus-contiguous-boot" {
+        let output = firmware_tools::devices::xiaomi_nabu::venus_plan::first_contiguous_region()?
+            .build_complete()?;
+        fs::write(&args[1], &output)?;
+        println!("Emitted {} contiguous initial Venus bytes. Not a complete firmware image.", output.len());
+        return Ok(());
+    }
+    if args.len() == 2 && args[0] == "verify-venus-contiguous-boot" {
+        let reference = fs::read(&args[1])?;
+        let offset = firmware_tools::devices::xiaomi_nabu::venus_plan::START_FILE_OFFSET;
+        let plan = firmware_tools::devices::xiaomi_nabu::venus_plan::first_contiguous_region()?;
+        let output = plan.build_complete()?;
+        if reference.get(offset..offset + output.len()) != Some(output.as_slice()) {
+            return Err("Venus contiguous ARM32 boot image differs from reference".into());
+        }
+        println!("Exact Venus contiguous boot region: {} bytes at file offset 0x{:x}; not a complete firmware image.", output.len(), offset);
+        return Ok(());
+    }
+    if args.len() == 2 && args[0] == "emit-venus-runtime-prefix" {
+        let output = firmware_tools::devices::xiaomi_nabu::venus_runtime::prefix()?;
+        fs::write(&args[1], &output)?;
+        println!("Emitted {} bytes of Venus ARM32 runtime stubs; partial, not runnable firmware.", output.len());
+        return Ok(());
+    }
+    if args.len() == 2 && args[0] == "verify-venus-runtime-prefix" {
+        let reference = fs::read(&args[1])?;
+        let offset = firmware_tools::devices::xiaomi_nabu::venus_runtime::FILE_OFFSET;
+        let output = firmware_tools::devices::xiaomi_nabu::venus_runtime::prefix()?;
+        if reference.get(offset..offset + output.len()) != Some(output.as_slice()) {
+            return Err("Venus ARM32 runtime prefix differs from reference".into());
+        }
+        println!("Exact Venus runtime prefix: {} bytes at file offset 0x{:x}.", output.len(), offset);
+        return Ok(());
+    }
+    if args.len() == 2 && args[0] == "emit-venus-boot-page" {
+        let output = firmware_tools::devices::xiaomi_nabu::venus_boot::first_page()?;
+        fs::write(&args[1], &output)?;
+        println!("Emitted {}-byte Venus boot page, with checked ARM32 code, data and zero-fill.", output.len());
+        println!("Partial Venus firmware only; no authentication or full image produced.");
+        return Ok(());
+    }
+    if args.len() == 2 && args[0] == "verify-venus-boot-page" {
+        let reference = fs::read(&args[1])?;
+        let offset = firmware_tools::devices::xiaomi_nabu::venus_boot::FILE_OFFSET;
+        let page = firmware_tools::devices::xiaomi_nabu::venus_boot::first_page()?;
+        let end = offset.checked_add(page.len()).ok_or("Venus boot-page offset overflow")?;
+        if reference.get(offset..end) != Some(page.as_slice()) {
+            return Err("Venus ARM32 boot page differs from reference firmware".into());
+        }
+        println!("Exact Venus boot page: {} bytes at file offset 0x{:x} ({} structured bytes plus {} zero-fill).",
+            page.len(), offset, firmware_tools::devices::xiaomi_nabu::venus_boot::PREFIX_SIZE,
+            page.len() - firmware_tools::devices::xiaomi_nabu::venus_boot::PREFIX_SIZE);
+        return Ok(());
+    }
+    if args.len() == 2 && args[0] == "emit-venus-boot-prefix" {
+        let output = firmware_tools::devices::xiaomi_nabu::venus_boot::prefix()?;
+        fs::write(&args[1], &output)?;
+        println!("Emitted {} typed ARM32 boot-prefix bytes (not complete Venus firmware).", output.len());
+        return Ok(());
+    }
+    if args.len() == 2 && args[0] == "verify-venus-boot-prefix" {
+        let reference = fs::read(&args[1])?;
+        let offset = firmware_tools::devices::xiaomi_nabu::venus_boot::FILE_OFFSET;
+        let output = firmware_tools::devices::xiaomi_nabu::venus_boot::prefix()?;
+        let end = offset.checked_add(output.len()).ok_or("Venus boot range overflow")?;
+        if reference.get(offset..end) != Some(output.as_slice()) {
+            return Err("Venus typed ARM32 boot prefix differs from the reference".into());
+        }
+        println!("Exact Venus ARM32 boot-prefix match: {} bytes at file offset 0x{:x}.", output.len(), offset);
+        return Ok(());
+    }
+    if args.len() == 3 && args[0] == "assemble-a640-with-external-auth" {
+        let external_authentication = fs::read(&args[1])?;
+        let completed = firmware_tools::devices::xiaomi_nabu::a640_container::
+            assemble_with_external_authentication(&external_authentication)?;
+        fs::write(&args[2], &completed)?;
+        println!("Assembled {}-byte A640 MBN with externally provided OEM authentication bytes.", completed.len());
+        println!("SHA-384 ELF segment integrity verified. OEM signature, certificate trust, and hardware acceptance were NOT verified.");
+        return Ok(());
+    }
     if args.len() == 2 && args[0] == "verify-mbnv6-hashes" {
         let firmware = fs::read(&args[1])?;
         let report = firmware_tools::qcom_mbn_validation::verify_elf32_mbnv6_hashes(&firmware)?;

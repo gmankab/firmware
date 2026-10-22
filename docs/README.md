@@ -45,6 +45,21 @@ cargo run --offline --locked -p firmware-tools -- \
   verify-a640-routines /path/to/a640_zap.mbn
 ```
 
+Generate the verified **contiguous early Venus ARM32 boot and runtime region**. This is a partial image, not a complete or signed firmware file:
+
+```sh
+cargo run --offline --locked -p firmware-tools -- \
+  emit-venus-contiguous-boot /tmp/venus-early.bin
+cargo run --offline --locked -p firmware-tools -- \
+  verify-venus-contiguous-boot /private/venus.mbn
+```
+
+For a locally reconstructed full A640 image, the original OEM authentication
+region can be passed *externally* to the builder. This does not turn the OEM
+bytes into GPLv3 code and cannot sign an altered payload. The generic
+[signature verifier](BUILDING.md) checks the original embedded chain and RSA-PSS
+signature without claiming hardware trust.
+
 View full executable and signed-container coverage without using a vendor image:
 
 ```sh
@@ -52,7 +67,7 @@ cargo run --offline --locked -p firmware-tools -- a640-coverage
 cargo run --offline --locked -p firmware-tools -- a640-container-coverage
 ```
 
-**Current result:** the 713-byte text configuration and the entire 1,968-byte A640 executable segment are byte-identical. The signed A640 container is still incomplete: only 7,856 of its 14,256 bytes can be rebuilt without OEM signing material. No rebuilt executable has been hardware-tested. See [current status](STATUS.md) for the precise remaining gaps.
+**Current result:** the 713-byte text configuration, the entire 1,968-byte A640 executable segment, and the first **6,064 contiguous bytes of Venus boot/runtime content** (including the 4 KiB boot page) are byte-identical. The signed A640 container is only 7,856 of 14,256 bytes independently generated; the remaining 6,400 bytes can be supplied privately to reproduce the original complete file, but are not original GPLv3 output. No rebuilt executable has been hardware-tested. See [current status](STATUS.md) for the precise remaining gaps.
 
 ## Guides
 

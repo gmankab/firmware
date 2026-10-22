@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: GPL-3.0-only
 [workspace]
-members = ["crates/firmware-tools", "crates/qrisc", "crates/ir3"]
-default-members = ["crates/firmware-tools", "crates/qrisc", "crates/ir3"]
+members = ["crates/firmware-tools", "crates/qrisc", "crates/ir3", "crates/arm32"]
+default-members = ["crates/firmware-tools", "crates/qrisc", "crates/ir3", "crates/arm32"]
 exclude = ["experiments/hexagon-probe"]
 resolver = "2"
 
@@ -13,3 +13,4 @@ license = "GPL-3.0-only"
 [workspace.dependencies]
 qrisc = { path = "crates/qrisc" }
 ir3 = { path = "crates/ir3" }
+arm32 = { path = "crates/arm32" }

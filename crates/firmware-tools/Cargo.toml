@@ -11,3 +11,4 @@ publish = false
 [dependencies]
 qrisc.workspace = true
 ir3.workspace = true
+arm32.workspace = true

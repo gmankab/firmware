@@ -113,6 +113,38 @@ pub fn partial_container() -> Result<ImagePlan, String> {
     Ok(plan)
 }
 
+
+/// Bytes supplied separately by the device owner, never stored in the source
+/// repository. The input must contain *exactly* the OEM signature followed by
+/// the fixed-width certificate-chain field; it is not a private signing key.
+pub const EXTERNAL_AUTH_SIZE: usize = 0x1900;
+
+/// Reassemble the original signed A640 container using independently generated
+/// data plus externally supplied OEM authentication bytes.
+///
+/// This function checks geometry and segment hashes, but **does not** prove
+/// that the imported certificate root is trusted by the device or that the
+/// signature is valid. A changed payload requires an independently authorized
+/// signature. Do not call this output newly signed firmware.
+pub fn assemble_with_external_authentication(external_auth: &[u8]) -> Result<Vec<u8>, String> {
+    let mut plan = partial_container()?;
+    let expected = 0x1138..0x2a38;
+    if plan.holes() != vec![expected.clone()] {
+        return Err("unexpected missing-byte layout in A640 signed container".into());
+    }
+    if external_auth.len() != EXTERNAL_AUTH_SIZE {
+        return Err(format!(
+            "A640 OEM authentication input must be exactly {} bytes; received {}",
+            EXTERNAL_AUTH_SIZE, external_auth.len()
+        ));
+    }
+    plan.place("externally supplied OEM signature and certificate field",
+        expected.start, external_auth)?;
+    let image = plan.build_complete()?;
+    crate::qcom_mbn_validation::verify_elf32_mbnv6_hashes(&image)?;
+    Ok(image)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -125,6 +157,24 @@ mod tests {
         assert_eq!(plan.holes(), vec![0x1138..0x2a38]);
         assert!(plan.build_complete().unwrap_err().contains("incomplete"));
         assert_eq!(plan.regions().len(), 6);
+    }
+
+    #[test]
+    fn external_authentication_is_exactly_bounded_and_never_guessed() {
+        assert!(assemble_with_external_authentication(&[])
+            .unwrap_err().contains("exactly 6400 bytes"));
+        assert!(assemble_with_external_authentication(&vec![0x55; EXTERNAL_AUTH_SIZE - 1])
+            .unwrap_err().contains("exactly 6400 bytes"));
+        assert!(assemble_with_external_authentication(&vec![0x55; EXTERNAL_AUTH_SIZE + 1])
+            .unwrap_err().contains("exactly 6400 bytes"));
+        let original = partial_container().unwrap();
+        assert_eq!(original.holes(), vec![0x1138..0x2a38]);
+        // Synthetic bytes exercise the layout without embedding OEM material.
+        // Segment hashes still match; vendor signature validity is NOT tested.
+        let completed = assemble_with_external_authentication(&vec![0x55; EXTERNAL_AUTH_SIZE]).unwrap();
+        assert_eq!(completed.len(), 0x37b0);
+        original.compare_known(&completed).unwrap();
+        assert_eq!(&completed[0x1138..0x2a38], &vec![0x55; EXTERNAL_AUTH_SIZE]);
     }
 
     #[test]

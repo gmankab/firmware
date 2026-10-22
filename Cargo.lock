@@ -3,9 +3,14 @@
 version = 4
 
 [[package]]
+name = "arm32"
+version = "0.1.0"
+
+[[package]]
 name = "firmware-tools"
 version = "0.1.0"
 dependencies = [
+ "arm32",
  "ir3",
  "qrisc",
 ]
