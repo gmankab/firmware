@@ -2,7 +2,7 @@
 
 **Goal:** produce working, redistributable firmware binaries from auditable GPLv3 Rust implementations, beginning with **byte-for-byte reproductions** of reference firmware. Xiaomi Pad 5 (`nabu`) is the first device; CPU, GPU and DSP instruction encoders and inspection tools are intended to be shared with other devices.
 
-The long-term deliverable is usable firmware, **not** a collection of disassembly reports. The current project is incomplete: its generated microcode fragments must **not** be flashed as full firmware images. Byte equality of a fragment does not establish that the reconstructed code is independently licensable or that a changed, signed image will pass hardware authentication.
+The long-term deliverable is usable firmware, **not** a collection of disassembly reports. The current project is incomplete: its generated microcode fragments must **not** be flashed as full firmware images.
 
 ## Get started
 
@@ -78,5 +78,3 @@ cargo run --offline --locked -p firmware-tools -- a640-container-coverage
 ## Source and distribution
 
 The original code in this repository is licensed **GPL-3.0-only** (see `LICENSE`). Reference OEM firmware, private disassemblies, vendor-authored programs and cryptographic signing material are **not part of the source tree** and are not covered by the project's GPL license. Keep them in private directories outside the checkout.
-
-This project uses firmware disassembly to understand formats and behavior. Rewriting code in Rust, or obtaining identical executable bytes, does not automatically eliminate copyright, licensing, patent or authentication constraints. Assess these separately before distributing images as GPLv3 binaries.
