@@ -7,3 +7,5 @@ pub mod program;
 pub mod a640;
 pub mod flow;
 pub mod command_stream;
+
+pub mod script;

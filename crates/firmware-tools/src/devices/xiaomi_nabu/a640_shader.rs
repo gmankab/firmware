@@ -4,6 +4,7 @@
 //! Output fragments are not a complete shader or executable firmware.
 use ir3::{Control, Gpr, MovU32Immediate, relative_slots};
 use ir3::scalar::{ScalarAlu, ScalarSource, StoreLocalU32};
+use ir3::synchronization::{MemoryBarrier, MemoryScope, BarrierFormat};
 
 #[derive(Debug)]
 pub struct Fragment {
@@ -67,6 +68,15 @@ pub fn verified_candidates() -> Result<Vec<Fragment>, String> {
     }.encode().map_err(str::to_string)?);
     loop_return.extend_from_slice(&Control::Nop { repeat: 5, jump_point: true }.encode().map_err(str::to_string)?);
 
+    // Candidate pre-marker A6xx global barrier. The encoding fields are
+    // independently generated, but the missing Mesa discriminator and actual
+    // synchronization semantics are unverified. Do not infer boot safety.
+    let synchronization = MemoryBarrier {
+        scope: MemoryScope { global: true, ..MemoryScope::default() },
+        format: BarrierFormat::LegacyA6xxCandidate,
+        synchronize: false, scalar_synchronize: false, jump_point: false,
+    }.encode().map_err(str::to_string)?;
+
     let mut ending = Vec::new();
     ending.extend_from_slice(&Control::End.encode().map_err(str::to_string)?);
     ending.extend_from_slice(&Control::Nop { repeat: 0, jump_point: false }.encode().map_err(str::to_string)?);
@@ -79,6 +89,7 @@ pub fn verified_candidates() -> Result<Vec<Fragment>, String> {
         Fragment { first_slot: 8, purpose: "write local security-state record and advance index", bytes: local_record },
         Fragment { first_slot: 11, purpose: "loop backedge and join point", bytes: loop_return },
         Fragment { first_slot: 13, purpose: "zero-initialize 48 vector registers", bytes: ir3::zero_vector_registers(0, 48)? },
+        Fragment { first_slot: 61, purpose: "tentative legacy global memory barrier encoding", bytes: synchronization.to_vec() },
         Fragment { first_slot: 62, purpose: "shader termination and padding", bytes: ending },
     ])
 }
@@ -100,6 +111,6 @@ mod tests {
             total += f.bytes.len();
         }
         assert_eq!(last, 64);
-        assert_eq!(total, 63 * 8); // one unknown slot, 61, deliberately omitted
+        assert_eq!(total, 64 * 8); // exact encoding, but barrier semantics remain provisional
     }
 }

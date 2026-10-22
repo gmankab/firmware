@@ -5,6 +5,16 @@ use firmware_tools::{elf32_prefix::write_elf32_first_page, devices::xiaomi_nabu:
 
 fn run() -> Result<(), Box<dyn Error>> {
     let args: Vec<String> = env::args().skip(1).collect();
+    if args.len() == 2 && args[0] == "verify-mbnv6-hashes" {
+        let firmware = fs::read(&args[1])?;
+        let report = firmware_tools::qcom_mbn_validation::verify_elf32_mbnv6_hashes(&firmware)?;
+        println!("Valid MBNv6 SHA-384 hash table: {} hashed ELF segments, {} un-hashed entries.",
+            report.hashed_count, report.zero_placeholder_count);
+        println!("Authentication segment at 0x{:x}, {} bytes; signer material present: {}.",
+            report.hash_segment_file_offset, report.hash_segment_length, report.has_signatures);
+        println!("HASH AGREEMENT ONLY. OEM/QTI certificate chains, hardware trust and signatures were NOT verified.");
+        return Ok(());
+    }
     if args.len() == 1 && args[0] == "a640-coverage" {
         let plan = firmware_tools::devices::xiaomi_nabu::a640_plan::partial_executable()?;
         println!("A640 typed executable coverage: {} / {} bytes ({:.1}%)",
@@ -14,7 +24,26 @@ fn run() -> Result<(), Box<dyn Error>> {
             println!("  UNIMPLEMENTED 0x{:x}..0x{:x} ({} bytes)",
                 gap.start, gap.end, gap.end-gap.start);
         }
-        println!("Complete image emission disabled until all instruction and data ranges are implemented.");
+        println!("Only executable-segment emission is allowed; the signed .mbn container remains incomplete.");
+        return Ok(());
+    }
+    if args.len() == 1 && args[0] == "a640-container-coverage" {
+        let plan = firmware_tools::devices::xiaomi_nabu::a640_container::partial_container()?;
+        println!("A640 signed container: {} / {} bytes regenerated from Rust ({:.1}%)",
+            plan.filled_bytes(), plan.total_bytes(),
+            plan.filled_bytes() as f64 * 100.0 / plan.total_bytes() as f64);
+        for gap in plan.holes() {
+            println!("  UNIMPLEMENTED signed authentication 0x{:x}..0x{:x} ({} bytes)",
+                gap.start, gap.end, gap.end-gap.start);
+        }
+        println!("Firmware emission prohibited while signing/authentication bytes are missing.");
+        return Ok(());
+    }
+    if args.len() == 2 && args[0] == "emit-a640-executable" {
+        let program = firmware_tools::devices::xiaomi_nabu::a640_plan::partial_executable()?
+            .build_complete()?;
+        fs::write(&args[1], &program)?;
+        println!("Emitted {} bytes of QRISC/IR3 code; unsigned executable segment only, NOT an .mbn firmware file.", program.len());
         return Ok(());
     }
     if args.len() == 2 && args[0] == "emit-a640-fragments" {
@@ -29,18 +58,22 @@ fn run() -> Result<(), Box<dyn Error>> {
         let idle = firmware_tools::a640_routines::wait_for_idle()?;
         let launch = firmware_tools::devices::xiaomi_nabu::a640_launch::protected_shader_register_setup()?;
         let config = firmware_tools::devices::xiaomi_nabu::a640_launch::compute_register_configuration()?;
+        let pipeline = firmware_tools::devices::xiaomi_nabu::a640_pipeline::protected_compute_and_resolve()?;
+        fs::write(output.join("a640-qrisc-compute-dispatch.bin"), &pipeline)?;
+        let finalize = firmware_tools::devices::xiaomi_nabu::a640_finalize::finish_protected_compute()?;
+        fs::write(output.join("a640-qrisc-security-finalize.bin"), &finalize)?;
         let shader_regions = firmware_tools::devices::xiaomi_nabu::a640_shader::verified_candidates()?;
         fs::write(output.join("a640-qrisc-security-prefix.bin"), &prefix)?;
         fs::write(output.join("a640-qrisc-wait-idle.bin"), &idle)?;
         fs::write(output.join("a640-qrisc-launch-setup.bin"), &launch)?;
         fs::write(output.join("a640-qrisc-compute-config.bin"), &config)?;
-        let mut total = prefix.len() + idle.len() + launch.len() + config.len();
+        let mut total = prefix.len() + idle.len() + launch.len() + config.len() + pipeline.len() + finalize.len();
         for region in &shader_regions {
             fs::write(output.join(format!("a640-ir3-slot-{:02}.bin", region.first_slot)), &region.bytes)?;
             total += region.bytes.len();
         }
         println!("Emitted typed A640 fragments: QRISC={} bytes + IR3={} bytes = {} total; NOT flashable firmware.",
-            prefix.len() + idle.len() + launch.len() + config.len(), total - prefix.len() - idle.len() - launch.len() - config.len(), total);
+            prefix.len() + idle.len() + launch.len() + config.len() + pipeline.len() + finalize.len(), total - prefix.len() - idle.len() - launch.len() - config.len() - pipeline.len() - finalize.len(), total);
         return Ok(());
     }
     if args.len() == 2 && args[0] == "verify-a640-routines" {
@@ -64,6 +97,16 @@ fn run() -> Result<(), Box<dyn Error>> {
         if stream.get(config_offset..config_offset+config.len()) != Some(config.as_slice()) {
             return Err("A640 typed Rust compute register configuration mismatches".into());
         }
+        let pipeline = firmware_tools::devices::xiaomi_nabu::a640_pipeline::protected_compute_and_resolve()?;
+        let pipeline_offset = firmware_tools::devices::xiaomi_nabu::a640_pipeline::START_WORD * 4;
+        if stream.get(pipeline_offset..pipeline_offset+pipeline.len()) != Some(pipeline.as_slice()) {
+            return Err("A640 typed Rust protected compute pipeline mismatches".into());
+        }
+        let finalize = firmware_tools::devices::xiaomi_nabu::a640_finalize::finish_protected_compute()?;
+        let finalize_offset = firmware_tools::devices::xiaomi_nabu::a640_finalize::START_WORD * 4;
+        if stream.get(finalize_offset..finalize_offset+finalize.len()) != Some(finalize.as_slice()) {
+            return Err("A640 typed Rust final secure-state/event routines mismatch".into());
+        }
         // Check separately authored control and initialization operations,
         // leaving uncovered shader slots explicitly unimplemented.
         let shader = layout.shader.ok_or("A640 embedded IR3 region not detected")?;
@@ -77,14 +120,19 @@ fn run() -> Result<(), Box<dyn Error>> {
             }
             total_shader += region.bytes.len();
         }
-        println!("Exact match: {}-byte typed QRISC security prefix (including {}-byte entry guard), {}-byte protected shader-launch setup, {}-byte compute register configuration, {}-byte idle routine, and {} bytes across {} IR3 fragments; {} distinct executable-region bytes.",
-            dispatch.len(), entry.len(), launch.len(), config.len(), idle.len(), total_shader, shader_regions.len(),
-            dispatch.len() + launch.len() + config.len() + idle.len() + total_shader);
+        println!("Exact match: {}-byte typed QRISC security prefix (including {}-byte entry guard), {}-byte protected shader-launch setup, {}-byte compute register configuration, {}-byte compute pipeline, {}-byte finalize routines, {}-byte idle routine, and {} bytes across {} IR3 fragments; {} distinct executable-region bytes.",
+            dispatch.len(), entry.len(), launch.len(), config.len(), pipeline.len(), finalize.len(), idle.len(), total_shader, shader_regions.len(),
+            dispatch.len() + launch.len() + config.len() + pipeline.len() + finalize.len() + idle.len() + total_shader);
         let plan = firmware_tools::devices::xiaomi_nabu::a640_plan::partial_executable()?;
         plan.compare_known(stream)?;
-        println!("Checked image plan: {} / {} generated bytes, {} unimplemented ranges; full binary emission is disabled.",
+        println!("Checked executable image: {} / {} generated bytes, {} unimplemented ranges; signed firmware emission is disabled.",
             plan.filled_bytes(), plan.total_bytes(), plan.holes().len());
-        println!("Remaining instructions, data, and signed image are not rebuilt. OEM analysis guided operation selection.");
+        let signed_plan = firmware_tools::devices::xiaomi_nabu::a640_container::partial_container()?;
+        signed_plan.compare_known(&input)?;
+        println!("Checked A640 container: {} / {} generated bytes; unimplemented authentication {} bytes.",
+            signed_plan.filled_bytes(), signed_plan.total_bytes(),
+            signed_plan.holes().iter().map(|gap| gap.end-gap.start).sum::<usize>());
+        println!("Executable instruction bytes match. Signed authentication material and hardware behavior are NOT reconstructed or validated. OEM analysis informed the typed implementation.");
         return Ok(());
     }
     if args.len() == 2 && args[0] == "verify-a640-isa-fields" {
@@ -182,8 +230,10 @@ fn run() -> Result<(), Box<dyn Error>> {
         return Ok(());
     }
     if args.len() != 2 {
-        return Err("usage: firmware-tools a640-coverage \
-            OR emit-a640-fragments OUTDIR OR verify-a640-routines ORIGINAL_MBN \
+        return Err("usage: firmware-tools a640-coverage OR a640-container-coverage \
+            OR emit-a640-executable OUTPUT_BIN OR emit-a640-fragments OUTDIR \
+            OR verify-a640-routines ORIGINAL_MBN \
+            OR verify-mbnv6-hashes ORIGINAL_MBN \
             OR <rebuild-modemuw|verify-modemuw|inspect-elf32|inspect-image> PATH \
             OR make-ghidra-bootstrap ORIGINAL OUTPUT-ANALYSIS-ONLY \
             OR rebuild-elf-prefix NAME OUTPUT OR verify-elf-prefix NAME ORIGINAL \

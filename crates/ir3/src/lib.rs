@@ -206,3 +206,5 @@ mod control_tests {
 }
 
 pub mod scalar;
+
+pub mod synchronization;

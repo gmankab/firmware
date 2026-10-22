@@ -10,3 +10,6 @@ pub mod modemuw;
 pub const A640_FAMILY: u16 = 0x6ff;
 /// OEM reference firmware revision (non-executable metadata).
 pub const A640_REVISION: u16 = 0x020;
+pub mod a640_pipeline;
+pub mod a640_finalize;
+pub mod a640_container;
