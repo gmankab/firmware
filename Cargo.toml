@@ -1,9 +1,14 @@
-[package]
-name = "nabu-firmware-research"
-default-run = "nabu-firmware-research"
+# SPDX-License-Identifier: GPL-3.0-only
+[workspace]
+members = ["crates/nabu-firmware-research", "crates/nabu-qrisc"]
+default-members = ["crates/nabu-firmware-research", "crates/nabu-qrisc"]
+exclude = ["experiments/hexagon-probe"]
+resolver = "2"
+
+[workspace.package]
 version = "0.1.0"
 edition = "2021"
 license = "GPL-3.0-only"
-description = "Xiaomi Nabu firmware research tools; NOT a replacement firmware"
 
-[dependencies]
+[workspace.dependencies]
+nabu-qrisc = { path = "crates/nabu-qrisc" }

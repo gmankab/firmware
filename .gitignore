@@ -1,13 +1,13 @@
-/target
-/out
-/tmp
+# Local build products and Python caches
+**/target/
+/out/
+/tmp/
+**/__pycache__/
+*.pyc
+
+# Firmware samples and private analysis exports
 *.apk
 *.mbn
 *.bin
 *.wmfw
 *.fw
-!/.gitignore
-/probes/hexagon/target/
-/__pycache__/
-**/__pycache__/
-*.pyc

@@ -5,3 +5,10 @@ version = 4
 [[package]]
 name = "nabu-firmware-research"
 version = "0.1.0"
+dependencies = [
+ "nabu-qrisc",
+]
+
+[[package]]
+name = "nabu-qrisc"
+version = "0.1.0"

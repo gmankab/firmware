@@ -1,0 +1,8 @@
+# SPDX-License-Identifier: GPL-3.0-only
+[package]
+name = "nabu-qrisc"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Typed QRISC encodings and experimental A6xx routines"
+publish = false

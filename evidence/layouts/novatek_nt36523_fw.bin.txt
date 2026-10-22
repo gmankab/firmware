@@ -1,3 +1,0 @@
-file: <FIRMWARE_ROOT>/novatek/novatek_nt36523_fw.bin; bytes: 196608
-raw Novatek-style image: NVT end marker present; no executable header
-code ISA and memory map not identified; no pseudocode claimed

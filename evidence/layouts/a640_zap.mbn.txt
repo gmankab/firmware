@@ -1,6 +1,0 @@
-file: <FIRMWARE_ROOT>/qcom/sm8150/Xiaomi/nabu/a640_zap.mbn; bytes: 14256
-ELF32 architecture=Qualcomm Hexagon DSP entry=0x5000 phdrs=3 qcom_hash_segments=1
-  [0] kind=0x0 flags=0x07000000 offset=0x0 size=148 memory=0 vaddr=0x0 paddr=0x0 hash=false
-  [1] kind=0x0 flags=0x02200000 offset=0x1000 size=6712 memory=8192 vaddr=0x6000 paddr=0x6000 hash=true
-  [2] kind=0x1 flags=0x08000007 offset=0x3000 size=1968 memory=1968 vaddr=0x5000 paddr=0x5000 hash=false
-WARNING: auth metadata present; does not establish signature validity or device enforcement
