@@ -1,5 +1,13 @@
 # Xiaomi Nabu firmware reconstruction research (partial)
 
+## Latest: post-toolchain continuation (2026-10-22)
+
+The separately provided LLVM 6.0.1 and Rizin 0.9.1 tools run on Debian 13. LLVM 6 recognizes only **270 of 492** A640 PF_X four-byte words as nominal Hexagon V4 instructions. **A640 is not yet validly decompiled**; misidentifying the microcode ISA would corrupt any attempted Rust rewrite. We added analysis-only ELF section views, input-provenance verification (including a corrected Novatek version), and a QRISC/IR3 hypothesis test for the Adreno A640. See [`evidence/freedreno-isa-followup.md`](evidence/freedreno-isa-followup.md).
+
+The Codex toolchain downloader [`scripts/codex-download-freedreno-ubuntu24.04.sh`](scripts/codex-download-freedreno-ubuntu24.04.sh) targets **Ubuntu 24.04** and pins Mesa 26.2.4 to its published SHA-256. Its returned `qrisc-disasm`, `qrisc-asm` and `ir3-disasm` can be probed against an original A640 file **on Debian** using [`scripts/analyze-a640-mesa.sh`](scripts/analyze-a640-mesa.sh). The download/build script has been syntax-checked but **has not yet been run on Ubuntu**. Both an A6xx decoding match and a vendor-payload-free reimplementation remain unproven.
+
+**Full exact-build status is unchanged: 1 of 9 files.** The six matched 4 KiB ELF pages and 128 matched WMFW bytes are metadata only, not independently rebuilt firmware.
+
 **Status: 1 of 9 regular files byte-identically reproduced from newly authored Rust code; 8 of 9 NOT reconstructed. This is NOT a firmware replacement. The Hexagon compiler follow-up is described below.**
 
 This repository contains GPL-3.0-only Rust **tooling** and a structured rebuild of the small `modemuw.jsn` text configuration, plus REA / Ghidra research evidence about the firmware in the postmarketOS `firmware-xiaomi-nabu` **1-r2** Alpine package. It deliberately contains **no original proprietary firmware binaries**, and no claim that proprietary firmware has become GPLv3. See the [complete GPLv3 text](LICENSE).

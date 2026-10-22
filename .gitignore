@@ -8,3 +8,6 @@
 *.fw
 !/.gitignore
 /probes/hexagon/target/
+/__pycache__/
+**/__pycache__/
+*.pyc
