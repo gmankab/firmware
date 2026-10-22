@@ -48,6 +48,23 @@ pub fn transfer_word(condition: Condition, load: bool, rd: Register, rn: Registe
        | (rn.number() << 16) | (rd.number() << 12) | signed_offset.unsigned_abs())
 }
 
+/// A32 single-word LDR/STR with post-indexed immediate addressing.
+/// The memory access uses the *unmodified* base and updates that base after
+/// the transfer; unlike pre-indexed addressing, the P bit is clear.
+pub fn transfer_word_postindexed(condition: Condition, load: bool, rd: Register,
+                                 rn: Register, signed_offset: i32) -> Result<u32, String> {
+    if signed_offset.unsigned_abs() > 4095 {
+        return Err("ARM32 post-index offset exceeds 12 bits".into());
+    }
+    if rn == Register::PC || rd == rn && load {
+        return Err("ARM32 post-index cannot use PC base or load into base".into());
+    }
+    Ok(cond(condition) | 0x0400_0000
+       | if signed_offset >= 0 { 1 << 23 } else { 0 }
+       | if load { 1 << 20 } else { 0 }
+       | (rn.number() << 16) | (rd.number() << 12) | signed_offset.unsigned_abs())
+}
+
 /// Select a legal ARM modified-immediate rotation; many 32-bit constants are
 /// intentionally not encodable with one A32 data-processing instruction.
 fn modified_immediate(value: u32) -> Result<u32, String> {
@@ -212,6 +229,10 @@ mod tests {
         assert_eq!(transfer_word_register(Condition::Al, false, Register::new(3).unwrap(), Register::R0, Register::R1, Shift::Lsl, 2).unwrap(), 0xe7803101);
         assert_eq!(mrc(Condition::Al, 15, 0, Register::R0, 1, 0, 0).unwrap(), 0xee11_0f10);
         assert_eq!(bx(Condition::Al, Register::R12), 0xe12f_ff1c);
+        assert_eq!(transfer_word_postindexed(Condition::Al, false, Register::R2, Register::R1, 4).unwrap(), 0xe481_2004);
+        assert_eq!(transfer_word_postindexed(Condition::Al, true, Register::R2, Register::R1, -4).unwrap(), 0xe411_2004);
+        assert!(transfer_word_postindexed(Condition::Al, false, Register::R1, Register::R1, 4096).is_err());
+        assert!(transfer_word_postindexed(Condition::Al, true, Register::R1, Register::R1, 4).is_err());
         assert_eq!(transfer_multiple(Condition::Al, true, Register::R12, Register::R0.bit() | Register::SP.bit() | Register::LR.bit(), BlockMode::DecrementAfter, true).unwrap(), 0xe83c6001);
         assert_eq!(msr_status_register(Condition::Al, true, Register::R0), 0xe16ff000);
         assert_eq!(msr_status_register(Condition::Al, false, Register::R2), 0xe12ff002);
