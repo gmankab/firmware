@@ -17,7 +17,11 @@ pub enum QriscWord {
     ControlWrite { base: u8, source: u8, reg: u16 },
     ControlRead { base: u8, dest: u8, reg: u16 },
     Branch { opcode: u8, src: u8, condition: u8, delta: i16 },
+    /// Normal return. Public QRISC ISA specifies bit 25=0; bits 0..24
+    /// are not interpreted by Mesa. Do not assume they are harmless on silicon.
     Return { ignored_bits: u32 },
+    /// Return from a preemption interrupt (bit 25=1), not a normal return.
+    InterruptReturn { ignored_bits: u32 },
     Call { target: u32 },
 }
 
@@ -45,7 +49,9 @@ impl QriscWord {
             0x30..=0x33 => Some(Self::Branch {
                 opcode, src: reg_a, condition: reg_b, delta: immediate as i16,
             }),
-            0x34 => Some(Self::Return { ignored_bits: w & 0x03ff_ffff }),
+            0x34 if w & (1 << 25) == 0 =>
+                Some(Self::Return { ignored_bits: w & 0x01ff_ffff }),
+            0x34 => Some(Self::InterruptReturn { ignored_bits: w & 0x01ff_ffff }),
             0x35 => Some(Self::Call { target: w & 0x03ff_ffff }),
             _ => None,
         }
@@ -87,9 +93,10 @@ impl QriscWord {
                 (u32::from(opcode) << 26) | (register(src)? << 21) |
                     (register(condition)? << 16) | u32::from(delta as u16)
             }
-            Self::Return { ignored_bits } => {
-                if ignored_bits > 0x03ff_ffff { return Err("return field exceeds 26 bits"); }
-                (0x34 << 26) | ignored_bits
+            Self::Return { ignored_bits } | Self::InterruptReturn { ignored_bits } => {
+                if ignored_bits > 0x01ff_ffff { return Err("return reserved bits exceed 25 bits"); }
+                (0x34 << 26) | ignored_bits |
+                    if matches!(self, Self::InterruptReturn { .. }) { 1 << 25 } else { 0 }
             }
             Self::Call { target } => {
                 if target > 0x03ff_ffff { return Err("call target exceeds 26 bits"); }
@@ -98,6 +105,15 @@ impl QriscWord {
         };
         Ok(ins)
     }
+}
+
+/// Construct the QRISC A6xx firmware header instruction from named fields.
+/// The bottom twelve bits are vendor-defined and intentionally opaque.
+pub fn firmware_header(family_id: u16, revision_bits: u16) -> Result<QriscWord, &'static str> {
+    if family_id > 0xfff || revision_bits > 0xfff {
+        return Err("firmware header component exceeds 12 bits");
+    }
+    Ok(QriscWord::Nop { metadata: (u32::from(family_id) << 12) | u32::from(revision_bits) })
 }
 
 /// Count control instructions that decode to public QRISC fields and losslessly
@@ -139,6 +155,7 @@ mod tests {
             QriscWord::Branch { opcode: 0x31, src: 2, condition: 1, delta: -5 },
             QriscWord::Return { ignored_bits: 0 },
             QriscWord::Return { ignored_bits: 1 << 24 },
+            QriscWord::InterruptReturn { ignored_bits: 0 },
             QriscWord::Call { target: 0x1024 },
         ];
         for original in &examples {
@@ -151,5 +168,9 @@ mod tests {
         assert!(QriscWord::MovImmediate { repeat:false, dst:32, shift:0, imm:5 }.encode().is_err());
         assert!(QriscWord::ImmediateAlu { opcode:0x7f, dst:0, src:0, imm:0 }.encode().is_err());
         assert_eq!(QriscWord::decode(0xffff_ffff), None);
+        assert_eq!(QriscWord::decode(0xd000_0000), Some(QriscWord::Return { ignored_bits: 0 }));
+        assert_eq!(QriscWord::decode(0xd100_0000), Some(QriscWord::Return { ignored_bits: 1 << 24 }));
+        assert_eq!(QriscWord::decode(0xd200_0000), Some(QriscWord::InterruptReturn { ignored_bits: 0 }));
+        assert!(QriscWord::Return { ignored_bits: 1 << 25 }.encode().is_err());
     }
 }

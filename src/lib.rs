@@ -3,6 +3,8 @@
 //! This is not a reconstruction of the proprietary executable firmware.
 pub mod a640_microcode;
 pub mod qrisc_codec;
+pub mod qrisc_program;
+pub mod a640_routines;
 pub mod elf32_prefix;
 pub mod elf_specs;
 pub mod wmfw_metadata;

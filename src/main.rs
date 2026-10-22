@@ -5,6 +5,19 @@ use nabu_firmware_research::{elf32_prefix::write_elf32_first_page, elf_specs::KN
 
 fn run() -> Result<(), Box<dyn Error>> {
     let args: Vec<String> = env::args().skip(1).collect();
+    if args.len() == 2 && args[0] == "verify-a640-routines" {
+        let input = fs::read(&args[1])?;
+        let layout = nabu_firmware_research::a640_microcode::inspect(&input)?;
+        let (stream, _, _) = nabu_firmware_research::a640_microcode::executable_segment(&input)?;
+        let revision = (u32::from_le_bytes(stream[..4].try_into()?) & 0xfff) as u16;
+        let entry = nabu_firmware_research::a640_routines::preemption_guard(layout.firmware_id, revision)?;
+        let idle = nabu_firmware_research::a640_routines::wait_for_idle()?;
+        if !stream.starts_with(&entry) { return Err("A640 typed Rust entry routine mismatches".into()); }
+        if !stream.ends_with(&idle) { return Err("A640 typed Rust wait routine mismatches".into()); }
+        println!("Exact match for two Rust-compiled QRISC routines: {} bytes entry, {} bytes idle ({} bytes total).", entry.len(), idle.len(), entry.len() + idle.len());
+        println!("Only these two fragments are built from typed instructions; whole segment and signed image are not rebuilt.");
+        return Ok(());
+    }
     if args.len() == 2 && args[0] == "verify-a640-isa-fields" {
         let firmware = fs::read(&args[1])?;
         let layout = nabu_firmware_research::a640_microcode::inspect(&firmware)?;
@@ -12,6 +25,26 @@ fn run() -> Result<(), Box<dyn Error>> {
         let bounds = layout.shader.as_ref().map(|s| (s.start_word, s.end_word));
         let (encodable, unknown) = nabu_firmware_research::qrisc_codec::check_isa_fields(stream, bounds)?;
         println!("QRISC field decoding/reencoding: {} control words roundtrip, {} unknown (excluding embedded IR3).", encodable, unknown);
+        // Distinguish Mesa's normal RET from IRET and summarize an
+        // otherwise undocumented bit outside the published RET operands.
+        let mut plain_return = 0;
+        let mut marked_return = 0;
+        let mut interrupt_return = 0;
+        for (i, bytes) in stream.chunks_exact(4).enumerate() {
+            if bounds.is_some_and(|(start,end)| (start..end).contains(&i)) { continue; }
+            let value = u32::from_le_bytes(bytes.try_into()?);
+            match nabu_firmware_research::qrisc_codec::QriscWord::decode(value) {
+                Some(nabu_firmware_research::qrisc_codec::QriscWord::Return { ignored_bits: 0 }) => plain_return += 1,
+                Some(nabu_firmware_research::qrisc_codec::QriscWord::Return { .. }) => marked_return += 1,
+                Some(nabu_firmware_research::qrisc_codec::QriscWord::InterruptReturn { .. }) => interrupt_return += 1,
+                _ => {}
+            }
+        }
+        let typed_id = nabu_firmware_research::qrisc_codec::firmware_header(
+            layout.firmware_id, (u32::from_le_bytes(stream[..4].try_into()?) & 0xfff) as u16
+        )?.encode()?;
+        println!("Normal RET: plain={plain_return}, uninterpreted-bits-set={marked_return}; IRET={interrupt_return}");
+        println!("Header metadata via typed Rust fields matches source: {}", typed_id.to_le_bytes() == stream[..4]);
         println!("This is encoding-field verification against OEM inputs, NOT independently authored executable source.");
         return Ok(());
     }

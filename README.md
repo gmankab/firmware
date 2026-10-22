@@ -1,5 +1,49 @@
 # Xiaomi Nabu firmware reconstruction research (partial)
 
+## New: independent QRISC assembler and two typed A640 routines (2026-10-22)
+
+The GPLv3 project now includes a label-aware, two-pass QRISC-A6xx assembler
+(`src/qrisc_program.rs`) that compiles typed Rust instructions and resolves
+relative branches and absolute calls. It distinguishes `ret` from `iret` and
+represents a previously unexplained return-word bit as an explicit,
+**uninterpreted** field. The small independent *synthetic* program compiled
+with Rust is byte-identical to Mesa `qrisc-asm` output after normalizing Mesa's
+four-byte prefix.
+
+`src/a640_routines.rs` newly authors two register-level sequences using
+public Mesa A6xx GPU register definitions and the Rust assembler:
+
+- A 16-byte firmware-header/preemption-control entry sequence.
+- A 20-byte polling/return sequence for `WFI_PEND_CTR`.
+
+These **36 bytes** match the corresponding original A640 executable-region
+bytes exactly (including 4 metadata bytes). The original instruction sequences
+informed this implementation; it is not a verified clean-room implementation
+and does not resolve the vendor code's copyright status. No OEM executable
+instruction array, IR3 payload, or signing material is embedded in the GPLv3
+repository. The other 1,932 executable-segment bytes have not been authored
+as a complete replacement program.
+
+A separate **PRIVATE** reassembly of the 1,968-byte segment still matches the
+OEM SHA-256 `e24a4f483b71ea19715910f01e1abf94280756df731cad05df48fd7714e34198`.
+That proof uses OEM-derived assembly and shader data, so it is not a GPLv3
+source reconstruction and is excluded from Git.
+
+Currently **25 Rust tests and 4 Python tests pass**; nine package source hashes
+are verified. Full-file byte-identical source rebuild status remains **1/9**.
+
+Reproduce without the firmware in the Git repository:
+
+```bash
+cargo test --offline --locked
+cargo run --offline --locked -- verify-a640-routines /path/to/a640_zap.mbn
+cargo run --offline --locked -- verify-a640-isa-fields /path/to/a640_zap.mbn
+scripts/verify-qrisc-against-mesa.sh /path/to/qrisc-asm /path/to/mesa/registers
+```
+
+For detailed limitations see [`evidence/a640-rust-stage2.md`](evidence/a640-rust-stage2.md).
+
+
 ## Latest: Mesa Freedreno toolchain verified — QRISC/IR3 A640 breakthrough (2026-10-22)
 
 The supplied Mesa 26.2.4 Freedreno tools were extracted and verified on Debian.
