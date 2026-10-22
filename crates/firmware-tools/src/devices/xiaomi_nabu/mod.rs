@@ -23,5 +23,9 @@ mod venus_runtime_services;
 mod venus_runtime_services_next;
 mod venus_runtime_dispatch;
 mod venus_runtime_queue;
+mod venus_runtime_allocator;
+mod venus_runtime_mask;
+mod venus_runtime_wrappers;
+mod venus_runtime_setup;
 
 pub mod venus_plan;
