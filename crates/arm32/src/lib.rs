@@ -65,6 +65,20 @@ pub fn transfer_word_postindexed(condition: Condition, load: bool, rd: Register,
        | (rn.number() << 16) | (rd.number() << 12) | signed_offset.unsigned_abs())
 }
 
+/// ARM A32 register-offset post-indexed word transfer (`[Rn], Rm`).
+/// Only positive, unshifted register offsets are currently supported.
+/// The base register is updated after the access, including when the
+/// transfer's source register is also used as the index.
+pub fn transfer_word_postindexed_register(condition: Condition, load: bool,
+                                         rd: Register, rn: Register, rm: Register) -> Result<u32, String> {
+    if rn == Register::PC || rm == Register::PC || (load && rd == rn) {
+        return Err("unsafe or undefined A32 register post-index addressing".into());
+    }
+    Ok(cond(condition) | 0x0680_0000
+       | if load { 1 << 20 } else { 0 }
+       | (rn.number() << 16) | (rd.number() << 12) | rm.number())
+}
+
 /// Select a legal ARM modified-immediate rotation; many 32-bit constants are
 /// intentionally not encodable with one A32 data-processing instruction.
 fn modified_immediate(value: u32) -> Result<u32, String> {
@@ -78,7 +92,7 @@ fn modified_immediate(value: u32) -> Result<u32, String> {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum DataOp { And = 0, Sub = 2, Add = 4, Tst = 8, Cmp = 10, Orr = 12, Mov = 13, Bic = 14, Mvn = 15 }
+pub enum DataOp { And = 0, Sub = 2, Rsb = 3, Add = 4, Tst = 8, Cmp = 10, Orr = 12, Mov = 13, Bic = 14, Mvn = 15 }
 
 pub fn data_immediate(condition: Condition, op: DataOp, rd: Register, rn: Register,
                       value: u32) -> Result<u32, String> {
@@ -122,6 +136,24 @@ pub fn data_register(condition: Condition, op: DataOp, rd: Register, rn: Registe
        | if flags || test { 1 << 20 } else { 0 }
        | (if test { 0 } else { rd.number() } << 12)
        | shifted_register(rm, shift, amount)?)
+}
+
+/// A32 data processing using a shift amount held in another register.
+/// Separate from the immediate-shift encoding: operand2 bit 4 is set and
+/// shift amount comes from the low byte of `rs` at execution time.
+pub fn data_register_shifted_by_register(condition: Condition, op: DataOp,
+                                         rd: Register, rn: Register, rm: Register,
+                                         shift: Shift, rs: Register,
+                                         flags: bool) -> Result<u32, String> {
+    if rs == Register::PC || rm == Register::PC {
+        return Err("PC is not a valid ARM32 shift operand".into());
+    }
+    let test = matches!(op, DataOp::Cmp | DataOp::Tst);
+    if test && flags { return Err("test opcodes always set flags".into()); }
+    Ok(cond(condition) | ((op as u32) << 21) | (rn.number() << 16)
+       | (if flags || test { 1 << 20 } else { 0 })
+       | ((if test { 0 } else { rd.number() }) << 12)
+       | (rs.number() << 8) | ((shift as u32) << 5) | 0x10 | rm.number())
 }
 
 /// STR/LDR word with a positively indexed register shifted by an immediate.
@@ -227,10 +259,16 @@ mod tests {
         assert_eq!(data_immediate_with_flags(Condition::Al, DataOp::Sub, Register::R1, Register::R1, 1, true).unwrap(), 0xe2511001);
         assert_eq!(data_register(Condition::Al, DataOp::Cmp, Register::R0, Register::R1, Register::new(4).unwrap(), Shift::Lsl, 0, false).unwrap(), 0xe1510004);
         assert_eq!(transfer_word_register(Condition::Al, false, Register::new(3).unwrap(), Register::R0, Register::R1, Shift::Lsl, 2).unwrap(), 0xe7803101);
+        assert_eq!(data_immediate(Condition::Al, DataOp::Rsb, Register::R0, Register::R0, 31).unwrap(), 0xe260001f);
+        assert_eq!(data_register_shifted_by_register(Condition::Al, DataOp::Tst, Register::R0, Register::new(7).unwrap(), Register::new(5).unwrap(), Shift::Lsl, Register::R1, false).unwrap(), 0xe1170115);
+        assert_eq!(data_register_shifted_by_register(Condition::Al, DataOp::Bic, Register::new(7).unwrap(), Register::new(7).unwrap(), Register::new(5).unwrap(), Shift::Lsl, Register::R0, false).unwrap(), 0xe1c77015);
+        assert!(data_register_shifted_by_register(Condition::Al, DataOp::Mov, Register::R1, Register::R0, Register::R1, Shift::Lsl, Register::PC, false).is_err());
         assert_eq!(mrc(Condition::Al, 15, 0, Register::R0, 1, 0, 0).unwrap(), 0xee11_0f10);
         assert_eq!(bx(Condition::Al, Register::R12), 0xe12f_ff1c);
         assert_eq!(transfer_word_postindexed(Condition::Al, false, Register::R2, Register::R1, 4).unwrap(), 0xe481_2004);
         assert_eq!(transfer_word_postindexed(Condition::Al, true, Register::R2, Register::R1, -4).unwrap(), 0xe411_2004);
+        assert_eq!(transfer_word_postindexed_register(Condition::Al, true, Register::R1, Register::R2, Register::R1).unwrap(), 0xe692_1001);
+        assert!(transfer_word_postindexed_register(Condition::Al, true, Register::PC, Register::PC, Register::R0).is_err());
         assert!(transfer_word_postindexed(Condition::Al, false, Register::R1, Register::R1, 4096).is_err());
         assert!(transfer_word_postindexed(Condition::Al, true, Register::R1, Register::R1, 4).is_err());
         assert_eq!(transfer_multiple(Condition::Al, true, Register::R12, Register::R0.bit() | Register::SP.bit() | Register::LR.bit(), BlockMode::DecrementAfter, true).unwrap(), 0xe83c6001);

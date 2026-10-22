@@ -19,5 +19,9 @@ pub mod venus_boot;
 pub mod venus_runtime;
 mod venus_runtime_tail;
 mod venus_runtime_init;
+mod venus_runtime_services;
+mod venus_runtime_services_next;
+mod venus_runtime_dispatch;
+mod venus_runtime_queue;
 
 pub mod venus_plan;
