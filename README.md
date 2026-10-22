@@ -1,6 +1,6 @@
 # Xiaomi Nabu firmware reconstruction research (partial)
 
-**Status: 1 of 9 regular files byte-identically reproduced from newly authored Rust code; 8 of 9 NOT reconstructed. This is NOT a firmware replacement.**
+**Status: 1 of 9 regular files byte-identically reproduced from newly authored Rust code; 8 of 9 NOT reconstructed. This is NOT a firmware replacement. The Hexagon compiler follow-up is described below.**
 
 This repository contains GPL-3.0-only Rust **tooling** and a structured rebuild of the small `modemuw.jsn` text configuration, plus REA / Ghidra research evidence about the firmware in the postmarketOS `firmware-xiaomi-nabu` **1-r2** Alpine package. It deliberately contains **no original proprietary firmware binaries**, and no claim that proprietary firmware has become GPLv3. See the [complete GPLv3 text](LICENSE).
 
@@ -22,12 +22,16 @@ REA produces *signature candidates* and possible embedded payloads. The 234 repo
 
 All six Qualcomm `.mbn` images contain MDT authentication/hash segments with Xiaomi-related X.509 certificate-chain information. These are not signing keys; their presence does not prove whether this particular device checks or can bypass signatures. A byte-identical proprietary signed image cannot be asserted from recovered pseudocode. The original source, a precise linker/assembler/compiler environment and possibly authorization for firmware signing are necessary to develop and test an equivalent replacement; modified signed binaries may need valid new signatures. The files have no normal ELF section tables, making reconstruction more difficult.
 
-As an additional practical toolchain limitation, Rust 1.99.1 here lists no
-`hexagon-*` or Cirrus HALO compilation target in `rustc --print target-list`.
-A C-like Hexagon decompilation cannot simply be fed to standard `rustc` to
-produce executable Hexagon firmware; an appropriate Rust backend/runtime and
-platform-specific linker/image builder would be needed even if the program
-logic had been independently reimplemented.
+**Follow-up correction:** the supplied Rust 1.99.1 toolchain DOES list
+`hexagon-unknown-none-elf`, `hexagon-unknown-qurt`, and
+`hexagon-unknown-linux-musl`. We built a separate GPLv3 `no_std`
+Hexagon static library offline by rebuilding `core` using the supplied
+Rust source and vendored dependencies. See
+`evidence/additional-tooling-followup.md`. This proves that Hexagon
+Rust machine-code generation is possible here; it does **not** imply
+the original Hexagon binaries can be regenerated from Ghidra C text,
+or that HALO/Novatek, signing, layout and firmware-runtime requirements
+are addressed.
 
 ## Tested partial build
 
@@ -117,6 +121,15 @@ Resource budgets are controlled by `ANALYSIS_SEC`, `DECOMP_SEC` and
 `GHIDRA_HEADLESS_MAXMEM`. Large images need more than a single 95-second
 function pass. For reproducibility, keep the original firmware package
 unchanged and compare files to `evidence/apk-files.sha256`.
+
+## 2026-10-22 additional-tooling follow-up
+
+The supplied Rust sources and vendored dependencies enabled a successful
+**offline bare-metal Hexagon Rust compilation test**, independent of any
+proprietary firmware. `scripts/build-hexagon-probe.sh` reproduces that result.
+A second Ghidra Hexagon decoder did not resolve the A640 entry-point error.
+The remaining original firmware outputs are **not** byte-identically rebuilt.
+Read `evidence/additional-tooling-followup.md` for details.
 
 ## Signing and Nabu boot
 

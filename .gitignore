@@ -7,3 +7,4 @@
 *.wmfw
 *.fw
 !/.gitignore
+/probes/hexagon/target/
