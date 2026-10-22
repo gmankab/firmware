@@ -21,5 +21,5 @@ cargo -Z build-std=core --offline \
     --manifest-path "$ROOT/probes/hexagon/Cargo.toml"
 A="$ROOT/probes/hexagon/target/hexagon-unknown-none-elf/release/libnabu_hexagon_compiler_probe.a"
 test -s "$A"
-readelf -h "$A" | grep -q 'QUALCOMM DSP6 Processor'
+readelf -h "$A" | grep 'QUALCOMM DSP6 Processor' >/dev/null
 echo "Verified Hexagon machine code in $A; this is not a firmware rebuild"
