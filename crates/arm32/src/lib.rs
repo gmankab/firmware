@@ -88,6 +88,32 @@ pub fn transfer_byte_postindexed(condition: Condition, load: bool, rd: Register,
     Ok(transfer_word_postindexed(condition, load, rd, rn, signed_offset)? | (1 << 22))
 }
 
+/// ARM A32 LDRSB immediate offset: sign-extend one byte into a register.
+/// Supports a signed, pre-indexed 8-bit displacement without base writeback.
+/// These extra load/store instruction encodings split imm8 across two nibbles.
+pub fn load_signed_byte(condition: Condition, rd: Register, rn: Register,
+                        signed_offset: i32) -> Result<u32, String> {
+    if rd == Register::PC || rn == Register::PC || signed_offset.unsigned_abs() > 255 {
+        return Err("invalid ARM32 signed-byte load operands".into());
+    }
+    let magnitude = signed_offset.unsigned_abs();
+    Ok(cond(condition) | 0x0150_00d0
+        | if signed_offset >= 0 { 1 << 23 } else { 0 }
+        | (rn.number() << 16) | (rd.number() << 12)
+        | ((magnitude & 0xf0) << 4) | (magnitude & 0x0f))
+}
+
+/// A32 immediate byte transfer with pre-indexed writeback (`[Rn, #imm]!`).
+/// Rejects ambiguous load-into-base and use of PC as the modified base.
+pub fn transfer_byte_preindexed_writeback(condition: Condition, load: bool,
+                                          rd: Register, rn: Register,
+                                          signed_offset: i32) -> Result<u32, String> {
+    if rn == Register::PC || (load && rd == rn) || signed_offset.unsigned_abs() > 4095 {
+        return Err("invalid ARM32 byte transfer with pre-index writeback".into());
+    }
+    Ok(transfer_byte(condition, load, rd, rn, signed_offset)? | (1 << 21))
+}
+
 /// ARM A32 STRH with post-indexed signed immediate offset (8-bit field).
 pub fn store_halfword_postindexed(condition: Condition, rd: Register, rn: Register,
                                   signed_offset: i32) -> Result<u32, String> {
@@ -99,6 +125,20 @@ pub fn store_halfword_postindexed(condition: Condition, rd: Register, rn: Regist
        | if signed_offset >= 0 { 1 << 23 } else { 0 }
        | (rn.number() << 16) | (rd.number() << 12)
        | ((magnitude & 0xf0) << 4) | (magnitude & 0x0f))
+}
+
+/// A32 immediate-offset halfword store (`STRH Rt, [Rn, #imm]`).
+/// The split 8-bit displacement is checked and assembled from its nibbles.
+pub fn store_halfword(condition: Condition, rd: Register, rn: Register,
+                      signed_offset: i32) -> Result<u32, String> {
+    if rd == Register::PC || rn == Register::PC || signed_offset.unsigned_abs() > 255 {
+        return Err("invalid ARM32 halfword store operands".into());
+    }
+    let magnitude = signed_offset.unsigned_abs();
+    Ok(cond(condition) | 0x0140_00b0
+        | if signed_offset >= 0 { 1 << 23 } else { 0 }
+        | (rn.number() << 16) | (rd.number() << 12)
+        | ((magnitude & 0xf0) << 4) | (magnitude & 0x0f))
 }
 
 /// ARM A32 register-offset post-indexed word transfer (`[Rn], Rm`).
@@ -115,6 +155,37 @@ pub fn transfer_word_postindexed_register(condition: Condition, load: bool,
        | (rn.number() << 16) | (rd.number() << 12) | rm.number())
 }
 
+/// A32 pre-indexed register-offset word transfer with writeback.
+/// The offset is `Rm << amount`. Register fields are validated independently,
+/// and PC cannot be modified as the address base.
+pub fn transfer_word_register_preindexed_writeback(
+    condition: Condition, load: bool, rd: Register, rn: Register,
+    rm: Register, shift: Shift, amount: u8,
+) -> Result<u32, String> {
+    if rn == Register::PC || rm == Register::PC || (load && rd == rn) {
+        return Err("invalid A32 pre-indexed register transfer with writeback".into());
+    }
+    Ok(transfer_word_register(condition, load, rd, rn, rm, shift, amount)? | (1 << 21))
+}
+
+/// ARM A32 register-indexed pre-indexed byte load/store without writeback.
+pub fn transfer_byte_register(condition: Condition, load: bool, rd: Register,
+                              rn: Register, rm: Register,
+                              shift: Shift, amount: u8) -> Result<u32, String> {
+    Ok(transfer_word_register(condition, load, rd, rn, rm, shift, amount)? | (1 << 22))
+}
+
+/// A32 MLA: multiply two registers and add a third, without flag updates.
+/// The destination may alias an input, but PC is forbidden in each operand.
+pub fn multiply_accumulate(condition: Condition, rd: Register, rm: Register,
+                           rs: Register, addend: Register) -> Result<u32, String> {
+    if [rd, rm, rs, addend].contains(&Register::PC) {
+        return Err("PC is not permitted in A32 MLA operands".into());
+    }
+    Ok(cond(condition) | 0x0020_0090 | (rd.number() << 16)
+       | (addend.number() << 12) | (rs.number() << 8) | rm.number())
+}
+
 /// Select a legal ARM modified-immediate rotation; many 32-bit constants are
 /// intentionally not encodable with one A32 data-processing instruction.
 fn modified_immediate(value: u32) -> Result<u32, String> {
@@ -128,7 +199,7 @@ fn modified_immediate(value: u32) -> Result<u32, String> {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum DataOp { And = 0, Eor = 1, Sub = 2, Rsb = 3, Add = 4, Tst = 8, Cmp = 10, Orr = 12, Mov = 13, Bic = 14, Mvn = 15 }
+pub enum DataOp { And = 0, Eor = 1, Sub = 2, Rsb = 3, Add = 4, Sbc = 6, Rsc = 7, Tst = 8, Cmp = 10, Orr = 12, Mov = 13, Bic = 14, Mvn = 15 }
 
 pub fn data_immediate(condition: Condition, op: DataOp, rd: Register, rn: Register,
                       value: u32) -> Result<u32, String> {
@@ -299,6 +370,52 @@ mod tests {
         assert_eq!(branch(Condition::Al, 0x5c, 0x308, false).unwrap(), 0xea00_00a9);
         assert_eq!(branch(Condition::Eq, 0xa0, 0x94, false).unwrap(), 0x0aff_fffb);
         assert_eq!(mov_register(Condition::Al, Register::R0, Register::R0), 0xe1a0_0000);
+    }
+    #[test]
+    fn halfword_and_carry_aware_arithmetic() {
+        assert_eq!(store_halfword(Condition::Al, Register::new(4).unwrap(),
+            Register::R0, 0).unwrap(), 0xe1c0_40b0);
+        assert_eq!(data_immediate_with_flags(Condition::Al, DataOp::Rsb,
+            Register::R1, Register::R1, 0, true).unwrap(), 0xe271_1000);
+        assert_eq!(data_immediate(Condition::Al, DataOp::Rsc,
+            Register::R0, Register::R0, 0).unwrap(), 0xe2e0_0000);
+        assert!(store_halfword(Condition::Al, Register::PC,
+            Register::R1, 0).is_err());
+        assert!(store_halfword(Condition::Al, Register::R1,
+            Register::R0, -256).is_err());
+    }
+    #[test]
+    fn indexed_transfers_and_multiply_accumulate() {
+        let r3 = Register::new(3).unwrap();
+        let r4 = Register::new(4).unwrap();
+        let r5 = Register::new(5).unwrap();
+        let r9 = Register::new(9).unwrap();
+        assert_eq!(multiply_accumulate(Condition::Al, Register::R1, r5, r3, r9).unwrap(), 0xe021_9395);
+        assert_eq!(transfer_byte_register(Condition::Al, true, Register::R1,
+            Register::R1, Register::R0, Shift::Lsl, 0).unwrap(), 0xe7d1_1000);
+        assert_eq!(transfer_word_register_preindexed_writeback(Condition::Al, true,
+            Register::R1, Register::R0, r4, Shift::Lsl, 3).unwrap(), 0xe7b0_1184);
+        assert!(multiply_accumulate(Condition::Al, Register::PC, r5, r3, r9).is_err());
+        assert!(transfer_word_register_preindexed_writeback(Condition::Al, true,
+            Register::R0, Register::R0, r4, Shift::Lsl, 0).is_err());
+    }
+    #[test]
+    fn byte_preindexed_writeback_encoding() {
+        assert_eq!(transfer_byte_preindexed_writeback(Condition::Al, true,
+            Register::R1, Register::R0, 1).unwrap(), 0xe5f0_1001);
+        assert!(transfer_byte_preindexed_writeback(Condition::Al, true,
+            Register::R0, Register::R0, 1).is_err());
+        assert!(transfer_byte_preindexed_writeback(Condition::Al, false,
+            Register::R1, Register::PC, 1).is_err());
+    }
+    #[test]
+    fn signed_byte_load_encoding_and_rejections() {
+        let r4 = Register::new(4).unwrap();
+        assert_eq!(load_signed_byte(Condition::Al, Register::R1, r4, 74).unwrap(), 0xe1d4_14da);
+        assert_eq!(load_signed_byte(Condition::Eq, Register::R2, Register::R0, -15).unwrap(), 0x0150_20df);
+        assert!(load_signed_byte(Condition::Al, Register::PC, r4, 2).is_err());
+        assert!(load_signed_byte(Condition::Al, Register::R1, Register::PC, 2).is_err());
+        assert!(load_signed_byte(Condition::Al, Register::R1, r4, 256).is_err());
     }
     #[test]
     fn immediate_and_transfer_encoding_and_rejections() {

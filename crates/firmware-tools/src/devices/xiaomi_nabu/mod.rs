@@ -37,5 +37,9 @@ mod venus_runtime_ctors;
 mod venus_runtime_memfill;
 mod venus_runtime_strings;
 mod venus_runtime_exit;
+mod venus_runtime_resource_update;
+mod venus_runtime_formatter;
+mod venus_runtime_format_dispatch;
+mod venus_runtime_format_numbers;
 
 pub mod venus_plan;
