@@ -18,7 +18,6 @@ sudo dnf install -y \
 Debian/Ubuntu dependencies:
 
 ```sh
-# Debian / Ubuntu; packages installed through the distribution package manager
 sudo apt-get update
 sudo apt-get install -y \
   git ca-certificates curl file binutils xxd python3 \
@@ -26,7 +25,7 @@ sudo apt-get install -y \
   cmake meson ninja-build flex bison libexpat1-dev libdrm-dev
 ```
 
-Install a Rust toolchain (`rustc`, `cargo` and optionally `rustfmt`), and make sure `cargo --version` and `rustc --version` work. The current source builds with Rust 1.99.1. For headless Ghidra install **JDK 21 or newer as supported by the release**; Ghidra 12.1.4 requires JDK 21. Verify `java -version` and consult the [12.1.4 setup guide](https://www.ghidradocs.com/12.1.4_PUBLIC/GettingStarted.html).
+Install a Rust toolchain (`rustc`, `cargo` and optionally `rustfmt`). The current source builds with Rust 1.99.1. For headless Ghidra install **JDK 21 or newer as supported by the release**; Ghidra 12.1.4 requires JDK 21. Consult the [12.1.4 setup guide](https://www.ghidradocs.com/12.1.4_PUBLIC/GettingStarted.html).
 
 Use a predictable directory layout **outside the Git checkout**:
 
