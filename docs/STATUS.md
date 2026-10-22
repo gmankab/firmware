@@ -9,7 +9,7 @@ Updated **23 October 2026**. The goal is reproducible, working firmware from aud
 | `modemuw.jsn` | **713 / 713 bytes**, complete configuration | No executable code; full reference file rebuilt |
 | `a640_zap.mbn` | **1,968 / 1,968 executable bytes**; **7,856 / 14,256 complete-file bytes (55.1%)** | OEM signature (256 bytes) and certificate field (6,144 bytes) remain external inputs; no independent signing, verified shader semantics or device testing |
 | `adsp.mbn`, `cdsp.mbn`, `modem.mbn`, `wlanmdsp.mbn` | Exact 4 KiB ELF metadata prefix; SHA-384 reference segment hashes independently validated | Hexagon V66 programs, additional data and cryptographic authentication |
-| `venus.mbn` | Exact 4 KiB ELF metadata prefix; **15,328 contiguous ARM32 boot/runtime bytes** at file offset `0x4000` (including a 4,096-byte page with verified zero-fill); SHA-384 table and OEM signature checked | Remaining ARM32 program, data and independent authentication |
+| `venus.mbn` | Exact 4 KiB ELF metadata prefix; **16,340 contiguous ARM32 boot/runtime bytes** at file offset `0x4000` (including a 4,096-byte page with verified zero-fill); SHA-384 table and OEM signature checked | Remaining ARM32 program, data and independent authentication |
 | `cs35l41-dsp1-spk-prot.wmfw` | 128 bytes of container metadata | Cirrus HALO DSP program and payloads |
 | `novatek_nt36523_fw.bin` | Verified source-file revision and SHA-256 | Identify processor ISA and reconstruct program and container |
 
@@ -36,7 +36,7 @@ The independently generated container gap is **`0x1138–0x2a38` (6,400 bytes)**
 
 ## Verification
 
-The Rust workspace has **98 unit tests** and the Python suite has **13 tests**; perform the full local check with:
+The Rust workspace has **102 unit tests** and the Python suite has **13 tests**; perform the full local check with:
 
 ```sh
 cargo test --workspace --offline --locked
@@ -52,13 +52,13 @@ cargo run --offline --locked -p firmware-tools -- \
   verify-mbnv6-hashes /private/a640_zap.mbn
 ```
 
-The generic `verify-mbnv6-hashes` also succeeds on `adsp.mbn`, `cdsp.mbn`, `modem.mbn`, `venus.mbn` and `wlanmdsp.mbn` from the verified postmarketOS package. It checks segment-data integrity using SHA-384; **it does not verify signatures or hardware trust**. Separately, `tools/verify-mbn-signatures.py` verifies the OEM RSA-PSS/SHA-256 signature and internal certificate chain on all six Nabu MBNs, and supports future compatible ELF32/MBNv6 images. All six share the same embedded Xiaomi root. Hardware trust remains unverified. `tools/verify-xiaomi-nabu.sh /private/firmware-tree` performs all six SHA-384 table checks, nine file hashes, generated metadata and executable comparisons, and the 15,328-byte Venus boot/runtime comparison. When OpenSSL is available it also verifies each OEM RSA-PSS signature and embedded X.509 chain.
+The generic `verify-mbnv6-hashes` also succeeds on `adsp.mbn`, `cdsp.mbn`, `modem.mbn`, `venus.mbn` and `wlanmdsp.mbn` from the verified postmarketOS package. It checks segment-data integrity using SHA-384; **it does not verify signatures or hardware trust**. Separately, `tools/verify-mbn-signatures.py` verifies the OEM RSA-PSS/SHA-256 signature and internal certificate chain on all six Nabu MBNs, and supports future compatible ELF32/MBNv6 images. All six share the same embedded Xiaomi root. Hardware trust remains unverified. `tools/verify-xiaomi-nabu.sh /private/firmware-tree` performs all six SHA-384 table checks, nine file hashes, generated metadata and executable comparisons, and the 16,340-byte Venus boot/runtime comparison. When OpenSSL is available it also verifies each OEM RSA-PSS signature and embedded X.509 chain.
 
 ## Next engineering priorities
 
 1. Validate the exceptional IR3 synchronization instruction's actual behavior using the public ISA and, eventually, hardware traces. Preserve the current encoding-exact but semantics-unverified label.
 2. Determine whether a redistributable replacement can satisfy independent firmware authentication requirements. **Regenerating an existing OEM signature requires its signing key or the original signed data.** Merely regenerating the hash table does not suffice. Do not put original OEM certificates or signatures into GPLv3 source and claim that they were relicensed.
-3. Continue Venus ARM32 boot and runtime reconstruction beyond the first verified 15,328 contiguous bytes; establish each new code/data boundary using multiple disassemblers and direct byte comparisons.
+3. Continue Venus ARM32 boot and runtime reconstruction beyond the first verified 16,340 contiguous bytes; establish each new code/data boundary using multiple disassemblers and direct byte comparisons.
 4. Add other devices through separate device modules, reusing the generic MBNv6 verification, image-layout builder and appropriate ISA encoders.
 5. Test a fully authenticated firmware image on recoverable hardware before describing it as usable firmware.
 

@@ -41,5 +41,8 @@ mod venus_runtime_resource_update;
 mod venus_runtime_formatter;
 mod venus_runtime_format_dispatch;
 mod venus_runtime_format_numbers;
+mod venus_runtime_format_output;
+mod venus_runtime_format_strings;
+mod venus_runtime_format_finish;
 
 pub mod venus_plan;

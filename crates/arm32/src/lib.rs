@@ -141,6 +141,13 @@ pub fn store_halfword(condition: Condition, rd: Register, rn: Register,
         | ((magnitude & 0xf0) << 4) | (magnitude & 0x0f))
 }
 
+/// A32 immediate-offset halfword load (`LDRH Rt, [Rn, #imm]`).
+/// Uses the same split immediate as STRH with the load bit enabled.
+pub fn load_halfword(condition: Condition, rd: Register, rn: Register,
+                     signed_offset: i32) -> Result<u32, String> {
+    Ok(store_halfword(condition, rd, rn, signed_offset)? | (1 << 20))
+}
+
 /// ARM A32 register-offset post-indexed word transfer (`[Rn], Rm`).
 /// Only positive, unshifted register offsets are currently supported.
 /// The base register is updated after the access, including when the
@@ -370,6 +377,13 @@ mod tests {
         assert_eq!(branch(Condition::Al, 0x5c, 0x308, false).unwrap(), 0xea00_00a9);
         assert_eq!(branch(Condition::Eq, 0xa0, 0x94, false).unwrap(), 0x0aff_fffb);
         assert_eq!(mov_register(Condition::Al, Register::R0, Register::R0), 0xe1a0_0000);
+    }
+    #[test]
+    fn halfword_load_encoding() {
+        assert_eq!(load_halfword(Condition::Al, Register::new(3).unwrap(),
+            Register::R0, 0).unwrap(), 0xe1d0_30b0);
+        assert!(load_halfword(Condition::Al, Register::R0,
+            Register::R1, -256).is_err());
     }
     #[test]
     fn halfword_and_carry_aware_arithmetic() {
