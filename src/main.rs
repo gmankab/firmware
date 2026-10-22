@@ -5,6 +5,34 @@ use nabu_firmware_research::{elf32_prefix::write_elf32_first_page, elf_specs::KN
 
 fn run() -> Result<(), Box<dyn Error>> {
     let args: Vec<String> = env::args().skip(1).collect();
+    if args.len() == 2 && args[0] == "verify-a640-isa-fields" {
+        let firmware = fs::read(&args[1])?;
+        let layout = nabu_firmware_research::a640_microcode::inspect(&firmware)?;
+        let (stream, _, _) = nabu_firmware_research::a640_microcode::executable_segment(&firmware)?;
+        let bounds = layout.shader.as_ref().map(|s| (s.start_word, s.end_word));
+        let (encodable, unknown) = nabu_firmware_research::qrisc_codec::check_isa_fields(stream, bounds)?;
+        println!("QRISC field decoding/reencoding: {} control words roundtrip, {} unknown (excluding embedded IR3).", encodable, unknown);
+        println!("This is encoding-field verification against OEM inputs, NOT independently authored executable source.");
+        return Ok(());
+    }
+    if args.len() == 3 && args[0] == "extract-a640-isa" {
+        let firmware = fs::read(&args[1])?;
+        let layout = nabu_firmware_research::a640_microcode::inspect(&firmware)?;
+        let (segment, _, _) = nabu_firmware_research::a640_microcode::executable_segment(&firmware)?;
+        let output = PathBuf::from(&args[2]);
+        fs::create_dir_all(&output)?;
+        fs::write(output.join("a640-qrisc-pf_x.bin"), segment)?;
+        if let Some(shader) = &layout.shader {
+            fs::write(output.join("a640-candidate-ir3.bin"), &segment[shader.start_word*4..shader.end_word*4])?;
+        }
+        println!("A640: {} words, firmware-ID 0x{:03x}, branch={} call={} return={}",
+            layout.total_words, layout.firmware_id, layout.qrisc_branches, layout.qrisc_calls, layout.qrisc_returns);
+        if let Some(s) = &layout.shader {
+            println!("IR3 CANDIDATE ONLY: segment words {}..{}, {} slots; independently validate with ir3-disasm", s.start_word, s.end_word, s.ir3_slots());
+        } else { println!("No embedded IR3 region recognized by limited jump-over-data heuristic"); }
+        println!("Analysis-only files written to {}; NOT firmware build outputs", output.display());
+        return Ok(());
+    }
     if args.len() == 3 && args[0] == "make-ghidra-bootstrap" {
         let original = fs::read(&args[1])?;
         let prepared = make_ghidra_bootstrap_view(&original)?;
@@ -42,7 +70,8 @@ fn run() -> Result<(), Box<dyn Error>> {
     }
     if args.len() != 2 {
         return Err("usage: nabu-firmware-research <rebuild-modemuw|verify-modemuw|inspect-elf32|inspect-image> PATH \
-            OR make-ghidra-bootstrap ORIGINAL OUTPUT-ANALYSIS-ONLY OR rebuild-elf-prefix NAME OUTPUT OR verify-elf-prefix NAME ORIGINAL".into());
+            OR make-ghidra-bootstrap ORIGINAL OUTPUT-ANALYSIS-ONLY OR rebuild-elf-prefix NAME OUTPUT OR verify-elf-prefix NAME ORIGINAL \
+            OR extract-a640-isa ORIGINAL_MBN OUTDIR OR verify-a640-isa-fields ORIGINAL_MBN".into());
     }
     let target = PathBuf::from(&args[1]);
     match args[0].as_str() {

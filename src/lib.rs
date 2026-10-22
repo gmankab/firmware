@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-only
 //! Restricted, source-level reconstruction of the *text configuration* modemuw.jsn.
 //! This is not a reconstruction of the proprietary executable firmware.
+pub mod a640_microcode;
+pub mod qrisc_codec;
 pub mod elf32_prefix;
 pub mod elf_specs;
 pub mod wmfw_metadata;

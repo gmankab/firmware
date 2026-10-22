@@ -1,5 +1,25 @@
 # Xiaomi Nabu firmware reconstruction research (partial)
 
+## Latest: Mesa Freedreno toolchain verified — QRISC/IR3 A640 breakthrough (2026-10-22)
+
+The supplied Mesa 26.2.4 Freedreno tools were extracted and verified on Debian.
+A640's executable-marked image is **not reliably Hexagon V4 code** despite its
+ELF wrapper: the correct structural interpretation is QRISC control code with
+an embedded 512-byte IR3 shader. Mesa decodes 363/363 QRISC control instructions
+(excluding one ID header) and 63/64 IR3 slots. A private OEM-derived assembly
+roundtrip produced all **1,968 executable segment bytes** identically after
+accounting for a Mesa output prefix, the unknown `0x6ff` firmware ID, and four
+non-canonical `ret` encodings. This **is not independently authored Rust
+firmware** and is not committed to this GPL repository.
+
+New `src/a640_microcode.rs` and `src/qrisc_codec.rs` provide format-aware Rust
+segmentation and a typed instruction field codec: on the original image,
+364/364 control-region words can be losslessly decoded and reencoded. This is
+**encoding verification of OEM inputs**, not behavioral reverse engineering.
+All 19 Rust tests pass. See [the complete follow-up](evidence/a640-qrisc-ir3-analysis.md)
+and run `scripts/analyze-a640-mesa.sh` with the unpacked Freedreno toolchain.
+Whole-file independently rebuilt status **remains 1/9**.
+
 ## Latest: post-toolchain continuation (2026-10-22)
 
 The separately provided LLVM 6.0.1 and Rizin 0.9.1 tools run on Debian 13. LLVM 6 recognizes only **270 of 492** A640 PF_X four-byte words as nominal Hexagon V4 instructions. **A640 is not yet validly decompiled**; misidentifying the microcode ISA would corrupt any attempted Rust rewrite. We added analysis-only ELF section views, input-provenance verification (including a corrected Novatek version), and a QRISC/IR3 hypothesis test for the Adreno A640. See [`evidence/freedreno-isa-followup.md`](evidence/freedreno-isa-followup.md).
@@ -26,7 +46,7 @@ This repository contains GPL-3.0-only Rust **tooling** and a structured rebuild 
 | `qcom/sm8150/Xiaomi/nabu/venus.mbn` | 1,159,200 | 1 | No |
 | `qcom/sm8150/Xiaomi/nabu/wlanmdsp.mbn` | 4,331,136 | 50 | No |
 
-REA produces *signature candidates* and possible embedded payloads. The 234 reported matches do **not** mean 234 extracted functions or recoverable sources; many are incidental short zlib and GPG-looking byte sequences. `a640_zap.mbn` is an ELF32 Qualcomm Hexagon executable. REA/Ghidra reported only one entry function, with an invalid-instruction warning, before terminating the recovered control flow with `halt_baddata()`. No valid executable reconstruction followed. `venus.mbn` is a stripped ELF32 ARM executable: a subsequent direct Ghidra headless run decompiled 1,588 of 1,593 identified functions. Earlier REA/Ghidra overview sessions timed out.
+REA produces *signature candidates* and possible embedded payloads. The 234 reported matches do **not** mean 234 extracted functions or recoverable sources; many are incidental short zlib and GPG-looking byte sequences. `a640_zap.mbn` has an ELF32 wrapper tagged Qualcomm Hexagon, but the executable payload is QRISC with embedded IR3 (see the latest analysis). The earlier REA/Ghidra Hexagon attempt reported only one entry function, with an invalid-instruction warning, before terminating the recovered control flow with `halt_baddata()`. No valid executable reconstruction followed. `venus.mbn` is a stripped ELF32 ARM executable: a subsequent direct Ghidra headless run decompiled 1,588 of 1,593 identified functions. Earlier REA/Ghidra overview sessions timed out.
 
 All six Qualcomm `.mbn` images contain MDT authentication/hash segments with Xiaomi-related X.509 certificate-chain information. These are not signing keys; their presence does not prove whether this particular device checks or can bypass signatures. A byte-identical proprietary signed image cannot be asserted from recovered pseudocode. The original source, a precise linker/assembler/compiler environment and possibly authorization for firmware signing are necessary to develop and test an equivalent replacement; modified signed binaries may need valid new signatures. The files have no normal ELF section tables, making reconstruction more difficult.
 
