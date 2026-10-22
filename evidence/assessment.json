@@ -1,0 +1,175 @@
+{
+  "decompilation": {
+    "a640_zap.mbn": {
+      "decompile_success": false,
+      "procedure_count": 1,
+      "provider": "REA/Ghidra",
+      "reason": "Ghidra entry function contains WARNING: Control flow encountered bad instruction data; halt_baddata(); cannot reconstruct original executable."
+    },
+    "venus.mbn": {
+      "decompile_success": false,
+      "provider": "REA/Ghidra",
+      "reason": "Ghidra overview request did not finish before executor timeout; no reconstruction evidence."
+    }
+  },
+  "files": [
+    {
+      "bytes": 34236,
+      "path": "cirrus/cs35l41-dsp1-spk-prot.wmfw",
+      "rea": {
+        "binwalk_region_matches": 0,
+        "caution": "No Binwalk signatures detected; does not imply no executable code.",
+        "matched_signatures": {},
+        "version": "3.1.0"
+      },
+      "reconstructed_from_rust_source": false,
+      "sha256": "d1bea27e41001024eb3878276292b5bcc0cda4484ffced0880e12c03ec9bac2c"
+    },
+    {
+      "bytes": 196608,
+      "path": "novatek/novatek_nt36523_fw.bin",
+      "rea": {
+        "binwalk_region_matches": 0,
+        "caution": "No Binwalk signatures detected; does not imply no executable code.",
+        "matched_signatures": {},
+        "version": "3.1.0"
+      },
+      "reconstructed_from_rust_source": false,
+      "sha256": "8b845514621ebfd95759a0919f3aa3d825314abb478a7cad1c3fb4c6872b70b5"
+    },
+    {
+      "bytes": 14256,
+      "path": "qcom/sm8150/Xiaomi/nabu/a640_zap.mbn",
+      "rea": {
+        "binwalk_region_matches": 0,
+        "caution": "No Binwalk signatures detected; does not imply no executable code.",
+        "matched_signatures": {},
+        "version": "3.1.0"
+      },
+      "reconstructed_from_rust_source": false,
+      "sha256": "bb1b61bae977aab5e5a68bd88848f4479c8d156911d96c7de73f7195b674db06"
+    },
+    {
+      "bytes": 14430684,
+      "path": "qcom/sm8150/Xiaomi/nabu/adsp.mbn",
+      "rea": {
+        "binwalk_region_matches": 80,
+        "caution": "Signature candidates are not validated embedded partitions or source code.",
+        "matched_signatures": {
+          "copyright": 4,
+          "crc32": 2,
+          "gpg_signed": 15,
+          "sha256": 2,
+          "zlib": 57
+        },
+        "version": "3.1.0"
+      },
+      "reconstructed_from_rust_source": false,
+      "sha256": "4b579e5dc1333d634e5bdc93f3314e357e0e30dab7140833f6cc7aef086b1c1e"
+    },
+    {
+      "bytes": 9455252,
+      "path": "qcom/sm8150/Xiaomi/nabu/cdsp.mbn",
+      "rea": {
+        "binwalk_region_matches": 72,
+        "caution": "Signature candidates are not validated embedded partitions or source code.",
+        "matched_signatures": {
+          "copyright": 3,
+          "gpg_signed": 43,
+          "sha256": 1,
+          "zlib": 25
+        },
+        "version": "3.1.0"
+      },
+      "reconstructed_from_rust_source": false,
+      "sha256": "febeae7b8e47bad4eeabc159a3c24b74cda26dfa12b384c31de5de30817e06ea"
+    },
+    {
+      "bytes": 5101612,
+      "path": "qcom/sm8150/Xiaomi/nabu/modem.mbn",
+      "rea": {
+        "binwalk_region_matches": 31,
+        "caution": "Signature candidates are not validated embedded partitions or source code.",
+        "matched_signatures": {
+          "aes_sbox": 1,
+          "copyright": 4,
+          "crc32": 2,
+          "gpg_signed": 3,
+          "sha256": 1,
+          "zlib": 20
+        },
+        "version": "3.1.0"
+      },
+      "reconstructed_from_rust_source": false,
+      "sha256": "6f5cb32bc10e41abb40938d185805e788f5637a41d3ebcef278e4e169fc36782"
+    },
+    {
+      "bytes": 713,
+      "path": "qcom/sm8150/Xiaomi/nabu/modemuw.jsn",
+      "rea": {
+        "binwalk_region_matches": 0,
+        "caution": "No Binwalk signatures detected; does not imply no executable code.",
+        "matched_signatures": {},
+        "version": "3.1.0"
+      },
+      "reconstructed_from_rust_source": true,
+      "sha256": "e75d94b61df3e86c5b3f7a976d93f726cb85f2b897a8ea80a0924b9bb9c1a3bf"
+    },
+    {
+      "bytes": 1159200,
+      "path": "qcom/sm8150/Xiaomi/nabu/venus.mbn",
+      "rea": {
+        "binwalk_region_matches": 1,
+        "caution": "Signature candidates are not validated embedded partitions or source code.",
+        "matched_signatures": {
+          "elf": 1
+        },
+        "version": "3.1.0"
+      },
+      "reconstructed_from_rust_source": false,
+      "sha256": "9d4af65d7ede845e900f1b29ff425b7a8e2947056e695e246e58a2091445a085"
+    },
+    {
+      "bytes": 4331136,
+      "path": "qcom/sm8150/Xiaomi/nabu/wlanmdsp.mbn",
+      "rea": {
+        "binwalk_region_matches": 50,
+        "caution": "Signature candidates are not validated embedded partitions or source code.",
+        "matched_signatures": {
+          "aes_sbox": 1,
+          "crc32": 2,
+          "gpg_signed": 4,
+          "sha256": 2,
+          "zlib": 41
+        },
+        "version": "3.1.0"
+      },
+      "reconstructed_from_rust_source": false,
+      "sha256": "87c2c7bb1fe97eaf007a947832feba0898644b4d6626ac8ef49d8b94dd82604b"
+    }
+  ],
+  "overall_identical_9_firmware_files": false,
+  "rebuilt": {
+    "modemuw.jsn": {
+      "byte_identical": true,
+      "bytes": 713,
+      "sha256": "e75d94b61df3e86c5b3f7a976d93f726cb85f2b897a8ea80a0924b9bb9c1a3bf"
+    }
+  },
+  "scope_note": "Source code in this repo is GPL-3.0-only. Proprietary binary inputs and original firmware are not relicensed or included.",
+  "toolchain": {
+    "binwalk": "3.1.0",
+    "ghidra": "12.1.4",
+    "java": "OpenJDK 21",
+    "rea": "6.7.0",
+    "rust": "1.99.1"
+  },
+  "upstream_package": {
+    "apk_sha256": "dbf74e630631792f9fc8b94829403cb77185efa3db60e5ca230a1a603edd94a4",
+    "arch": "aarch64",
+    "license_declared": "proprietary",
+    "name": "firmware-xiaomi-nabu",
+    "repository": "https://gitlab.postmarketos.org/panpanpanpan/nabu-firmware",
+    "version": "1-r2"
+  }
+}

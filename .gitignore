@@ -1,0 +1,9 @@
+/target
+/out
+/tmp
+*.apk
+*.mbn
+*.bin
+*.wmfw
+*.fw
+!/.gitignore
