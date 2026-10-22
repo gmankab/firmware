@@ -29,8 +29,8 @@ mod tests {
     #[test]
     fn strict_contiguous_venus_boot_region() {
         let plan = first_contiguous_region().unwrap();
-        assert_eq!(plan.total_bytes(), 11004);
-        assert_eq!(plan.filled_bytes(), 11004);
+        assert_eq!(plan.total_bytes(), 12568);
+        assert_eq!(plan.filled_bytes(), 12568);
         assert!(plan.holes().is_empty());
         assert_eq!(plan.regions().len(), 2);
         assert!(plan.build_complete().is_ok());

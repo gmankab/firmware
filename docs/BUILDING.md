@@ -96,7 +96,7 @@ cargo run --offline --locked -p firmware-tools -- \
   verify-venus-contiguous-boot /private/venus.mbn
 ```
 
-The generated region spans **11,004 consecutive bytes** at file offset `0x4000`. It includes 4,096 bytes of boot-page content (1,076 bytes of structured ARM32 code and constants, and 3,020 bytes of checked zero padding) plus **6,908 bytes of additional ARM32 instructions and literal pools**. The `arm32` crate encodes its supported instructions as typed operands, and `ImagePlan` enforces exact adjacency and rejects gaps. The remaining executable sections, data, signed metadata and authentication material have not been reproduced; this output is **not a runnable firmware image**.
+The generated region spans **12,568 consecutive bytes** at file offset `0x4000`. It includes 4,096 bytes of boot-page content (1,076 bytes of structured ARM32 code and constants, and 3,020 bytes of checked zero padding) plus **8,472 bytes of additional ARM32 instructions and literal pools**. The `arm32` crate encodes its supported instructions as typed operands, and `ImagePlan` enforces exact adjacency and rejects gaps. The remaining executable sections, data, signed metadata and authentication material have not been reproduced; this output is **not a runnable firmware image**.
 
 The first command should report **1,968 / 1,968 executable bytes**. The container command reports **7,856 / 14,256 bytes**, leaving the original signature and certificate-chain bytes ungenerated. The container is **not flashable**. Do not fill those gaps with placeholder signatures, extra zero padding or vendor bytes disguised as GPLv3 source. A complete layout is necessary, not sufficient, for a valid signed firmware.
 

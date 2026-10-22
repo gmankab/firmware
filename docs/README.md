@@ -67,7 +67,7 @@ cargo run --offline --locked -p firmware-tools -- a640-coverage
 cargo run --offline --locked -p firmware-tools -- a640-container-coverage
 ```
 
-**Current result:** the 713-byte text configuration, the entire 1,968-byte A640 executable segment, and the first **11,004 contiguous bytes of Venus boot/runtime content** (including the 4 KiB boot page) are byte-identical. The signed A640 container is only 7,856 of 14,256 bytes independently generated; the remaining 6,400 bytes can be supplied privately to reproduce the original complete file, but are not original GPLv3 output. No rebuilt executable has been hardware-tested. See [current status](STATUS.md) for the precise remaining gaps.
+**Current result:** the 713-byte text configuration, the entire 1,968-byte A640 executable segment, and the first **12,568 contiguous bytes of Venus boot/runtime content** (including the 4 KiB boot page) are byte-identical. The signed A640 container is only 7,856 of 14,256 bytes independently generated; the remaining 6,400 bytes can be supplied privately to reproduce the original complete file, but are not original GPLv3 output. No rebuilt executable has been hardware-tested. See [current status](STATUS.md) for the precise remaining gaps.
 
 ## Guides
 

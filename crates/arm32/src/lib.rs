@@ -229,6 +229,15 @@ pub fn bx(condition: Condition, target: Register) -> u32 {
     cond(condition) | 0x012f_ff10 | target.number()
 }
 
+/// ARM32 BLX Rm: branch with link and exchange instruction state.
+/// The source may be any non-PC general-purpose register.
+pub fn branch_exchange_with_link(condition: Condition, target: Register) -> Result<u32, String> {
+    if target == Register::PC {
+        return Err("ARM32 BLX register must not be PC".into());
+    }
+    Ok(cond(condition) | 0x012f_ff30 | target.number())
+}
+
 pub fn push_registers(condition: Condition, registers: u16) -> Result<u32, String> {
     if registers == 0 { return Err("empty ARM push register list".into()); }
     // STMDB SP!, {registers}.
@@ -254,6 +263,8 @@ mod tests {
         assert_eq!(transfer_word(Condition::Al, true, Register::R0, Register::PC, -12).unwrap(), 0xe51f_000c);
         assert_eq!(transfer_word(Condition::Al, false, Register::R1, Register::R0, 0).unwrap(), 0xe580_1000);
         assert_eq!(msr_cpsr_control(Condition::Al, 0xd1).unwrap(), 0xe321_f0d1);
+        assert_eq!(branch_exchange_with_link(Condition::Al, Register::R2).unwrap(), 0xe12f_ff32);
+        assert!(branch_exchange_with_link(Condition::Al, Register::PC).is_err());
         assert_eq!(mcr(Condition::Al, 15, 0, Register::R0, 2, 0, 0).unwrap(), 0xee02_0f10);
         assert_eq!(mov_shifted_register(Condition::Al, Register::new(4).unwrap(), Register::new(4).unwrap(), Shift::Lsr, 20).unwrap(), 0xe1a0_4a24);
         assert_eq!(data_immediate_with_flags(Condition::Al, DataOp::Sub, Register::R1, Register::R1, 1, true).unwrap(), 0xe2511001);

@@ -27,5 +27,11 @@ mod venus_runtime_allocator;
 mod venus_runtime_mask;
 mod venus_runtime_wrappers;
 mod venus_runtime_setup;
+mod venus_runtime_object;
+mod venus_runtime_object_ext;
+mod venus_runtime_eventmask;
+mod venus_runtime_alloc_aligned;
+mod venus_runtime_alloc_variable;
+mod venus_runtime_callbacks;
 
 pub mod venus_plan;
