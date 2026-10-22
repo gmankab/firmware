@@ -1,22 +1,10 @@
 #!/usr/bin/env bash
 # SPDX-License-Identifier: GPL-3.0-only
+# Device-independent local build validation.
 set -euo pipefail
-# Usage: tools/verify.sh /path/to/untouched/extracted/usr/lib/firmware
-ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-ORIGINAL="${1:?pass path to directory containing the cirrus, novatek and qcom trees}"
+ROOT=$(cd "$(dirname "$0")/.." && pwd)
 cd "$ROOT"
-cargo test --offline --locked
-cargo build --release --offline --locked
-mkdir -p out
-./target/release/nabu-firmware-research rebuild-modemuw out/modemuw.jsn
-REF="$ORIGINAL/qcom/sm8150/Xiaomi/nabu/modemuw.jsn"
-./target/release/nabu-firmware-research verify-modemuw "$REF"
-./target/release/nabu-firmware-research verify-a640-routines \
-    "$ORIGINAL/qcom/sm8150/Xiaomi/nabu/a640_zap.mbn"
-cmp -- "$REF" out/modemuw.jsn
-(
-    cd "$ORIGINAL"
-    sha256sum -c "$ROOT/reference/firmware.sha256"
-)
-sha256sum "$REF" out/modemuw.jsn
-printf '%s\n' 'Verification passed: exact text configuration and three typed Rust A640 regions; complete proprietary executables NOT rebuilt.'
+cargo test --workspace --offline --locked
+cargo build --workspace --release --offline --locked
+python3 -m unittest discover -s tests -p 'test_*.py'
+echo 'Workspace build and synthetic tests passed; this is not a device boot test.'

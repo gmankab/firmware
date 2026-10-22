@@ -14,11 +14,6 @@ const CP_STATE_DEBUG_INDEX: u16 = 0x01ec;
 const PREEMPT_ENABLE: u16 = 0x0071;
 const WFI_PEND_CTR: u16 = 0x0038;
 
-/// Image-specific QRISC metadata from the Nabu A640 ZAP ELF. These values
-/// identify the reference image and are not executable instructions.
-pub const NABU_A640_FAMILY: u16 = 0x6ff;
-pub const NABU_A640_REVISION: u16 = 0x020;
-
 /// Generate the QRISC firmware metadata word and an entry prologue that saves
 /// and temporarily disables command processor preemption. No OEM instruction
 /// words are embedded in this source code.

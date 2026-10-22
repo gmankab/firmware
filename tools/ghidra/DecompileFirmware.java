@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-only
-// Script for Ghidra headless analysis of locally supplied nabu images.
-// Generated outputs are research evidence derived from OEM binary inputs; NOT GPL-covered Rust code.
+// Script for Ghidra headless analysis of locally supplied ELF images.
+// Generated outputs are binary-derived analysis data; NOT GPL-covered Rust code.
 import ghidra.app.script.GhidraScript;
 import ghidra.app.decompiler.DecompInterface;
 import ghidra.app.decompiler.DecompileResults;
@@ -15,7 +15,7 @@ import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-public class DecompileNabu extends GhidraScript {
+public class DecompileFirmware extends GhidraScript {
     @Override
     protected void run() throws Exception {
         String[] a = getScriptArgs();

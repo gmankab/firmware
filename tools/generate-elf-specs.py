@@ -11,7 +11,6 @@ import argparse
 import pathlib
 import struct
 
-NAMES = ('a640_zap', 'adsp', 'cdsp', 'modem', 'venus', 'wlanmdsp')
 PREFIX_LEN = 4096
 
 
@@ -37,22 +36,34 @@ def spec(path: pathlib.Path) -> list[str]:
 
 def main() -> None:
     arg = argparse.ArgumentParser()
-    arg.add_argument('nabu_firmware_directory', type=pathlib.Path,
-                     help='directory containing the six *.mbn files')
+    arg.add_argument('firmware_directory', type=pathlib.Path,
+                     help='directory containing the ELF32 firmware files')
     arg.add_argument('output_rust', type=pathlib.Path)
+    arg.add_argument('--names', nargs='+', metavar='FILENAME',
+                     help='explicit filenames; default: discover ELF32 *.mbn and *.elf files')
     a = arg.parse_args()
+    directory = a.firmware_directory
+    if a.names:
+        names = [pathlib.Path(name).name for name in a.names]
+    else:
+        names = sorted(p.name for p in directory.iterdir() if p.is_file()
+                       and p.suffix in ('.mbn', '.elf')
+                       and p.open('rb').read(6) == b'\x7fELF\x01\x01')
+    if not names:
+        arg.error('no candidate little-endian ELF32 files found')
     out = [
         '// SPDX-License-Identifier: GPL-3.0-only',
-        '// GENERATED descriptive ELF header data. NO executable bytes or OEM signatures.',
-        '// Rebuild: tools/generate-elf-specs.py FIRMWARE_DIR crates/nabu-firmware-research/src/elf_specs.rs',
+        '// Generated typed ELF header metadata; excludes executable and authentication payloads.',
+        '// Generated with tools/generate-elf-specs.py; verify every descriptor before use.',
         'use crate::elf32_prefix::{Elf32Program, Elf32Spec};',
         'pub const KNOWN_ELFS: &[Elf32Spec] = &[',
     ]
-    for name in NAMES:
-        out.extend(spec(a.nabu_firmware_directory / (name + '.mbn')))
+    for name in names:
+        out.extend(spec(directory / name))
     out.append('];')
+    a.output_rust.parent.mkdir(parents=True, exist_ok=True)
     a.output_rust.write_text('\n'.join(out) + '\n')
-    print(f'Wrote {a.output_rust} describing {len(NAMES)} header layouts; no code or authentication payload copied')
+    print(f'Wrote {a.output_rust} describing {len(names)} ELF metadata prefixes; excludes code and signatures')
 
 if __name__ == '__main__':
     main()

@@ -1,0 +1,13 @@
+# SPDX-License-Identifier: GPL-3.0-only
+[package]
+name = "firmware-tools"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Tools for reproducible firmware inspection, construction, and validation"
+default-run = "firmware-tools"
+publish = false
+
+[dependencies]
+qrisc.workspace = true
+ir3.workspace = true

@@ -1,76 +1,53 @@
-# Xiaomi Nabu firmware reconstruction
+# Firmware Builder
 
-GPLv3-licensed Rust tools for understanding and reconstructing firmware used by the Xiaomi Pad 5 (`nabu`). **This is a research project, not a flashable firmware replacement.** It does not contain redistributed vendor executables or authentication material.
+**Goal:** produce working, redistributable firmware binaries from auditable GPLv3 Rust implementations, beginning with **byte-for-byte reproductions** of reference firmware. Xiaomi Pad 5 (`nabu`) is the first device; CPU, GPU and DSP instruction encoders and inspection tools are intended to be shared with other devices.
 
-## Repository layout
+The long-term deliverable is usable firmware, **not** a collection of disassembly reports. The current project is incomplete: its generated microcode fragments must **not** be flashed as full firmware images. Byte equality of a fragment does not establish that the reconstructed code is independently licensable or that a changed, signed image will pass hardware authentication.
 
-```text
-Cargo.toml                        # Virtual Cargo workspace
-Cargo.lock                        # One lockfile for workspace members
-crates/
-  nabu-firmware-research/
-    Cargo.toml
-    src/                          # Format readers, metadata builders, CLI
-  nabu-qrisc/
-    Cargo.toml
-    src/                          # A6xx QRISC ISA, assembler, flow checks, typed routines
-  nabu-ir3/
-    Cargo.toml
-    src/                          # Typed Adreno IR3 instruction encoding
-experiments/
-  hexagon-probe/                  # Standalone, special-toolchain experiment
-reference/
-  firmware.sha256                # Hashes of the nine original APK payloads
-tests/                             # Synthetic Python tests
-tools/                             # Relevant verification and analysis scripts
-docs/                              # All human-readable documentation
-LICENSE                            # GPL-3.0-only
-```
+## Get started
 
-OEM firmware, generated pseudocode, and private assembler results are kept outside Git.
-
-The workspace root has **no `src/` and no `[package]`**. Each production crate owns its own `src/` and `Cargo.toml`. Workspace members share a lockfile and build directory. The Hexagon probe has a separate Cargo manifest because its bare-metal target requires an additional, nonstandard toolchain.
-
-## Quick start
-
-Run with an installed Rust 1.99.1 toolchain or compatible newer version:
+Requires Rust 1.99.1 or newer, Python 3, and a local copy of the device's reference firmware for comparison. All Cargo dependencies are local workspace crates.
 
 ```sh
 cargo test --workspace --offline --locked
 cargo build --workspace --release --offline --locked
 python3 -m unittest discover -s tests -p 'test_*.py'
+
+# Inspect any supported ELF32, Cirrus WMFW or Novatek-candidate image:
+cargo run --offline --locked -p firmware-tools -- inspect-image /path/to/image.mbn
 ```
 
-Generate the complete **text configuration** from Rust:
+Generate **partial** A640 firmware components without reading an OEM executable:
 
 ```sh
-cargo run --offline --locked -p nabu-firmware-research -- \
+cargo run --offline --locked -p firmware-tools -- \
+  emit-a640-fragments /tmp/a640-parts
+```
+
+Generate Nabu's fully reconstructed text configuration:
+
+```sh
+cargo run --offline --locked -p firmware-tools -- \
   rebuild-modemuw /tmp/modemuw.jsn
 ```
 
-Generate all 740 currently reconstructed A640 executable bytes **without reading vendor firmware**:
+Verify generated executable fragments against your *own* copy of A640 firmware:
 
 ```sh
-cargo run --offline --locked -p nabu-firmware-research -- \
-  emit-a640-fragments /tmp/nabu-a640-fragments
-```
-
-This produces three separate partial binaries, **not a flashable firmware image**.
-
-Verify the typed QRISC and IR3 fragments against your own reference A640 file:
-
-```sh
-cargo run --offline --locked -p nabu-firmware-research -- \
+cargo run --offline --locked -p firmware-tools -- \
   verify-a640-routines /path/to/a640_zap.mbn
-cargo run --offline --locked -p nabu-firmware-research -- \
-  inspect-a640-flow /path/to/a640_zap.mbn
 ```
 
-These comparisons read local OEM firmware without adding it to the repository. Do **not** flash any generated fragment as firmware.
+**Current result:** the 713-byte text configuration matches completely, and 820 of the 1,968 bytes in the A640 executable-marked segment match across independently encoded QRISC and IR3 fragments. Neither partial GPU code nor metadata is a working firmware replacement. See [current status](STATUS.md) for the precise remaining gaps.
 
-## Read next
+## Guides
 
-- [Current reconstruction status](STATUS.md) — exact matches, counts and open problems.
-- [Development and verification](DEVELOPMENT.md) — architecture, reproducible checks, authorship and evidence policy.
+- [Decompilation handbook](DECOMPILATION.md) — thorough, reproducible workflow for new firmware files and new devices: triage, processor identification, Ghidra, LLVM, Rizin, Freedreno, custom containers, interpretation and verification.
+- [Building and validating](BUILDING.md) — Rust targets, reproducible builds, checksum checks, tests, adding support for a device, and device authentication considerations.
+- [Current status](STATUS.md) — measured rebuild coverage, blocked components, and the next implementation milestones.
 
-The implementation's byte matches are engineering findings. Decompilation or source transcription does not automatically grant rights to relicense vendor firmware, and stock-device secure-boot policies are not bypassed by building unsigned code.
+## Source and distribution
+
+The original code in this repository is licensed **GPL-3.0-only** (see `LICENSE`). Reference OEM firmware, private disassemblies, vendor-authored programs and cryptographic signing material are **not part of the source tree** and are not covered by the project's GPL license. Keep them in private directories outside the checkout.
+
+This project uses firmware disassembly to understand formats and behavior. Rewriting code in Rust, or obtaining identical executable bytes, does not automatically eliminate copyright, licensing, patent or authentication constraints. Assess these separately before distributing images as GPLv3 binaries.

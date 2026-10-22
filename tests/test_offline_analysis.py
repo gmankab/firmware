@@ -11,13 +11,15 @@ import unittest
 SCRIPTS = Path(__file__).resolve().parents[1] / 'tools'
 
 def import_script(name: str):
-    spec = importlib.util.spec_from_file_location(name.replace('-', '_'), SCRIPTS / name)
+    spec = importlib.util.spec_from_file_location(name.replace('-', '_').replace('/', '_'), SCRIPTS / name)
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     return module
 
 elf = import_script('elf-segment-view.py')
-provenance = import_script('verify-firmware-provenance.py')
+provenance = import_script('devices/xiaomi-nabu/verify-apk-sources.py')
+metadata_generator = import_script('generate-elf-specs.py')
+byte_budget = import_script('elf-byte-budget.py')
 
 class ElfViewTests(unittest.TestCase):
     def make_elf(self) -> bytes:
@@ -83,6 +85,43 @@ class FirmwareProvenanceTests(unittest.TestCase):
             (root / provenance.DEFAULT_SOURCE / 'a640_zap.mbn').write_bytes(b'corrupted')
             result = provenance.check_sources(h, root)
             self.assertFalse(next(x for x in result if x['file'] == 'a640_zap.mbn')['matches_package'])
+
+class GenericMetadataTests(unittest.TestCase):
+    @staticmethod
+    def sample_named_image() -> bytes:
+        # Synthetic ELF32LE of a fictitious future device. No vendor bytes.
+        b = bytearray(4096 + 64)
+        ident = b'\x7fELF\x01\x01\x01' + bytes(9)
+        struct.pack_into('<16sHHIIIIIHHHHHH', b, 0,
+                         ident, 2, 40, 1, 0x8000, 52, 0, 0,
+                         52, 32, 1, 40, 0, 0)
+        struct.pack_into('<IIIIIIII', b, 52,
+                         1, 4096, 0x8000, 0x8000, 64, 64, 5, 4096)
+        for i in range(64):
+            b[4096+i] = (i * 3) & 0xff
+        return bytes(b)
+
+    def test_specs_work_for_an_unlisted_future_device(self):
+        with tempfile.TemporaryDirectory() as td:
+            source = Path(td) / 'completely_new_board.elf'
+            source.write_bytes(self.sample_named_image())
+            spec_lines = metadata_generator.spec(source)
+            generated = '\n'.join(spec_lines)
+            self.assertIn('completely_new_board.elf', generated)
+            self.assertIn('machine: 40', generated)
+            self.assertIn('offset: 0x1000', generated)
+
+    def test_byte_budget_uses_actual_ranges_for_generic_elf(self):
+        with tempfile.TemporaryDirectory() as td:
+            source = Path(td) / 'different_board.mbn'
+            source.write_bytes(self.sample_named_image())
+            m = byte_budget.inventory(source)
+            self.assertEqual(m['file'], source.name)
+            self.assertEqual(m['first_page_accounted_bytes'], 4096)
+            self.assertEqual(m['classes']['executable_load'], 64)
+            self.assertEqual(m['classes']['header'], 4096)
+            self.assertEqual(m['length'], 4160)
+            self.assertEqual(m['unmapped_nonzero_count'], 0)
 
 if __name__ == '__main__':
     unittest.main()

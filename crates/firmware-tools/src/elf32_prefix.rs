@@ -90,7 +90,7 @@ mod tests {
 #[cfg(test)]
 mod known_elf_specs_tests {
     use super::*;
-    use crate::{elf_specs::KNOWN_ELFS, parse_elf32};
+    use crate::{devices::xiaomi_nabu::elf_specs::KNOWN_ELFS, parse_elf32};
 
     #[test]
     fn all_six_generated_prefixes_roundtrip() {

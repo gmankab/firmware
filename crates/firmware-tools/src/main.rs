@@ -1,64 +1,68 @@
 // SPDX-License-Identifier: GPL-3.0-only
-use nabu_firmware_research::{build_modemuw, machine_name, make_ghidra_bootstrap_view, parse_elf32, parse_novatek_candidate, parse_wmfw, qcom_mdt_hash_segments, wmfw_type_name};
+use firmware_tools::{build_modemuw, machine_name, make_ghidra_bootstrap_view, parse_elf32, parse_novatek_candidate, parse_wmfw, qcom_mdt_hash_segments, wmfw_type_name};
 use std::{env, error::Error, fs, path::PathBuf};
-use nabu_firmware_research::{elf32_prefix::write_elf32_first_page, elf_specs::KNOWN_ELFS, wmfw_metadata::{build_wmfw_header, verify_wmfw_structure}};
+use firmware_tools::{elf32_prefix::write_elf32_first_page, devices::xiaomi_nabu::elf_specs::KNOWN_ELFS, wmfw_metadata::{build_wmfw_header, verify_wmfw_structure}};
 
 fn run() -> Result<(), Box<dyn Error>> {
     let args: Vec<String> = env::args().skip(1).collect();
     if args.len() == 2 && args[0] == "emit-a640-fragments" {
         // Generate the matching fragments using typed ISA operations only.
         // No original firmware is needed to build these partial outputs.
-        use nabu_firmware_research::a640_routines::{NABU_A640_FAMILY, NABU_A640_REVISION};
+        use firmware_tools::devices::xiaomi_nabu::{A640_FAMILY, A640_REVISION};
         let output = PathBuf::from(&args[1]);
         fs::create_dir_all(&output)?;
-        let prefix = nabu_firmware_research::a640_routines::security_setup_prefix(
-            NABU_A640_FAMILY, NABU_A640_REVISION
+        let prefix = firmware_tools::a640_routines::security_setup_prefix(
+            A640_FAMILY, A640_REVISION
         )?;
-        let idle = nabu_firmware_research::a640_routines::wait_for_idle()?;
-        let zero_bank = nabu_firmware_research::ir3::zero_vector_registers(0, 48)?;
+        let idle = firmware_tools::a640_routines::wait_for_idle()?;
+        let shader_regions = firmware_tools::devices::xiaomi_nabu::a640_shader::verified_candidates()?;
         fs::write(output.join("a640-qrisc-security-prefix.bin"), &prefix)?;
         fs::write(output.join("a640-qrisc-wait-idle.bin"), &idle)?;
-        fs::write(output.join("a640-ir3-zero-registers.bin"), &zero_bank)?;
-        println!("Emitted three independently encoded A640 fragments: {} + {} + {} = {} bytes. NOT flashable firmware.",
-            prefix.len(), idle.len(), zero_bank.len(), prefix.len() + idle.len() + zero_bank.len());
+        let mut total = prefix.len() + idle.len();
+        for region in &shader_regions {
+            fs::write(output.join(format!("a640-ir3-slot-{:02}.bin", region.first_slot)), &region.bytes)?;
+            total += region.bytes.len();
+        }
+        println!("Emitted typed A640 fragments: QRISC={} bytes + IR3={} bytes = {} total; NOT flashable firmware.",
+            prefix.len() + idle.len(), total - prefix.len() - idle.len(), total);
         return Ok(());
     }
     if args.len() == 2 && args[0] == "verify-a640-routines" {
         let input = fs::read(&args[1])?;
-        let layout = nabu_firmware_research::a640_microcode::inspect(&input)?;
-        let (stream, _, _) = nabu_firmware_research::a640_microcode::executable_segment(&input)?;
+        let layout = firmware_tools::a640_microcode::inspect(&input)?;
+        let (stream, _, _) = firmware_tools::a640_microcode::executable_segment(&input)?;
         let revision = (u32::from_le_bytes(stream[..4].try_into()?) & 0xfff) as u16;
-        let entry = nabu_firmware_research::a640_routines::preemption_guard(layout.firmware_id, revision)?;
-        let dispatch = nabu_firmware_research::a640_routines::security_setup_prefix(layout.firmware_id, revision)?;
-        let idle = nabu_firmware_research::a640_routines::wait_for_idle()?;
+        let entry = firmware_tools::a640_routines::preemption_guard(layout.firmware_id, revision)?;
+        let dispatch = firmware_tools::a640_routines::security_setup_prefix(layout.firmware_id, revision)?;
+        let idle = firmware_tools::a640_routines::wait_for_idle()?;
         if !dispatch.starts_with(&entry) { return Err("A640 dispatch does not include preemption guard".into()); }
         if !stream.starts_with(&dispatch) { return Err("A640 typed Rust security-dispatch prefix mismatches".into()); }
         if !stream.ends_with(&idle) { return Err("A640 typed Rust wait routine mismatches".into()); }
-        // The middle 48 slots of the GPU shader use the public IR3 category-1
-        // instruction format to zero ordinary vector registers. These are
-        // generated from typed operands, not an OEM instruction-word array.
+        // Check separately authored control and initialization operations,
+        // leaving uncovered shader slots explicitly unimplemented.
         let shader = layout.shader.ok_or("A640 embedded IR3 region not detected")?;
-        const ZERO_BANK_START_SLOT: usize = 13;
-        const ZERO_BANK_SLOTS: usize = 48;
-        if shader.ir3_slots() < ZERO_BANK_START_SLOT + ZERO_BANK_SLOTS {
-            return Err("IR3 shader is too short for zero-register initialization".into());
+        let shader_regions = firmware_tools::devices::xiaomi_nabu::a640_shader::verified_candidates()?;
+        let mut total_shader = 0;
+        for region in &shader_regions {
+            let start = shader.start_word * 4 + region.first_slot * 8;
+            let stop = start.checked_add(region.bytes.len()).ok_or("IR3 offset overflow")?;
+            if stop > shader.end_word * 4 || stream.get(start..stop) != Some(region.bytes.as_slice()) {
+                return Err(format!("IR3 fragment mismatch at shader slot {} ({})", region.first_slot, region.purpose).into());
+            }
+            total_shader += region.bytes.len();
         }
-        let zero_bank = nabu_firmware_research::ir3::zero_vector_registers(0, ZERO_BANK_SLOTS as u8)?;
-        let start = shader.start_word * 4 + ZERO_BANK_START_SLOT * 8;
-        if stream.get(start..start + zero_bank.len()) != Some(zero_bank.as_slice()) {
-            return Err("A640 typed Rust IR3 zero-register initializer mismatches".into());
-        }
-        println!("Exact match: {}-byte typed QRISC security prefix (including {}-byte entry guard), {}-byte idle routine, and {}-byte typed IR3 zero-register initialization; {} distinct executable-region bytes.",
-            dispatch.len(), entry.len(), idle.len(), zero_bank.len(), dispatch.len() + idle.len() + zero_bank.len());
-        println!("Only these fragments are rebuilt; OEM-derived analysis guided their design. Whole image, complete shader, and signatures remain outstanding.");
+        println!("Exact match: {}-byte typed QRISC security prefix (including {}-byte entry guard), {}-byte idle routine, and {} bytes across {} IR3 fragments; {} distinct executable-region bytes.",
+            dispatch.len(), entry.len(), idle.len(), total_shader, shader_regions.len(),
+            dispatch.len() + idle.len() + total_shader);
+        println!("Remaining instructions, data, and signed image are not rebuilt. OEM analysis guided operation selection.");
         return Ok(());
     }
     if args.len() == 2 && args[0] == "verify-a640-isa-fields" {
         let firmware = fs::read(&args[1])?;
-        let layout = nabu_firmware_research::a640_microcode::inspect(&firmware)?;
-        let (stream, _, _) = nabu_firmware_research::a640_microcode::executable_segment(&firmware)?;
+        let layout = firmware_tools::a640_microcode::inspect(&firmware)?;
+        let (stream, _, _) = firmware_tools::a640_microcode::executable_segment(&firmware)?;
         let bounds = layout.shader.as_ref().map(|s| (s.start_word, s.end_word));
-        let (encodable, unknown) = nabu_firmware_research::qrisc_codec::check_isa_fields(stream, bounds)?;
+        let (encodable, unknown) = firmware_tools::qrisc_codec::check_isa_fields(stream, bounds)?;
         println!("QRISC field decoding/reencoding: {} control words roundtrip, {} unknown (excluding embedded IR3).", encodable, unknown);
         // Distinguish Mesa's normal RET from IRET and summarize an
         // otherwise undocumented bit outside the published RET operands.
@@ -68,14 +72,14 @@ fn run() -> Result<(), Box<dyn Error>> {
         for (i, bytes) in stream.chunks_exact(4).enumerate() {
             if bounds.is_some_and(|(start,end)| (start..end).contains(&i)) { continue; }
             let value = u32::from_le_bytes(bytes.try_into()?);
-            match nabu_firmware_research::qrisc_codec::QriscWord::decode(value) {
-                Some(nabu_firmware_research::qrisc_codec::QriscWord::Return { ignored_bits: 0 }) => plain_return += 1,
-                Some(nabu_firmware_research::qrisc_codec::QriscWord::Return { .. }) => marked_return += 1,
-                Some(nabu_firmware_research::qrisc_codec::QriscWord::InterruptReturn { .. }) => interrupt_return += 1,
+            match firmware_tools::qrisc_codec::QriscWord::decode(value) {
+                Some(firmware_tools::qrisc_codec::QriscWord::Return { ignored_bits: 0 }) => plain_return += 1,
+                Some(firmware_tools::qrisc_codec::QriscWord::Return { .. }) => marked_return += 1,
+                Some(firmware_tools::qrisc_codec::QriscWord::InterruptReturn { .. }) => interrupt_return += 1,
                 _ => {}
             }
         }
-        let typed_id = nabu_firmware_research::qrisc_codec::firmware_header(
+        let typed_id = firmware_tools::qrisc_codec::firmware_header(
             layout.firmware_id, (u32::from_le_bytes(stream[..4].try_into()?) & 0xfff) as u16
         )?.encode()?;
         println!("Normal RET: plain={plain_return}, uninterpreted-bits-set={marked_return}; IRET={interrupt_return}");
@@ -85,10 +89,10 @@ fn run() -> Result<(), Box<dyn Error>> {
     }
     if args.len() == 2 && args[0] == "inspect-a640-flow" {
         let firmware = fs::read(&args[1])?;
-        let layout = nabu_firmware_research::a640_microcode::inspect(&firmware)?;
-        let (stream, _, _) = nabu_firmware_research::a640_microcode::executable_segment(&firmware)?;
+        let layout = firmware_tools::a640_microcode::inspect(&firmware)?;
+        let (stream, _, _) = firmware_tools::a640_microcode::executable_segment(&firmware)?;
         let shader = layout.shader.as_ref().map(|s| s.start_word..s.end_word);
-        let flow = nabu_qrisc::flow::inspect(stream, 0, shader)?;
+        let flow = qrisc::flow::inspect(stream, 0, shader)?;
         println!("Potentially reachable QRISC words: {} / {}; branch targets: {}; call targets: {}; returns: {}",
             flow.reachable_words.len(), layout.total_words, flow.branch_targets.len(), flow.call_targets.len(), flow.returns);
         println!("This is conservative control-flow analysis; no GPU behavioral equivalence or safe replacement is demonstrated.");
@@ -96,8 +100,8 @@ fn run() -> Result<(), Box<dyn Error>> {
     }
     if args.len() == 3 && args[0] == "extract-a640-isa" {
         let firmware = fs::read(&args[1])?;
-        let layout = nabu_firmware_research::a640_microcode::inspect(&firmware)?;
-        let (segment, _, _) = nabu_firmware_research::a640_microcode::executable_segment(&firmware)?;
+        let layout = firmware_tools::a640_microcode::inspect(&firmware)?;
+        let (segment, _, _) = firmware_tools::a640_microcode::executable_segment(&firmware)?;
         let output = PathBuf::from(&args[2]);
         fs::create_dir_all(&output)?;
         fs::write(output.join("a640-qrisc-pf_x.bin"), segment)?;
@@ -148,7 +152,7 @@ fn run() -> Result<(), Box<dyn Error>> {
         return Ok(());
     }
     if args.len() != 2 {
-        return Err("usage: nabu-firmware-research <rebuild-modemuw|verify-modemuw|inspect-elf32|inspect-image> PATH \
+        return Err("usage: firmware-tools <rebuild-modemuw|verify-modemuw|inspect-elf32|inspect-image> PATH \
             OR make-ghidra-bootstrap ORIGINAL OUTPUT-ANALYSIS-ONLY OR rebuild-elf-prefix NAME OUTPUT OR verify-elf-prefix NAME ORIGINAL \
             OR extract-a640-isa ORIGINAL_MBN OUTDIR OR verify-a640-isa-fields ORIGINAL_MBN".into());
     }

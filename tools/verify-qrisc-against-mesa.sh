@@ -25,7 +25,7 @@ ASM_SOURCE
 tail -c +5 "$D/mesa.fw" > "$D/mesa-trimmed.bin"
 (
   cd "$ROOT"
-  cargo run --locked --offline --quiet -p nabu-firmware-research --bin qrisc-public-demo -- "$D/rust.bin"
+  cargo run --locked --offline --quiet -p firmware-tools --bin qrisc-public-demo -- "$D/rust.bin"
 )
 cmp "$D/mesa-trimmed.bin" "$D/rust.bin"
 echo "PASS: Mesa and typed Rust QRISC assembler emitted the same 20 bytes for public synthetic program"

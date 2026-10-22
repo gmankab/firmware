@@ -123,3 +123,84 @@ mod tests {
         assert_eq!(zero_vector_registers(60, 1).unwrap().len(), 8);
     }
 }
+
+/// A documented IR3 category-zero control instruction. Displacements use
+/// shader-instruction slots (8 bytes each), measured from the instruction
+/// itself. This encoder is independent of any device firmware image.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Control {
+    Nop { repeat: u8, jump_point: bool },
+    End,
+    Jump { delta_slots: i32 },
+    BranchPredicate {
+        delta_slots: i32,
+        /// One of the four components of predicate register p0.
+        component: u8,
+        inverted: bool,
+    },
+}
+
+impl Control {
+    /// Encode a 64-bit IR3 category-zero control instruction.
+    /// Fields follow Mesa Freedreno `ir3-cat0.xml` (MIT license): category
+    /// [61:63]=0, opcode [55:58], repeat [40:42], and JP at bit 59.
+    pub fn encode(self) -> Result<[u8; 8], &'static str> {
+        let word = match self {
+            Self::Nop { repeat, jump_point } => {
+                if repeat > 7 { return Err("IR3 cat0 repeat must be 0..7"); }
+                (u64::from(repeat) << 40) | ((jump_point as u64) << 59)
+            }
+            Self::End => 6u64 << 55,
+            Self::Jump { delta_slots } => (2u64 << 55) | (delta_slots as u32 as u64),
+            Self::BranchPredicate { delta_slots, component, inverted } => {
+                if component > 3 { return Err("IR3 predicate component must be 0..3"); }
+                (1u64 << 55)
+                    | (u64::from(component) << 53)
+                    | ((inverted as u64) << 52)
+                    | (delta_slots as u32 as u64)
+            }
+        };
+        Ok(word.to_le_bytes())
+    }
+}
+
+/// Resolve a signed IR3 control-flow displacement from instruction slot
+/// numbers, rejecting offsets that do not fit into the 32-bit ISA field.
+pub fn relative_slots(from: usize, to: usize) -> Result<i32, &'static str> {
+    let from = i64::try_from(from).map_err(|_| "source slot too large")?;
+    let to = i64::try_from(to).map_err(|_| "destination slot too large")?;
+    i32::try_from(to - from).map_err(|_| "relative slot displacement out of range")
+}
+
+#[cfg(test)]
+mod control_tests {
+    use super::*;
+
+    #[test]
+    fn cat0_control_fields_follow_public_spec() {
+        assert_eq!(Control::Nop { repeat: 0, jump_point: false }.encode().unwrap(), [0; 8]);
+        let repeat = u64::from_le_bytes(Control::Nop { repeat: 5, jump_point: true }.encode().unwrap());
+        assert_eq!((repeat >> 40) & 7, 5);
+        assert_eq!((repeat >> 59) & 1, 1);
+        assert_eq!(repeat >> 61, 0);
+        for (op, code) in [(Control::End, 6), (Control::Jump { delta_slots: -11 }, 2),
+            (Control::BranchPredicate { delta_slots: 10, component: 2, inverted: true }, 1)] {
+            let bits = u64::from_le_bytes(op.encode().unwrap());
+            assert_eq!((bits >> 55) & 0xf, code);
+            assert_eq!(bits >> 61, 0);
+        }
+    }
+
+    #[test]
+    fn branch_and_jump_use_signed_slot_displacements() {
+        let back = Control::Jump { delta_slots: relative_slots(11, 4).unwrap() }.encode().unwrap();
+        assert_eq!(u32::from_le_bytes(back[..4].try_into().unwrap()) as i32, -7);
+        let forward = Control::BranchPredicate {
+            delta_slots: relative_slots(7, 12).unwrap(), component: 0, inverted: false,
+        }.encode().unwrap();
+        assert_eq!(u32::from_le_bytes(forward[..4].try_into().unwrap()), 5);
+        assert!(Control::BranchPredicate { delta_slots: 0, component: 4, inverted: false }.encode().is_err());
+        assert!(Control::Nop { repeat: 8, jump_point: false }.encode().is_err());
+        assert!(relative_slots(0, usize::MAX).is_err());
+    }
+}

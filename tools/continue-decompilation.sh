@@ -1,35 +1,35 @@
 #!/usr/bin/env bash
 # SPDX-License-Identifier: GPL-3.0-only
-# Optional second attempt for large Hexagon files that exceeded a prior budget.
-# The generated pseudocode is OEM-derived research data, not GPLv3 Rust source.
+# Resume function export from a previously generated Ghidra functions.c file.
+# Usage: tools/continue-decompilation.sh ELF_FILE GHIDRA_INSTALL PRIOR_FUNCTIONS_C OUTPUT_DIRECTORY
 set -euo pipefail
+if (( $# != 4 )); then
+  echo "Usage: $0 ELF_FILE GHIDRA_INSTALL PRIOR_FUNCTIONS_C PRIVATE_OUTPUT_DIRECTORY" >&2
+  exit 2
+fi
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
-FW=${1:?Usage: tools/continue-decompilation.sh FW_ROOT GHIDRA_DIR PRIOR_OUTPUT_DIR}
-G=${2:?Must supply Ghidra install directory}
-OUT=${3:?Must supply output directory from first run}
-export GHIDRA_HEADLESS_MAXMEM=${GHIDRA_HEADLESS_MAXMEM:-1950M}
+INPUT=$(realpath "$1")
+GHIDRA=$(realpath "$2")
+PRIOR=$(realpath "$3")
+OUT=$(realpath -m "$4")
+[[ -f "$INPUT" && -f "$PRIOR" && -x "$GHIDRA/support/analyzeHeadless" ]] || {
+  echo 'Original ELF, earlier decompilation, or Ghidra installation missing' >&2; exit 2;
+}
+case "$OUT/" in "$ROOT/"*) echo 'Output must be outside the source tree' >&2; exit 2;; esac
 mkdir -p "$OUT/projects"
-for file in wlanmdsp.mbn cdsp.mbn adsp.mbn; do
-    if [[ "$file" == "adsp.mbn" ]]; then
-        # Huge instruction stream may exhaust the default autoanalysis timeout.
-        auto=${ANALYSIS_SEC_ADSP:-340}
-        secs=${DECOMP_SEC_ADSP:-175}
-        args=()
-    else
-        auto=${ANALYSIS_SEC:-95}
-        secs=${DECOMP_SEC:-210}
-        # Skip function addresses previously attempted, not all functions;
-        # retaining both passes makes the level of coverage auditable.
-        args=("$OUT/$file.c")
-    fi
-    printf 'Ghidra continuation %s\n' "$file" >&2
-    timeout "$((auto+secs+75))s" "$G/support/analyzeHeadless" \
-        "$OUT/projects" "nabu_cont_${file%.*}" \
-        -import "$FW/qcom/sm8150/Xiaomi/nabu/$file" -overwrite \
-        -analysisTimeoutPerFile "$auto" \
-        -scriptPath "$ROOT/tools/ghidra" \
-        -postScript DecompileNabu.java "$OUT/$file.pass2.c" 100000 "$secs" "${args[@]}" \
-        -max-cpu 3 -deleteProject > "$OUT/$file.pass2.log" 2>&1 || {
-            echo "Warning: check $file.pass2.log (incomplete or failed)" >&2
-        }
-done
+ANALYSIS_SEC=${ANALYSIS_SEC:-300}
+DECOMP_SEC=${DECOMP_SEC:-300}
+MAX_FUNCS=${MAX_FUNCS:-100000}
+GHIDRA_HEADLESS_MAXMEM=${GHIDRA_HEADLESS_MAXMEM:-2G}
+export GHIDRA_HEADLESS_MAXMEM
+filehash=$(sha256sum "$INPUT" | cut -c1-12)
+rc=0
+timeout "$((ANALYSIS_SEC+DECOMP_SEC+90))s" \
+  "$GHIDRA/support/analyzeHeadless" "$OUT/projects" "resume_${filehash}" \
+  -import "$INPUT" -overwrite -analysisTimeoutPerFile "$ANALYSIS_SEC" \
+  -scriptPath "$ROOT/tools/ghidra" \
+  -postScript DecompileFirmware.java "$OUT/functions.pass2.c" "$MAX_FUNCS" "$DECOMP_SEC" "$PRIOR" \
+  -max-cpu 2 -deleteProject > "$OUT/ghidra.pass2.log" 2>&1 || rc=$?
+printf '%s\n' "$rc" > "$OUT/exit-code.pass2.txt"
+if ((rc)); then echo "Ghidra continuation incomplete (exit=$rc), consult logs" >&2; fi
+exit "$rc"

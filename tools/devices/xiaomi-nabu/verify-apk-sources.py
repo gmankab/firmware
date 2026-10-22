@@ -43,7 +43,7 @@ def main() -> None:
     parser.add_argument('source_root', type=Path,
                         help='directory containing map220v-nabu-firmware and postmarketos-nabu-firmware')
     parser.add_argument('--hashes', type=Path,
-                        default=Path(__file__).resolve().parent.parent/'reference/firmware.sha256')
+                        default=Path(__file__).resolve().parents[3]/'reference/xiaomi-nabu/firmware.sha256')
     parser.add_argument('--output', type=Path, help='optional report JSON path')
     parser.add_argument('--apk', type=Path, help='optional original Alpine APK (gzip tar), verified in memory')
     args = parser.parse_args()

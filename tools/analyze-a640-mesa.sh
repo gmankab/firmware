@@ -15,6 +15,10 @@ STAGE=$(dirname "$BINDIR")
 # The Ubuntu packaged tools can run on Debian, but QRISC requires RNN's XML database.
 if [[ -f "$STAGE/share/freedreno/registers/adreno.xml" ]]; then
   export RNN_PATH="$STAGE/share/freedreno/registers"
+elif [[ -n "${RNN_PATH:-}" && -f "$RNN_PATH/adreno.xml" ]]; then
+  : # The caller supplied Mesa's register XML path (e.g. for an uninstalled build).
+else
+  echo 'Warning: RNN_PATH is unset or missing adreno.xml; QRISC register names may fail to decode' >&2
 fi
 if [[ -d "$STAGE/runtime" ]]; then
   export LD_LIBRARY_PATH="$STAGE/runtime${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
@@ -95,12 +99,16 @@ if [[ -x "$BINDIR/qrisc-disasm" ]]; then
 else
   echo 'qrisc-disasm executable not found' >&2
 fi
-if [[ -x "$BINDIR/ir3-disasm" ]]; then
+IR3_DISASM=${IR3_DISASM:-$BINDIR/ir3-disasm}
+if [[ ! -x "$IR3_DISASM" && -x "$BINDIR/../isa/ir3-disasm" ]]; then
+  IR3_DISASM="$BINDIR/../isa/ir3-disasm"
+fi
+if [[ -x "$IR3_DISASM" ]]; then
   # The proper IR3 CLI identifier is FD640; -g 640 is rejected.
   if [[ -f "$OUTDIR/a640-candidate-ir3.bin" ]]; then
-    run_probe ir3-embedded-fd640 "$BINDIR/ir3-disasm" -g FD640 "$OUTDIR/a640-candidate-ir3.bin"
+    run_probe ir3-embedded-fd640 "$IR3_DISASM" -g FD640 "$OUTDIR/a640-candidate-ir3.bin"
   fi
-  run_probe ir3-whole-segment-negative-control "$BINDIR/ir3-disasm" -g FD640 "$OUTDIR/a640-pf_x.bin"
+  run_probe ir3-whole-segment-negative-control "$IR3_DISASM" -g FD640 "$OUTDIR/a640-pf_x.bin"
 else
   echo 'ir3-disasm executable not found' >&2
 fi
@@ -136,4 +144,4 @@ if file.exists():
 (out/'decoder-coverage.json').write_text(json.dumps(summary,indent=2)+'\n')
 print('Coverage summary:',json.dumps(summary))
 PY
-printf '\nResults are private firmware-derived research, NOT GPLv3 program sources.\n'
+printf '\nResults are private firmware-derived analysis, NOT GPLv3 program sources.\n'

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 //! Public-ISA-only, synthetic QRISC program to independently compare our
 //! label-resolving Rust assembler with Mesa's `qrisc-asm`.
-use nabu_qrisc::{codec::{firmware_header, QriscWord}, program::{assemble, Item}};
+use qrisc::{codec::{firmware_header, QriscWord}, program::{assemble, Item}};
 use std::{env, fs};
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {

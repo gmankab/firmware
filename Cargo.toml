@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: GPL-3.0-only
 [workspace]
-members = ["crates/nabu-firmware-research", "crates/nabu-qrisc", "crates/nabu-ir3"]
-default-members = ["crates/nabu-firmware-research", "crates/nabu-qrisc", "crates/nabu-ir3"]
+members = ["crates/firmware-tools", "crates/qrisc", "crates/ir3"]
+default-members = ["crates/firmware-tools", "crates/qrisc", "crates/ir3"]
 exclude = ["experiments/hexagon-probe"]
 resolver = "2"
 
@@ -11,5 +11,5 @@ edition = "2021"
 license = "GPL-3.0-only"
 
 [workspace.dependencies]
-nabu-qrisc = { path = "crates/nabu-qrisc" }
-nabu-ir3 = { path = "crates/nabu-ir3" }
+qrisc = { path = "crates/qrisc" }
+ir3 = { path = "crates/ir3" }
