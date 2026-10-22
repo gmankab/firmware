@@ -6,7 +6,16 @@ This handbook describes a repeatable path from an **unchanged vendor firmware fi
 
 ## 1. Prepare an isolated, repeatable environment
 
-A Linux x86-64 host (Debian 13 or Ubuntu 24.04) is sufficient for the current inspection, Rust tests and Adreno tooling. Required command-line utilities:
+Fedora dependencies:
+
+```sh
+sudo dnf install -y \
+  binutils xxd gcc gcc-c++ make pkgconf-pkg-config zstd \
+  cmake meson ninja-build flex bison expat-devel libdrm-devel \
+  rust cargo rustfmt java-latest-openjdk-devel
+```
+
+Debian/Ubuntu dependencies:
 
 ```sh
 # Debian / Ubuntu; packages installed through the distribution package manager
