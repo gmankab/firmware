@@ -10,3 +10,4 @@ publish = false
 
 [dependencies]
 nabu-qrisc.workspace = true
+nabu-ir3.workspace = true

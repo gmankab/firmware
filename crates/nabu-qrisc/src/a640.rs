@@ -14,6 +14,11 @@ const CP_STATE_DEBUG_INDEX: u16 = 0x01ec;
 const PREEMPT_ENABLE: u16 = 0x0071;
 const WFI_PEND_CTR: u16 = 0x0038;
 
+/// Image-specific QRISC metadata from the Nabu A640 ZAP ELF. These values
+/// identify the reference image and are not executable instructions.
+pub const NABU_A640_FAMILY: u16 = 0x6ff;
+pub const NABU_A640_REVISION: u16 = 0x020;
+
 /// Generate the QRISC firmware metadata word and an entry prologue that saves
 /// and temporarily disables command processor preemption. No OEM instruction
 /// words are embedded in this source code.
@@ -55,13 +60,14 @@ const SECURITY_STATUS: u16 = 0x0083;
 const SECURITY_POLL: u16 = 0x006d;
 const SECURITY_STATE: u16 = 0x0080;
 
-/// Generate the first 30 A640 QRISC control words as *typed operations*.
+/// Generate the first 84 A640 QRISC control words as *typed operations*.
 ///
 /// The logic is reconstructed from observed branching and public A6xx ISA
 /// and register descriptions: preserve preemption, dispatch on command mode,
-/// optionally initialize a trusted-address range, and begin polling security
-/// status. This is deliberately only a prefix: execution continues beyond the
-/// last word, and these bytes are NOT a flashable firmware image.
+/// optionally initialize a trusted-address range, poll security status, and
+/// dispatch into the secure command handling path. This is deliberately only
+/// a prefix: execution continues beyond the last word, and these bytes are
+/// NOT a flashable firmware image.
 ///
 /// Instruction ordering is informed by studying OEM firmware. Byte equality
 /// does NOT establish independent copyright provenance or correct hardware
@@ -109,9 +115,75 @@ pub fn security_setup_prefix(family_id: u16, revision: u16) -> Result<Vec<u8>, S
         Item::Instr(RegisterAlu { src1: 0, src2: 30, dst: 0, function: 6 }),
         Item::Label("read_security_state"),
         Item::Instr(ControlRead { base: 0, dest: 10, reg: SECURITY_STATE }),
+        // Preserve the existing state bits while raising the security mode.
+        Item::Instr(MovImmediate { repeat: false, dst: 4, shift: 4, imm: 3 }),
+        Item::Instr(RegisterAlu { src1: 4, src2: 10, dst: 3, function: 6 }),
+        Item::Instr(ControlWrite { base: 0, source: 3, reg: SECURITY_STATE }),
+        // Wait for the protected register interface to become idle.
+        Item::Instr(ControlRead { base: 0, dest: 3, reg: 0x0069 }),
+        Item::Label("wait_security_ready"),
+        Item::Instr(ImmediateAlu { opcode: 0x0a, src: 3, dst: 3, imm: 0x30 }),
+        Item::BranchTo { opcode: 0x30, src: 3, condition: 0, label: "wait_security_ready" },
+        Item::Instr(ControlRead { base: 0, dest: 3, reg: 0x0069 }),
+        Item::Instr(ControlWrite { base: 0, source: 4, reg: 0x0082 }),
+        Item::Instr(ControlWrite { base: 0, source: 0, reg: 0x0082 }),
+        Item::Instr(ControlWrite { base: 0, source: 10, reg: SECURITY_STATE }),
+        // Set up the GPU's indirect register read interface.
+        Item::Instr(MovImmediate { repeat: false, dst: 4, shift: 0, imm: 1 }),
+        Item::Instr(MovImmediate { repeat: false, dst: 3, shift: 0, imm: 0x802 }),
+        Item::Instr(ControlWrite { base: 0, source: 4, reg: 0x0026 }),
+        Item::Instr(ControlWrite { base: 0, source: 3, reg: 0x0027 }),
+        Item::Instr(RegisterAlu { src1: 0, src2: 30, dst: 0, function: 6 }),
+        // Issue a writeback and wait for pending GPU work to finish.
+        Item::Instr(MovImmediate { repeat: false, dst: 29, shift: 24, imm: 0x84 }),
+        Item::Instr(ControlWrite { base: 0, source: 0, reg: 0x0030 }),
+        Item::Instr(MovImmediate { repeat: false, dst: 29, shift: 0, imm: 0x1c }),
+        Item::Instr(MovImmediate { repeat: false, dst: 31, shift: 0, imm: 1 }),
+        Item::Instr(MovImmediate { repeat: false, dst: 29, shift: 24, imm: 0x81 }),
+        Item::Instr(ControlRead { base: 0, dest: 3, reg: WFI_PEND_CTR }),
+        Item::Label("pending_work"),
+        Item::BranchTo { opcode: 0x30, src: 3, condition: 0, label: "pending_work" },
+        Item::Instr(ControlRead { base: 0, dest: 3, reg: WFI_PEND_CTR }),
+        Item::Label("wait_more_work"),
+        Item::Instr(ControlRead { base: 0, dest: 3, reg: 0x006a }),
+        Item::BranchTo { opcode: 0x30, src: 3, condition: 0, label: "wait_more_work" },
+        Item::Instr(Nop { metadata: 0 }),
+        // Command mode selects either the protected-register update or the
+        // next stage of secure command processing.
+        Item::BranchTo { opcode: 0x31, src: 2, condition: 1, label: "enable_trusted_control" },
+        Item::BranchTo { opcode: 0x31, src: 2, condition: 0, label: "prepare_command" },
+        Item::Instr(Nop { metadata: 0 }),
+        Item::Instr(ControlWrite { base: 0, source: 8, reg: SECURITY_STATUS }),
+        Item::Instr(Return { ignored_bits: 1 << 24 }),
+        Item::Instr(ControlWrite { base: 0, source: 9, reg: PREEMPT_ENABLE }),
+        Item::Label("security_halt"),
+        Item::BranchTo { opcode: 0x32, src: 0, condition: 0, label: "security_halt" },
+        Item::BranchTo { opcode: 0x32, src: 0, condition: 0, label: "security_halt" },
+        Item::Label("enable_trusted_control"),
+        Item::Instr(MovImmediate { repeat: false, dst: 3, shift: 0, imm: 0xf400 }),
+        Item::Instr(MovImmediate { repeat: false, dst: 4, shift: 0, imm: 1 }),
+        Item::Instr(ControlWrite { base: 0, source: 3, reg: REG_WRITE_ADDR }),
+        Item::Instr(ControlWrite { base: 0, source: 4, reg: REG_WRITE }),
+        Item::Instr(ControlWrite { base: 0, source: 4, reg: 0x0026 }),
+        Item::Instr(ControlWrite { base: 0, source: 3, reg: 0x0027 }),
+        Item::BranchTo { opcode: 0x30, src: 30, condition: 1, label: "security_halt" },
+        Item::Instr(ControlWrite { base: 0, source: 8, reg: SECURITY_STATUS }),
+        Item::Instr(MovImmediate { repeat: false, dst: 3, shift: 0, imm: 1 }),
+        Item::Instr(Return { ignored_bits: 1 << 24 }),
+        Item::Instr(ControlWrite { base: 0, source: 9, reg: PREEMPT_ENABLE }),
+        Item::Label("prepare_command"),
+        Item::Instr(MovImmediate { repeat: false, dst: 5, shift: 0, imm: 2 }),
+        Item::Instr(ControlWrite { base: 0, source: 5, reg: 0x008b }),
+        Item::Instr(ControlRead { base: 0, dest: 3, reg: 0x008b }),
+        Item::Instr(ControlWrite { base: 0, source: 0, reg: 0x008b }),
+        Item::Instr(ImmediateAlu { opcode: 0x14, src: 3, dst: 3, imm: 25 }),
+        Item::Instr(ImmediateAlu { opcode: 0x0a, src: 3, dst: 6, imm: 1 }),
+        Item::Instr(RegisterAlu { src1: 0, src2: 6, dst: 7, function: 6 }),
+        Item::Instr(MovImmediate { repeat: false, dst: 4, shift: 18, imm: 1 }),
+        Item::Instr(ControlWrite { base: 0, source: 4, reg: 0x005d }),
     ];
     let bytes = assemble(&p)?;
-    debug_assert_eq!(bytes.len(), 30 * 4);
+    debug_assert_eq!(bytes.len(), 84 * 4);
     Ok(bytes)
 }
 
@@ -129,7 +201,7 @@ mod tests {
     #[test]
     fn security_setup_is_label_resolved_and_has_guard_prefix() {
         let bytes = security_setup_prefix(0x6ff, 0x020).unwrap();
-        assert_eq!(bytes.len(), 120);
+        assert_eq!(bytes.len(), 336);
         assert!(bytes.starts_with(&preemption_guard(0x6ff, 0x020).unwrap()));
         let word = |i: usize| u32::from_le_bytes(bytes[i*4..i*4+4].try_into().unwrap());
         assert_eq!(QriscWord::decode(word(4)), Some(QriscWord::Branch {
@@ -143,6 +215,21 @@ mod tests {
         }));
         assert_eq!(QriscWord::decode(word(17)), Some(QriscWord::Return {
             ignored_bits: 1 << 24,
+        }));
+        assert_eq!(QriscWord::decode(word(35)), Some(QriscWord::Branch {
+            opcode: 0x30, src: 3, condition: 0, delta: -1,
+        }));
+        assert_eq!(QriscWord::decode(word(56)), Some(QriscWord::Branch {
+            opcode: 0x31, src: 2, condition: 1, delta: 8,
+        }));
+        assert_eq!(QriscWord::decode(word(57)), Some(QriscWord::Branch {
+            opcode: 0x31, src: 2, condition: 0, delta: 18,
+        }));
+        assert_eq!(QriscWord::decode(word(70)), Some(QriscWord::Branch {
+            opcode: 0x30, src: 30, condition: 1, delta: -8,
+        }));
+        assert_eq!(QriscWord::decode(word(63)), Some(QriscWord::Branch {
+            opcode: 0x32, src: 0, condition: 0, delta: -1,
         }));
     }
     #[test]

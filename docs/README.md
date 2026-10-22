@@ -14,6 +14,9 @@ crates/
   nabu-qrisc/
     Cargo.toml
     src/                          # A6xx QRISC ISA, assembler, flow checks, typed routines
+  nabu-ir3/
+    Cargo.toml
+    src/                          # Typed Adreno IR3 instruction encoding
 experiments/
   hexagon-probe/                  # Standalone, special-toolchain experiment
 reference/
@@ -45,7 +48,16 @@ cargo run --offline --locked -p nabu-firmware-research -- \
   rebuild-modemuw /tmp/modemuw.jsn
 ```
 
-Verify the newly authored QRISC routines against your own reference A640 file:
+Generate all 740 currently reconstructed A640 executable bytes **without reading vendor firmware**:
+
+```sh
+cargo run --offline --locked -p nabu-firmware-research -- \
+  emit-a640-fragments /tmp/nabu-a640-fragments
+```
+
+This produces three separate partial binaries, **not a flashable firmware image**.
+
+Verify the typed QRISC and IR3 fragments against your own reference A640 file:
 
 ```sh
 cargo run --offline --locked -p nabu-firmware-research -- \

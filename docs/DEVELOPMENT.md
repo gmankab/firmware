@@ -2,10 +2,11 @@
 
 ## Structure and code boundaries
 
-The root manifest is a virtual [Cargo workspace](https://doc.rust-lang.org/cargo/reference/workspaces.html) with two members:
+The root manifest is a virtual [Cargo workspace](https://doc.rust-lang.org/cargo/reference/workspaces.html) with three members:
 
 - `crates/nabu-firmware-research` — CLI, firmware parsing, source-level reconstruction of the JSON configuration, structured ELF and WMFW metadata generators, and A640 container analysis.
 - `crates/nabu-qrisc` — reusable typed QRISC word encoding, symbolic assembler, conservative control-flow validator and A640 routine definitions.
+- `crates/nabu-ir3` — a typed encoder for the public IR3 category-1 immediate-move instruction format, currently used to initialize 48 GPU vector registers.
 
 The specialized `experiments/hexagon-probe` is deliberately **excluded** from ordinary workspace builds. It remains useful for later Hexagon V66 investigation but requires the corresponding Rust source, `core` libraries and vendored compiler dependencies. Download scripts and legacy decompilation reports have been removed from Git; the private research corpus stays separate.
 
@@ -25,7 +26,11 @@ python3 -m unittest discover -s tests -p 'test_*.py'
 cargo run -p nabu-firmware-research --offline --locked -- \
   verify-modemuw /path/to/firmware/qcom/sm8150/Xiaomi/nabu/modemuw.jsn
 
-# A640 security-control routines and possible branch/call edges:
+# Produce three partial A640 machine-code fragments without original firmware:
+cargo run -p nabu-firmware-research --offline --locked -- \
+  emit-a640-fragments /tmp/nabu-a640-fragments
+
+# A640 QRISC security-control routines, IR3 zero-bank, and possible branch/call edges:
 cargo run -p nabu-firmware-research --offline --locked -- \
   verify-a640-routines /path/to/firmware/qcom/sm8150/Xiaomi/nabu/a640_zap.mbn
 cargo run -p nabu-firmware-research --offline --locked -- \
@@ -48,21 +53,22 @@ tools/verify-qrisc-against-mesa.sh /path/to/qrisc-asm \
 
 - `codec` converts documented, typed fields to and from 32-bit little-endian QRISC words. Lossless bit-field roundtrips do **not** prove that the device behavior is understood.
 - `program` resolves symbolic branch and call targets, checks relative displacements and emits a program deterministically.
-- `a640` describes the entry/security-dispatch prefix and the idle routine through structured instruction constructors. This code remains an unfinished, analysis-informed reimplementation.
+- `a640` describes the 84-word entry/security-dispatch prefix and the idle routine through structured instruction constructors. This code remains an unfinished, analysis-informed reimplementation.
+- `nabu-ir3` emits 8-byte category-1 unsigned-immediate moves from named GPU register operands and builds a zero-initialization sequence. The other 16 shader slots are not implemented.
 - `flow` follows possible QRISC branches/calls and blocks transfers into a separately identified IR3 data range. It does not simulate secure GPU operations, registers, scheduling or memory effects.
 
 Use semantic names for known public registers and mark unknown fields explicitly. Do not add vendor opcode arrays or an OEM-derived IR3 payload to the public source. New output matches should have reference comparisons and synthetic unit tests.
 
 ## Git authorship and evidence
 
-Every commit in the exported history, including the nine rewritten historical commits, uses:
+Every commit in the exported history, including the ten rewritten historical commits, uses the author and committer identity `Codex <codex@openai.com>`. Configure future commits with:
 
 ```sh
-git config user.name codex
-git config user.email codex@localhost
+git config user.name Codex
+git config user.email codex@openai.com
 ```
 
-History rewriting changes commit hashes; existing clones should start from the new bundle or carefully migrate branches. The author and committer fields are repository metadata and **do not change underlying copyright ownership, legal provenance, or past factual authorship**.
+History rewriting changes commit hashes; existing clones should start from the new bundle or carefully migrate branches. The author and committer fields are repository metadata and **do not change underlying copyright ownership, legal provenance, or past factual authorship**. GitHub will only associate the email with the `codex` account if that account has verified or otherwise associated it.
 
 The old `evidence/` directory is removed. Useful stable information is condensed into the documentation and `reference/firmware.sha256`; stale toolchain download logs, duplicate status reports and proprietary pseudocode are not retained in the public tree. Store disassemblies, source APKs, reference firmware, private assembler reproductions and signatures outside Git.
 

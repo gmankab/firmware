@@ -6,8 +6,13 @@ version = 4
 name = "nabu-firmware-research"
 version = "0.1.0"
 dependencies = [
+ "nabu-ir3",
  "nabu-qrisc",
 ]
+
+[[package]]
+name = "nabu-ir3"
+version = "0.1.0"
 
 [[package]]
 name = "nabu-qrisc"

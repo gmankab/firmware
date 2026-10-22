@@ -5,6 +5,24 @@ use nabu_firmware_research::{elf32_prefix::write_elf32_first_page, elf_specs::KN
 
 fn run() -> Result<(), Box<dyn Error>> {
     let args: Vec<String> = env::args().skip(1).collect();
+    if args.len() == 2 && args[0] == "emit-a640-fragments" {
+        // Generate the matching fragments using typed ISA operations only.
+        // No original firmware is needed to build these partial outputs.
+        use nabu_firmware_research::a640_routines::{NABU_A640_FAMILY, NABU_A640_REVISION};
+        let output = PathBuf::from(&args[1]);
+        fs::create_dir_all(&output)?;
+        let prefix = nabu_firmware_research::a640_routines::security_setup_prefix(
+            NABU_A640_FAMILY, NABU_A640_REVISION
+        )?;
+        let idle = nabu_firmware_research::a640_routines::wait_for_idle()?;
+        let zero_bank = nabu_firmware_research::ir3::zero_vector_registers(0, 48)?;
+        fs::write(output.join("a640-qrisc-security-prefix.bin"), &prefix)?;
+        fs::write(output.join("a640-qrisc-wait-idle.bin"), &idle)?;
+        fs::write(output.join("a640-ir3-zero-registers.bin"), &zero_bank)?;
+        println!("Emitted three independently encoded A640 fragments: {} + {} + {} = {} bytes. NOT flashable firmware.",
+            prefix.len(), idle.len(), zero_bank.len(), prefix.len() + idle.len() + zero_bank.len());
+        return Ok(());
+    }
     if args.len() == 2 && args[0] == "verify-a640-routines" {
         let input = fs::read(&args[1])?;
         let layout = nabu_firmware_research::a640_microcode::inspect(&input)?;
@@ -16,8 +34,23 @@ fn run() -> Result<(), Box<dyn Error>> {
         if !dispatch.starts_with(&entry) { return Err("A640 dispatch does not include preemption guard".into()); }
         if !stream.starts_with(&dispatch) { return Err("A640 typed Rust security-dispatch prefix mismatches".into()); }
         if !stream.ends_with(&idle) { return Err("A640 typed Rust wait routine mismatches".into()); }
-        println!("Exact match: {}-byte typed QRISC security prefix (including {}-byte entry guard) plus {}-byte idle routine, {} distinct bytes.", dispatch.len(), entry.len(), idle.len(), dispatch.len() + idle.len());
-        println!("Only these fragments are rebuilt; OEM-derived analysis guided their design. Whole image and signatures remain outstanding.");
+        // The middle 48 slots of the GPU shader use the public IR3 category-1
+        // instruction format to zero ordinary vector registers. These are
+        // generated from typed operands, not an OEM instruction-word array.
+        let shader = layout.shader.ok_or("A640 embedded IR3 region not detected")?;
+        const ZERO_BANK_START_SLOT: usize = 13;
+        const ZERO_BANK_SLOTS: usize = 48;
+        if shader.ir3_slots() < ZERO_BANK_START_SLOT + ZERO_BANK_SLOTS {
+            return Err("IR3 shader is too short for zero-register initialization".into());
+        }
+        let zero_bank = nabu_firmware_research::ir3::zero_vector_registers(0, ZERO_BANK_SLOTS as u8)?;
+        let start = shader.start_word * 4 + ZERO_BANK_START_SLOT * 8;
+        if stream.get(start..start + zero_bank.len()) != Some(zero_bank.as_slice()) {
+            return Err("A640 typed Rust IR3 zero-register initializer mismatches".into());
+        }
+        println!("Exact match: {}-byte typed QRISC security prefix (including {}-byte entry guard), {}-byte idle routine, and {}-byte typed IR3 zero-register initialization; {} distinct executable-region bytes.",
+            dispatch.len(), entry.len(), idle.len(), zero_bank.len(), dispatch.len() + idle.len() + zero_bank.len());
+        println!("Only these fragments are rebuilt; OEM-derived analysis guided their design. Whole image, complete shader, and signatures remain outstanding.");
         return Ok(());
     }
     if args.len() == 2 && args[0] == "verify-a640-isa-fields" {

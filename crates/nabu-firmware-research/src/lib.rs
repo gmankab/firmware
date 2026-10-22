@@ -3,6 +3,7 @@
 //! reconstructed text configuration. This is not a complete executable
 //! firmware replacement.
 pub mod a640_microcode;
+pub use nabu_ir3 as ir3;
 pub use nabu_qrisc::{codec as qrisc_codec, program as qrisc_program, a640 as a640_routines};
 pub mod elf32_prefix;
 pub mod elf_specs;

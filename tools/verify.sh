@@ -11,10 +11,12 @@ mkdir -p out
 ./target/release/nabu-firmware-research rebuild-modemuw out/modemuw.jsn
 REF="$ORIGINAL/qcom/sm8150/Xiaomi/nabu/modemuw.jsn"
 ./target/release/nabu-firmware-research verify-modemuw "$REF"
+./target/release/nabu-firmware-research verify-a640-routines \
+    "$ORIGINAL/qcom/sm8150/Xiaomi/nabu/a640_zap.mbn"
 cmp -- "$REF" out/modemuw.jsn
 (
     cd "$ORIGINAL"
     sha256sum -c "$ROOT/reference/firmware.sha256"
 )
 sha256sum "$REF" out/modemuw.jsn
-printf '%s\n' 'Verification passed: one text configuration rebuilt byte-for-byte; proprietary executables NOT rebuilt.'
+printf '%s\n' 'Verification passed: exact text configuration and three typed Rust A640 regions; complete proprietary executables NOT rebuilt.'

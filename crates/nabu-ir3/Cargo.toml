@@ -1,0 +1,8 @@
+# SPDX-License-Identifier: GPL-3.0-only
+[package]
+name = "nabu-ir3"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Typed encoding of a subset of the public Adreno IR3 ISA"
+publish = false
