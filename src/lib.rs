@@ -366,3 +366,66 @@ mod novatek_tests {
         assert!(parse_novatek_candidate(&b).is_err());
     }
 }
+
+/// Prepare a *temporary analysis-only* ELF view that lets Ghidra inspect one
+/// boot code segment of a Qualcomm image whose e_entry is a physical address.
+///
+/// SECURITY / PROVENANCE: this modifies a local copy of proprietary vendor
+/// firmware. The result is INVALID for device boot, not GPL-licensed firmware,
+/// and MUST NOT be flashed, shipped as a firmware image, or confused with an
+/// actual rebuilt executable. Only our transformation algorithm is GPLv3.
+pub fn make_ghidra_bootstrap_view(b: &[u8]) -> Result<Vec<u8>, String> {
+    let elf = parse_elf32(b)?;
+    if elf.machine != 164 {
+        return Err("only Qualcomm Hexagon ELF32 supported".into());
+    }
+    let mut result = b.to_vec();
+    for (i, seg) in elf.program_headers.iter().enumerate() {
+        if seg.kind != 1 || (seg.flags & 1) == 0 || seg.file_size == 0 { continue; }
+        let from = seg.paddr as u64;
+        let end = from + seg.file_size as u64;
+        let entry = elf.entry as u64;
+        if entry >= from && entry < end {
+            let translated = (seg.vaddr as u64) + (entry - from);
+            if translated > u32::MAX as u64 || i >= u16::MAX as usize {
+                return Err("ELF virtual entry address overflow".into());
+            }
+            result[24..28].copy_from_slice(&(translated as u32).to_le_bytes());
+            result[44..46].copy_from_slice(&((i+1) as u16).to_le_bytes());
+            return Ok(result);
+        }
+    }
+    Err("entry does not belong to a file-backed executable physical segment".into())
+}
+
+#[cfg(test)]
+mod analysis_elf_tests {
+    use super::*;
+    #[test]
+    fn translates_physical_entry_and_restricts_segment_table() {
+        let mut b = vec![0u8;0x200];
+        b[..4].copy_from_slice(b"\x7fELF"); b[4]=1; b[5]=1;
+        b[18..20].copy_from_slice(&164u16.to_le_bytes());
+        b[24..28].copy_from_slice(&0x8004u32.to_le_bytes());
+        b[28..32].copy_from_slice(&52u32.to_le_bytes());
+        b[42..44].copy_from_slice(&32u16.to_le_bytes());
+        b[44..46].copy_from_slice(&3u16.to_le_bytes());
+        let ph=52+2*32;
+        b[ph..ph+4].copy_from_slice(&1u32.to_le_bytes());
+        b[ph+8..ph+12].copy_from_slice(&0xf000u32.to_le_bytes());
+        b[ph+12..ph+16].copy_from_slice(&0x8000u32.to_le_bytes());
+        b[ph+16..ph+20].copy_from_slice(&256u32.to_le_bytes());
+        b[ph+20..ph+24].copy_from_slice(&256u32.to_le_bytes());
+        b[ph+24..ph+28].copy_from_slice(&5u32.to_le_bytes());
+        let out=make_ghidra_bootstrap_view(&b).unwrap();
+        assert_eq!(read_u32(&out,24).unwrap(),0xf004);
+        assert_eq!(read_u16(&out,44).unwrap(),3);
+        assert_eq!(read_u32(&b,24).unwrap(),0x8004); // never mutates input
+        assert_eq!(&out[52..],&b[52..]);
+    }
+    #[test]
+    fn rejects_non_hexagon() {
+        let b=b"not an ELF";
+        assert!(make_ghidra_bootstrap_view(b).is_err());
+    }
+}

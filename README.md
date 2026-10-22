@@ -69,6 +69,23 @@ Novatek 0x200-byte header using a **tentative** NT36xxx-family partition
 format. No DSP instruction sets, linker scripts, original firmware bytes, or
 cryptographic keys are embedded in the Rust source.
 
+For `adsp.mbn`, where the image's physical entry point differs from its
+virtual memory mappings, an additional **analysis-only bootstrap ELF view**
+can be generated. The helper is written entirely in Rust, does not alter the
+input and emits an untrusted temporary derivative that **must never be
+flashed or redistributed as GPLv3 firmware**:
+
+```bash
+./target/release/nabu-firmware-research make-ghidra-bootstrap \
+  /path/to/adsp.mbn /tmp/adsp-bootstrap-ANALYSIS-ONLY.mbn
+```
+
+A Ghidra analysis of this view found 29 candidate functions and emitted
+pseudocode for 25. The complete original ADSP file contains far more code;
+the view exposes only the first executable bootstrap segment so Ghidra's
+address translation can be investigated without scanning the entire image.
+
+
 ```bash
 cargo test --offline --locked
 cargo build --release --offline --locked

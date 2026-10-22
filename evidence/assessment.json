@@ -1,15 +1,181 @@
 {
+  "authentication": "All six Qualcomm MDT ELF program header maps contain a QCOM_MDT_TYPE_HASH segment and three DER X.509 candidate certificates per chain; no hardware trust-root verification, signing key extraction, unsigned boot proof, or signatures generated.",
   "decompilation": {
     "a640_zap.mbn": {
-      "decompile_success": false,
-      "procedure_count": 1,
-      "provider": "REA/Ghidra",
-      "reason": "Ghidra entry function contains WARNING: Control flow encountered bad instruction data; halt_baddata(); cannot reconstruct original executable."
+      "architecture": "Qualcomm Hexagon ELF32",
+      "byte_identical_rust_rebuild": false,
+      "errors_total": 0,
+      "latest_discovered_candidate_count": 1,
+      "not_attempted_estimate": 0,
+      "pseudocode_emissions": 1,
+      "runs": [
+        {
+          "attempted": 1,
+          "capped": false,
+          "decompiler_errors": 0,
+          "file": "a640_zap.mbn.c",
+          "identified_candidate_functions": 1,
+          "pseudocode_emitted": 1,
+          "skipped_previous": 0,
+          "unique_addresses_in_run": 1
+        }
+      ],
+      "semantics_verified": false,
+      "unique_function_addresses_attempted": 1,
+      "warning": "Pseudocode entry has bad-instruction warnings and halt_baddata; semantically unusable."
+    },
+    "adsp-bootstrap-ANALYSIS-ONLY": {
+      "attempted": 29,
+      "decompiled": 25,
+      "discovered": 29,
+      "errors": 4,
+      "warning": "From TEMPORARY nonbootable ELF header with e_entry remapped and only first executable PT_LOAD exposed; not evidence of original complete buildability."
+    },
+    "adsp.mbn": {
+      "architecture": "Qualcomm Hexagon ELF32",
+      "byte_identical_rust_rebuild": false,
+      "errors_total": 4,
+      "interpretation": "Latest discovered function count is a heuristic, not exact executable coverage.",
+      "latest_discovered_candidate_count": 23212,
+      "not_attempted_estimate": 17214,
+      "pseudocode_emissions": 5994,
+      "repeated_attempt_addresses": 0,
+      "runs": [
+        {
+          "attempted": 0,
+          "capped": false,
+          "decompiler_errors": 0,
+          "file": "adsp.mbn.c",
+          "identified_candidate_functions": 0,
+          "pseudocode_emitted": 0,
+          "skipped_previous": 0,
+          "unique_addresses_in_run": 0
+        },
+        {
+          "attempted": 5998,
+          "capped": true,
+          "decompiler_errors": 4,
+          "file": "adsp.mbn.pass2.c",
+          "identified_candidate_functions": 23212,
+          "pseudocode_emitted": 5994,
+          "skipped_previous": 0,
+          "unique_addresses_in_run": 5998
+        }
+      ],
+      "semantics_verified": false,
+      "unique_function_addresses_attempted": 5998
+    },
+    "cdsp.mbn": {
+      "architecture": "Qualcomm Hexagon ELF32",
+      "byte_identical_rust_rebuild": false,
+      "errors_total": 9,
+      "interpretation": "Latest discovered function count is a heuristic, not exact executable coverage.",
+      "latest_discovered_candidate_count": 10786,
+      "not_attempted_estimate": 0,
+      "pseudocode_emissions": 10777,
+      "repeated_attempt_addresses": 0,
+      "runs": [
+        {
+          "attempted": 5301,
+          "capped": true,
+          "decompiler_errors": 6,
+          "file": "cdsp.mbn.c",
+          "identified_candidate_functions": 9403,
+          "pseudocode_emitted": 5295,
+          "skipped_previous": 0,
+          "unique_addresses_in_run": 5301
+        },
+        {
+          "attempted": 5485,
+          "capped": false,
+          "decompiler_errors": 3,
+          "file": "cdsp.mbn.pass2.c",
+          "identified_candidate_functions": 10786,
+          "pseudocode_emitted": 5482,
+          "skipped_previous": 5301,
+          "unique_addresses_in_run": 5485
+        }
+      ],
+      "semantics_verified": false,
+      "unique_function_addresses_attempted": 10786
+    },
+    "modem.mbn": {
+      "architecture": "Qualcomm Hexagon ELF32",
+      "byte_identical_rust_rebuild": false,
+      "errors_total": 2,
+      "latest_discovered_candidate_count": 5348,
+      "not_attempted_estimate": 0,
+      "pseudocode_emissions": 5346,
+      "runs": [
+        {
+          "attempted": 5348,
+          "capped": false,
+          "decompiler_errors": 2,
+          "file": "modem.mbn.c",
+          "identified_candidate_functions": 5348,
+          "pseudocode_emitted": 5346,
+          "skipped_previous": 0,
+          "unique_addresses_in_run": 5348
+        }
+      ],
+      "semantics_verified": false,
+      "unique_function_addresses_attempted": 5348
     },
     "venus.mbn": {
-      "decompile_success": false,
-      "provider": "REA/Ghidra",
-      "reason": "Ghidra overview request did not finish before executor timeout; no reconstruction evidence."
+      "architecture": "ARM ELF32",
+      "byte_identical_rust_rebuild": false,
+      "errors_total": 5,
+      "latest_discovered_candidate_count": 1593,
+      "not_attempted_estimate": 0,
+      "pseudocode_emissions": 1588,
+      "runs": [
+        {
+          "attempted": 1593,
+          "capped": false,
+          "decompiler_errors": 5,
+          "file": "venus.mbn.c",
+          "identified_candidate_functions": 1593,
+          "pseudocode_emitted": 1588,
+          "skipped_previous": 0,
+          "unique_addresses_in_run": 1593
+        }
+      ],
+      "semantics_verified": false,
+      "unique_function_addresses_attempted": 1593
+    },
+    "wlanmdsp.mbn": {
+      "architecture": "Qualcomm Hexagon ELF32",
+      "byte_identical_rust_rebuild": false,
+      "errors_total": 2,
+      "interpretation": "Latest discovered function count is a heuristic, not exact executable coverage.",
+      "latest_discovered_candidate_count": 6113,
+      "not_attempted_estimate": 181,
+      "pseudocode_emissions": 5930,
+      "repeated_attempt_addresses": 0,
+      "runs": [
+        {
+          "attempted": 3164,
+          "capped": true,
+          "decompiler_errors": 1,
+          "file": "wlanmdsp.mbn.c",
+          "identified_candidate_functions": 6006,
+          "pseudocode_emitted": 3163,
+          "skipped_previous": 0,
+          "unique_addresses_in_run": 3164
+        },
+        {
+          "attempted": 2768,
+          "capped": true,
+          "decompiler_errors": 1,
+          "file": "wlanmdsp.mbn.pass2.c",
+          "identified_candidate_functions": 6113,
+          "pseudocode_emitted": 2767,
+          "skipped_previous": 3164,
+          "unique_addresses_in_run": 2768
+        }
+      ],
+      "semantics_verified": false,
+      "unique_function_addresses_attempted": 5932
     }
   },
   "files": [
@@ -148,6 +314,11 @@
       "sha256": "87c2c7bb1fe97eaf007a947832feba0898644b4d6626ac8ef49d8b94dd82604b"
     }
   ],
+  "other_formats": {
+    "cirrus/cs35l41-dsp1-spk-prot.wmfw": "HALO DSP WMFW v3, 11 parsed packed program/data/algorithm regions, no HALO instruction decompilation",
+    "novatek/novatek_nt36523_fw.bin": "raw NVT marker, candidate 0x200-byte header with 31 provisional descriptors, no MCU ISA verified",
+    "qcom/sm8150/Xiaomi/nabu/modemuw.jsn": "713-byte text config regenerated byte-for-byte from typed Rust; no executable firmware"
+  },
   "overall_identical_9_firmware_files": false,
   "rebuilt": {
     "modemuw.jsn": {
@@ -156,7 +327,7 @@
       "sha256": "e75d94b61df3e86c5b3f7a976d93f726cb85f2b897a8ea80a0924b9bb9c1a3bf"
     }
   },
-  "scope_note": "Source code in this repo is GPL-3.0-only. Proprietary binary inputs and original firmware are not relicensed or included.",
+  "scope_note": "GPL-3.0-only applies to newly authored Rust/Java/bash tooling, not OEM binaries, decompiler-derived pseudocode, or machine-learning function guesses. The Ghidra C-like output is separately archived with no GPL grant.",
   "toolchain": {
     "binwalk": "3.1.0",
     "ghidra": "12.1.4",

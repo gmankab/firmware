@@ -1,11 +1,19 @@
 // SPDX-License-Identifier: GPL-3.0-only
-use nabu_firmware_research::{build_modemuw, machine_name, parse_elf32, parse_wmfw, parse_novatek_candidate, qcom_mdt_hash_segments, wmfw_type_name};
+use nabu_firmware_research::{build_modemuw, machine_name, make_ghidra_bootstrap_view, parse_elf32, parse_novatek_candidate, parse_wmfw, qcom_mdt_hash_segments, wmfw_type_name};
 use std::{env, error::Error, fs, path::PathBuf};
 
 fn run() -> Result<(), Box<dyn Error>> {
     let args: Vec<String> = env::args().skip(1).collect();
+    if args.len() == 3 && args[0] == "make-ghidra-bootstrap" {
+        let original = fs::read(&args[1])?;
+        let prepared = make_ghidra_bootstrap_view(&original)?;
+        fs::write(&args[2], prepared)?;
+        println!("TEMPORARY ANALYSIS ONLY (DO NOT FLASH): wrote {}", args[2]);
+        return Ok(());
+    }
     if args.len() != 2 {
-        return Err("usage: nabu-firmware-research <rebuild-modemuw|verify-modemuw|inspect-elf32|inspect-image> PATH".into());
+        return Err("usage: nabu-firmware-research <rebuild-modemuw|verify-modemuw|inspect-elf32|inspect-image> PATH \
+            OR make-ghidra-bootstrap ORIGINAL OUTPUT-ANALYSIS-ONLY".into());
     }
     let target = PathBuf::from(&args[1]);
     match args[0].as_str() {
