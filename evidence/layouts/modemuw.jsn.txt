@@ -1,0 +1,2 @@
+file: <FIRMWARE_ROOT>/qcom/sm8150/Xiaomi/nabu/modemuw.jsn; bytes: 713
+text configuration candidate; no executable decompilation

@@ -1,0 +1,27 @@
+file: <FIRMWARE_ROOT>/qcom/sm8150/Xiaomi/nabu/modem.mbn; bytes: 5101612
+ELF32 architecture=Qualcomm Hexagon DSP entry=0x8e000000 phdrs=24 qcom_hash_segments=1
+  [0] kind=0x0 flags=0x07000000 offset=0x0 size=820 memory=0 vaddr=0x0 paddr=0x0 hash=false
+  [1] kind=0x0 flags=0x02200000 offset=0x1000 size=7720 memory=8192 vaddr=0x91000000 paddr=0x91000000 hash=true
+  [2] kind=0x1 flags=0x08000005 offset=0x3000 size=8224 memory=12288 vaddr=0xc0800000 paddr=0x8e000000 hash=false
+  [3] kind=0x1 flags=0x08000004 offset=0x6000 size=8528 memory=8528 vaddr=0xa0503000 paddr=0x8e003000 hash=false
+  [4] kind=0x1 flags=0x08000004 offset=0x9000 size=92 memory=92 vaddr=0xa0506000 paddr=0x8e010000 hash=false
+  [5] kind=0x1 flags=0x08000007 offset=0xa000 size=235176 memory=237568 vaddr=0xc0812000 paddr=0x8e012000 hash=false
+  [6] kind=0x1 flags=0x08000006 offset=0x44000 size=64304 memory=65536 vaddr=0xc084c000 paddr=0x8e04c000 hash=false
+  [7] kind=0x1 flags=0x08000004 offset=0x54000 size=3356 memory=4096 vaddr=0xc085c000 paddr=0x8e05c000 hash=false
+  [8] kind=0x1 flags=0x08000007 offset=0x55000 size=34072 memory=36864 vaddr=0xc085d000 paddr=0x8e05d000 hash=false
+  [9] kind=0x1 flags=0x08000007 offset=0x5e000 size=114772 memory=118784 vaddr=0xc0866000 paddr=0x8e066000 hash=false
+  [10] kind=0x1 flags=0x08000004 offset=0x7b000 size=45 memory=45 vaddr=0xa0502000 paddr=0x8e083000 hash=false
+  [11] kind=0x1 flags=0x08000005 offset=0x7c000 size=1588464 memory=1589248 vaddr=0xc0890000 paddr=0x8e090000 hash=false
+  [12] kind=0x1 flags=0x08000006 offset=0x200000 size=0 memory=4096 vaddr=0xc0a40000 paddr=0x8e240000 hash=false
+  [13] kind=0x1 flags=0x08000006 offset=0x200000 size=4112 memory=8192 vaddr=0xc0a80000 paddr=0x8e280000 hash=false
+  [14] kind=0x1 flags=0x08000004 offset=0x202000 size=487544 memory=15056896 vaddr=0xc0ac0000 paddr=0x8e2c0000 hash=false
+  [15] kind=0x1 flags=0x08000006 offset=0x27a000 size=1810388 memory=1810432 vaddr=0xc191c000 paddr=0x8f11c000 hash=false
+  [16] kind=0x1 flags=0x08000006 offset=0x434000 size=0 memory=12820480 vaddr=0xc1ad6000 paddr=0x8f2d6000 hash=false
+  [17] kind=0x1 flags=0x08000006 offset=0x434000 size=34944 memory=36864 vaddr=0xc2710000 paddr=0x8ff10000 hash=false
+  [18] kind=0x1 flags=0x08000004 offset=0x43d000 size=32924 memory=36864 vaddr=0xc2740000 paddr=0x8ff40000 hash=false
+  [19] kind=0x1 flags=0x08000005 offset=0x446000 size=73124 memory=73728 vaddr=0x1e400000 paddr=0x90000000 hash=false
+  [20] kind=0x1 flags=0x08000006 offset=0x458000 size=4904 memory=36864 vaddr=0x1e412000 paddr=0x90012000 hash=false
+  [21] kind=0x1 flags=0x08000006 offset=0x45a000 size=128 memory=4096 vaddr=0x1e41b000 paddr=0x9001b000 hash=false
+  [22] kind=0x1 flags=0x08000004 offset=0x45b000 size=534572 memory=534572 vaddr=0xa0d00000 paddr=0x90040000 hash=false
+  [23] kind=0x1 flags=0x08000004 offset=0x4de000 size=0 memory=15978496 vaddr=0xa0d83000 paddr=0x900c3000 hash=false
+WARNING: auth metadata present; does not establish signature validity or device enforcement

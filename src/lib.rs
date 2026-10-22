@@ -162,3 +162,207 @@ mod tests {
         assert!(parse_elf32(b"not an ELF").is_err());
     }
 }
+
+/// Fully parses WMFW container boundaries and metadata, but does not interpret
+/// Cirrus Halo DSP machine instructions or redistribute proprietary payloads.
+#[derive(Debug, PartialEq, Eq)]
+pub struct WmfwHeader {
+    pub revision: u16,
+    pub core: u8,
+    pub version: u8,
+    pub region_headers: Vec<WmfwRegion>,
+}
+
+#[derive(Debug, PartialEq, Eq)]
+pub struct WmfwRegion {
+    pub file_offset: usize,
+    pub dsp_offset: u32,
+    pub region_type: u8,
+    pub payload_length: usize,
+}
+
+pub fn wmfw_type_name(kind: u8) -> &'static str {
+    // From Linux include/linux/firmware/cirrus/wmfw.h, core WMFW_HALO == 4.
+    match kind {
+        0x10 => "HALO_PM_PACKED",
+        0x11 => "HALO_XM_PACKED",
+        0x12 => "HALO_YM_PACKED",
+        0xf0 => "ABSOLUTE",
+        0xf2 => "ALGORITHM_DATA",
+        0xfc => "METADATA",
+        0xfe => "NAME_TEXT",
+        0xff => "INFO_TEXT",
+        _ => "UNRECOGNIZED_REGION",
+    }
+}
+
+pub fn parse_wmfw(b: &[u8]) -> Result<WmfwHeader, String> {
+    if b.get(..4) != Some(&b"WMFW"[..]) { return Err("not WMFW".into()); }
+    if b.len() < 12 { return Err("truncated WMFW header".into()); }
+    let header_len = read_u32(b, 4)? as usize;
+    let revision = read_u16(b, 8)?;
+    let core = b[10];
+    let version = b[11];
+    // v3 and HALO use a 12-byte header + four 4-byte memory sizes + 12-byte footer.
+    if version != 3 || core != 4 {
+        return Err(format!("unhandled WMFW layout: core={core}, version={version}"));
+    }
+    if header_len != 40 || header_len > b.len() {
+        return Err("unexpected HALO v3 header length".into());
+    }
+    let mut offset = header_len;
+    let mut region_headers = Vec::new();
+    while offset < b.len() {
+        let word = read_u32(b, offset)?;
+        let length = read_u32(b, offset + 4)? as usize;
+        let next = offset.checked_add(8).and_then(|v| v.checked_add(length))
+            .ok_or("WMFW region length overflow")?;
+        if next > b.len() { return Err("WMFW region exceeds file".into()); }
+        region_headers.push(WmfwRegion {
+            file_offset: offset,
+            dsp_offset: word & 0x00ff_ffff,
+            region_type: (word >> 24) as u8,
+            payload_length: length,
+        });
+        offset = next;
+    }
+    Ok(WmfwHeader { revision, core, version, region_headers })
+}
+
+/// Find Qualcomm MDT hash-segment descriptors by their kernel-defined p_flags.
+/// This reveals a *candidate authentication boundary*, not verified signatures.
+pub fn qcom_mdt_hash_segments(header: &ElfHeader) -> Vec<(usize, &ProgramHeader)> {
+    header.program_headers.iter().enumerate()
+        .filter(|(_, s)| s.flags & 0x0700_0000 == 0x0200_0000)
+        .collect()
+}
+
+#[cfg(test)]
+mod firmware_tests {
+    use super::*;
+
+    #[test]
+    fn wmfw_minimal_valid_halo_header() {
+        let mut b = vec![0u8; 40];
+        b[0..4].copy_from_slice(b"WMFW");
+        b[4..8].copy_from_slice(&40u32.to_le_bytes());
+        b[9] = 3; b[10] = 4; b[11] = 3;
+        // One INFO_TEXT region with zero-length payload
+        b.extend_from_slice(&0xff000000u32.to_le_bytes());
+        b.extend_from_slice(&0u32.to_le_bytes());
+        let parsed = parse_wmfw(&b).unwrap();
+        assert_eq!(parsed.region_headers.len(), 1);
+        assert_eq!(parsed.region_headers[0].region_type, 0xff);
+        assert_eq!(parsed.revision, 768);
+    }
+
+    #[test]
+    fn reject_truncated_wmfw_region() {
+        let mut b = vec![0u8; 40];
+        b[0..4].copy_from_slice(b"WMFW");
+        b[4..8].copy_from_slice(&40u32.to_le_bytes());
+        b[10] = 4; b[11] = 3;
+        b.extend_from_slice(&0x11000000u32.to_le_bytes());
+        b.extend_from_slice(&64u32.to_le_bytes());
+        assert!(parse_wmfw(&b).is_err());
+    }
+
+    #[test]
+    fn hash_segment_classified_by_flags_not_content() {
+        let header = ElfHeader { machine: 164, entry: 0,
+            program_headers: vec![
+                ProgramHeader {kind: 0, offset: 0, vaddr: 0, paddr: 0, file_size: 10,
+                    mem_size: 0, flags: 0x0220_0000},
+                ProgramHeader {kind: 1, offset: 20, vaddr: 0, paddr: 0, file_size: 10,
+                    mem_size: 10, flags: 0x0800_0005},
+            ],
+        };
+        assert_eq!(qcom_mdt_hash_segments(&header).len(), 1);
+    }
+}
+
+/// Tentative Novatek NT36xxx-style container map, NOT an MCU/ISA identification.
+/// Inspired by the public Linux/Android NT36xxx firmware-update parser, which
+/// comes from a *related* chipset. Nabu NT36523 format compatibility is unverified.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct NovatekPartition {
+    pub kind: String,
+    pub file_offset: u32,
+    pub sram_address: u32,
+    pub size_minus_one: u32,
+    pub checksum_word: u32,
+}
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct NovatekCandidateHeader {
+    pub header_length: usize,
+    pub has_nvt_marker: bool,
+    pub partitions: Vec<NovatekPartition>,
+}
+
+pub fn parse_novatek_candidate(b: &[u8]) -> Result<NovatekCandidateHeader, String> {
+    if b.len() < 0x40 { return Err("NVT candidate too small".into()); }
+    let header_length = read_u32(b, 0)? as usize;
+    if !(0x30..=0x2000).contains(&header_length)
+        || header_length > b.len()
+        || (header_length - 0x30) % 16 != 0
+    {
+        return Err("NVT candidate header length is implausible".into());
+    }
+    let mut partitions = Vec::new();
+    // First two 12-byte entries represent ILM and DLM in related NT36xxx
+    // drivers; size_minus_one follows that driver's inclusive-length encoding.
+    for i in 0..2 {
+        let at = i*12;
+        let file_offset = read_u32(b, at)?;
+        let sram_address = read_u32(b, at+4)?;
+        let size_minus_one = read_u32(b, at+8)?;
+        let checksum_word = read_u32(b, 0x18 + i*4)?;
+        let end = (file_offset as usize).checked_add(size_minus_one as usize)
+            .and_then(|v| v.checked_add(1)).ok_or("partition size overflow")?;
+        if end > b.len() { return Err("ILM/DLM extends past file".into()); }
+        partitions.push(NovatekPartition {
+            kind: if i == 0 { "ILM" } else { "DLM" }.into(),
+            file_offset, sram_address, size_minus_one, checksum_word,
+        });
+    }
+    // The rest are tentative 16-byte entries. Some can be metadata or
+    // replicated headers in this vendor-specific NT36523 image.
+    for i in 0..(header_length-0x30)/16 {
+        let at=0x30+i*16;
+        let (sram_address, size_minus_one, file_offset, checksum_word) = (
+            read_u32(b,at)?, read_u32(b,at+4)?, read_u32(b,at+8)?, read_u32(b,at+12)?
+        );
+        // Do not insist that these are actual partitions. Their semantics
+        // depend on the exact device-side vendor driver.
+        partitions.push(NovatekPartition {
+            kind: format!("candidate-{i}"), file_offset, sram_address,
+            size_minus_one, checksum_word,
+        });
+    }
+    Ok(NovatekCandidateHeader {
+        header_length, has_nvt_marker: b.ends_with(b"NVT"), partitions,
+    })
+}
+
+#[cfg(test)]
+mod novatek_tests {
+    use super::*;
+    #[test]
+    fn parses_bounded_candidate() {
+        let mut b = vec![0u8;0x300];
+        b[0..4].copy_from_slice(&0x30u32.to_le_bytes());
+        b[8..12].copy_from_slice(&0x80u32.to_le_bytes());
+        b[12..16].copy_from_slice(&0xb1u32.to_le_bytes());
+        b[20..24].copy_from_slice(&0x20u32.to_le_bytes());
+        b[0x2fd..].copy_from_slice(b"NVT");
+        let parsed = parse_novatek_candidate(&b).unwrap();
+        assert_eq!(parsed.partitions.len(),2);
+        assert!(parsed.has_nvt_marker);
+    }
+    #[test]
+    fn rejects_bad_candidate_header() {
+        let mut b = vec![0u8;0x300];
+        b[..4].copy_from_slice(&0x234u32.to_le_bytes());
+        assert!(parse_novatek_candidate(&b).is_err());
+    }
+}

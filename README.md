@@ -18,9 +18,16 @@ This repository contains GPL-3.0-only Rust **tooling** and a structured rebuild 
 | `qcom/sm8150/Xiaomi/nabu/venus.mbn` | 1,159,200 | 1 | No |
 | `qcom/sm8150/Xiaomi/nabu/wlanmdsp.mbn` | 4,331,136 | 50 | No |
 
-REA produces *signature candidates* and possible embedded payloads. The 234 reported matches do **not** mean 234 extracted functions or recoverable sources; many are incidental short zlib and GPG-looking byte sequences. `a640_zap.mbn` is an ELF32 Qualcomm Hexagon executable. REA/Ghidra reported only one entry function, with an invalid-instruction warning, before terminating the recovered control flow with `halt_baddata()`. No valid executable reconstruction followed. `venus.mbn` is a stripped ELF32 ARM executable; its REA/Ghidra overview attempt exceeded the session's time limit.
+REA produces *signature candidates* and possible embedded payloads. The 234 reported matches do **not** mean 234 extracted functions or recoverable sources; many are incidental short zlib and GPG-looking byte sequences. `a640_zap.mbn` is an ELF32 Qualcomm Hexagon executable. REA/Ghidra reported only one entry function, with an invalid-instruction warning, before terminating the recovered control flow with `halt_baddata()`. No valid executable reconstruction followed. `venus.mbn` is a stripped ELF32 ARM executable: a subsequent direct Ghidra headless run decompiled 1,588 of 1,593 identified functions. Earlier REA/Ghidra overview sessions timed out.
 
-Some binaries include Xiaomi-related certificate information. A byte-identical proprietary signed image cannot be asserted from recovered pseudocode. The original source, a precise linker/assembler/compiler environment and possibly authorization for firmware signing are necessary to develop and test an equivalent replacement; modified signed binaries may need valid new signatures. The files have no normal ELF section tables, making reconstruction more difficult.
+All six Qualcomm `.mbn` images contain MDT authentication/hash segments with Xiaomi-related X.509 certificate-chain information. These are not signing keys; their presence does not prove whether this particular device checks or can bypass signatures. A byte-identical proprietary signed image cannot be asserted from recovered pseudocode. The original source, a precise linker/assembler/compiler environment and possibly authorization for firmware signing are necessary to develop and test an equivalent replacement; modified signed binaries may need valid new signatures. The files have no normal ELF section tables, making reconstruction more difficult.
+
+As an additional practical toolchain limitation, Rust 1.99.1 here lists no
+`hexagon-*` or Cirrus HALO compilation target in `rustc --print target-list`.
+A C-like Hexagon decompilation cannot simply be fed to standard `rustc` to
+produce executable Hexagon firmware; an appropriate Rust backend/runtime and
+platform-specific linker/image builder would be needed even if the program
+logic had been independently reimplemented.
 
 ## Tested partial build
 
@@ -36,7 +43,6 @@ mkdir -p out
 `out/` must exist before invoking `rebuild-modemuw` (or pass any existing directory in the destination path). Alternatively, use:
 
 ```bash
-mkdir -p out
 mkdir -p out
 ./target/release/nabu-firmware-research rebuild-modemuw out/modemuw.jsn
 ./target/release/nabu-firmware-research verify-modemuw \
@@ -54,6 +60,60 @@ The configuration is authored as typed Rust structures with deterministic format
 ./target/release/nabu-firmware-research inspect-elf32 /path/to/a640_zap.mbn
 ```
 
+## Inspect all formats (new)
+
+The GPLv3 Rust executable can enumerate the ELF32/Qualcomm MDT program
+headers and the candidate authentication segments, independently decode the
+Cirrus WMFW v3 HALO container and its 11 region descriptors, and inspect the
+Novatek 0x200-byte header using a **tentative** NT36xxx-family partition
+format. No DSP instruction sets, linker scripts, original firmware bytes, or
+cryptographic keys are embedded in the Rust source.
+
+```bash
+cargo test --offline --locked
+cargo build --release --offline --locked
+scripts/inspect-all.sh /path/to/extracted/usr/lib/firmware /tmp/nabu-layouts
+```
+
+Novatek partition labels (ILM/DLM) follow a *related* Novatek driver; the
+NT36523 interpretation has not been verified and the architecture is unknown.
+The Cirrus image is HALO DSP format, not ARM or Hexagon and cannot be fed to
+the Ghidra Hexagon decompiler as if it were Qualcomm machine code.
+
+## Re-run function-level decompilation
+
+The repository includes a dedicated Ghidra headless `DecompileNabu.java`
+script. It exports per-function **C-like pseudocode** for the six Qualcomm
+images. Output is not executable Rust, and recovery counts are not proof of
+correctness. Generated OEM-derived pseudocode is intentionally **outside the
+GPLv3 Git repository**, in a separate research-evidence archive.
+
+```bash
+cargo build --release --offline --locked
+scripts/decompile-all.sh /path/to/extracted/usr/lib/firmware \
+  /path/to/ghidra_12.1.4_PUBLIC /tmp/nabu-ghidra-results
+```
+
+To retry huge images after the first pass, use
+`scripts/continue-decompilation.sh ORIGINAL_FIRMWARE_ROOT GHIDRA_DIR OUTPUT_DIR`.
+Resource budgets are controlled by `ANALYSIS_SEC`, `DECOMP_SEC` and
+`GHIDRA_HEADLESS_MAXMEM`. Large images need more than a single 95-second
+function pass. For reproducibility, keep the original firmware package
+unchanged and compare files to `evidence/apk-files.sha256`.
+
+## Signing and Nabu boot
+
+Linux `request_firmware()` can return unsigned bytes when no higher-layer
+signature enforcement is configured. In the Qualcomm PAS paths, however,
+TrustZone/secure firmware authenticates the coprocessor images before boot.
+The Adreno A640 ZAP loader also has a PAS authorization path. Skipping
+signing is safe for **static research**, not a demonstration that the
+resulting executable firmware boots on stock Nabu hardware. Linux itself may
+boot with nonessential coprocessors offline, but modem/audio/Wi-Fi/video/GPU
+subsystems can fail, and a working display is not guaranteed. The device was
+not flashed or boot-tested. Unlocking the Android bootloader does not imply
+that independent subsystem firmware signature enforcement is disabled.
+
 ## Re-run REA observations
 
 The input bundle included `rea-agents` 6.7.0, Ghidra 12.1.4, Binwalk 3.1.0 and offline dependencies for Ubuntu 24.04. Those binaries/tools are not vendored in this Git bundle; obtain or unpack the separate original download bundle. After making the tools available:
@@ -67,7 +127,7 @@ scripts/run-rea-scans.sh \
   /path/to/new-results
 ```
 
-For native decompilation, separately set `GHIDRA_INSTALL_DIR` to the extracted Ghidra directory and use REA's `analyze ... --provider ghidra` and `decompile ... --provider ghidra`. A Ghidra analysis of a large Hexagon/ARM firmware may take much longer and still cannot reconstitute OEM firmware source. Inspect results in `evidence/assessment.json` and `evidence/rea/*.json`; `evidence/apk-files.sha256` contains each file's expected SHA-256.
+REA can also invoke Ghidra when `GHIDRA_INSTALL_DIR` is configured. For exhaustive offline exports the included direct Ghidra script avoids session-level limits. A Ghidra analysis of a large Hexagon/ARM firmware may take much longer and still cannot reconstitute OEM firmware source. Inspect results in `evidence/assessment.json` and `evidence/rea/*.json`; `evidence/apk-files.sha256` contains each file's expected SHA-256.
 
 ## Licensing and Fedora / Pocketblue
 
@@ -75,6 +135,14 @@ For native decompilation, separately set `GHIDRA_INSTALL_DIR` to the extracted G
 - The input postmarketOS package declares **`license = proprietary`**. Reversing or regenerating its byte content would not, by itself, confer GPLv3 rights over the underlying vendor code.
 - Fedora has a [separate firmware policy](https://fedoraproject.org/wiki/Licensing:SoftwareTypes) permitting some binary-only firmware *under acceptable firmware licenses*. That is a licensing/permission review, not something a GPL label or binary-to-Rust conversion can replace.
 - The nine-file APK declares dependencies on `linux-firmware-ath10k`, `linux-firmware-qcom` and `linux-firmware-qca` which are **not** the same as the nine payload files. Do not treat this repo as a complete device firmware tree.
+
+## Native decompilation results
+
+See `evidence/ghidra-summary.md` for run-by-run counts, failure modes,
+architectures and findings. Even thousands of recovered functions cannot
+recover the original compiler/linker configuration or synthesize a byte-for-byte
+signed and executable Rust replacement. Signing is deliberately **not
+attempted** here.
 
 ## What would be required for the requested full rebuild?
 
