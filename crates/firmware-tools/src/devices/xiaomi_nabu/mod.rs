@@ -44,5 +44,11 @@ mod venus_runtime_format_numbers;
 mod venus_runtime_format_output;
 mod venus_runtime_format_strings;
 mod venus_runtime_format_finish;
+mod venus_runtime_format_small;
+mod venus_runtime_format_helpers;
+mod venus_runtime_format_args;
+mod venus_runtime_diag_write;
+mod venus_runtime_diag_buffer;
+mod venus_runtime_diag_memory;
 
 pub mod venus_plan;

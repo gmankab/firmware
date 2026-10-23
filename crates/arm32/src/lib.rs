@@ -148,6 +148,37 @@ pub fn load_halfword(condition: Condition, rd: Register, rn: Register,
     Ok(store_halfword(condition, rd, rn, signed_offset)? | (1 << 20))
 }
 
+/// A32 signed halfword load with a checked signed imm8 displacement.
+/// This uses the halfword transfer's split eight-bit immediate field.
+pub fn load_signed_halfword(condition: Condition, rd: Register, rn: Register,
+                            signed_offset: i32) -> Result<u32, String> {
+    if rd == Register::PC || rn == Register::PC || signed_offset.unsigned_abs() > 255 {
+        return Err("invalid ARM32 signed-halfword load operands".into());
+    }
+    let offset = signed_offset.unsigned_abs();
+    Ok(cond(condition) | 0x0150_00f0
+        | if signed_offset >= 0 { 1 << 23 } else { 0 }
+        | (rn.number() << 16) | (rd.number() << 12)
+        | ((offset & 0xf0) << 4) | (offset & 0x0f))
+}
+
+/// A32 aligned LDRD or STRD: the pair is always Rt and Rt+1.
+/// Invalid odd or high register pairs, PC bases and large displacements are
+/// rejected instead of silently encoding unpredictable instructions.
+pub fn transfer_doubleword(condition: Condition, load: bool,
+                           rd: Register, rn: Register,
+                           signed_offset: i32) -> Result<u32, String> {
+    if rd.number() > 12 || rd.number() % 2 != 0 || rn == Register::PC
+        || signed_offset.unsigned_abs() > 255 {
+        return Err("invalid ARM32 doubleword transfer operands".into());
+    }
+    let offset = signed_offset.unsigned_abs();
+    Ok(cond(condition) | if load { 0x0140_00d0 } else { 0x0140_00f0 }
+        | if signed_offset >= 0 { 1 << 23 } else { 0 }
+        | (rn.number() << 16) | (rd.number() << 12)
+        | ((offset & 0xf0) << 4) | (offset & 0x0f))
+}
+
 /// ARM A32 register-offset post-indexed word transfer (`[Rn], Rm`).
 /// Only positive, unshifted register offsets are currently supported.
 /// The base register is updated after the access, including when the
@@ -184,6 +215,19 @@ pub fn transfer_byte_register(condition: Condition, load: bool, rd: Register,
 
 /// A32 MLA: multiply two registers and add a third, without flag updates.
 /// The destination may alias an input, but PC is forbidden in each operand.
+/// A32 register-offset byte load/store supporting addition and subtraction
+/// of a shifted offset register. Restricts unsafe base/PC combinations.
+pub fn transfer_byte_register_offset(condition: Condition, load: bool,
+                                     rd: Register, rn: Register, rm: Register,
+                                     shift: Shift, amount: u8,
+                                     subtract: bool) -> Result<u32, String> {
+    if rn == Register::PC || rm == Register::PC {
+        return Err("invalid ARM32 indexed byte transfer registers".into());
+    }
+    let encoded = transfer_byte_register(condition, load, rd, rn, rm, shift, amount)?;
+    Ok(if subtract { encoded & !(1 << 23) } else { encoded })
+}
+
 pub fn multiply_accumulate(condition: Condition, rd: Register, rm: Register,
                            rs: Register, addend: Register) -> Result<u32, String> {
     if [rd, rm, rs, addend].contains(&Register::PC) {
@@ -206,11 +250,11 @@ fn modified_immediate(value: u32) -> Result<u32, String> {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum DataOp { And = 0, Eor = 1, Sub = 2, Rsb = 3, Add = 4, Sbc = 6, Rsc = 7, Tst = 8, Cmp = 10, Orr = 12, Mov = 13, Bic = 14, Mvn = 15 }
+pub enum DataOp { And = 0, Eor = 1, Sub = 2, Rsb = 3, Add = 4, Sbc = 6, Rsc = 7, Tst = 8, Cmp = 10, Cmn = 11, Orr = 12, Mov = 13, Bic = 14, Mvn = 15 }
 
 pub fn data_immediate(condition: Condition, op: DataOp, rd: Register, rn: Register,
                       value: u32) -> Result<u32, String> {
-    let test = matches!(op, DataOp::Cmp | DataOp::Tst);
+    let test = matches!(op, DataOp::Cmp | DataOp::Tst | DataOp::Cmn);
     let rd_field = if test { 0 } else { rd.number() };
     Ok(cond(condition) | (1 << 25) | ((op as u32) << 21)
        | if test { 1 << 20 } else { 0 }
@@ -235,7 +279,7 @@ pub fn mov_shifted_register(condition: Condition, rd: Register, rm: Register,
 
 pub fn data_immediate_with_flags(condition: Condition, op: DataOp, rd: Register,
                                  rn: Register, value: u32, flags: bool) -> Result<u32, String> {
-    if matches!(op, DataOp::Cmp | DataOp::Tst) {
+    if matches!(op, DataOp::Cmp | DataOp::Tst | DataOp::Cmn) {
         return Err("CMP and TST always update flags; use data_immediate".into());
     }
     Ok(data_immediate(condition, op, rd, rn, value)? | if flags { 1 << 20 } else { 0 })
@@ -244,7 +288,7 @@ pub fn data_immediate_with_flags(condition: Condition, op: DataOp, rd: Register,
 pub fn data_register(condition: Condition, op: DataOp, rd: Register, rn: Register,
                      rm: Register, shift: Shift, amount: u8,
                      flags: bool) -> Result<u32, String> {
-    let test = matches!(op, DataOp::Cmp | DataOp::Tst);
+    let test = matches!(op, DataOp::Cmp | DataOp::Tst | DataOp::Cmn);
     if flags && test { return Err("CMP and TST set flags automatically".into()); }
     Ok(cond(condition) | ((op as u32) << 21) | ((rn.number()) << 16)
        | if flags || test { 1 << 20 } else { 0 }
@@ -262,7 +306,7 @@ pub fn data_register_shifted_by_register(condition: Condition, op: DataOp,
     if rs == Register::PC || rm == Register::PC {
         return Err("PC is not a valid ARM32 shift operand".into());
     }
-    let test = matches!(op, DataOp::Cmp | DataOp::Tst);
+    let test = matches!(op, DataOp::Cmp | DataOp::Tst | DataOp::Cmn);
     if test && flags { return Err("test opcodes always set flags".into()); }
     Ok(cond(condition) | ((op as u32) << 21) | (rn.number() << 16)
        | (if flags || test { 1 << 20 } else { 0 })
@@ -421,6 +465,36 @@ mod tests {
             Register::R0, Register::R0, 1).is_err());
         assert!(transfer_byte_preindexed_writeback(Condition::Al, false,
             Register::R1, Register::PC, 1).is_err());
+    }
+    #[test]
+    fn compare_negative_immediate() {
+        assert_eq!(data_immediate(Condition::Al, DataOp::Cmn,
+            Register::R0, Register::R0, 0x8000_0001).unwrap(), 0xe370_0106);
+    }
+    #[test]
+    fn signed_register_index_byte_transfer() {
+        let r3 = Register::new(3).unwrap();
+        let r7 = Register::new(7).unwrap();
+        assert_eq!(transfer_byte_register_offset(Condition::Al, true,
+            r3, Register::R1, r7, Shift::Lsl, 0, true).unwrap(), 0xe751_3007);
+        assert!(transfer_byte_register_offset(Condition::Al, true,
+            r3, Register::PC, r7, Shift::Lsl, 0, true).is_err());
+        assert!(transfer_byte_register_offset(Condition::Al, true,
+            r3, Register::R1, Register::PC, Shift::Lsl, 0, true).is_err());
+    }
+    #[test]
+    fn signed_halfword_and_doubleword_memory_transfers() {
+        let r2 = Register::new(2).unwrap();
+        let r3 = Register::new(3).unwrap();
+        // Encodings cross-checked against the GNU-compatible ARM assembler.
+        assert_eq!(load_signed_halfword(Condition::Al, r2, Register::R1, 0).unwrap(), 0xe1d1_20f0);
+        assert_eq!(transfer_doubleword(Condition::Al, true, r2, Register::R1, 0).unwrap(), 0xe1c1_20d0);
+        assert_eq!(transfer_doubleword(Condition::Al, false, r2, Register::R0, 0).unwrap(), 0xe1c0_20f0);
+        assert!(load_signed_halfword(Condition::Al, Register::PC, Register::R1, 0).is_err());
+        assert!(load_signed_halfword(Condition::Al, r2, Register::R1, -256).is_err());
+        assert!(transfer_doubleword(Condition::Al, true, r3, Register::R1, 0).is_err());
+        assert!(transfer_doubleword(Condition::Al, false, r2, Register::PC, 0).is_err());
+        assert!(transfer_doubleword(Condition::Al, true, r2, Register::R0, 256).is_err());
     }
     #[test]
     fn signed_byte_load_encoding_and_rejections() {
