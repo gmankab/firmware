@@ -75,5 +75,12 @@ mod venus_runtime_device_init;
 mod venus_runtime_device_access;
 mod venus_runtime_device_commands;
 mod venus_runtime_device_registration;
+mod venus_runtime_device_properties;
+mod venus_runtime_device_cleanup;
+mod venus_runtime_device_alloc_begin;
+mod venus_runtime_device_alloc_finish;
+mod venus_runtime_device_release;
+mod venus_runtime_bitmap;
+mod venus_runtime_bitmap_controls;
 
 pub mod venus_plan;
