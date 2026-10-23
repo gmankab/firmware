@@ -38,6 +38,11 @@ pub fn branch(condition: Condition, at: u32, target: u32, link: bool) -> Result<
     Ok(cond(condition) | if link { 0x0b00_0000 } else { 0x0a00_0000 } | imm24)
 }
 
+/// Compiler-generated ARM-mode trap used by LLVM/Clang `__builtin_trap`.
+/// The fixed encoding is independently verified against LLVM 17's ARM
+/// backend. This is an undefined/trap instruction, not an OEM opcode blob.
+pub fn compiler_trap() -> u32 { 0xe7ff_defe }
+
 /// A32 immediate-mode word LDR/STR, preindexed, no writeback.
 pub fn transfer_word(condition: Condition, load: bool, rd: Register, rn: Register,
                      signed_offset: i32) -> Result<u32, String> {
@@ -477,6 +482,11 @@ mod tests {
             Register::R0, Register::R0, 1).is_err());
         assert!(transfer_byte_preindexed_writeback(Condition::Al, false,
             Register::R1, Register::PC, 1).is_err());
+    }
+    #[test]
+    fn clang_builtin_trap_uses_arm_mode_trap_encoding() {
+        // Cross-checked by compiling `__builtin_trap()` for armv7-none-eabi.
+        assert_eq!(compiler_trap(), 0xe7ff_defe);
     }
     #[test]
     fn independent_arm_multiply_encoding() {

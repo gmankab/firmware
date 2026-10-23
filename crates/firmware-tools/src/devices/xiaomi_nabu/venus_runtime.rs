@@ -8,7 +8,7 @@ use arm32::{branch, bx, data_immediate, mov_register, push_registers,
             DataOp, Register as R};
 
 pub const FILE_OFFSET: usize = 0x5000;
-pub const PREFIX_SIZE: usize = 0x3b1c;
+pub const PREFIX_SIZE: usize = 0x3e34;
 
 fn emit(dst: &mut Vec<u8>, at: usize, instruction: u32) -> Result<(), String> {
     if dst.len() != at { return Err(format!("Venus runtime layout mismatch at 0x{at:x}")); }
@@ -589,6 +589,9 @@ pub fn prefix() -> Result<Vec<u8>, String> {
     super::venus_runtime_memcpy_unaligned::extend(&mut code)?;
     super::venus_runtime_memcpy_tail::extend(&mut code)?;
     super::venus_runtime_errors::extend(&mut code)?;
+    super::venus_runtime_stream_state::extend(&mut code)?;
+    super::venus_runtime_utf8::extend(&mut code)?;
+    super::venus_runtime_flush::extend(&mut code)?;
     if code.len() != PREFIX_SIZE { return Err("Venus runtime prefix size mismatch".into()); }
     Ok(code)
 }

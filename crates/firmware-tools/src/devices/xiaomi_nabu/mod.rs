@@ -55,5 +55,8 @@ mod venus_runtime_memcpy;
 mod venus_runtime_memcpy_unaligned;
 mod venus_runtime_memcpy_tail;
 mod venus_runtime_errors;
+mod venus_runtime_stream_state;
+mod venus_runtime_utf8;
+mod venus_runtime_flush;
 
 pub mod venus_plan;
