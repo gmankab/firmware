@@ -50,5 +50,10 @@ mod venus_runtime_format_args;
 mod venus_runtime_diag_write;
 mod venus_runtime_diag_buffer;
 mod venus_runtime_diag_memory;
+mod venus_runtime_memscan;
+mod venus_runtime_memcpy;
+mod venus_runtime_memcpy_unaligned;
+mod venus_runtime_memcpy_tail;
+mod venus_runtime_errors;
 
 pub mod venus_plan;

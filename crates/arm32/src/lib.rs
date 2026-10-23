@@ -237,6 +237,18 @@ pub fn multiply_accumulate(condition: Condition, rd: Register, rm: Register,
        | (addend.number() << 12) | (rs.number() << 8) | rm.number())
 }
 
+/// A32 MUL: multiply two general-purpose registers, without accumulate.
+/// The register fields are checked, and older ARM restrictions on using the
+/// destination as the first multiplicand are enforced.
+pub fn multiply_register(condition: Condition, rd: Register,
+                         rm: Register, rs: Register) -> Result<u32, String> {
+    if [rd, rm, rs].contains(&Register::PC) || rd == rm {
+        return Err("invalid ARM32 MUL register operands".into());
+    }
+    Ok(cond(condition) | 0x0000_0090
+        | (rd.number() << 16) | (rs.number() << 8) | rm.number())
+}
+
 /// Select a legal ARM modified-immediate rotation; many 32-bit constants are
 /// intentionally not encodable with one A32 data-processing instruction.
 fn modified_immediate(value: u32) -> Result<u32, String> {
@@ -465,6 +477,15 @@ mod tests {
             Register::R0, Register::R0, 1).is_err());
         assert!(transfer_byte_preindexed_writeback(Condition::Al, false,
             Register::R1, Register::PC, 1).is_err());
+    }
+    #[test]
+    fn independent_arm_multiply_encoding() {
+        let r3 = Register::new(3).unwrap();
+        let r4 = Register::new(4).unwrap();
+        let r5 = Register::new(5).unwrap();
+        assert_eq!(multiply_register(Condition::Al, r3, Register::R1, Register::R12).unwrap(), 0xe003_0c91);
+        assert_eq!(multiply_register(Condition::Al, r5, Register::R2, r4).unwrap(), 0xe005_0492);
+        assert!(multiply_register(Condition::Al, r3, r3, Register::R1).is_err());
     }
     #[test]
     fn compare_negative_immediate() {
