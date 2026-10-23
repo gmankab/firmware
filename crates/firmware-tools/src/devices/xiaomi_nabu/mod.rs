@@ -84,3 +84,5 @@ mod venus_runtime_bitmap;
 mod venus_runtime_bitmap_controls;
 
 pub mod venus_plan;
+
+mod venus_runtime_mmio;
