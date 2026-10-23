@@ -315,7 +315,7 @@ import sys
 
 # This is the first unimplemented region in the checked example.
 # For other images, derive offset and virtual address from PT_LOAD.
-file_offset = 0x4000 + 0x5b60
+file_offset = 0x4000 + 0x63d8
 length = 2048
 source = pathlib.Path(sys.argv[1]).read_bytes()
 if file_offset + length > len(source):
@@ -332,7 +332,7 @@ entry:
 ASM
 clang --target=armv7a-none-eabi -c /private/venus-analysis/raw.S \
   -o /private/venus-analysis/raw.o
-llvm-objdump -d --adjust-vma=0x5b60 /private/venus-analysis/raw.o \
+llvm-objdump -d --adjust-vma=0x63d8 /private/venus-analysis/raw.o \
   > /private/venus-analysis/disassembly.txt
 ```
 
@@ -351,7 +351,7 @@ cargo run --offline --locked -p firmware-tools -- \
   verify-venus-contiguous-boot /private/venus.mbn
 ```
 
-The verifier compares the entire **23,392-byte** generated prefix at file
+The verifier compares the entire **25,560-byte** generated prefix at file
 offset `0x4000`, not merely the last routine. Unit-test new encoder forms
 against public ARM examples (including invalid operand tests), and treat
 matching bytes as an encoding result rather than proof of correct hardware

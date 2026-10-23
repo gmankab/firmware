@@ -67,5 +67,13 @@ mod venus_runtime_state;
 mod venus_runtime_diagnostics;
 mod venus_runtime_events;
 mod venus_runtime_event_loop;
+mod venus_runtime_event_setup;
+mod venus_runtime_event_links;
+mod venus_runtime_event_teardown;
+mod venus_runtime_device_setup;
+mod venus_runtime_device_init;
+mod venus_runtime_device_access;
+mod venus_runtime_device_commands;
+mod venus_runtime_device_registration;
 
 pub mod venus_plan;
