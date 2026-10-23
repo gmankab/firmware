@@ -98,3 +98,7 @@ mod venus_runtime_bits;
 mod venus_runtime_controller_state;
 mod venus_runtime_service_controller;
 mod venus_runtime_service_frontends;
+mod venus_runtime_controller_io;
+mod venus_runtime_registers;
+mod venus_runtime_registers_secondary;
+mod venus_runtime_interface_lookup;
