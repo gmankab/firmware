@@ -38,6 +38,22 @@ pub fn branch(condition: Condition, at: u32, target: u32, link: bool) -> Result<
     Ok(cond(condition) | if link { 0x0b00_0000 } else { 0x0a00_0000 } | imm24)
 }
 
+/// Encode an immediate ARM-to-Thumb BLX call. Unlike B/BL this encoding has
+/// no condition field: the top nibble is 0xF, and bit 24 carries the halfword
+/// alignment of the destination. The PC-relative displacement is signed 25
+/// bits (counting halfwords); neither a destination nor an address is accepted
+/// if it cannot be represented without truncation.
+pub fn branch_exchange_immediate(at: u32, target: u32) -> Result<u32, String> {
+    let delta = i64::from(target) - i64::from(at) - 8;
+    if at % 4 != 0 || target % 2 != 0 || delta % 2 != 0 ||
+       !(-0x0200_0000..=0x01ff_fffe).contains(&delta) {
+        return Err("ARM32 BLX immediate requires aligned, encodable target".into());
+    }
+    let halfword = ((delta as u32 >> 1) & 1) << 24;
+    let words = ((delta >> 2) as i32 as u32) & 0x00ff_ffff;
+    Ok(0xfa00_0000 | halfword | words)
+}
+
 /// Compiler-generated ARM-mode trap used by LLVM/Clang `__builtin_trap`.
 /// The fixed encoding is independently verified against LLVM 17's ARM
 /// backend. This is an undefined/trap instruction, not an OEM opcode blob.
@@ -430,6 +446,17 @@ pub fn push_registers(condition: Condition, registers: u16) -> Result<u32, Strin
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn thumb_interworking_blx_encoding_and_range_checks() {
+        // ARM BLX immediate follows a signed PC+8 displacement. Bit H
+        // represents the extra 2-byte target adjustment for Thumb code.
+        assert_eq!(branch_exchange_immediate(0x1000, 0x1008).unwrap(), 0xfa00_0000);
+        assert_eq!(branch_exchange_immediate(0x1000, 0x100a).unwrap(), 0xfb00_0000);
+        assert_eq!(branch_exchange_immediate(0x5978, 0x0e_2198).unwrap(), 0xfa03_7206);
+        assert!(branch_exchange_immediate(0x1002, 0x1008).is_err());
+        assert!(branch_exchange_immediate(0x1000, 0x1009).is_err());
+        assert!(branch_exchange_immediate(0x1000, 0x4000_0000).is_err());
+    }
     #[test]
     fn vector_and_exception_instruction_encodings() {
         assert_eq!(transfer_word(Condition::Al, true, Register::PC, Register::PC, 24).unwrap(), 0xe59f_f018);

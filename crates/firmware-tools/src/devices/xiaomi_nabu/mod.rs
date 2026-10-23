@@ -58,5 +58,14 @@ mod venus_runtime_errors;
 mod venus_runtime_stream_state;
 mod venus_runtime_utf8;
 mod venus_runtime_flush;
+mod venus_runtime_lifecycle;
+mod venus_runtime_ring;
+mod venus_runtime_service_handles;
+mod venus_runtime_service_init;
+mod venus_runtime_resources;
+mod venus_runtime_state;
+mod venus_runtime_diagnostics;
+mod venus_runtime_events;
+mod venus_runtime_event_loop;
 
 pub mod venus_plan;

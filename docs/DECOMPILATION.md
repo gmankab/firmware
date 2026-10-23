@@ -57,7 +57,7 @@ sha256sum -c /path/to/checkout/reference/xiaomi-nabu/firmware.sha256
 
 For another device, record **model, board revision, SoC, firmware package revision, file path, length, SHA-256, provenance, known loading driver**, and any expected sidecar files. A mismatched revision invalidates a claimed byte-identical result even if the functionality seems similar.
 
-## Verify Qualcomm MBNv6 hashes before decompiling executable segments
+### Verify Qualcomm MBNv6 hashes before decompiling executable segments
 
 A Qualcomm ELF32 MBNv6 image contains a signed hash segment distinct from executable segments. The public format places a 48-byte header, optional QTI/OEM metadata, a SHA-384 segment-hash table, and QTI/OEM signatures and certificate chains in a specific order. Use the device-independent verifier to establish which file-backed segments are covered by the table:
 
@@ -297,6 +297,66 @@ Avoid treating older Hexagon `e_flags` on GPU-related ELF wrappers as proof the 
 
 **ARM/Thumb/AArch64:** use `readelf -h -A`, compatible `llvm-objdump` or Ghidra ARM language, and manually confirm ARM-vs-Thumb entry bits and instruction boundaries. Resolve linker relocation, interworking veneers, vector tables, exception handlers, and device MMIO registers before reconstructing routines. For kernel-loaded DSPs, a vendor-defined container may carry ARM code at offsets not represented as ELF sections.
 
+### ARM firmware with program headers but no executable sections
+
+A Qualcomm `.mbn` may be a valid ARM ELF with file-backed `PT_LOAD` program
+headers but **no section table**. In that case, plain `llvm-objdump -d`
+can print no instructions even when loadable machine code exists. Confirm the
+ELF header, program headers, segment file offset and load address with
+`readelf -h -l`. Extract **only** a verified code interval; the example
+below is the known Venus runtime boundary, not a generic layout assumption.
+
+```sh
+ELF=/private/venus.mbn
+mkdir -p /private/venus-analysis
+python3 - "$ELF" /private/venus-analysis/runtime.bin <<'PYTHON'
+import pathlib
+import sys
+
+# This is the first unimplemented region in the checked example.
+# For other images, derive offset and virtual address from PT_LOAD.
+file_offset = 0x4000 + 0x5b60
+length = 2048
+source = pathlib.Path(sys.argv[1]).read_bytes()
+if file_offset + length > len(source):
+    raise SystemExit("code range exceeds firmware")
+pathlib.Path(sys.argv[2]).write_bytes(source[file_offset:file_offset + length])
+PYTHON
+cat > /private/venus-analysis/raw.S <<'ASM'
+.syntax unified
+.arm
+.text
+.global entry
+entry:
+.incbin "/private/venus-analysis/runtime.bin"
+ASM
+clang --target=armv7a-none-eabi -c /private/venus-analysis/raw.S \
+  -o /private/venus-analysis/raw.o
+llvm-objdump -d --adjust-vma=0x5b60 /private/venus-analysis/raw.o \
+  > /private/venus-analysis/disassembly.txt
+```
+
+The `.incbin` wrapper is a **private disassembly aid**, not firmware source:
+it does not perform reconstruction or give redistribution permission.
+`--adjust-vma` assigns the known runtime address for branch-target reading.
+Use `p_vaddr + (file_offset - p_offset)` for an ELF segment with a nonzero
+load address. This raw ARM view cannot identify Thumb transitions,
+relocations, literal-pool data, or function boundaries on its own; check
+all those independently, and do not commit its OEM-derived listings.
+
+Reconstruct a few understood instructions using typed encoders, then run:
+
+```sh
+cargo run --offline --locked -p firmware-tools -- \
+  verify-venus-contiguous-boot /private/venus.mbn
+```
+
+The verifier compares the entire **23,392-byte** generated prefix at file
+offset `0x4000`, not merely the last routine. Unit-test new encoder forms
+against public ARM examples (including invalid operand tests), and treat
+matching bytes as an encoding result rather than proof of correct hardware
+behavior.
+
 **Cirrus WMFW:** identify `WMFW` header, version, HALO core and region descriptors first; the Linux driver definitions in [`include/linux/firmware/cirrus/wmfw.h`](https://github.com/torvalds/linux/blob/master/include/linux/firmware/cirrus/wmfw.h) help describe region types. Inspect with `firmware-tools inspect-image`, verify with `firmware-tools verify-wmfw-structure`, and reconstruct non-executable headers with `firmware-tools rebuild-wmfw-header`. Those steps do not decode HALO DSP opcodes. A HALO-compatible ISA decoder and algorithm mapping are required before writing executable replacements.
 
 **Novatek touch controller:** checksum and partition-marker recognition only establish probable container boundaries. Locate the controller's actual CPU core, endianness, ROM/vector semantics, DMA and update requirements from reliable vendor documentation or a verified independent decoder. Do not claim a recovered program from a generic decompiler guessing an MCU ISA.
@@ -339,6 +399,22 @@ An existing byte-identical image includes its existing signature bytes, but copy
 
 Finally, distinguish *machine-code decoding*, *source authorship*, and *redistribution permission*. Changing the language of an OEM-derived program is not automatically a clean-room rewrite. Perform a separate legal review before publishing rebuilt proprietary algorithms as GPLv3.
 
+## 12. Recovering additional IR3 categories and enforcing exact image gaps
+
+For newer Adreno images, Mesa's MIT-licensed ISA definitions are particularly useful when a standard disassembler reports an unknown opcode. Inspect `src/freedreno/isa/ir3-common.xml` together with the appropriate `ir3-catN.xml`; each XML bitset documents field widths, fixed bit patterns, generation restrictions, register classes and operand forms. **Do not** infer an operation from its three-bit category alone. A partially matching field layout can describe an invalid instruction.
+
+The device-independent `ir3` crate implements selected category-0 control, category-1 moves, category-2 integer scalar operations and category-6 local stores. A new encoder should validate every field width, reject unsupported register types, use typed operands and have synthetic tests that do not incorporate vendor-derived opcode arrays. Compare a newly generated instruction with the exact source revision only after its semantics are understood, keeping the original reference outside Git.
+
+For example, all 64 Nabu A640 IR3 slots are now generated from typed encoders and match the original bytes. The final category-7-like synchronization slot uses a legacy compatibility encoding which the tested Mesa decoder rejects. Its **bytes** match, but its **semantics have not been validated**; do not infer verified behavior or clean-room provenance from that match.
+
+The reusable `ImagePlan` in `firmware-tools` places generated fragments at checked offsets, rejects overlapping regions, reports every missing range and will emit a contiguous image **only when coverage is complete**. This is safer than concatenating snippets or zero-padding unknown code. To inspect the current target:
+
+```sh
+cargo run --offline --locked -p firmware-tools -- a640-coverage
+```
+
+Firmware containers often have additional non-executable load segments, signatures, certificate chains, hash tables and padding. Even a complete and byte-identical executable stream is not equivalent to a complete `.mbn` file or authenticated, usable firmware. Maintain separate verification for each level.
+
 ## Sources and primary reference material
 
 - [Ghidra Headless Analyzer documentation](https://github.com/NationalSecurityAgency/ghidra/blob/master/Ghidra/RuntimeScripts/support/analyzeHeadlessREADME.md)
@@ -350,20 +426,3 @@ Finally, distinguish *machine-code decoding*, *source authorship*, and *redistri
 - [Ghidra Hexagon language implementation](https://github.com/CUB3D/ghidra-hexagon-sleigh) (verify ISA/version compatibility)
 - [Linux Qualcomm MDT firmware loader](https://github.com/torvalds/linux/blob/master/drivers/soc/qcom/mdt_loader.c)
 - [Linux Cirrus WMFW definitions](https://github.com/torvalds/linux/blob/master/include/linux/firmware/cirrus/wmfw.h)
-
-
-## 13. Recovering additional IR3 categories and enforcing exact image gaps
-
-For newer Adreno images, Mesa's MIT-licensed ISA definitions are particularly useful when a standard disassembler reports an unknown opcode. Inspect `src/freedreno/isa/ir3-common.xml` together with the appropriate `ir3-catN.xml`; each XML bitset documents field widths, fixed bit patterns, generation restrictions, register classes and operand forms. **Do not** infer an operation from its three-bit category alone. A partially matching field layout can describe an invalid instruction.
-
-The device-independent `ir3` crate implements selected category-0 control, category-1 moves, category-2 integer scalar operations and category-6 local stores. A new encoder should validate every field width, reject unsupported register types, use typed operands and have synthetic tests that do not incorporate vendor-derived opcode arrays. Compare a newly generated instruction with the exact source revision only after its semantics are understood, keeping the original reference outside Git.
-
-For example, in the first Nabu target, 63 of the 64 embedded IR3 shader slots can be generated from typed instructions. The final slot resembles a category-7 global barrier, but has a bit pattern that the current Mesa schema rejects. Forcing that bit pattern into the GPL source would give a *format match without verified semantics*; it is intentionally left as a documented gap.
-
-The reusable `ImagePlan` in `firmware-tools` places generated fragments at checked offsets, rejects overlapping regions, reports every missing range and will emit a contiguous image **only when coverage is complete**. This is safer than concatenating snippets or zero-padding unknown code. To inspect the current target:
-
-```sh
-cargo run --offline --locked -p firmware-tools -- a640-coverage
-```
-
-Firmware containers often have additional non-executable load segments, signatures, certificate chains, hash tables and padding. Even a complete and byte-identical executable stream is not equivalent to a complete `.mbn` file or authenticated, usable firmware. Maintain separate verification for each level.
