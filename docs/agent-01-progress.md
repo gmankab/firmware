@@ -27,3 +27,9 @@ Generated output is a partial function; the next missing instruction is the repo
 - Completed a first codec session function ending at runtime `0x13b14`, with six data words at `0x13afc–0x13b14` and one 11-entry branch table at `0x13680–0x136ac`.
 - The next session function begins at `0x13b14`. At checkpoint 03 its implemented portion ends at `0x14000`, with the function still incomplete.
 - Public checked ARM32 SMULBB encoder introduced with dedicated ISA tests; this common-arm32 change is committed separately from the fragment and should be reviewed separately during checkpoint-50 integration.
+
+## Agent 01 checkpoint 04
+
+- Reconstructed `[0x12e5c,0x14800)` = 6,564 consecutive exact ARM32 bytes; source MBN file interval `[0x16e5c,0x18800)`.
+- Two additional structured jump tables: 12 targets at `0x14094–0x140c4` and 11 targets at `0x14550–0x1457c`, modeled explicitly (no misidentified executable opcodes).
+- Function begun at `0x13b14` remains incomplete; first uncovered code is `0x14800`.
