@@ -67,3 +67,18 @@ cargo run --offline --locked -p firmware-tools --example agent03_venus_late -- \
 ```
 
 New unimplemented subrange within Agent 03's reservation: `[0x196ac, 0x24000)`. The original skipped range `[0x18000, 0x183e0)` is still unimplemented. Source branch still has the *earlier* `69ebf0d` common ancestor, **not** checkpoint-50 commit `b7ed4b5`, which was not supplied as mounted Git bytes.
+
+## Checkpoint 3 — controller setup, parameter word and codec-class list
+
+These next three self-contained functions immediately follow checkpoint 2:
+
+| Function | Runtime interval | File interval | Instructions | Literal words | Bytes |
+| --- | --- | --- | ---: | ---: | ---: |
+| Paired controller startup commands | `[0x196ac,0x19788)` | `[0x1d6ac,0x1d788)` | 55 | 0 | 220 |
+| Codec-format parameter packing | `[0x19788,0x199dc)` | `[0x1d788,0x1d9dc)` | 147 | 2 | 596 |
+| Codec-class list iteration and diagnostics | `[0x199dc,0x19bf4)` | `[0x1d9dc,0x1dbf4)` | 131 | 3 | 536 |
+| **Added** | `[0x196ac,0x19bf4)` | `[0x1d6ac,0x1dbf4)` | **333** | **5** | **1,352** |
+
+**Total adjacent Agent 03 region:** `[0x183e0,0x19bf4)`, 6,164 bytes (1,528 instruction words, thirteen separate data words), zero differences against SHA-256-pinned Venus reference. The five data words are diagnostics and codec class masks; none has been counted as executable A32. The Clang/LLVM independent assembly/link test over these three functions matched all 1,352 bytes, marking exact literal pools at `0x199d4–0x199dc` and `0x19be8–0x19bf4`.
+
+Continue from the next function entry `0x19bf4`. Unimplemented reserved ranges now `[0x18000,0x183e0)` and `[0x19bf4,0x24000)`; no complete signed firmware is produced. Original commit ancestry remains the earlier `69ebf0d` bundle because checkpoint-50 bytes are unavailable, despite that being the required integration target.
