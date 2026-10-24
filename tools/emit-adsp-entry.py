@@ -1,0 +1,207 @@
+#!/usr/bin/env python3
+# SPDX-License-Identifier: GPL-3.0-only
+"""Assemble a source-authored Hexagon ADSP bootstrap and verify its exact bytes.
+
+This tool intentionally emits ONLY the first 0x24 bytes of ADSP's first RX
+segment. It does not splice missing vendor bytes, nor does it produce a
+complete MBN image. Original firmware is read only for explicit --reference
+verification, never to manufacture output.
+"""
+from __future__ import annotations
+
+import argparse
+import hashlib
+import pathlib
+import struct
+import subprocess
+import sys
+import tempfile
+
+ELF_MACHINE_HEXAGON = 164
+OEM_FILE_OFFSET = 0x3000
+OEM_RUNTIME_VADDR = 0xF0000000
+OEM_PHYSICAL_ENTRY = 0x8BE00000
+GENERATED_LENGTH = 0x24
+REFERENCE_SHA256 = "4b579e5dc1333d634e5bdc93f3314e357e0e30dab7140833f6cc7aef086b1c1e"
+ASM_SOURCE = pathlib.Path(__file__).with_name("adsp-boot-vectors.S")
+
+
+class AdspError(ValueError):
+    """Malformed ELF, unsupported operand layout, or a byte-identity failure."""
+
+
+def checked_interval(size: int, offset: int, length: int, description: str) -> None:
+    if offset < 0 or length < 0 or offset > size or length > size - offset:
+        raise AdspError(
+            f"{description} outside input: offset=0x{offset:x}, "
+            f"length=0x{length:x}, size=0x{size:x}"
+        )
+
+
+def elf32_header(data: bytes) -> dict[str, int]:
+    if len(data) < 52:
+        raise AdspError("Truncated ELF32 header")
+    if data[:4] != b"\x7fELF" or data[4:6] != b"\x01\x01":
+        raise AdspError("Expected ELF32 little-endian")
+    fields = struct.unpack_from("<HHIIIIIHHHHHH", data, 16)
+    keys = (
+        "type", "machine", "version", "entry", "phoff", "shoff", "flags",
+        "ehsize", "phentsize", "phnum", "shentsize", "shnum", "shstrndx"
+    )
+    result = dict(zip(keys, fields, strict=True))
+    if result["machine"] != ELF_MACHINE_HEXAGON:
+        raise AdspError(f"Expected Hexagon ELF machine 164, got {result['machine']}")
+    if result["version"] != 1 or result["ehsize"] < 52:
+        raise AdspError("Invalid ELF32 header version/size")
+    return result
+
+
+def read_text_section(object_data: bytes) -> bytes:
+    """Extract executable .text from a relocatable ELF32 Hexagon object.
+
+    Deliberately rejects relocations, missing section names, overlapping bounds,
+    multiple .text sections and unexpected input size; these indicate an
+    unresolved or non-deterministic bootstrap, not an acceptable partial build.
+    """
+    h = elf32_header(object_data)
+    if h["type"] != 1:
+        raise AdspError("Assembler must emit ET_REL, not linked executable")
+    if h["shnum"] == 0 or h["shentsize"] < 40:
+        raise AdspError("Missing valid ELF32 section headers")
+    checked_interval(len(object_data), h["shoff"],
+                     h["shnum"] * h["shentsize"], "section headers")
+
+    sections = []
+    for i in range(h["shnum"]):
+        offset = h["shoff"] + i * h["shentsize"]
+        name, typ, flags, addr, start, size, link, info, alignment, entsize = (
+            struct.unpack_from("<IIIIIIIIII", object_data, offset)
+        )
+        if typ in (4, 9) and size:
+            raise AdspError("Unresolved RELA/REL relocations are forbidden")
+        if typ != 8:  # NOBITS is not stored in file
+            checked_interval(len(object_data), start, size, f"section {i}")
+        sections.append((name, typ, flags, start, size))
+
+    if h["shstrndx"] >= len(sections):
+        raise AdspError("Invalid shstrndx")
+    _, shstr_type, _, shstr_start, shstr_size = sections[h["shstrndx"]]
+    if shstr_type != 3:
+        raise AdspError("Section-name table is not STRTAB")
+    names = object_data[shstr_start:shstr_start + shstr_size]
+
+    hits = []
+    for name_index, typ, flags, start, size in sections:
+        if name_index >= len(names):
+            raise AdspError("Section name outside string table")
+        end = names.find(b"\x00", name_index)
+        if end < 0:
+            raise AdspError("Unterminated section name")
+        if names[name_index:end] == b".text":
+            if typ != 1 or not (flags & 4):
+                raise AdspError("Expected executable PROGBITS .text")
+            hits.append(object_data[start:start + size])
+    if len(hits) != 1:
+        raise AdspError(f"Expected exactly one .text, got {len(hits)}")
+    if len(hits[0]) != GENERATED_LENGTH:
+        raise AdspError(f"Expected {GENERATED_LENGTH} entry bytes, got {len(hits[0])}")
+    return hits[0]
+
+
+def verify_reference(assembled: bytes, reference: bytes) -> None:
+    """Verify exact ADSP revision and offset; never copy from reference."""
+    h = elf32_header(reference)
+    if h["type"] != 2:
+        raise AdspError("Expected a firmware ET_EXEC image")
+    if h["entry"] != OEM_PHYSICAL_ENTRY:
+        raise AdspError(f"ADSP physical entry differs: 0x{h['entry']:x}")
+    if h["phentsize"] < 32 or h["phnum"] == 0:
+        raise AdspError("Missing program headers")
+    checked_interval(len(reference), h["phoff"],
+                     h["phentsize"] * h["phnum"], "program headers")
+    rx_segments = []
+    for i in range(h["phnum"]):
+        o = h["phoff"] + i * h["phentsize"]
+        typ, offset, vaddr, paddr, filesz, memsz, flags, align = (
+            struct.unpack_from("<IIIIIIII", reference, o)
+        )
+        if typ != 1:
+            continue
+        if filesz:
+            checked_interval(len(reference), offset, filesz, f"PT_LOAD {i}")
+        if flags & 1:
+            rx_segments.append((offset, vaddr, paddr, filesz, flags))
+
+    first = min(rx_segments) if rx_segments else None
+    if first is None or first[0:3] != (
+        OEM_FILE_OFFSET, OEM_RUNTIME_VADDR, OEM_PHYSICAL_ENTRY
+    ):
+        raise AdspError(f"First executable PT_LOAD mismatch: {first}")
+    if first[3] < len(assembled):
+        raise AdspError("Reference RX segment cannot contain generated fragment")
+
+    digest = hashlib.sha256(reference).hexdigest()
+    if digest != REFERENCE_SHA256:
+        raise AdspError(
+            f"Wrong Xiaomi Nabu ADSP revision: sha256={digest}, "
+            f"expected={REFERENCE_SHA256}"
+        )
+    original = reference[OEM_FILE_OFFSET:OEM_FILE_OFFSET + len(assembled)]
+    if assembled != original:
+        different = next(i for i, (a, b) in enumerate(zip(assembled, original))
+                         if a != b)
+        raise AdspError(
+            f"ADSP byte mismatch at file 0x{OEM_FILE_OFFSET + different:x}, "
+            f"RX-relative 0x{different:x}, "
+            f"generated={assembled[different]:02x}, reference={original[different]:02x}"
+        )
+
+
+def assemble(llvm_mc: str, source: pathlib.Path = ASM_SOURCE) -> bytes:
+    if not source.is_file():
+        raise AdspError(f"Missing source assembly {source}")
+    with tempfile.TemporaryDirectory(prefix="adsp-bootstrap-") as tmp:
+        obj = pathlib.Path(tmp) / "entry.o"
+        # ADSP ELF flags identify v66. The v65 tool is used only for the
+        # architecturally common 9 entry instructions, *not* the rest of v66.
+        result = subprocess.run(
+            [llvm_mc, "-triple=hexagon", "-mcpu=hexagonv65", "-filetype=obj",
+             str(source), "-o", str(obj)],
+            text=True, capture_output=True, check=False,
+        )
+        if result.returncode:
+            raise AdspError(f"Hexagon assembler failed: {result.stderr.strip()}")
+        return read_text_section(obj.read_bytes())
+
+
+def run(argv: list[str] | None = None) -> int:
+    ap = argparse.ArgumentParser(description=__doc__)
+    ap.add_argument("--llvm-mc", required=True,
+                    help="Path to Hexagon-capable llvm-mc (tested LLVM 6)")
+    ap.add_argument("--output", required=True, type=pathlib.Path,
+                    help="Destination for exactly 36 generated bytes")
+    ap.add_argument("--source", type=pathlib.Path, default=ASM_SOURCE)
+    ap.add_argument("--reference", type=pathlib.Path,
+                    help="Opt-in Xiaomi Nabu adsp.mbn reference comparison")
+    args = ap.parse_args(argv)
+    try:
+        out = assemble(args.llvm_mc, args.source)
+        if args.reference:
+            verify_reference(out, args.reference.read_bytes())
+        args.output.write_bytes(out)
+        print(
+            f"ADSP entry source-generated: {len(out)} bytes, "
+            f"file offset [0x3000,0x3024), paddr [0x8be00000,0x8be00024), "
+            f"sha256={hashlib.sha256(out).hexdigest()}"
+        )
+        if args.reference:
+            print("Verified against exact Nabu ADSP reference: zero byte differences")
+        print("INCOMPLETE: no other ADSP executable bytes independently generated")
+        return 0
+    except (OSError, AdspError) as err:
+        print(f"ADSP reconstruction failed: {err}", file=sys.stderr)
+        return 1
+
+
+if __name__ == "__main__":
+    raise SystemExit(run())
