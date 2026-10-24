@@ -61,3 +61,14 @@ Generated output is a partial function; the next missing instruction is the repo
 - Includes a complete codec frame-plane routine (`0x1698c–0x174e4`) with four-entry jump table `[0x170ec,0x170fc)` and three data words `[0x174d8,0x174e4)`.
 - Function terminates with original POP/PC at `0x174d4`, not an invented return.
 - Next ARM32 function entry is `0x174e4`.
+
+## Agent 01 checkpoint 09 — complete large stream-variant routine
+
+- Reconstructed `[0x12e5c, 0x17fd0)` = **20,852 consecutive, byte-identical bytes**, MBN file offsets `[0x16e5c, 0x1bfd0)`; no reference code bytes copied into the generator.
+- Rebuilt the next entire stream-variant encoder `[0x174e4, 0x17fd0)` using **685 typed ARM32 instructions**, plus three distinguished non-executable data pools:
+  - Seven-way codec stream jump table `[0x1752c, 0x17548)` (7 handler addresses).
+  - Four-way codec plane jump table `[0x17eac, 0x17ebc)` (4 handler addresses).
+  - Stream diagnostics/capability constants `[0x17fc4, 0x17fd0)` (3 data words).
+- The function returns through the original `pop {..., pc}` at `0x17fb4` and has a separately modeled branch path `0x17fb8–0x17fc4` before the literal pool.
+- Next uncovered instruction at `0x17fd0`, a separate function entry. The remaining assigned interval is only `[0x17fd0, 0x18000)` (48 bytes).
+- All checks are **instruction-level encoding equivalence**, not proof that reverse-engineered higher-level algorithms would reproduce behavioral semantics, and not complete/signed firmware.
