@@ -33,3 +33,11 @@ Generated output is a partial function; the next missing instruction is the repo
 - Reconstructed `[0x12e5c,0x14800)` = 6,564 consecutive exact ARM32 bytes; source MBN file interval `[0x16e5c,0x18800)`.
 - Two additional structured jump tables: 12 targets at `0x14094–0x140c4` and 11 targets at `0x14550–0x1457c`, modeled explicitly (no misidentified executable opcodes).
 - Function begun at `0x13b14` remains incomplete; first uncovered code is `0x14800`.
+
+## Agent 01 checkpoint 05
+
+- Byte-identical forward region `[0x12e5c,0x15ae8)` = 11,404 bytes; MBN offsets `[0x16e5c,0x19ae8)`.
+- The larger codec session routine starting at `0x13b14` now includes original return at `0x15a6c`, continuation-tail at `0x15a70–0x15ad4`, and five separately identified data words at `0x15ad4–0x15ae8`.
+- Recorded three more structured dispatch tables: 12-target mode table, 11-target frame table and 12-target packet table, none misclassified as executable opcodes.
+- A conditional BLNE instruction at `0x14f78` was corrected by preserving its condition field; subsequent full-region byte comparison passed.
+- Next uncovered ARM address: `0x15ae8`.
