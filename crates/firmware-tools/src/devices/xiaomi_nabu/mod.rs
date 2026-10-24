@@ -102,3 +102,5 @@ mod venus_runtime_controller_io;
 mod venus_runtime_registers;
 mod venus_runtime_registers_secondary;
 mod venus_runtime_interface_lookup;
+
+pub mod cdsp_boot;
