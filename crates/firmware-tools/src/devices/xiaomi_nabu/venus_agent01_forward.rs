@@ -10,7 +10,7 @@ use arm32::{Condition as C, DataOp as Op, Register as R, Shift};
 use super::venus_runtime_services::Code;
 
 pub const START: usize=0x12e5c;
-pub const END: usize=0x15ae8;
+pub const END: usize=0x163e8;
 pub const FILE_OFFSET:usize=START+0x4000;
 
 fn imm(c:&mut Code<'_>,cond:C,op:Op,rd:R,rn:R,value:u32)->Result<(),String>{
@@ -5733,6 +5733,1150 @@ fn finalize_next_codec_session(c:&mut Code<'_>)->Result<(),String>{
         0xffff_e1f4, 0xffff_e1d0,
     ];
     for addr in CODEC_DIAGNOSTICS {c.emit(addr)?;}
+    c.check(0x15ae8)
+}
+
+
+/// Compact an unsigned descriptor length to its highest occupied word,
+/// then write codec metadata/flags through two conditional buffer stores.
+fn write_stream_small_helpers(c:&mut Code<'_>)->Result<(),String>{
+    c.check(0x15ae8)?;
+    // 0x15ae8
+    imm(c,C::Al,Op::Mov,R::R2,R::R0,0)?;
+    // 0x15aec
+    c.emit(arm32::mov_shifted_register(C::Al, R::R1, R::R0, Shift::Lsr, 16)?)?;
+    // 0x15af0
+    c.emit(arm32::data_register(C::Al,Op::Cmp,R::R0,R::R2,R::R0,Shift::Lsr,16,false)?)?;
+    // 0x15af4
+    imm(c,C::Ne,Op::Mov,R::R1,R::R0,1)?;
+    // 0x15af8
+    c.emit(arm32::mov_shifted_register(C::Al, R::new(3)?, R::R1, Shift::Lsl, 4)?)?;
+    // 0x15afc
+    c.emit(arm32::data_register_shifted_by_register(C::Al,Op::Mov,R::R0,R::R0,R::R0,Shift::Lsr,R::new(3)?,false)?)?;
+    // 0x15b00
+    imm(c,C::Al,Op::Mov,R::new(3)?,R::R0,0)?;
+    // 0x15b04
+    imm(c,C::Al,Op::Cmp,R::R0,R::R0,255)?;
+    // 0x15b08
+    imm(c,C::Hi,Op::Mov,R::new(3)?,R::R0,1)?;
+    // 0x15b0c
+    c.emit(arm32::mov_shifted_register(C::Al, R::new(3)?, R::new(3)?, Shift::Lsl, 3)?)?;
+    // 0x15b10
+    c.emit(arm32::data_register_shifted_by_register(C::Al,Op::Mov,R::R0,R::R0,R::R0,Shift::Lsr,R::new(3)?,false)?)?;
+    // 0x15b14
+    c.emit(arm32::data_register(C::Al,Op::Orr,R::R1,R::new(3)?,R::R1,Shift::Lsl,4,false)?)?;
+    // 0x15b18
+    imm(c,C::Al,Op::Mov,R::new(3)?,R::R0,0)?;
+    // 0x15b1c
+    imm(c,C::Al,Op::Cmp,R::R0,R::R0,15)?;
+    // 0x15b20
+    imm(c,C::Hi,Op::Mov,R::new(3)?,R::R0,1)?;
+    // 0x15b24
+    c.emit(arm32::data_register(C::Al,Op::Orr,R::R1,R::R1,R::new(3)?,Shift::Lsl,2,false)?)?;
+    // 0x15b28
+    c.emit(arm32::mov_shifted_register(C::Al, R::new(3)?, R::new(3)?, Shift::Lsl, 2)?)?;
+    // 0x15b2c
+    c.emit(arm32::data_register_shifted_by_register(C::Al,Op::Mov,R::R0,R::R0,R::R0,Shift::Lsr,R::new(3)?,false)?)?;
+    // 0x15b30
+    imm(c,C::Al,Op::Cmp,R::R0,R::R0,3)?;
+    // 0x15b34
+    imm(c,C::Hi,Op::Mov,R::R2,R::R0,1)?;
+    // 0x15b38
+    c.emit(arm32::data_register(C::Al,Op::Orr,R::R1,R::R1,R::R2,Shift::Lsl,1,false)?)?;
+    // 0x15b3c
+    c.emit(arm32::mov_shifted_register(C::Al, R::R2, R::R2, Shift::Lsl, 1)?)?;
+    // 0x15b40
+    c.emit(arm32::data_register_shifted_by_register(C::Al,Op::Mov,R::R0,R::R0,R::R0,Shift::Lsr,R::R2,false)?)?;
+    // 0x15b44
+    c.emit(arm32::data_register(C::Al,Op::Orr,R::R0,R::R1,R::R0,Shift::Lsr,1,false)?)?;
+    // 0x15b48
+    c.emit(arm32::bx(C::Al,R::LR))?;
+    // 0x15b4c
+    c.emit(arm32::push_registers(C::Al, R::new(4)?.bit() | R::new(5)?.bit() | R::R11.bit() | R::LR.bit())?)?;
+    // 0x15b50
+    imm(c,C::Al,Op::Add,R::R11,R::SP,8)?;
+    // 0x15b54
+    imm(c,C::Al,Op::Mov,R::R0,R::R0,552)?;
+    // 0x15b58
+    c.emit(arm32::mov_register(C::Al, R::new(4)?, R::R1))?;
+    // 0x15b5c
+    imm(c,C::Al,Op::Mov,R::new(5)?,R::R0,152)?;
+    // 0x15b60
+    c.emit(arm32::transfer_word(C::Al,true,R::R2,R::new(4)?,2648)?)?;
+    // 0x15b64
+    imm(c,C::Al,Op::Orr,R::R0,R::R0,7168)?;
+    // 0x15b68
+    imm(c,C::Al,Op::Orr,R::new(5)?,R::new(5)?,35840)?;
+    // 0x15b6c
+    c.emit(arm32::transfer_word_register_preindexed_writeback(C::Al,true,R::R0,R::R1,R::R0,Shift::Lsl,0)?)?;
+    // 0x15b70
+    c.emit(arm32::transfer_word(C::Al,true,R::new(3)?,R::R2,960)?)?;
+    // 0x15b74
+    c.emit(arm32::transfer_word(C::Al,true,R::R12,R::R2,956)?)?;
+    // 0x15b78
+    c.emit(arm32::transfer_word(C::Al,true,R::LR,R::R2,964)?)?;
+    // 0x15b7c
+    c.emit(arm32::transfer_word(C::Al,false,R::new(5)?,R::R0,0)?)?;
+    // 0x15b80
+    imm(c,C::Al,Op::Mov,R::new(5)?,R::R0,556)?;
+    // 0x15b84
+    imm(c,C::Al,Op::Orr,R::new(5)?,R::new(5)?,7168)?;
+    // 0x15b88
+    c.emit(arm32::transfer_word_register_preindexed_writeback(C::Al,true,R::new(5)?,R::new(4)?,R::new(5)?,Shift::Lsl,0)?)?;
+    // 0x15b8c
+    c.emit(arm32::mov_shifted_register(C::Al, R::new(3)?, R::new(3)?, Shift::Lsl, 8)?)?;
+    // 0x15b90
+    c.emit(arm32::data_register(C::Al,Op::Add,R::new(3)?,R::new(3)?,R::R12,Shift::Lsl,16,false)?)?;
+    // 0x15b94
+    reg(c,C::Al,Op::Add,R::new(3)?,R::new(3)?,R::LR)?;
+    // 0x15b98
+    c.emit(arm32::transfer_word(C::Al,false,R::new(3)?,R::new(5)?,0)?)?;
+    // 0x15b9c
+    imm(c,C::Al,Op::Add,R::new(3)?,R::R0,8)?;
+    // 0x15ba0
+    c.emit(arm32::transfer_word(C::Al,true,R::R12,R::R2,956)?)?;
+    // 0x15ba4
+    c.emit(arm32::transfer_word(C::Al,true,R::LR,R::R2,960)?)?;
+    // 0x15ba8
+    c.emit(arm32::transfer_word(C::Al,true,R::R2,R::R2,964)?)?;
+    // 0x15bac
+    c.emit(arm32::transfer_word(C::Al,false,R::new(3)?,R::R1,0)?)?;
+    // 0x15bb0
+    imm(c,C::Al,Op::Mov,R::R1,R::R0,28)?;
+    // 0x15bb4
+    imm(c,C::Al,Op::Orr,R::R1,R::R1,35840)?;
+    // 0x15bb8
+    c.emit(arm32::transfer_word(C::Al,false,R::R1,R::R0,4)?)?;
+    // 0x15bbc
+    reg(c,C::Al,Op::Add,R::R0,R::LR,R::R12)?;
+    // 0x15bc0
+    c.emit(arm32::data_register(C::Al,Op::Add,R::R0,R::R2,R::R0,Shift::Lsl,1,false)?)?;
+    // 0x15bc4
+    c.call(0x15ae8)?;
+    // 0x15bc8
+    imm(c,C::Al,Op::Add,R::R1,R::new(5)?,8)?;
+    // 0x15bcc
+    c.emit(arm32::transfer_word(C::Al,false,R::R1,R::new(4)?,0)?)?;
+    // 0x15bd0
+    c.emit(arm32::transfer_word(C::Al,false,R::R0,R::new(5)?,4)?)?;
+    // 0x15bd4
+    c.emit(arm32::transfer_multiple(C::Al, true, R::SP, R::new(4)?.bit() | R::new(5)?.bit() | R::R11.bit() | R::PC.bit(), arm32::BlockMode::IncrementAfter, true)?)?;
+    // 0x15bd8
+    c.emit(arm32::push_registers(C::Al, R::new(4)?.bit() | R::new(5)?.bit() | R::new(6)?.bit() | R::new(7)?.bit() | R::R11.bit() | R::LR.bit())?)?;
+    // 0x15bdc
+    imm(c,C::Al,Op::Add,R::R11,R::SP,16)?;
+    // 0x15be0
+    c.emit(arm32::mov_register(C::Al, R::new(4)?, R::R1))?;
+    // 0x15be4
+    imm(c,C::Al,Op::Mov,R::new(6)?,R::R0,1)?;
+    // 0x15be8
+    imm(c,C::Al,Op::Mov,R::new(3)?,R::R0,0)?;
+    // 0x15bec
+    c.emit(arm32::transfer_word(C::Al,true,R::R1,R::new(4)?,8)?)?;
+    // 0x15bf0
+    c.literal(R::R0,0x15df0)?;
+    // 0x15bf4
+    imm(c,C::Al,Op::Orr,R::new(6)?,R::new(6)?,1280)?;
+    // 0x15bf8
+    reg(c,C::Al,Op::Add,R::R2,R::R1,R::R0)?;
+    // 0x15bfc
+    imm(c,C::Al,Op::Mov,R::R0,R::R0,255)?;
+    // 0x15c00
+    imm(c,C::Al,Op::Orr,R::R0,R::R0,1792)?;
+    // 0x15c04
+    imm(c,C::Al,Op::Cmp,R::R0,R::R2,11)?;
+    // 0x15c08
+    reg(c,C::Al,Op::And,R::R0,R::R2,R::R0)?;
+    // 0x15c0c
+    imm(c,C::Cc,Op::Mov,R::new(3)?,R::R0,1)?;
+    // 0x15c10
+    imm(c,C::Al,Op::Add,R::R2,R::R2,2)?;
+    // 0x15c14
+    c.emit(arm32::data_register_shifted_by_register(C::Al,Op::And,R::R12,R::new(3)?,R::new(6)?,Shift::Lsr,R::R0,false)?)?;
+    // 0x15c18
+    imm(c,C::Al,Op::Cmp,R::R0,R::R2,12)?;
+    // 0x15c1c
+    c.branch(C::Hi, 0x15d14)?;
+    // 0x15c20
+    imm(c,C::Al,Op::Mov,R::new(3)?,R::R0,255)?;
+    // 0x15c24
+    imm(c,C::Al,Op::Mov,R::new(6)?,R::R0,1)?;
+    // 0x15c28
+    imm(c,C::Al,Op::Orr,R::new(3)?,R::new(3)?,7936)?;
+    // 0x15c2c
+    reg(c,C::Al,Op::And,R::R2,R::R2,R::new(3)?)?;
+    // 0x15c30
+    imm(c,C::Al,Op::Mov,R::new(3)?,R::R0,5)?;
+    // 0x15c34
+    imm(c,C::Al,Op::Orr,R::new(3)?,R::new(3)?,5120)?;
+    // 0x15c38
+    c.emit(arm32::data_register_shifted_by_register(C::Al,Op::And,R::R2,R::new(6)?,R::new(3)?,Shift::Lsr,R::R2,false)?)?;
+    // 0x15c3c
+    imm(c,C::Al,Op::Cmp,R::R0,R::R2,0)?;
+    // 0x15c40
+    c.branch(C::Eq, 0x15d14)?;
+    // 0x15c44
+    c.emit(arm32::transfer_word(C::Al,true,R::R2,R::new(4)?,16)?)?;
+    // 0x15c48
+    imm(c,C::Al,Op::Mov,R::new(3)?,R::R0,0)?;
+    // 0x15c4c
+    c.emit(arm32::transfer_word(C::Al,true,R::R0,R::new(4)?,2648)?)?;
+    // 0x15c50
+    c.emit(arm32::transfer_word(C::Al,true,R::new(6)?,R::new(4)?,1516)?)?;
+    // 0x15c54
+    c.emit(arm32::transfer_word(C::Al,true,R::LR,R::new(4)?,1488)?)?;
+    // 0x15c58
+    imm(c,C::Al,Op::Cmp,R::R0,R::R2,9)?;
+    // 0x15c5c
+    c.emit(arm32::transfer_word(C::Al,true,R::new(7)?,R::R0,852)?)?;
+    // 0x15c60
+    imm(c,C::Eq,Op::Mov,R::new(3)?,R::R0,1)?;
+    // 0x15c64
+    imm(c,C::Al,Op::Cmp,R::R0,R::R2,1)?;
+    // 0x15c68
+    c.emit(arm32::transfer_word(C::Al,true,R::R2,R::new(4)?,1512)?)?;
+    // 0x15c6c
+    c.emit(arm32::mov_shifted_register(C::Al, R::new(5)?, R::new(3)?, Shift::Lsl, 17)?)?;
+    // 0x15c70
+    c.emit(arm32::transfer_word(C::Al,true,R::new(3)?,R::new(4)?,1520)?)?;
+    // 0x15c74
+    imm(c,C::Eq,Op::Mov,R::new(5)?,R::R0,131072)?;
+    // 0x15c78
+    c.emit(arm32::mov_shifted_register(C::Al, R::new(3)?, R::new(3)?, Shift::Lsl, 8)?)?;
+    // 0x15c7c
+    c.emit(arm32::data_register(C::Al,Op::Orr,R::R2,R::new(3)?,R::R2,Shift::Lsl,4,false)?)?;
+    // 0x15c80
+    c.emit(arm32::transfer_word(C::Al,true,R::new(3)?,R::R0,848)?)?;
+    // 0x15c84
+    c.emit(arm32::transfer_word(C::Al,true,R::R0,R::R0,860)?)?;
+    // 0x15c88
+    c.emit(arm32::data_register(C::Al,Op::Orr,R::R2,R::R2,R::new(6)?,Shift::Lsl,16,false)?)?;
+    // 0x15c8c
+    c.emit(arm32::data_register(C::Al,Op::Orr,R::R2,R::R2,R::LR,Shift::Lsl,1,false)?)?;
+    // 0x15c90
+    c.emit(arm32::data_register(C::Al,Op::Orr,R::R2,R::R2,R::new(3)?,Shift::Lsl,2,false)?)?;
+    // 0x15c94
+    c.emit(arm32::data_register(C::Al,Op::Orr,R::R2,R::R2,R::new(7)?,Shift::Lsl,3,false)?)?;
+    // 0x15c98
+    c.emit(arm32::data_register(C::Al,Op::Orr,R::R0,R::R2,R::R0,Shift::Lsl,5,false)?)?;
+    // 0x15c9c
+    reg(c,C::Al,Op::Orr,R::R2,R::R0,R::new(5)?)?;
+    // 0x15ca0
+    imm(c,C::Al,Op::Orr,R::R0,R::R1,2)?;
+    // 0x15ca4
+    c.literal(R::R1,0x15df4)?;
+    // 0x15ca8
+    reg(c,C::Al,Op::Cmp,R::R0,R::R0,R::R1)?;
+    // 0x15cac
+    c.branch(C::Ne, 0x15cd4)?;
+    // 0x15cb0
+    imm(c,C::Al,Op::Mov,R::R0,R::R0,36)?;
+    // 0x15cb4
+    imm(c,C::Al,Op::Cmp,R::R0,R::new(6)?,1)?;
+    // 0x15cb8
+    c.emit(arm32::transfer_word(C::Al,false,R::R0,R::new(4)?,1508)?)?;
+    // 0x15cbc
+    c.branch(C::Ne, 0x15cd4)?;
+    // 0x15cc0
+    imm(c,C::Al,Op::Mov,R::R0,R::R0,13)?;
+    // 0x15cc4
+    imm(c,C::Al,Op::Cmp,R::R0,R::LR,1)?;
+    // 0x15cc8
+    c.emit(arm32::transfer_word(C::Al,false,R::R0,R::new(4)?,1508)?)?;
+    // 0x15ccc
+    imm(c,C::Eq,Op::Mov,R::R0,R::R0,22)?;
+    // 0x15cd0
+    c.emit(arm32::transfer_word(C::Eq,false,R::R0,R::new(4)?,1508)?)?;
+    // 0x15cd4
+    imm(c,C::Al,Op::Mov,R::R0,R::R0,552)?;
+    // 0x15cd8
+    c.emit(arm32::mov_register(C::Al, R::R1, R::new(4)?))?;
+    // 0x15cdc
+    imm(c,C::Al,Op::Orr,R::R0,R::R0,7168)?;
+    // 0x15ce0
+    c.emit(arm32::transfer_word_register_preindexed_writeback(C::Al,true,R::R0,R::R1,R::R0,Shift::Lsl,0)?)?;
+    // 0x15ce4
+    imm(c,C::Al,Op::Add,R::new(3)?,R::R0,4)?;
+    // 0x15ce8
+    c.emit(arm32::transfer_word(C::Al,false,R::new(3)?,R::R1,0)?)?;
+    // 0x15cec
+    imm(c,C::Al,Op::Mov,R::R1,R::R0,52)?;
+    // 0x15cf0
+    imm(c,C::Al,Op::Orr,R::R1,R::R1,35840)?;
+    // 0x15cf4
+    c.emit(arm32::transfer_word(C::Al,false,R::R1,R::R0,0)?)?;
+    // 0x15cf8
+    imm(c,C::Al,Op::Mov,R::R0,R::R0,556)?;
+    // 0x15cfc
+    c.emit(arm32::mov_register(C::Al, R::R1, R::new(4)?))?;
+    // 0x15d00
+    imm(c,C::Al,Op::Orr,R::R0,R::R0,7168)?;
+    // 0x15d04
+    c.emit(arm32::transfer_word_register_preindexed_writeback(C::Al,true,R::R0,R::R1,R::R0,Shift::Lsl,0)?)?;
+    // 0x15d08
+    imm(c,C::Al,Op::Add,R::new(3)?,R::R0,4)?;
+    // 0x15d0c
+    c.emit(arm32::transfer_word(C::Al,false,R::new(3)?,R::R1,0)?)?;
+    // 0x15d10
+    c.emit(arm32::transfer_word(C::Al,false,R::R2,R::R0,0)?)?;
+    // 0x15d14
+    imm(c,C::Al,Op::Cmp,R::R0,R::R12,1)?;
+    // 0x15d18
+    c.emit(arm32::transfer_multiple(C::Ne, true, R::SP, R::new(4)?.bit() | R::new(5)?.bit() | R::new(6)?.bit() | R::new(7)?.bit() | R::R11.bit() | R::PC.bit(), arm32::BlockMode::IncrementAfter, true)?)?;
+    // 0x15d1c
+    c.emit(arm32::transfer_word(C::Al,true,R::R1,R::new(4)?,1496)?)?;
+    // 0x15d20
+    c.emit(arm32::transfer_word(C::Al,true,R::new(3)?,R::new(4)?,1504)?)?;
+    // 0x15d24
+    c.emit(arm32::transfer_word(C::Al,true,R::R2,R::new(4)?,1500)?)?;
+    // 0x15d28
+    imm(c,C::Al,Op::Mvn,R::new(7)?,R::R0,31)?;
+    // 0x15d2c
+    c.emit(arm32::transfer_word(C::Al,true,R::R0,R::new(4)?,1492)?)?;
+    // 0x15d30
+    c.emit(arm32::data_register(C::Al,Op::Add,R::R1,R::new(7)?,R::R1,Shift::Lsl,5,false)?)?;
+    // 0x15d34
+    imm(c,C::Al,Op::Sub,R::new(7)?,R::new(3)?,1)?;
+    // 0x15d38
+    c.emit(arm32::mov_shifted_register(C::Al, R::new(3)?, R::new(3)?, Shift::Lsl, 16)?)?;
+    // 0x15d3c
+    imm(c,C::Al,Op::Sub,R::R2,R::R2,1)?;
+    // 0x15d40
+    imm(c,C::Al,Op::Cmp,R::R0,R::new(7)?,14)?;
+    // 0x15d44
+    imm(c,C::Hi,Op::Mov,R::new(3)?,R::R0,262144)?;
+    // 0x15d48
+    reg(c,C::Al,Op::Orr,R::R2,R::new(3)?,R::R2)?;
+    // 0x15d4c
+    reg(c,C::Al,Op::Orr,R::R1,R::R2,R::R1)?;
+    // 0x15d50
+    c.literal(R::R2,0x15df8)?;
+    // 0x15d54
+    c.emit(arm32::data_register(C::Al,Op::Add,R::R0,R::R2,R::R0,Shift::Lsl,10,false)?)?;
+    // 0x15d58
+    reg(c,C::Al,Op::Orr,R::R0,R::R1,R::R0)?;
+    // 0x15d5c
+    c.emit(arm32::transfer_word(C::Al,true,R::R1,R::new(4)?,1524)?)?;
+    // 0x15d60
+    c.emit(arm32::data_register(C::Al,Op::Orr,R::new(5)?,R::R0,R::R1,Shift::Lsl,22,false)?)?;
+    // 0x15d64
+    c.emit(arm32::transfer_word(C::Al,true,R::R0,R::new(4)?,1508)?)?;
+    // 0x15d68
+    imm(c,C::Al,Op::Cmp,R::R0,R::R0,13)?;
+    // 0x15d6c
+    c.branch(C::Eq, 0x15da0)?;
+    // 0x15d70
+    imm(c,C::Al,Op::Cmp,R::R0,R::R0,22)?;
+    // 0x15d74
+    c.branch(C::Eq, 0x15da8)?;
+    // 0x15d78
+    imm(c,C::Al,Op::Mov,R::new(6)?,R::R0,0)?;
+    // 0x15d7c
+    imm(c,C::Al,Op::Cmp,R::R0,R::R0,36)?;
+    // 0x15d80
+    c.branch(C::Eq, 0x15dac)?;
+    // 0x15d84
+    c.literal(R::R2,0x15dfc)?;
+    // 0x15d88
+    imm(c,C::Al,Op::Mov,R::R1,R::R0,95)?;
+    // 0x15d8c
+    imm(c,C::Al,Op::Mov,R::R0,R::R0,0)?;
+    // 0x15d90
+    imm(c,C::Al,Op::Mov,R::new(6)?,R::R0,0)?;
+    // 0x15d94
+    imm(c,C::Al,Op::Orr,R::R1,R::R1,3328)?;
+    // 0x15d98
+    c.call(0x17b0)?;
+    // 0x15d9c
+    c.branch(C::Al, 0x15dac)?;
+    // 0x15da0
+    imm(c,C::Al,Op::Mov,R::new(6)?,R::R0,1048576)?;
+    // 0x15da4
+    c.branch(C::Al, 0x15dac)?;
+    // 0x15da8
+    imm(c,C::Al,Op::Mov,R::new(6)?,R::R0,2097152)?;
+    // 0x15dac
+    imm(c,C::Al,Op::Mov,R::R0,R::R0,552)?;
+    // 0x15db0
+    c.emit(arm32::mov_register(C::Al, R::R1, R::new(4)?))?;
+    // 0x15db4
+    imm(c,C::Al,Op::Orr,R::R0,R::R0,7168)?;
+    // 0x15db8
+    c.emit(arm32::transfer_word_register_preindexed_writeback(C::Al,true,R::R0,R::R1,R::R0,Shift::Lsl,0)?)?;
+    // 0x15dbc
+    imm(c,C::Al,Op::Add,R::R2,R::R0,4)?;
+    // 0x15dc0
+    c.emit(arm32::transfer_word(C::Al,false,R::R2,R::R1,0)?)?;
+    // 0x15dc4
+    imm(c,C::Al,Op::Mov,R::R1,R::R0,36)?;
+    // 0x15dc8
+    imm(c,C::Al,Op::Orr,R::R1,R::R1,35840)?;
+    // 0x15dcc
+    c.emit(arm32::transfer_word(C::Al,false,R::R1,R::R0,0)?)?;
+    // 0x15dd0
+    imm(c,C::Al,Op::Mov,R::R0,R::R0,556)?;
+    // 0x15dd4
+    imm(c,C::Al,Op::Orr,R::R0,R::R0,7168)?;
+    // 0x15dd8
+    c.emit(arm32::transfer_word_register_preindexed_writeback(C::Al,true,R::R0,R::new(4)?,R::R0,Shift::Lsl,0)?)?;
+    // 0x15ddc
+    imm(c,C::Al,Op::Add,R::R1,R::R0,4)?;
+    // 0x15de0
+    c.emit(arm32::transfer_word(C::Al,false,R::R1,R::new(4)?,0)?)?;
+    // 0x15de4
+    reg(c,C::Al,Op::Orr,R::R1,R::new(5)?,R::new(6)?)?;
+    // 0x15de8
+    c.emit(arm32::transfer_word(C::Al,false,R::R1,R::R0,0)?)?;
+    // 0x15dec
+    c.emit(arm32::transfer_multiple(C::Al, true, R::SP, R::new(4)?.bit() | R::new(5)?.bit() | R::new(6)?.bit() | R::new(7)?.bit() | R::R11.bit() | R::PC.bit(), arm32::BlockMode::IncrementAfter, true)?)?;
+    c.check(0x15df0)?;
+    const CODEC_POINTER_AND_OFFSETS:[u32;4]=[
+        0xfbfe_eff8,0x0401_1012,0xffff_fc00,0x000e_3d16,
+    ];
+    for v in CODEC_POINTER_AND_OFFSETS {c.emit(v)?;}
+    c.check(0x15e00)?;
+    // 0x15e00
+    c.emit(arm32::push_registers(C::Al, R::new(4)?.bit() | R::new(5)?.bit() | R::new(6)?.bit() | R::new(7)?.bit() | R::new(8)?.bit() | R::new(9)?.bit() | R::R11.bit() | R::LR.bit())?)?;
+    // 0x15e04
+    imm(c,C::Al,Op::Add,R::R11,R::SP,24)?;
+    // 0x15e08
+    c.emit(arm32::transfer_word(C::Al,true,R::new(8)?,R::R11,8)?)?;
+    // 0x15e0c
+    c.emit(arm32::mov_register(C::Al, R::new(4)?, R::R0))?;
+    // 0x15e10
+    c.emit(arm32::mov_register(C::Al, R::new(6)?, R::new(3)?))?;
+    // 0x15e14
+    c.emit(arm32::mov_register(C::Al, R::new(5)?, R::R2))?;
+    // 0x15e18
+    c.emit(arm32::mov_register(C::Al, R::new(7)?, R::R1))?;
+    // 0x15e1c
+    c.literal(R::R2,0x15ea4)?;
+    // 0x15e20
+    c.emit(arm32::mov_register(C::Al, R::R1, R::new(6)?))?;
+    // 0x15e24
+    imm(c,C::Al,Op::Cmp,R::R0,R::new(8)?,0)?;
+    // 0x15e28
+    c.emit(arm32::mov_register(C::Al, R::R0, R::new(8)?))?;
+    // 0x15e2c
+    imm(c,C::Ne,Op::Mov,R::R0,R::R0,1)?;
+    // 0x15e30
+    imm(c,C::Al,Op::Cmp,R::R0,R::new(6)?,0)?;
+    // 0x15e34
+    imm(c,C::Ne,Op::Mov,R::R1,R::R0,1)?;
+    // 0x15e38
+    reg(c,C::Al,Op::And,R::R0,R::R1,R::R0)?;
+    // 0x15e3c
+    imm(c,C::Al,Op::Mov,R::R1,R::R0,105)?;
+    // 0x15e40
+    imm(c,C::Al,Op::Orr,R::R1,R::R1,3328)?;
+    // 0x15e44
+    c.call(0x17b0)?;
+    // 0x15e48
+    c.emit(arm32::data_register(C::Al,Op::Rsb,R::R0,R::new(6)?,R::new(6)?,Shift::Lsl,3,false)?)?;
+    // 0x15e4c
+    c.emit(arm32::data_register(C::Al,Op::Rsb,R::R2,R::new(8)?,R::new(8)?,Shift::Lsl,3,false)?)?;
+    // 0x15e50
+    c.emit(arm32::mov_shifted_register(C::Al, R::new(3)?, R::new(6)?, Shift::Lsl, 2)?)?;
+    // 0x15e54
+    imm(c,C::Al,Op::Mov,R::R1,R::R0,0)?;
+    // 0x15e58
+    reg(c,C::Al,Op::Cmp,R::R0,R::R0,R::new(7)?)?;
+    // 0x15e5c
+    imm(c,C::Al,Op::Mov,R::R0,R::R0,0)?;
+    // 0x15e60
+    imm(c,C::Cc,Op::Mov,R::R0,R::R0,1)?;
+    // 0x15e64
+    reg(c,C::Al,Op::Cmp,R::R0,R::R2,R::new(5)?)?;
+    // 0x15e68
+    imm(c,C::Al,Op::Mov,R::R2,R::R0,0)?;
+    // 0x15e6c
+    imm(c,C::Cc,Op::Mov,R::R2,R::R0,1)?;
+    // 0x15e70
+    reg(c,C::Al,Op::Cmp,R::R0,R::new(3)?,R::new(7)?)?;
+    // 0x15e74
+    imm(c,C::Al,Op::Mov,R::new(3)?,R::R0,0)?;
+    // 0x15e78
+    c.emit(arm32::mov_shifted_register(C::Al, R::new(7)?, R::new(8)?, Shift::Lsl, 2)?)?;
+    // 0x15e7c
+    imm(c,C::Cc,Op::Mov,R::new(3)?,R::R0,1)?;
+    // 0x15e80
+    reg(c,C::Al,Op::Cmp,R::R0,R::new(7)?,R::new(5)?)?;
+    // 0x15e84
+    imm(c,C::Al,Op::Mov,R::new(7)?,R::R0,0)?;
+    // 0x15e88
+    imm(c,C::Cc,Op::Mov,R::new(7)?,R::R0,1)?;
+    // 0x15e8c
+    c.emit(arm32::transfer_multiple(C::Al, false, R::new(4)?, R::new(3)?.bit() | R::new(7)?.bit(), arm32::BlockMode::IncrementAfter, false)?)?;
+    // 0x15e90
+    c.emit(arm32::transfer_word(C::Al,false,R::R0,R::new(4)?,8)?)?;
+    // 0x15e94
+    c.emit(arm32::transfer_word(C::Al,false,R::R2,R::new(4)?,12)?)?;
+    // 0x15e98
+    c.emit(arm32::transfer_word(C::Al,false,R::R1,R::new(4)?,16)?)?;
+    // 0x15e9c
+    c.emit(arm32::transfer_word(C::Al,false,R::R1,R::new(4)?,20)?)?;
+    // 0x15ea0
+    c.emit(arm32::transfer_multiple(C::Al, true, R::SP, R::new(4)?.bit() | R::new(5)?.bit() | R::new(6)?.bit() | R::new(7)?.bit() | R::new(8)?.bit() | R::new(9)?.bit() | R::R11.bit() | R::PC.bit(), arm32::BlockMode::IncrementAfter, true)?)?;
+    c.check(0x15ea4)?;
+    c.emit(0x000e_3d16)?; // Signed diagnostic pointer data.
+    c.check(0x15ea8)
+}
+
+/// Compute valid codec input-plane widths and heights, then dispatch format
+/// cases through a bounded ten-entry branch table and pack descriptor state.
+fn update_stream_mode_metadata(c:&mut Code<'_>)->Result<(),String>{
+    c.check(0x15ea8)?;
+    // 0x15ea8
+    c.emit(arm32::push_registers(C::Al, R::new(4)?.bit() | R::new(5)?.bit() | R::new(6)?.bit() | R::new(7)?.bit() | R::new(8)?.bit() | R::new(9)?.bit() | R::R11.bit() | R::LR.bit())?)?;
+    // 0x15eac
+    imm(c,C::Al,Op::Add,R::R11,R::SP,24)?;
+    // 0x15eb0
+    c.emit(arm32::transfer_word(C::Al,true,R::R2,R::R1,8)?)?;
+    // 0x15eb4
+    c.emit(arm32::transfer_word(C::Al,true,R::new(4)?,R::R1,16)?)?;
+    // 0x15eb8
+    c.literal(R::new(3)?,0x163cc)?;
+    // 0x15ebc
+    imm(c,C::Al,Op::Mov,R::new(6)?,R::R0,0)?;
+    // 0x15ec0
+    reg(c,C::Al,Op::Add,R::R2,R::R2,R::new(3)?)?;
+    // 0x15ec4
+    imm(c,C::Al,Op::Mov,R::new(3)?,R::R0,255)?;
+    // 0x15ec8
+    imm(c,C::Al,Op::Orr,R::new(3)?,R::new(3)?,7936)?;
+    // 0x15ecc
+    imm(c,C::Al,Op::Cmp,R::R0,R::R2,13)?;
+    // 0x15ed0
+    reg(c,C::Al,Op::And,R::new(3)?,R::R2,R::new(3)?)?;
+    // 0x15ed4
+    imm(c,C::Al,Op::Mov,R::R2,R::R0,1)?;
+    // 0x15ed8
+    imm(c,C::Cc,Op::Mov,R::new(6)?,R::R0,1)?;
+    // 0x15edc
+    imm(c,C::Al,Op::Cmp,R::R0,R::new(4)?,6)?;
+    // 0x15ee0
+    imm(c,C::Al,Op::Orr,R::R2,R::R2,5120)?;
+    // 0x15ee4
+    c.emit(arm32::data_register_shifted_by_register(C::Al,Op::And,R::R2,R::new(6)?,R::R2,Shift::Lsr,R::new(3)?,false)?)?;
+    // 0x15ee8
+    imm(c,C::Al,Op::Sub,R::new(3)?,R::new(4)?,2)?;
+    // 0x15eec
+    c.emit(arm32::transfer_word(C::Al,false,R::R2,R::R1,48)?)?;
+    // 0x15ef0
+    c.emit(arm32::mov_register(C::Al, R::R2, R::new(4)?))?;
+    // 0x15ef4
+    c.emit(arm32::mov_register(C::Hi, R::R2, R::new(3)?))?;
+    // 0x15ef8
+    imm(c,C::Al,Op::Cmp,R::R0,R::new(3)?,9)?;
+    // 0x15efc
+    c.branch(C::Hi, 0x15ff8)?;
+    // 0x15f00
+    c.emit(arm32::mov_shifted_register(C::Al, R::new(3)?, R::new(3)?, Shift::Lsl, 2)?)?;
+    // 0x15f04
+    imm(c,C::Al,Op::Add,R::new(6)?,R::PC,0)?;
+    // 0x15f08
+    c.emit(arm32::transfer_word_register(C::Al,true,R::PC,R::new(3)?,R::new(6)?,Shift::Lsl,0)?)?;
+    c.check(0x15f0c)?;
+    const FORMAT_PLANES:[u32;10]=[
+        0x15f34,0x15ff8,0x15ff8,0x15ff8,0x15ff8,
+        0x15f74,0x15ff8,0x15ff8,0x15fa8,0x15fbc,
+    ];
+    for target in FORMAT_PLANES {c.emit(target)?;}
+    c.check(0x15f34)?;
+    // 0x15f34
+    c.emit(arm32::transfer_word(C::Al,true,R::new(3)?,R::R1,728)?)?;
+    // 0x15f38
+    imm(c,C::Al,Op::Cmp,R::R0,R::new(3)?,1)?;
+    // 0x15f3c
+    c.branch(C::Eq, 0x15fec)?;
+    // 0x15f40
+    c.emit(arm32::transfer_word(C::Al,true,R::new(3)?,R::R1,12)?)?;
+    // 0x15f44
+    imm(c,C::Al,Op::Mov,R::new(6)?,R::R0,496)?;
+    // 0x15f48
+    imm(c,C::Al,Op::Orr,R::new(6)?,R::new(6)?,4096)?;
+    // 0x15f4c
+    c.emit(arm32::transfer_word_register(C::Al,true,R::new(3)?,R::R0,R::new(3)?,Shift::Lsl,2)?)?;
+    // 0x15f50
+    c.emit(arm32::transfer_word_register(C::Al,true,R::new(3)?,R::new(3)?,R::new(6)?,Shift::Lsl,0)?)?;
+    // 0x15f54
+    imm(c,C::Al,Op::Sub,R::new(3)?,R::new(3)?,1)?;
+    // 0x15f58
+    imm(c,C::Al,Op::Cmp,R::R0,R::new(3)?,1)?;
+    // 0x15f5c
+    c.branch(C::Hi, 0x16234)?;
+    // 0x15f60
+    c.emit(arm32::transfer_word(C::Al,true,R::new(3)?,R::R1,44)?)?;
+    // 0x15f64
+    c.emit(arm32::mov_register(C::Al, R::new(4)?, R::R2))?;
+    // 0x15f68
+    imm(c,C::Al,Op::Cmp,R::R0,R::new(3)?,1)?;
+    // 0x15f6c
+    imm(c,C::Eq,Op::Mov,R::new(4)?,R::R0,0)?;
+    // 0x15f70
+    c.branch(C::Al, 0x16000)?;
+    // 0x15f74
+    c.emit(arm32::transfer_word(C::Al,true,R::R2,R::R1,44)?)?;
+    // 0x15f78
+    imm(c,C::Al,Op::Cmp,R::R0,R::R2,0)?;
+    // 0x15f7c
+    c.branch(C::Eq, 0x15ff4)?;
+    // 0x15f80
+    c.emit(arm32::transfer_word(C::Al,true,R::R2,R::R1,12)?)?;
+    // 0x15f84
+    imm(c,C::Al,Op::Mov,R::new(3)?,R::R0,236)?;
+    // 0x15f88
+    imm(c,C::Al,Op::Mov,R::new(4)?,R::R0,0)?;
+    // 0x15f8c
+    imm(c,C::Al,Op::Orr,R::new(3)?,R::new(3)?,4096)?;
+    // 0x15f90
+    c.emit(arm32::transfer_word_register(C::Al,true,R::R2,R::R0,R::R2,Shift::Lsl,2)?)?;
+    // 0x15f94
+    c.emit(arm32::transfer_word_register(C::Al,true,R::R2,R::R2,R::new(3)?,Shift::Lsl,0)?)?;
+    // 0x15f98
+    imm(c,C::Al,Op::Sub,R::R2,R::R2,1)?;
+    // 0x15f9c
+    imm(c,C::Al,Op::Cmp,R::R0,R::R2,2)?;
+    // 0x15fa0
+    imm(c,C::Cs,Op::Mov,R::new(4)?,R::R0,7)?;
+    // 0x15fa4
+    c.branch(C::Al, 0x16000)?;
+    // 0x15fa8
+    c.emit(arm32::transfer_word(C::Al,true,R::new(3)?,R::R1,68)?)?;
+    // 0x15fac
+    c.emit(arm32::mov_register(C::Al, R::new(4)?, R::R2))?;
+    // 0x15fb0
+    imm(c,C::Al,Op::Cmp,R::R0,R::new(3)?,0)?;
+    // 0x15fb4
+    imm(c,C::Ne,Op::Mov,R::new(4)?,R::R0,6)?;
+    // 0x15fb8
+    c.branch(C::Al, 0x16000)?;
+    // 0x15fbc
+    c.emit(arm32::transfer_word(C::Al,true,R::R2,R::R1,12)?)?;
+    // 0x15fc0
+    c.emit(arm32::transfer_word(C::Al,true,R::new(3)?,R::R1,72)?)?;
+    // 0x15fc4
+    c.emit(arm32::transfer_word_register(C::Al,true,R::R2,R::R0,R::R2,Shift::Lsl,2)?)?;
+    // 0x15fc8
+    c.emit(arm32::data_register(C::Al,Op::Add,R::R2,R::R2,R::new(3)?,Shift::Lsl,2,false)?)?;
+    // 0x15fcc
+    imm(c,C::Al,Op::Mov,R::new(3)?,R::R0,732)?;
+    // 0x15fd0
+    imm(c,C::Al,Op::Orr,R::new(3)?,R::new(3)?,6144)?;
+    // 0x15fd4
+    c.emit(arm32::transfer_word_register(C::Al,true,R::R2,R::R2,R::new(3)?,Shift::Lsl,0)?)?;
+    // 0x15fd8
+    imm(c,C::Al,Op::Cmp,R::R0,R::R2,0)?;
+    // 0x15fdc
+    c.branch(C::Eq, 0x15fec)?;
+    // 0x15fe0
+    c.emit(arm32::transfer_word(C::Al,true,R::R2,R::R1,76)?)?;
+    // 0x15fe4
+    imm(c,C::Al,Op::Cmp,R::R0,R::R2,0)?;
+    // 0x15fe8
+    c.branch(C::Eq, 0x16284)?;
+    // 0x15fec
+    imm(c,C::Al,Op::Mov,R::new(4)?,R::R0,0)?;
+    // 0x15ff0
+    c.branch(C::Al, 0x16000)?;
+    // 0x15ff4
+    imm(c,C::Al,Op::Mov,R::new(4)?,R::R0,7)?;
+    // 0x15ff8
+    imm(c,C::Al,Op::Cmp,R::R0,R::new(4)?,6)?;
+    // 0x15ffc
+    imm(c,C::Hi,Op::Sub,R::new(4)?,R::new(4)?,2)?;
+    // 0x16000
+    imm(c,C::Al,Op::Mov,R::R2,R::R0,552)?;
+    // 0x16004
+    c.emit(arm32::mov_register(C::Al, R::LR, R::R1))?;
+    // 0x16008
+    imm(c,C::Al,Op::Mov,R::new(5)?,R::R0,108)?;
+    // 0x1600c
+    c.emit(arm32::mov_register(C::Al, R::R12, R::R1))?;
+    // 0x16010
+    imm(c,C::Al,Op::Mov,R::new(6)?,R::R0,255)?;
+    // 0x16014
+    imm(c,C::Al,Op::Orr,R::R2,R::R2,7168)?;
+    // 0x16018
+    imm(c,C::Al,Op::Orr,R::new(5)?,R::new(5)?,32768)?;
+    // 0x1601c
+    imm(c,C::Al,Op::Orr,R::new(6)?,R::new(6)?,65280)?;
+    // 0x16020
+    c.emit(arm32::transfer_word_register_preindexed_writeback(C::Al,true,R::new(3)?,R::LR,R::R2,Shift::Lsl,0)?)?;
+    // 0x16024
+    imm(c,C::Al,Op::Mov,R::R2,R::R0,556)?;
+    // 0x16028
+    imm(c,C::Al,Op::Orr,R::R2,R::R2,7168)?;
+    // 0x1602c
+    c.emit(arm32::transfer_word(C::Al,false,R::new(5)?,R::new(3)?,0)?)?;
+    // 0x16030
+    c.emit(arm32::transfer_word_register_preindexed_writeback(C::Al,true,R::new(8)?,R::R12,R::R2,Shift::Lsl,0)?)?;
+    // 0x16034
+    imm(c,C::Al,Op::Add,R::R2,R::new(3)?,12)?;
+    // 0x16038
+    c.emit(arm32::transfer_word(C::Al,false,R::new(6)?,R::new(8)?,0)?)?;
+    // 0x1603c
+    c.emit(arm32::transfer_word(C::Al,false,R::new(5)?,R::new(3)?,4)?)?;
+    // 0x16040
+    imm(c,C::Al,Op::Mov,R::new(5)?,R::R0,0)?;
+    // 0x16044
+    c.emit(arm32::transfer_word(C::Al,false,R::new(5)?,R::new(8)?,4)?)?;
+    // 0x16048
+    c.literal(R::new(5)?,0x163d0)?;
+    // 0x1604c
+    c.emit(arm32::transfer_word_register(C::Al,true,R::new(5)?,R::R12,R::new(5)?,Shift::Lsl,0)?)?;
+    // 0x16050
+    c.emit(arm32::transfer_word(C::Al,true,R::new(7)?,R::new(5)?,816)?)?;
+    // 0x16054
+    c.emit(arm32::transfer_word(C::Al,true,R::new(6)?,R::new(5)?,808)?)?;
+    // 0x16058
+    c.emit(arm32::transfer_word(C::Al,false,R::R2,R::LR,0)?)?;
+    // 0x1605c
+    imm(c,C::Al,Op::Mov,R::R2,R::R0,3088)?;
+    // 0x16060
+    imm(c,C::Al,Op::Orr,R::R2,R::R2,32768)?;
+    // 0x16064
+    c.emit(arm32::transfer_word(C::Al,false,R::R2,R::new(3)?,8)?)?;
+    // 0x16068
+    imm(c,C::Al,Op::Add,R::R2,R::new(8)?,12)?;
+    // 0x1606c
+    c.emit(arm32::transfer_word(C::Al,false,R::R2,R::R12,0)?)?;
+    // 0x16070
+    c.emit(arm32::data_register(C::Al,Op::Orr,R::R2,R::new(4)?,R::new(7)?,Shift::Lsl,9,false)?)?;
+    // 0x16074
+    c.emit(arm32::data_register(C::Al,Op::Orr,R::R2,R::R2,R::new(6)?,Shift::Lsl,5,false)?)?;
+    // 0x16078
+    c.emit(arm32::transfer_word(C::Al,false,R::R2,R::new(8)?,8)?)?;
+    // 0x1607c
+    c.literal(R::R2,0x163d4)?;
+    // 0x16080
+    c.emit(arm32::transfer_word_register(C::Al,true,R::new(4)?,R::R12,R::R2,Shift::Lsl,0)?)?;
+    // 0x16084
+    c.literal(R::R2,0x163d8)?;
+    // 0x16088
+    reg(c,C::Al,Op::Add,R::new(6)?,R::new(4)?,R::R2)?;
+    // 0x1608c
+    imm(c,C::Al,Op::Cmp,R::R0,R::new(6)?,12)?;
+    // 0x16090
+    c.branch(C::Hi, 0x16160)?;
+    // 0x16094
+    imm(c,C::Al,Op::Mov,R::new(7)?,R::R0,35)?;
+    // 0x16098
+    imm(c,C::Al,Op::Mov,R::R2,R::R0,1)?;
+    // 0x1609c
+    imm(c,C::Al,Op::Orr,R::new(7)?,R::new(7)?,4096)?;
+    // 0x160a0
+    c.emit(arm32::data_register_shifted_by_register(C::Al,Op::Tst,R::R0,R::new(7)?,R::R2,Shift::Lsl,R::new(6)?,false)?)?;
+    // 0x160a4
+    c.branch(C::Eq, 0x16160)?;
+    // 0x160a8
+    c.emit(arm32::transfer_word(C::Al,true,R::R0,R::R1,88)?)?;
+    // 0x160ac
+    c.emit(arm32::transfer_word(C::Al,true,R::R2,R::R1,92)?)?;
+    // 0x160b0
+    imm(c,C::Al,Op::Add,R::new(4)?,R::new(3)?,16)?;
+    // 0x160b4
+    c.emit(arm32::transfer_word(C::Al,false,R::new(4)?,R::LR,0)?)?;
+    // 0x160b8
+    imm(c,C::Al,Op::Mov,R::new(4)?,R::R0,168)?;
+    // 0x160bc
+    imm(c,C::Al,Op::Orr,R::new(4)?,R::new(4)?,35840)?;
+    // 0x160c0
+    c.emit(arm32::transfer_word(C::Al,false,R::new(4)?,R::new(3)?,12)?)?;
+    // 0x160c4
+    imm(c,C::Al,Op::Add,R::new(4)?,R::new(8)?,16)?;
+    // 0x160c8
+    c.emit(arm32::data_register(C::Al,Op::Orr,R::R0,R::R0,R::R2,Shift::Lsl,16,false)?)?;
+    // 0x160cc
+    c.emit(arm32::transfer_word(C::Al,false,R::new(4)?,R::R12,0)?)?;
+    // 0x160d0
+    c.emit(arm32::transfer_word(C::Al,false,R::R0,R::new(8)?,12)?)?;
+    // 0x160d4
+    c.emit(arm32::transfer_word(C::Al,true,R::R0,R::R1,8)?)?;
+    // 0x160d8
+    c.literal(R::R2,0x163dc)?;
+    // 0x160dc
+    reg(c,C::Al,Op::Cmp,R::R0,R::R0,R::R2)?;
+    // 0x160e0
+    c.branch(C::Eq, 0x16120)?;
+    // 0x160e4
+    c.literal(R::R2,0x163e0)?;
+    // 0x160e8
+    reg(c,C::Al,Op::Cmp,R::R0,R::R0,R::R2)?;
+    // 0x160ec
+    c.branch(C::Ne, 0x1612c)?;
+    // 0x160f0
+    c.emit(arm32::transfer_word(C::Al,true,R::R0,R::R1,124)?)?;
+    // 0x160f4
+    imm(c,C::Al,Op::Cmp,R::R0,R::R0,0)?;
+    // 0x160f8
+    c.branch(C::Eq, 0x1612c)?;
+    // 0x160fc
+    c.emit(arm32::transfer_word(C::Al,true,R::R2,R::new(5)?,820)?)?;
+    // 0x16100
+    c.emit(arm32::transfer_word(C::Al,true,R::new(5)?,R::R1,368)?)?;
+    // 0x16104
+    c.emit(arm32::transfer_word(C::Al,true,R::R1,R::R1,488)?)?;
+    // 0x16108
+    imm(c,C::Al,Op::Mov,R::new(4)?,R::R0,1)?;
+    // 0x1610c
+    c.emit(arm32::data_register(C::Al,Op::And,R::R0,R::new(4)?,R::R2,Shift::Lsr,3,false)?)?;
+    // 0x16110
+    c.emit(arm32::data_register_shifted_by_register(C::Al,Op::Mov,R::R0,R::R0,R::R1,Shift::Lsr,R::R0,false)?)?;
+    // 0x16114
+    c.emit(arm32::data_register(C::Al,Op::And,R::R1,R::new(4)?,R::R2,Shift::Lsr,2,false)?)?;
+    // 0x16118
+    c.emit(arm32::data_register_shifted_by_register(C::Al,Op::Mov,R::new(4)?,R::R0,R::new(5)?,Shift::Lsr,R::R1,false)?)?;
+    // 0x1611c
+    c.branch(C::Al, 0x16134)?;
+    // 0x16120
+    c.emit(arm32::transfer_word(C::Al,true,R::R0,R::new(5)?,820)?)?;
+    // 0x16124
+    imm(c,C::Al,Op::And,R::R0,R::R0,3)?;
+    // 0x16128
+    imm(c,C::Al,Op::Cmp,R::R0,R::R0,1)?;
+    // 0x1612c
+    c.emit(arm32::transfer_word(C::Al,true,R::new(4)?,R::R1,368)?)?;
+    // 0x16130
+    c.emit(arm32::transfer_word(C::Al,true,R::R0,R::R1,488)?)?;
+    // 0x16134
+    imm(c,C::Al,Op::Add,R::R1,R::new(3)?,20)?;
+    // 0x16138
+    c.emit(arm32::data_register(C::Al,Op::Orr,R::R0,R::new(4)?,R::R0,Shift::Lsl,16,false)?)?;
+    // 0x1613c
+    c.emit(arm32::transfer_word(C::Al,false,R::R1,R::LR,0)?)?;
+    // 0x16140
+    imm(c,C::Al,Op::Mov,R::R1,R::R0,172)?;
+    // 0x16144
+    imm(c,C::Al,Op::Orr,R::R1,R::R1,35840)?;
+    // 0x16148
+    c.emit(arm32::transfer_word(C::Al,false,R::R1,R::new(3)?,16)?)?;
+    // 0x1614c
+    imm(c,C::Al,Op::Add,R::R1,R::new(8)?,20)?;
+    // 0x16150
+    c.emit(arm32::transfer_word(C::Al,false,R::R1,R::R12,0)?)?;
+    // 0x16154
+    c.emit(arm32::transfer_word(C::Al,false,R::R0,R::new(8)?,16)?)?;
+    // 0x16158
+    imm(c,C::Al,Op::Mov,R::R0,R::R0,1)?;
+    // 0x1615c
+    c.emit(arm32::transfer_multiple(C::Al, true, R::SP, R::new(4)?.bit() | R::new(5)?.bit() | R::new(6)?.bit() | R::new(7)?.bit() | R::new(8)?.bit() | R::new(9)?.bit() | R::R11.bit() | R::PC.bit(), arm32::BlockMode::IncrementAfter, true)?)?;
+    // 0x16160
+    c.emit(arm32::transfer_word(C::Al,true,R::R2,R::R1,48)?)?;
+    // 0x16164
+    imm(c,C::Al,Op::Cmp,R::R0,R::R2,1)?;
+    // 0x16168
+    c.branch(C::Ne, 0x161d4)?;
+    // 0x1616c
+    c.emit(arm32::transfer_word(C::Al,true,R::R2,R::R1,12)?)?;
+    // 0x16170
+    c.emit(arm32::transfer_word(C::Al,true,R::new(4)?,R::R1,68)?)?;
+    // 0x16174
+    imm(c,C::Al,Op::Mov,R::new(5)?,R::R0,168)?;
+    // 0x16178
+    imm(c,C::Al,Op::Orr,R::new(5)?,R::new(5)?,35840)?;
+    // 0x1617c
+    c.emit(arm32::transfer_word_register(C::Al,true,R::R0,R::R0,R::R2,Shift::Lsl,2)?)?;
+    // 0x16180
+    imm(c,C::Al,Op::Add,R::R0,R::R0,612)?;
+    // 0x16184
+    imm(c,C::Al,Op::Add,R::R0,R::R0,4096)?;
+    // 0x16188
+    c.emit(arm32::data_register(C::Al,Op::Add,R::R2,R::R0,R::new(4)?,Shift::Lsl,2,false)?)?;
+    // 0x1618c
+    c.emit(arm32::transfer_word(C::Al,true,R::new(4)?,R::R2,304)?)?;
+    // 0x16190
+    c.emit(arm32::transfer_word(C::Al,true,R::R2,R::R2,344)?)?;
+    // 0x16194
+    c.emit(arm32::transfer_word(C::Al,false,R::new(5)?,R::new(3)?,12)?)?;
+    // 0x16198
+    c.emit(arm32::data_register(C::Al,Op::Orr,R::R2,R::new(4)?,R::R2,Shift::Lsl,16,false)?)?;
+    // 0x1619c
+    c.emit(arm32::transfer_word(C::Al,false,R::R2,R::new(8)?,12)?)?;
+    // 0x161a0
+    c.emit(arm32::transfer_word(C::Al,true,R::R1,R::R1,68)?)?;
+    // 0x161a4
+    c.emit(arm32::data_register(C::Al,Op::Add,R::R0,R::R0,R::R1,Shift::Lsl,2,false)?)?;
+    // 0x161a8
+    c.emit(arm32::transfer_word(C::Al,true,R::R1,R::R0,64)?)?;
+    // 0x161ac
+    c.emit(arm32::transfer_word(C::Al,true,R::R0,R::R0,104)?)?;
+    // 0x161b0
+    imm(c,C::Al,Op::Add,R::R2,R::new(3)?,20)?;
+    // 0x161b4
+    c.emit(arm32::data_register(C::Al,Op::Orr,R::R0,R::R1,R::R0,Shift::Lsl,16,false)?)?;
+    // 0x161b8
+    c.emit(arm32::transfer_word(C::Al,false,R::R2,R::LR,0)?)?;
+    // 0x161bc
+    imm(c,C::Al,Op::Mov,R::R2,R::R0,172)?;
+    // 0x161c0
+    imm(c,C::Al,Op::Orr,R::R2,R::R2,35840)?;
+    // 0x161c4
+    c.emit(arm32::transfer_word(C::Al,false,R::R2,R::new(3)?,16)?)?;
+    // 0x161c8
+    imm(c,C::Al,Op::Add,R::R2,R::new(8)?,20)?;
+    // 0x161cc
+    c.emit(arm32::transfer_word(C::Al,false,R::R2,R::R12,0)?)?;
+    // 0x161d0
+    c.branch(C::Al, 0x16154)?;
+    // 0x161d4
+    c.literal(R::R2,0x163e4)?;
+    // 0x161d8
+    reg(c,C::Al,Op::Cmp,R::R0,R::new(4)?,R::R2)?;
+    // 0x161dc
+    c.branch(C::Ne, 0x1623c)?;
+    // 0x161e0
+    c.emit(arm32::transfer_word(C::Al,true,R::R2,R::R1,12)?)?;
+    // 0x161e4
+    c.emit(arm32::transfer_word(C::Al,true,R::new(5)?,R::R1,72)?)?;
+    // 0x161e8
+    c.emit(arm32::transfer_word(C::Al,true,R::new(4)?,R::R1,76)?)?;
+    // 0x161ec
+    c.emit(arm32::transfer_word_register(C::Al,true,R::R0,R::R0,R::R2,Shift::Lsl,2)?)?;
+    // 0x161f0
+    c.emit(arm32::data_register(C::Al,Op::Add,R::R2,R::R0,R::new(5)?,Shift::Lsl,2,false)?)?;
+    // 0x161f4
+    imm(c,C::Al,Op::Mov,R::new(5)?,R::R0,732)?;
+    // 0x161f8
+    imm(c,C::Al,Op::Orr,R::new(5)?,R::new(5)?,6144)?;
+    // 0x161fc
+    c.emit(arm32::transfer_word_register(C::Al,true,R::R2,R::R2,R::new(5)?,Shift::Lsl,0)?)?;
+    // 0x16200
+    imm(c,C::Al,Op::Cmp,R::R0,R::R2,0)?;
+    // 0x16204
+    c.branch(C::Eq, 0x1628c)?;
+    // 0x16208
+    imm(c,C::Al,Op::Cmp,R::R0,R::new(4)?,0)?;
+    // 0x1620c
+    c.branch(C::Ne, 0x1628c)?;
+    // 0x16210
+    c.emit(arm32::transfer_word(C::Al,true,R::new(5)?,R::R1,68)?)?;
+    // 0x16214
+    imm(c,C::Al,Op::Mov,R::R1,R::R0,312)?;
+    // 0x16218
+    imm(c,C::Al,Op::Mov,R::new(4)?,R::R0,1456)?;
+    // 0x1621c
+    imm(c,C::Al,Op::Orr,R::R1,R::R1,5120)?;
+    // 0x16220
+    imm(c,C::Al,Op::Orr,R::new(4)?,R::new(4)?,4096)?;
+    // 0x16224
+    c.emit(arm32::data_register(C::Al,Op::Add,R::R2,R::R0,R::new(5)?,Shift::Lsl,2,false)?)?;
+    // 0x16228
+    c.emit(arm32::transfer_word_register(C::Al,true,R::R1,R::R2,R::R1,Shift::Lsl,0)?)?;
+    // 0x1622c
+    c.emit(arm32::transfer_word_register(C::Al,true,R::new(4)?,R::R2,R::new(4)?,Shift::Lsl,0)?)?;
+    // 0x16230
+    c.branch(C::Al, 0x162c0)?;
+    // 0x16234
+    c.emit(arm32::mov_register(C::Al, R::new(4)?, R::R2))?;
+    // 0x16238
+    c.branch(C::Al, 0x16000)?;
+    // 0x1623c
+    c.emit(arm32::transfer_word(C::Al,true,R::new(4)?,R::R1,16)?)?;
+    // 0x16240
+    imm(c,C::Al,Op::Cmp,R::R0,R::new(4)?,7)?;
+    // 0x16244
+    c.branch(C::Eq, 0x16310)?;
+    // 0x16248
+    imm(c,C::Al,Op::Cmp,R::R0,R::new(4)?,2)?;
+    // 0x1624c
+    c.branch(C::Ne, 0x16158)?;
+    // 0x16250
+    c.emit(arm32::transfer_word(C::Al,true,R::R2,R::R1,12)?)?;
+    // 0x16254
+    c.emit(arm32::transfer_word_register(C::Al,true,R::R0,R::R0,R::R2,Shift::Lsl,2)?)?;
+    // 0x16258
+    imm(c,C::Al,Op::Mov,R::R2,R::R0,496)?;
+    // 0x1625c
+    imm(c,C::Al,Op::Orr,R::R2,R::R2,4096)?;
+    // 0x16260
+    c.emit(arm32::transfer_word_register(C::Al,true,R::R2,R::R0,R::R2,Shift::Lsl,0)?)?;
+    // 0x16264
+    imm(c,C::Al,Op::Sub,R::R2,R::R2,1)?;
+    // 0x16268
+    imm(c,C::Al,Op::Cmp,R::R0,R::R2,1)?;
+    // 0x1626c
+    c.branch(C::Hi, 0x16360)?;
+    // 0x16270
+    c.emit(arm32::transfer_word(C::Al,true,R::R2,R::R1,44)?)?;
+    // 0x16274
+    imm(c,C::Al,Op::Cmp,R::R0,R::R2,1)?;
+    // 0x16278
+    c.branch(C::Ne, 0x16360)?;
+    // 0x1627c
+    imm(c,C::Al,Op::Mov,R::R1,R::R0,532)?;
+    // 0x16280
+    c.branch(C::Al, 0x16334)?;
+    // 0x16284
+    imm(c,C::Al,Op::Mov,R::new(4)?,R::R0,4)?;
+    // 0x16288
+    c.branch(C::Al, 0x16000)?;
+    // 0x1628c
+    c.emit(arm32::transfer_word(C::Al,true,R::new(5)?,R::R1,68)?)?;
+    // 0x16290
+    imm(c,C::Al,Op::Mov,R::R1,R::R0,312)?;
+    // 0x16294
+    imm(c,C::Al,Op::Mov,R::new(6)?,R::R0,1456)?;
+    // 0x16298
+    imm(c,C::Al,Op::Cmp,R::R0,R::new(4)?,0)?;
+    // 0x1629c
+    imm(c,C::Al,Op::Mov,R::R2,R::R0,0)?;
+    // 0x162a0
+    imm(c,C::Al,Op::Orr,R::R1,R::R1,5120)?;
+    // 0x162a4
+    imm(c,C::Al,Op::Orr,R::new(6)?,R::new(6)?,4096)?;
+    // 0x162a8
+    imm(c,C::Eq,Op::Mov,R::R2,R::R0,1)?;
+    // 0x162ac
+    c.emit(arm32::data_register(C::Al,Op::Add,R::new(4)?,R::R0,R::new(5)?,Shift::Lsl,2,false)?)?;
+    // 0x162b0
+    c.emit(arm32::transfer_word_register(C::Al,true,R::R1,R::new(4)?,R::R1,Shift::Lsl,0)?)?;
+    // 0x162b4
+    c.emit(arm32::transfer_word_register(C::Al,true,R::new(4)?,R::new(4)?,R::new(6)?,Shift::Lsl,0)?)?;
+    // 0x162b8
+    c.emit(arm32::data_register_shifted_by_register(C::Al,Op::Mov,R::R1,R::R0,R::R1,Shift::Lsr,R::R2,false)?)?;
+    // 0x162bc
+    c.emit(arm32::data_register_shifted_by_register(C::Al,Op::Mov,R::new(4)?,R::R0,R::new(4)?,Shift::Lsr,R::R2,false)?)?;
+    // 0x162c0
+    imm(c,C::Al,Op::Mov,R::R2,R::R0,8)?;
+    // 0x162c4
+    c.emit(arm32::data_register(C::Al,Op::Add,R::R0,R::R0,R::new(5)?,Shift::Lsl,2,false)?)?;
+    // 0x162c8
+    imm(c,C::Al,Op::Mov,R::new(5)?,R::R0,6272)?;
+    // 0x162cc
+    imm(c,C::Al,Op::Orr,R::R2,R::R2,6144)?;
+    // 0x162d0
+    c.emit(arm32::transfer_word_register(C::Al,true,R::R2,R::R0,R::R2,Shift::Lsl,0)?)?;
+    // 0x162d4
+    c.emit(arm32::transfer_word_register(C::Al,true,R::R0,R::R0,R::new(5)?,Shift::Lsl,0)?)?;
+    // 0x162d8
+    imm(c,C::Al,Op::Mov,R::new(5)?,R::R0,168)?;
+    // 0x162dc
+    imm(c,C::Al,Op::Orr,R::new(5)?,R::new(5)?,35840)?;
+    // 0x162e0
+    c.emit(arm32::transfer_word(C::Al,false,R::new(5)?,R::new(3)?,12)?)?;
+    // 0x162e4
+    c.emit(arm32::data_register(C::Al,Op::Orr,R::R0,R::R2,R::R0,Shift::Lsl,16,false)?)?;
+    // 0x162e8
+    c.emit(arm32::transfer_word(C::Al,false,R::R0,R::new(8)?,12)?)?;
+    // 0x162ec
+    imm(c,C::Al,Op::Add,R::R0,R::new(3)?,20)?;
+    // 0x162f0
+    c.emit(arm32::transfer_word(C::Al,false,R::R0,R::LR,0)?)?;
+    // 0x162f4
+    imm(c,C::Al,Op::Mov,R::R0,R::R0,172)?;
+    // 0x162f8
+    imm(c,C::Al,Op::Orr,R::R0,R::R0,35840)?;
+    // 0x162fc
+    c.emit(arm32::transfer_word(C::Al,false,R::R0,R::new(3)?,16)?)?;
+    // 0x16300
+    imm(c,C::Al,Op::Add,R::R0,R::new(8)?,20)?;
+    // 0x16304
+    c.emit(arm32::transfer_word(C::Al,false,R::R0,R::R12,0)?)?;
+    // 0x16308
+    c.emit(arm32::data_register(C::Al,Op::Orr,R::R0,R::R1,R::new(4)?,Shift::Lsl,16,false)?)?;
+    // 0x1630c
+    c.branch(C::Al, 0x16154)?;
+    // 0x16310
+    c.emit(arm32::transfer_word(C::Al,true,R::R1,R::R1,12)?)?;
+    // 0x16314
+    c.emit(arm32::transfer_word_register(C::Al,true,R::R0,R::R0,R::R1,Shift::Lsl,2)?)?;
+    // 0x16318
+    imm(c,C::Al,Op::Mov,R::R1,R::R0,236)?;
+    // 0x1631c
+    imm(c,C::Al,Op::Orr,R::R1,R::R1,4096)?;
+    // 0x16320
+    c.emit(arm32::transfer_word_register(C::Al,true,R::R1,R::R0,R::R1,Shift::Lsl,0)?)?;
+    // 0x16324
+    imm(c,C::Al,Op::Sub,R::R1,R::R1,1)?;
+    // 0x16328
+    imm(c,C::Al,Op::Cmp,R::R0,R::R1,1)?;
+    // 0x1632c
+    c.branch(C::Hi, 0x16158)?;
+    // 0x16330
+    imm(c,C::Al,Op::Mov,R::R1,R::R0,272)?;
+    // 0x16334
+    imm(c,C::Al,Op::Orr,R::R1,R::R1,4096)?;
+    // 0x16338
+    imm(c,C::Al,Op::Mov,R::new(4)?,R::R0,168)?;
+    // 0x1633c
+    c.emit(arm32::transfer_word_register_preindexed_writeback(C::Al,true,R::R1,R::R0,R::R1,Shift::Lsl,0)?)?;
+    // 0x16340
+    imm(c,C::Al,Op::Orr,R::new(4)?,R::new(4)?,35840)?;
+    // 0x16344
+    c.emit(arm32::transfer_word(C::Al,true,R::R2,R::R0,4)?)?;
+    // 0x16348
+    c.emit(arm32::transfer_word(C::Al,false,R::new(4)?,R::new(3)?,12)?)?;
+    // 0x1634c
+    c.emit(arm32::data_register(C::Al,Op::Orr,R::R1,R::R1,R::R2,Shift::Lsl,16,false)?)?;
+    // 0x16350
+    c.emit(arm32::transfer_word(C::Al,false,R::R1,R::new(8)?,12)?)?;
+    // 0x16354
+    c.emit(arm32::transfer_word(C::Al,true,R::R1,R::R0,0)?)?;
+    // 0x16358
+    c.emit(arm32::transfer_word(C::Al,true,R::R0,R::R0,4)?)?;
+    // 0x1635c
+    c.branch(C::Al, 0x161b0)?;
+    // 0x16360
+    c.emit(arm32::transfer_word(C::Al,true,R::R0,R::R1,68)?)?;
+    // 0x16364
+    imm(c,C::Al,Op::Cmp,R::R0,R::R0,1)?;
+    // 0x16368
+    c.branch(C::Ne, 0x16378)?;
+    // 0x1636c
+    imm(c,C::Al,Op::Add,R::R0,R::R1,92)?;
+    // 0x16370
+    imm(c,C::Al,Op::Add,R::new(4)?,R::R1,88)?;
+    // 0x16374
+    c.branch(C::Al, 0x1638c)?;
+    // 0x16378
+    c.emit(arm32::data_register(C::Al,Op::Add,R::R2,R::R1,R::R0,Shift::Lsl,2,false)?)?;
+    // 0x1637c
+    imm(c,C::Al,Op::Add,R::R0,R::R2,692)?;
+    // 0x16380
+    imm(c,C::Al,Op::Add,R::R2,R::R2,680)?;
+    // 0x16384
+    imm(c,C::Al,Op::Add,R::R0,R::R0,1024)?;
+    // 0x16388
+    imm(c,C::Al,Op::Add,R::new(4)?,R::R2,1024)?;
+    // 0x1638c
+    c.emit(arm32::transfer_word(C::Al,true,R::R2,R::new(4)?,0)?)?;
+    // 0x16390
+    c.emit(arm32::transfer_word(C::Al,true,R::R0,R::R0,0)?)?;
+    // 0x16394
+    imm(c,C::Al,Op::Add,R::new(4)?,R::new(3)?,16)?;
+    // 0x16398
+    c.emit(arm32::transfer_word(C::Al,false,R::new(4)?,R::LR,0)?)?;
+    // 0x1639c
+    imm(c,C::Al,Op::Mov,R::new(4)?,R::R0,168)?;
+    // 0x163a0
+    imm(c,C::Al,Op::Orr,R::new(4)?,R::new(4)?,35840)?;
+    // 0x163a4
+    c.emit(arm32::transfer_word(C::Al,false,R::new(4)?,R::new(3)?,12)?)?;
+    // 0x163a8
+    imm(c,C::Al,Op::Add,R::new(4)?,R::new(8)?,16)?;
+    // 0x163ac
+    c.emit(arm32::data_register(C::Al,Op::Orr,R::R0,R::R2,R::R0,Shift::Lsl,16,false)?)?;
+    // 0x163b0
+    c.emit(arm32::transfer_word(C::Al,false,R::new(4)?,R::R12,0)?)?;
+    // 0x163b4
+    c.emit(arm32::transfer_word(C::Al,false,R::R0,R::new(8)?,12)?)?;
+    // 0x163b8
+    c.emit(arm32::transfer_word(C::Al,true,R::R0,R::R1,68)?)?;
+    // 0x163bc
+    c.emit(arm32::data_register(C::Al,Op::Add,R::R0,R::R1,R::R0,Shift::Lsl,2,false)?)?;
+    // 0x163c0
+    c.emit(arm32::transfer_word(C::Al,true,R::R1,R::R0,1708)?)?;
+    // 0x163c4
+    c.emit(arm32::transfer_word(C::Al,true,R::R0,R::R0,1720)?)?;
+    // 0x163c8
+    c.branch(C::Al, 0x161b0)?;
+    c.check(0x163cc)?;
+    const DEVICE_REFERENCES:[u32;7]=[
+        0xfbfe_effa,0xffff_ec2c,0xffff_e1dc,0xfbfe_effd,
+        0x0401_1004,0x0401_1003,0x0401_1016,
+    ];
+    for value in DEVICE_REFERENCES {c.emit(value)?;}
     c.check(END)
 }
 
@@ -5753,6 +6897,8 @@ pub fn fragment()->Result<Vec<u8>,String>{
     configure_secondary_codec_packing(&mut c)?;
     submit_codec_payload_variants(&mut c)?;
     finalize_next_codec_session(&mut c)?;
+    write_stream_small_helpers(&mut c)?;
+    update_stream_mode_metadata(&mut c)?;
     Ok(out.split_off(skip))
 }
 

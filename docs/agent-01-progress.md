@@ -41,3 +41,10 @@ Generated output is a partial function; the next missing instruction is the repo
 - Recorded three more structured dispatch tables: 12-target mode table, 11-target frame table and 12-target packet table, none misclassified as executable opcodes.
 - A conditional BLNE instruction at `0x14f78` was corrected by preserving its condition field; subsequent full-region byte comparison passed.
 - Next uncovered ARM address: `0x15ae8`.
+
+## Agent 01 checkpoint 06
+
+- Independently emitted and byte-verified `[0x12e5c, 0x163e8)` = 13,708 bytes, MBN offsets `[0x16e5c,0x1a3e8)`.
+- Rebuilt small helper routines and codec-plane state calculation at `0x15ae8–0x163e8`.
+- Explicitly modeled 10-target dispatch table `[0x15f0c,0x15f34)` and literal pools `[0x15df0,0x15e00)`, `[0x15ea4,0x15ea8)`, `[0x163cc,0x163e8)` as data. No vendor code bytes were pasted into Rust.
+- Next uncovered runtime instruction is `0x163e8` (start of a new function).
