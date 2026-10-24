@@ -48,3 +48,9 @@ Generated output is a partial function; the next missing instruction is the repo
 - Rebuilt small helper routines and codec-plane state calculation at `0x15ae8–0x163e8`.
 - Explicitly modeled 10-target dispatch table `[0x15f0c,0x15f34)` and literal pools `[0x15df0,0x15e00)`, `[0x15ea4,0x15ea8)`, `[0x163cc,0x163e8)` as data. No vendor code bytes were pasted into Rust.
 - Next uncovered runtime instruction is `0x163e8` (start of a new function).
+
+## Agent 01 checkpoint 07
+
+- Generated `[0x12e5c,0x1698c)` = 15,152 consecutive reference-exact bytes, MBN `[0x16e5c,0x1a98c)`.
+- Complete codec-channel setup routine `[0x163e8,0x1698c)`, including two four-entry runtime jump tables (`0x16570–0x16580`, `0x16904–0x16914`) and six data words (`0x16974–0x1698c`).
+- All reference comparisons passed without copying proprietary executable bytes. Next function begins at `0x1698c`.
