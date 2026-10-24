@@ -286,6 +286,24 @@ fn run() -> Result<(), Box<dyn Error>> {
         println!("Generated 40-byte WMFW metadata header (NOT DSP firmware)");
         return Ok(());
     }
+    if args.len() == 1 && args[0] == "wmfw-coverage" {
+        let plan = firmware_tools::wmfw_plan::partial_container()?;
+        println!("Cirrus HALO WMFW v3 independently generated: {} / {} bytes ({} region descriptors)",
+            plan.filled_bytes(), plan.total_bytes(), firmware_tools::wmfw_plan::REGION_COUNT);
+        for region in firmware_tools::wmfw_plan::regions()? {
+            println!("  {} (0x{:02x}) @ file 0x{:x}, DSP 0x{:06x}: {} bytes, {:?} memory words, UNIMPLEMENTED PAYLOAD",
+                region.name(), region.kind, region.payload_offset,
+                region.dsp_address, region.payload_length, region.word_count);
+        }
+        println!("Final firmware prohibited: {} payload regions are missing", plan.holes().len());
+        return Ok(());
+    }
+    if args.len() == 2 && args[0] == "verify-wmfw-layout" {
+        firmware_tools::wmfw_plan::verify_container(&fs::read(&args[1])?)?;
+        println!("WMFW v3 strict container layout verified; {} independently generated metadata bytes (DSP payloads remain missing).",
+            firmware_tools::wmfw_plan::INDEPENDENT_METADATA_BYTES);
+        return Ok(());
+    }
     if args.len() == 2 && args[0] == "verify-wmfw-structure" {
         let matched = verify_wmfw_structure(&fs::read(&args[1])?)?;
         println!("Matched {} bytes of independently rebuilt WMFW metadata; NOT executable payload", matched);
