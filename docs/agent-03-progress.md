@@ -49,3 +49,21 @@ A separate check used LLVM/Clang's ARM integrated assembler: disassemble the sam
 - Runtime `[0x18628, 0x24000)` (many later functions and data pools).
 - The combined boot + service gap and all other Venus payload bytes belong to other assignments or remain unimplemented.
 - No OEM signature/certificate/key bytes were generated. This is a non-flashable partial artifact.
+
+## Checkpoint 2 — complete codec command-controller routine
+
+- Runtime range `[0x18628, 0x196ac)` maps to file offsets `[0x1c628, 0x1d6ac)`; length `0x1084` = 4,228 bytes. This is adjacent to checkpoint 1.
+- Typed ARM32 instructions: **1,050**; **7** explicit non-instruction words in the literal pool `0x19690–0x196ac`. The pool contains diagnostic addresses and a signed offset; one of the instruction forms is `SMULBB` (signed lower-halfword multiply), implemented by a checked architecture encoder local to the module. A `BLX` immediate at `0x19498` is reproduced as a state-changing ARM→Thumb call, not an ordinary BL.
+- Combined contiguous late interval: `[0x183e0, 0x196ac)` = **4,812 independent bytes**: 1,195 ARM instructions and eight explicit data words.
+- Reconstructed operations include codec command-table setup, packed plane-format fields, per-frame record allocation, conditional controller diagnostics and publication of the producer cursor. These labels describe observed data flow, not yet hardware-validated high-level semantics.
+- Compiler-independent corroboration: disassembled A32 mnemonics were reassembled separately by Clang/LLVM. Explicitly separated the seven literal words; internal branches resolve to local labels and external destinations to absolute section locations before linking. The linked `.text` interval exactly matches the private reference (zero differences). This only corroborates instruction encoding, not run-time correctness.
+
+```sh
+# After applying Agent 03 commits to the desired checkpoint-50 branch:
+cargo run --offline --locked -p firmware-tools --example agent03_venus_late -- \
+  verify /PRIVATE/qcom/sm8150/Xiaomi/nabu/venus.mbn
+cargo run --offline --locked -p firmware-tools --example agent03_venus_late -- \
+  emit /tmp/agent03-late-0x183e0-0x196ac.bin
+```
+
+New unimplemented subrange within Agent 03's reservation: `[0x196ac, 0x24000)`. The original skipped range `[0x18000, 0x183e0)` is still unimplemented. Source branch still has the *earlier* `69ebf0d` common ancestor, **not** checkpoint-50 commit `b7ed4b5`, which was not supplied as mounted Git bytes.

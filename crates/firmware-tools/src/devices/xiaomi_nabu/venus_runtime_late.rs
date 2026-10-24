@@ -14,7 +14,7 @@ use arm32::{branch, transfer_word, BlockMode, Condition as C,
 /// jump table includes entries at 0x18010–0x1802b and must not be split.
 pub const FILE_BASE: usize = 0x4000;
 pub const START: usize = 0x183e0;
-pub const END: usize = 0x18628;
+pub const END: usize = 0x196ac;
 pub const MAX_RESERVED_END: usize = 0x24000;
 
 // Isolated builder: unlike the boot-prefix helper, the A32 address is tracked
@@ -50,6 +50,9 @@ impl Code {
 }
 
 const CODEC_RUNTIME_DIAGNOSTIC: u32 = 0x000e_3d16;
+
+#[path = "venus_runtime_late_stream.rs"]
+mod stream;
 
 /// Normalize stride/crop dimensions to hardware layout constraints, clamp
 /// bounds exposed by firmware state, and report four alignment invariants.
@@ -358,15 +361,16 @@ fn emit_publish_codec_command(c: &mut Code) -> Result<(), String> {
     c.emit(arm32::transfer_word(C::Al, false, R::R12, R::new(3)?, 4)?)?;
     // 0x18624: pop {r4, r7, r11, pc}
     c.emit(arm32::transfer_multiple(C::Al, true, R::SP, R::new(4)?.bit() | R::new(7)?.bit() | R::R11.bit() | R::PC.bit(), BlockMode::IncrementAfter, true)?)?;
-    c.check(END)
+    c.check(0x18628)
 }
 
-/// Complete contiguous fragment containing two functions, and one data word.
+/// Complete contiguous fragment containing three functions and eight data words.
 /// All other code in reserved `[0x18000,0x24000)` is **unimplemented**.
 pub fn fragment() -> Result<Vec<u8>, String> {
     let mut c = Code::new(START);
     emit_scale_and_validate(&mut c)?;
     emit_publish_codec_command(&mut c)?;
+    stream::extend(&mut c)?;
     c.check(END)?;
     Ok(c.bytes)
 }
@@ -390,12 +394,14 @@ pub fn verify_reference(reference: &[u8]) -> Result<usize, String> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    #[test] fn two_separate_late_functions_have_no_gaps() {
+    #[test] fn three_separate_late_functions_have_no_gaps() {
         let buf = fragment().unwrap();
         assert_eq!(buf.len(), END - START);
         assert_eq!(START, 0x183e0);
-        assert_eq!(END, 0x18628);
+        assert_eq!(END, 0x196ac);
         assert_eq!(&buf[0x18574 - START..0x18578 - START], &CODEC_RUNTIME_DIAGNOSTIC.to_le_bytes());
+        assert_eq!(&buf[0x19690 - START..0x19694 - START], &CODEC_RUNTIME_DIAGNOSTIC.to_le_bytes());
+        assert_eq!(&buf[0x196a0 - START..0x196a4 - START], &0xffff_fb80u32.to_le_bytes());
     }
     #[test] fn too_short_reference_fails_closed() {
         assert!(verify_reference(&[]).unwrap_err().contains("missing Venus reference"));
