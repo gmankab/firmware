@@ -20,3 +20,10 @@ Generated output is a partial function; the next missing instruction is the repo
 - Independently re-encoded `[0x12e5c, 0x13800)` from the original Venus ARM32 runtime (`0x9a4` = 2,468 bytes), MBN file `[0x16e5c,0x17800)`.
 - Codec mode selector includes a non-instruction 11-target pointer table at `0x13680–0x136ac`; it is modeled as 11 named branch destinations, with repeated targets retained.
 - This region ends inside a larger function, so it remains **partial**. Next uncovered instruction at runtime `0x13800`.
+
+## Agent 01 checkpoint 03
+
+- Typed ARM32 coverage `[0x12e5c,0x14000)` = 4,516 bytes, MBN offsets `[0x16e5c,0x18000)`; exact comparison passed.
+- Completed a first codec session function ending at runtime `0x13b14`, with six data words at `0x13afc–0x13b14` and one 11-entry branch table at `0x13680–0x136ac`.
+- The next session function begins at `0x13b14`. At checkpoint 03 its implemented portion ends at `0x14000`, with the function still incomplete.
+- Public checked ARM32 SMULBB encoder introduced with dedicated ISA tests; this common-arm32 change is committed separately from the fragment and should be reviewed separately during checkpoint-50 integration.
