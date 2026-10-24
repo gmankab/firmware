@@ -14,3 +14,9 @@ Assigned checkpoint-50 base: `b7ed4b587633b9b475a40f5a3ace5cc90db620ff`.
 - Deterministic validation: `cargo run --offline --locked --bin agent01-venus-forward -- verify /private/venus.mbn` and `cargo test --workspace --offline --locked`.
 
 Generated output is a partial function; the next missing instruction is the reported `END` in `venus_agent01_forward.rs`. The file should remain isolated during integration; the only shared edit is adding the module export to `devices/xiaomi_nabu/mod.rs`.
+
+## Agent 01 checkpoint 02
+
+- Independently re-encoded `[0x12e5c, 0x13800)` from the original Venus ARM32 runtime (`0x9a4` = 2,468 bytes), MBN file `[0x16e5c,0x17800)`.
+- Codec mode selector includes a non-instruction 11-target pointer table at `0x13680–0x136ac`; it is modeled as 11 named branch destinations, with repeated targets retained.
+- This region ends inside a larger function, so it remains **partial**. Next uncovered instruction at runtime `0x13800`.
