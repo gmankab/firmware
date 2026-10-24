@@ -72,7 +72,7 @@ def run() -> None:
                 raise ValueError(f'disassembler omitted instruction at 0x{address:x}')
             op, operand = code[address]
             operand = re.sub(r'\s+<[^>]*>.*$', '', operand)
-            if op == 'bl' or op == 'b' or (op.startswith('b') and op[1:] in (
+            if op in ('bl', 'blx', 'b') or (op.startswith('b') and op[1:] in (
                 'eq', 'ne', 'lt', 'le', 'gt', 'ge', 'cs', 'cc', 'hs', 'lo', 'hi', 'ls', 'mi', 'pl')):
                 target = int(operand.split()[0], 16)
                 delta = target - address
@@ -88,7 +88,7 @@ def run() -> None:
     if len(rebuilt) != len(reference) or rebuilt != reference:
         pos = next((i for i, (a, b) in enumerate(zip(rebuilt, reference)) if a != b),
                    min(len(reference), len(rebuilt)))
-        raise ValueError(f'round-trip mismatch at byte {pos} / file 0x{args.file_offset + pos:x}')
+        raise ValueError(f'round-trip mismatch at byte {pos} / file 0x{args.file_offset + pos:x} ({rebuilt[pos:pos+4].hex()} vs {reference[pos:pos+4].hex()})')
     if args.binary_out is not None:
         args.binary_out.write_bytes(rebuilt)
     print(f'Independently reassembled {len(reference)} bytes: '

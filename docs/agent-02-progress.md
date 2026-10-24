@@ -71,3 +71,28 @@ python3 tools/agent-02-a32-roundtrip.py /private/venus.mbn \
   --data-range 0x899c:0x89bc --data-range 0x8b94:0x8bac \
   --data-range 0x8bd8:0x8bdc
 ```
+
+## Checkpoint 03 — queue global state and codec slots (`0x8c00–0x8e98`)
+
+- Adds **664 byte-identical bytes**, including 152 A32 instructions and 14
+  explicitly distinguished global-pointer/diagnostic data words.
+- Routines cover queue initialization, live queue pointers, bounded memory
+  movement, linked slot acquisition and basic codec-state accounting.
+- New module: `venus_runtime_bridge_state.rs` with strict address checks.
+- Cumulative Agent 02 bridge: **2,568 bytes** `[0x8490,0x8e98)`;
+  contiguous generated boot+bridge: **36,504 bytes**, file `[0x4000,0xce98)`.
+- Remaining exact gap `[0x8e98,0xaa0c)` is **7,028 bytes**.
+- Independent `clang`/`llvm-objdump`/`llvm-objcopy` round-trip:
+
+```sh
+python3 tools/agent-02-a32-roundtrip.py /private/venus.mbn \
+  --file-offset 0xcc00 --vma 0x8c00 --length 0x298 \
+  --data-range 0x8c1c:0x8c24 --data-range 0x8c48:0x8c50 \
+  --data-range 0x8c58:0x8c5c --data-range 0x8c80:0x8c88 \
+  --data-range 0x8d44:0x8d50 --data-range 0x8e7c:0x8e88 \
+  --data-range 0x8e94:0x8e98
+```
+
+Validation: exact byte comparison against the private Venus MBN, combined
+boot+bridge comparison, 164 offline Rust tests, 13 Python tests and release
+build. The integrated image remains partial and is not flashable.
