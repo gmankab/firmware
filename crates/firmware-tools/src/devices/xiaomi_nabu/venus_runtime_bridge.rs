@@ -1,16 +1,27 @@
 // SPDX-License-Identifier: GPL-3.0-only
 //! Strictly contiguous, independently regenerated Venus bridge bytes.
 //! This assembler intentionally refuses to substitute missing firmware bytes.
-use super::{venus_runtime, venus_runtime_bridge_lookup, venus_plan};
+use super::{venus_runtime, venus_runtime_bridge_lookup, venus_runtime_bridge_records, venus_plan};
 use crate::image_plan::ImagePlan;
 
 pub const START: usize = venus_runtime_bridge_lookup::START;
-pub const END: usize = venus_runtime_bridge_lookup::END;
+pub const END: usize = venus_runtime_bridge_records::END;
 pub const FILE_OFFSET: usize = venus_runtime_bridge_lookup::FILE_OFFSET;
 pub const BRIDGE_LENGTH: usize = END - START;
 
 pub fn fragment() -> Result<Vec<u8>, String> {
-    venus_runtime_bridge_lookup::fragment()
+    let first = venus_runtime_bridge_lookup::fragment()?;
+    let additional = venus_runtime_bridge_records::fragment()?;
+    if venus_runtime_bridge_lookup::END != venus_runtime_bridge_records::START ||
+       venus_runtime_bridge_records::FILE_OFFSET != venus_runtime_bridge_lookup::END + 0x4000 {
+        return Err("Venus record/queue bridge fragments are not adjacent".into());
+    }
+    let mut result = first;
+    result.extend_from_slice(&additional);
+    if result.len() != BRIDGE_LENGTH {
+        return Err("Venus bridge fragment coverage gap".into());
+    }
+    Ok(result)
 }
 
 /// Build a checked file-offset-aware prefix composed only of authored pieces.
@@ -24,7 +35,7 @@ pub fn contiguous_boot_and_bridge() -> Result<ImagePlan, String> {
     }
     let mut plan = ImagePlan::new(initial.len() + bridge.len())?;
     plan.place("independently authored boot and runtime", 0, &initial)?;
-    plan.place("typed A32 record lookup (partial bridge)", initial.len(), &bridge)?;
+    plan.place("typed A32 record lookup and queue selection (partial bridge)", initial.len(), &bridge)?;
     if !plan.holes().is_empty() {
         return Err("bridge layout has an uncovered byte".into());
     }

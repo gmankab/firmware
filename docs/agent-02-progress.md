@@ -50,3 +50,24 @@ python3 tools/agent-02-a32-roundtrip.py /private/venus.mbn \
 
 For all further checkpoints, continue at **exactly** `0x883c` and add only
 consecutive verified instructions or named data words to bridge layout.
+
+## Checkpoint 02 — record classification and queue state (`0x883c–0x8c00`)
+
+- Adds **964** exact bytes (226 ARM32 instructions and 15 non-executable
+  words: 8 format jump targets, 6 error/context words, 1 queue-head address).
+- New region module: `venus_runtime_bridge_records.rs`, with record-header
+  validation, type dispatch, attribute extraction and queue-state access.
+- **Cumulative bridge:** 1,904 contiguous bytes, runtime `[0x8490,0x8c00)`,
+  file `[0xc490,0xcc00)`; independently regenerated early boot+bridge:
+  **35,840 contiguous bytes** (`0x4000–0xcc00` in the MBN).
+- **Remaining gap:** `[0x8c00,0xaa0c)` = **7,692 bytes**. The original
+  reference is only read by the opt-in verification command.
+
+```sh
+cargo run --offline --locked -p firmware-tools --bin venus_bridge -- verify /private/venus.mbn
+cargo run --offline --locked -p firmware-tools --bin venus_bridge -- verify-joined /private/venus.mbn
+python3 tools/agent-02-a32-roundtrip.py /private/venus.mbn \
+  --file-offset 0xc83c --vma 0x883c --length 0x3c4 \
+  --data-range 0x899c:0x89bc --data-range 0x8b94:0x8bac \
+  --data-range 0x8bd8:0x8bdc
+```
