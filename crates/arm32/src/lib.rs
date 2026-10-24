@@ -258,6 +258,17 @@ pub fn multiply_accumulate(condition: Condition, rd: Register, rm: Register,
        | (addend.number() << 12) | (rs.number() << 8) | rm.number())
 }
 
+/// A32 SMULBB: signed 16-bit low halves multiplied into a 32-bit result.
+/// This is the public ARM DSP extension encoding, not an extracted opcode.
+pub fn signed_multiply_bottom_halves(condition: Condition, rd: Register,
+                                     rm: Register, rs: Register) -> Result<u32, String> {
+    if [rd, rm, rs].contains(&Register::PC) {
+        return Err("SMULBB cannot take PC as a register operand".into());
+    }
+    Ok(cond(condition) | 0x0160_0080 | (rd.number() << 16)
+       | (rs.number() << 8) | rm.number())
+}
+
 /// A32 MUL: multiply two general-purpose registers, without accumulate.
 /// The register fields are checked, and older ARM restrictions on using the
 /// destination as the first multiplicand are enforced.
@@ -445,6 +456,18 @@ pub fn push_registers(condition: Condition, registers: u16) -> Result<u32, Strin
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn smulbb_encoding_and_register_validation() {
+        let r6 = Register::new(6).unwrap();
+        let r7 = Register::new(7).unwrap();
+        assert_eq!(signed_multiply_bottom_halves(Condition::Al,
+            Register::R1, Register::LR, r6).unwrap(), 0xe161_068e);
+        assert_eq!(signed_multiply_bottom_halves(Condition::Eq,
+            r7, Register::R0, Register::R1).unwrap(), 0x0167_0180);
+        assert!(signed_multiply_bottom_halves(Condition::Al,
+            Register::PC, Register::R1, r6).is_err());
+    }
+
     use super::*;
     #[test]
     fn thumb_interworking_blx_encoding_and_range_checks() {
