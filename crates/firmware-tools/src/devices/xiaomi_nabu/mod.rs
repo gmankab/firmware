@@ -83,6 +83,8 @@ mod venus_runtime_device_release;
 mod venus_runtime_bitmap;
 mod venus_runtime_bitmap_controls;
 
+mod venus_runtime_bridge_lookup;
+pub mod venus_runtime_bridge;
 pub mod venus_plan;
 
 mod venus_runtime_mmio;
