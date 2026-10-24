@@ -4,6 +4,8 @@
 mod modem_hexagon;
 #[path = "../devices/xiaomi_nabu/modem_bootstrap.rs"]
 mod modem_bootstrap;
+#[path = "../devices/xiaomi_nabu/modem_boot_manifest.rs"]
+mod modem_boot_manifest;
 use std::{env, fs};
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -17,6 +19,23 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             fs::write(&path, &bytes)?;
             println!("Generated {} independent Hexagon bootstrap bytes, ELF file offset 0x{:x}, physical 0x{:08x}",
                      bytes.len(),modem_bootstrap::ELF_OFFSET,modem_bootstrap::PHYSICAL_ADDR);
+        },
+        "emit-layout" => {
+            let mut bytes=modem_bootstrap::rebuild()?;
+            bytes.extend(modem_boot_manifest::rebuild()?);
+            fs::write(&path, &bytes)?;
+            println!("Generated {} bytes of modem bootstrap instructions + typed configuration records and padding; PARTIAL",bytes.len());
+        },
+        "verify-layout" => {
+            let image=fs::read(path)?;
+            modem_bootstrap::verify(&image)?;
+            let expected=modem_boot_manifest::rebuild()?;
+            let start=modem_boot_manifest::FILE_START;
+            let actual=image.get(start..start+expected.len()).ok_or("reference truncated in boot manifest")?;
+            if let Some(i)=expected.iter().zip(actual.iter()).position(|(a,b)|a!=b) {
+                return Err(format!("modem boot manifest mismatch at file 0x{:x}: expected 0x{:02x}, got 0x{:02x}",start+i,actual[i],expected[i]).into());
+            }
+            println!("Verified {} contiguous bytes at modem file [0x3000,0x3500): 68 code bytes, {} metadata/fill bytes; PARTIAL",0x500,expected.len());
         },
         "verify" => {
             let image=fs::read(path)?;

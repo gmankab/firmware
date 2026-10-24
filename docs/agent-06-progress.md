@@ -25,3 +25,11 @@ Rizin 0.9.1 Hexagon V6 decodes the entry's eight vector slots, privileged `S6` (
 ## Remaining work
 
 The following file interval `[0x3044,0x35c4)` appears to contain a memory-map/translation table and is **not yet generated**; it must not be counted as executable or interpreted as linear Hexagon instructions. Additional startup code begins at physical `0x8e0005c4` (file `0x35c4`) and requires typed packet reconstruction. All other executable and data sections remain unimplemented, and OEM authentication cannot be independently reissued.
+
+## Checkpoint 02: structurally reconstructed bootstrap manifest
+
+- Added `modem_boot_manifest.rs`: endian-checked type/size fields for 13 memory mapping records, three small boot options, a 16-byte process name, two transfer regions, six copy records, two control records, a terminator, and `0x320` bytes of explicit `0x7f` ELF alignment fill.
+- Exact file range `[0x3044,0x3500)`, size `0x4bc` = **1,212 bytes**, which are **not** claimed as executable code. The fields are independently generated from semantically named values. The record type meanings are provisional; their structure/lengths and addresses are exact.
+- Combined independently emitted `[0x3000,0x3500)` is **1,280 byte-identical bytes** (68 executable, 412 structured metadata, 800 alignment fill). Output SHA-256 is `a59993f08867839ebaff4940ae6335da61e4d7059591e32982ead7e4eb57fe39`.
+- Run `cargo run --release --offline --locked -p firmware-tools --bin modem-rebuild -- emit-layout /tmp/modem-entry-layout.bin`, and `... -- verify-layout /private/modem.mbn`.
+- Following code begins at file `0x3500` (physical `0x8e000500`), and the first vector dispatches to file `0x35c4` (physical `0x8e0005c4`); these code islands are **not yet rebuilt**. Whole MBN completion, hash regeneration, and authentication are still out of scope.
