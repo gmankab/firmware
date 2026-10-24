@@ -54,3 +54,10 @@ Generated output is a partial function; the next missing instruction is the repo
 - Generated `[0x12e5c,0x1698c)` = 15,152 consecutive reference-exact bytes, MBN `[0x16e5c,0x1a98c)`.
 - Complete codec-channel setup routine `[0x163e8,0x1698c)`, including two four-entry runtime jump tables (`0x16570–0x16580`, `0x16904–0x16914`) and six data words (`0x16974–0x1698c`).
 - All reference comparisons passed without copying proprietary executable bytes. Next function begins at `0x1698c`.
+
+## Agent 01 checkpoint 08
+
+- Independently rebuilt `[0x12e5c,0x174e4)` = 18,056 byte-identical bytes, MBN file `[0x16e5c,0x1b4e4)`.
+- Includes a complete codec frame-plane routine (`0x1698c–0x174e4`) with four-entry jump table `[0x170ec,0x170fc)` and three data words `[0x174d8,0x174e4)`.
+- Function terminates with original POP/PC at `0x174d4`, not an invented return.
+- Next ARM32 function entry is `0x174e4`.
