@@ -82,3 +82,11 @@ These next three self-contained functions immediately follow checkpoint 2:
 **Total adjacent Agent 03 region:** `[0x183e0,0x19bf4)`, 6,164 bytes (1,528 instruction words, thirteen separate data words), zero differences against SHA-256-pinned Venus reference. The five data words are diagnostics and codec class masks; none has been counted as executable A32. The Clang/LLVM independent assembly/link test over these three functions matched all 1,352 bytes, marking exact literal pools at `0x199d4–0x199dc` and `0x19be8–0x19bf4`.
 
 Continue from the next function entry `0x19bf4`. Unimplemented reserved ranges now `[0x18000,0x183e0)` and `[0x19bf4,0x24000)`; no complete signed firmware is produced. Original commit ancestry remains the earlier `69ebf0d` bundle because checkpoint-50 bytes are unavailable, despite that being the required integration target.
+
+## Checkpoint 4 — four codec command-support routines
+
+Four complete, adjacent functions now cover `[0x19bf4,0x1a1ec)` (file `[0x1dbf4,0x1e1ec)`), adding **1,528 bytes**: 380 original architecture A32 instructions reconstructed as typed operations, plus two diagnostic-address words at `[0x19fb8,0x19fc0)`. The functions iterate codec slots, emit service initialization commands, initialize command headers and publish packed geometry fields to runtime queues. Clang/LLVM independent assembly/link comparison reports **zero differences**.
+
+The combined late Venus artifact now covers `[0x183e0,0x1a1ec)` = **7,692 bytes**, ten complete routines, 1,908 ARM32 instructions and fifteen distinct literal-pool words (counting repeated literal addresses at different locations separately). This region remains isolated: do not include `[0x18000,0x183e0)` or any byte beyond `0x1a1ec` in coverage reports. The larger firmware is neither independently rebuilt nor signed.
+
+The next independently mapped function begins at `0x1a1ec` (MBN file offset `0x1e1ec`). The Git branch still has the earlier accessible common base `69ebf0d`, not missing checkpoint-50 commit `b7ed4b5`; cherry-pick after retrieving the latter.
