@@ -15,6 +15,14 @@ spec.loader.exec_module(agent12)
 
 
 class ModemLateTests(unittest.TestCase):
+    def test_aux_entry_is_source_encoded_not_oem_bytes(self):
+        self.assertTrue(agent12.AUX_ENTRY_SOURCE.is_file())
+        source=agent12.AUX_ENTRY_SOURCE.read_text()
+        self.assertIn("call controller_call",source)
+        self.assertIn("deallocframe",source)
+        self.assertNotIn(".word",source)
+        self.assertEqual(agent12.AUX_ENTRY_END-agent12.AUX_ENTRY_START,20)
+
     def test_regions_are_disjoint_and_bounded_by_executable_segments(self):
         self.assertEqual((agent12.ATOMIC_START, agent12.ATOMIC_END), (0x7C000, 0x7C040))
         self.assertEqual((agent12.CONTROL_START, agent12.CONTROL_END), (0x7C040, 0x7C0A0))
@@ -64,6 +72,8 @@ class ModemLateTests(unittest.TestCase):
         self.assertEqual((agent12.AUX_NOTIFY_START,agent12.AUX_NOTIFY_END),
                          (0x4467A0,0x4467F0))
         self.assertEqual(agent12.AUX_TYPE_END,agent12.AUX_NOTIFY_START)
+        self.assertEqual((agent12.AUX_ENTRY_START,agent12.AUX_ENTRY_END),(0x4467F0,0x446804))
+        self.assertEqual(agent12.AUX_NOTIFY_END,agent12.AUX_ENTRY_START)
 
     def test_atomic_packet_reorder_checks_opcode_class_and_parse_bits(self):
         words = [0x7800C000] * 16  # synthetic A2_tfrsi instruction for surrounding words

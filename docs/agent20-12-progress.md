@@ -426,3 +426,20 @@ The last packet includes a source `nop`, recorded as 4 bytes of deliberate
 alignment, not as recovered controller logic. The next callable function
 begins at modem file `0x4467f0`. Original modem authentication remains
 externally supplied; no full firmware image has been compiled.
+
+## Checkpoint 15: auxiliary entry veneer
+
+Reconstructed 20 original Hexagon V60 bytes at modem file
+`[0x4467f0,0x446804)`, vaddr `[0x1e4007f0,0x1e400804)`, paddr
+`[0x900007f0,0x90000804)`. This is a controller entry veneer with a
+packet-grouped `call`, empty frame creation, named constant return value,
+`deallocframe`, and symbolic tail jump. LLVM6 assembles it **directly**
+without packet-order fixups or OEM opcode arrays, and the emitted bytes
+match the SHA-pinned modem image with zero differences.
+
+The contiguous auxiliary fragment extends `[0x446650,0x446804)` = 436
+bytes, while aggregate late-modem coverage is now **1,900 independently
+assembled bytes** in six disjoint executable fragments. The following
+controller configuration function begins at `0x446804`. The original
+OEM authentication and all other modem executable regions remain outside
+this partial reconstruction.

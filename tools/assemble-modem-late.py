@@ -35,6 +35,7 @@ AUX_LOOKUP_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_
 AUX_DISPATCH_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_aux_dispatch_helpers.s"
 AUX_TYPE_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_aux_type_config.s"
 AUX_NOTIFY_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_aux_controller_notify.s"
+AUX_ENTRY_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_aux_entry.s"
 ATOMIC_START = 0x7C000
 ATOMIC_END = 0x7C040
 SERVICE_START = 0x7C2EC
@@ -69,6 +70,8 @@ AUX_TYPE_START = 0x446694
 AUX_TYPE_END = 0x4467A0
 AUX_NOTIFY_START = 0x4467A0
 AUX_NOTIFY_END = 0x4467F0
+AUX_ENTRY_START = 0x4467F0
+AUX_ENTRY_END = 0x446804
 MARKER_MASK = 3 << 14
 CONTINUE_MARKER = 1 << 14
 END_MARKER = 3 << 14
@@ -451,6 +454,9 @@ def output_fragments(llvm_mc: Path) -> dict[int, bytes]:
     aux_dispatch = assemble(llvm_mc,AUX_DISPATCH_SOURCE)
     aux_type = restore_aux_type_return_packets(assemble(llvm_mc,AUX_TYPE_SOURCE))
     aux_notify = restore_aux_controller_notify_packets(assemble(llvm_mc,AUX_NOTIFY_SOURCE))
+    aux_entry = assemble(llvm_mc,AUX_ENTRY_SOURCE)
+    if len(aux_entry)!=AUX_ENTRY_END-AUX_ENTRY_START:
+        raise ValueError("auxiliary entry veneer must compile to 20 bytes")
     if len(aux_dispatch) != AUX_DISPATCH_END-AUX_DISPATCH_START:
         raise ValueError("aux callback dispatcher must emit exactly 68 bytes")
     assert AUX_DISPATCH_END == AUX_TYPE_START and AUX_TYPE_END == AUX_NOTIFY_START
@@ -468,7 +474,7 @@ def output_fragments(llvm_mc: Path) -> dict[int, bytes]:
     return {ATOMIC_START: atomic + controller, SERVICE_START: service+service_mmio+service_flags+service_alloc,
             AUX_START: auxiliary, AUX_INIT_START: aux_init,
             AUX_GUARD_START: aux_guard+aux_stage+aux_mmio+aux_heap+aux_worker+aux_lookup,
-            AUX_DISPATCH_START:aux_dispatch+aux_type+aux_notify}
+            AUX_DISPATCH_START:aux_dispatch+aux_type+aux_notify+aux_entry}
 
 
 def executable_segments(reference: bytes) -> dict[int, tuple[int, int, int, int]]:
