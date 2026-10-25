@@ -56,10 +56,11 @@ CONTROLLER_SYSCFG_UPDATE_SOURCE = pathlib.Path(__file__).with_name("adsp-control
 CONTROLLER_SAVE_CONTROL_SOURCE = pathlib.Path(__file__).with_name("adsp-controller-save-control.S")
 CONTROLLER_L2_GLOBAL_SOURCE = pathlib.Path(__file__).with_name("adsp-controller-l2-global.S")
 CONTROLLER_PHYSICAL_TLB_COPY_SOURCE = pathlib.Path(__file__).with_name("adsp-controller-physical-tlb-copy.S")
+CONTROLLER_RESOURCE_RELEASE_SOURCE = pathlib.Path(__file__).with_name("adsp-controller-resource-release.S")
 FRAGMENTS = {
     "vectors": (ASM_SOURCE, OEM_FILE_OFFSET, GENERATED_LENGTH),
     "boot-prefix": (ASM_SOURCE, OEM_FILE_OFFSET, 0x44),
-    "counter-controller": (CONTROLLER_SOURCE, 0x41e0, 0xfa4),
+    "counter-controller": (CONTROLLER_SOURCE, 0x41e0, 0xffc),
     "controller-bootstrap": (CONTROLLER_BOOTSTRAP_SOURCE, 0x4980, 0x2c),
     "controller-cache-copy": (CONTROLLER_CACHE_COPY_SOURCE, 0x49ac, 0x5c),
     "controller-physical-copy": (CONTROLLER_PHYSICAL_COPY_SOURCE, 0x4a08, 0x4c),
@@ -79,6 +80,7 @@ FRAGMENTS = {
     "controller-save-control": (CONTROLLER_SAVE_CONTROL_SOURCE, 0x505c, 0xac),
     "controller-l2-global": (CONTROLLER_L2_GLOBAL_SOURCE, 0x5108, 0x30),
     "controller-physical-tlb-copy": (CONTROLLER_PHYSICAL_TLB_COPY_SOURCE, 0x5138, 0x4c),
+    "controller-resource-release": (CONTROLLER_RESOURCE_RELEASE_SOURCE, 0x5184, 0x58),
     "tlb-reconcile": (TLB_RECONCILE_SOURCE, 0x48d0, 0xb0),
     "cacheline-copy": (CACHELINE_COPY_SOURCE, 0x4818, 0x78),
     "tlb-flush": (TLB_FLUSH_SOURCE, 0x4788, 0x90),
@@ -751,6 +753,22 @@ def assemble_physical_tlb_copy(
     return bytes(b)
 
 
+def assemble_resource_release(
+    llvm_mc: str, source: pathlib.Path = CONTROLLER_RESOURCE_RELEASE_SOURCE
+) -> bytes:
+    """Release controller resources and choose a verified stop-thread path."""
+    from adsp_hexagon_v66 import SystemRegister, read_system_register, stop_thread_from_register
+    b=bytearray(assemble(llvm_mc,source,0x58))
+    for at,ins in (
+        (0x00,read_system_register(23,SystemRegister.S54)),
+        (0x50,stop_thread_from_register(0)),
+    ):
+        if b[at:at+4] != struct.pack("<I",0x7f00c000):
+            raise AdspError(f"Expected controller resource-release slot at 0x{at:x}")
+        b[at:at+4]=struct.pack("<I",ins)
+    return bytes(b)
+
+
 def run(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--llvm-mc", required=True,
@@ -803,6 +821,8 @@ def run(argv: list[str] | None = None) -> int:
             out = assemble_l2_global(args.llvm_mc, args.source or source)
         elif args.segment == "controller-physical-tlb-copy":
             out = assemble_physical_tlb_copy(args.llvm_mc, args.source or source)
+        elif args.segment == "controller-resource-release":
+            out = assemble_resource_release(args.llvm_mc, args.source or source)
         elif args.segment == "controller-debug-check":
             out = assemble_controller_debug_check(args.llvm_mc, args.source or source)
         elif args.segment == "controller-startup":
@@ -845,7 +865,8 @@ def run(argv: list[str] | None = None) -> int:
                    assemble_syscfg_update(args.llvm_mc) +
                    assemble_save_control(args.llvm_mc) +
                    assemble_l2_global(args.llvm_mc) +
-                   assemble_physical_tlb_copy(args.llvm_mc))
+                   assemble_physical_tlb_copy(args.llvm_mc) +
+                   assemble_resource_release(args.llvm_mc))
         else:
             out = assemble(args.llvm_mc, args.source or source, expected_length)
         if len(out) != expected_length:

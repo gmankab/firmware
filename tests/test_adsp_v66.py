@@ -211,6 +211,22 @@ class V66BootstrapTests(unittest.TestCase):
         self.assertEqual(struct.unpack_from("<I",b,0x5174)[0],
                          v66.physical_word_load(5,0,4))
 
+    def test_v66_start_and_stop_thread_are_distinct_architectural_ops(self) -> None:
+        self.assertEqual(v66.start_thread_from_register(0),0x6460c020)
+        self.assertEqual(v66.stop_thread_from_register(0),0x6460c000)
+        self.assertEqual(v66.start_thread_from_register(23),0x6477c020)
+        self.assertEqual(v66.stop_thread_from_register(23),0x6477c000)
+        for bad in (-1,32,23.0,"r0"):
+            with self.assertRaises(v66.HexagonEncodingError):
+                v66.stop_thread_from_register(bad)
+
+    @unittest.skipUnless(REFERENCE,"Exact firmware reference required")
+    def test_v66_stop_opcode_reference_and_loop_back(self) -> None:
+        b=Path(REFERENCE).read_bytes()
+        self.assertEqual(struct.unpack_from("<I",b,0x51d4)[0],
+                         v66.stop_thread_from_register(0))
+        self.assertEqual(struct.unpack_from("<I",b,0x51d8)[0],0x59fffffe)
+
     def test_near_jump_alignment_and_range(self) -> None:
         self.assertEqual(v66.jump_near(0x40, 0x63c), 0x5800C2FE)
         with self.assertRaises(v66.HexagonEncodingError):

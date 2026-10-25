@@ -117,8 +117,9 @@ class ADSPBootstrapTests(unittest.TestCase):
                      adsp.assemble_syscfg_update(LLVM_MC) +
                      adsp.assemble_save_control(LLVM_MC) +
                      adsp.assemble_l2_global(LLVM_MC) +
-                     adsp.assemble_physical_tlb_copy(LLVM_MC))
-        self.assertEqual(len(generated), 0xfa4)
+                     adsp.assemble_physical_tlb_copy(LLVM_MC) +
+                     adsp.assemble_resource_release(LLVM_MC))
+        self.assertEqual(len(generated), 0xffc)
         original = Path(REFERENCE).read_bytes()
         adsp.verify_reference(generated, original, 0x41e0)
         mutated = bytearray(generated)
@@ -502,6 +503,31 @@ class ADSPBootstrapTests(unittest.TestCase):
                 "{ isync } // V66 r5 = memw_phys(r0,r4)",1))
             with self.assertRaisesRegex(adsp.AdspError,"physical TLB-copy slot"):
                 adsp.assemble_physical_tlb_copy(LLVM_MC,bad)
+
+    def test_resource_release_has_cache_cleanup_and_thread_dispatch(self) -> None:
+        src=adsp.CONTROLLER_RESOURCE_RELEASE_SOURCE.read_text()
+        for item in ("dccleana(r23)","dcinva(r23)", "return_dispatch:",
+                     "stop(R0)","jump stop_thread", "resource_release"):
+            if item=="resource_release":
+                self.assertIn("adsp_controller_resource_release",src)
+            else:
+                self.assertIn(item.lower(),src.lower())
+        self.assertNotIn(".word",src)
+        self.assertNotIn(".incbin",src)
+
+    @unittest.skipUnless(LLVM_MC and REFERENCE,"Assembler and reference required")
+    def test_release_and_stop_dispatch_matches_original(self) -> None:
+        b=adsp.assemble_resource_release(LLVM_MC)
+        self.assertEqual(len(b),0x58)
+        adsp.verify_reference(b,Path(REFERENCE).read_bytes(),0x5184)
+        self.assertEqual(b[-8:-4],struct.pack("<I",0x6460c000))
+        self.assertEqual(b[-4:],struct.pack("<I",0x59fffffe))
+        with tempfile.TemporaryDirectory() as td:
+            bad=Path(td)/"bad-resource-release.S"
+            bad.write_text(adsp.CONTROLLER_RESOURCE_RELEASE_SOURCE.read_text().replace(
+                "{ nop } // V66 stop(r0)", "{ isync } // V66 stop(r0)",1))
+            with self.assertRaisesRegex(adsp.AdspError,"resource-release slot"):
+                adsp.assemble_resource_release(LLVM_MC,bad)
 
     @unittest.skipUnless(LLVM_MC, "Hexagon-capable llvm-mc unavailable")
     def test_syscfg_handoff_uses_typed_and_source_assembly(self) -> None:

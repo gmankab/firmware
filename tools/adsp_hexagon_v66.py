@@ -274,6 +274,16 @@ def physical_word_load(destination: int, physical_address: int, page_selector: i
             (gpr(page_selector) << 8) | gpr(destination))
 
 
+def stop_thread_from_register(source: int) -> int:
+    """Hexagon v66 ``stop(Rs)`` thread stop, single-operation packet.
+
+    This is related to the previously verified ``start(Rs)`` opcode family,
+    but the selected operation is STOP rather than START. It does not
+    perform a global processor shutdown.
+    """
+    return 0x6460C000 | (gpr(source) << 16)
+
+
 class DebugCommand(IntEnum):
     """Single-word v66 monitor/debug control instruction."""
     BREAKPOINT = 0x6C20C000
