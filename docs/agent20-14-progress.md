@@ -1,12 +1,13 @@
 # Agent 20-14 — WLAN late Hexagon reconstruction
 
-Latest checkpoint: **06**, with **6,688 executable bytes** in 34
-logical functions (35 assembler source regions because one far-jump packet
-is emitted separately) and **496 disjoint data bytes** in two
-symbol-derived dispatch tables. Total reconstructed coverage: **7,184 bytes**.
-New contiguous code `[0x101870,0x101be4)` = 884 bytes (six functions).
-The next uncovered forward file offset is `0x101be4`. Checkpoints 01–05
-remain fully reproducible via `--through-checkpoint`.
+Latest checkpoint: **09**, with **9,464 contiguous executable bytes** in 42
+assembler-defined source regions and **496 separate jump-table data bytes**.
+Total independently generated disjoint coverage: **9,960 bytes**. New complete
+command-parser function `[0x102368,0x1026bc)` = 852 bytes. The next
+function begins at file offset `0x1026bc`; the Agent 13 leading seam
+`[0x100000,0x1001c4)` remains outside this agent's reconstructed code.
+All checkpoint-01–08 sources remain independently reproducible by selecting
+`--through-checkpoint` in the builder.
 
 ## Assignment and provenance
 
@@ -593,3 +594,44 @@ The source-derived 496-byte dispatch tables remain separate at
 bytes **9,108**. There are no zero-filled hidden gaps.
 The following command-parser function starts at file `0x102368`; its
 unverified body is not included. The Agent13 leading seam remains.
+
+## Checkpoint 09 — status/command parser and dispatch tail
+
+The complete 852-byte Hexagon V66 function at file `[0x102368,0x1026bc)`
+(runtime `[0xb00c2368,0xb00c26bc)`) decodes status/command bytes from
+an interface object, checks count and subtype constraints, traverses a
+bounded pointer table and conditionally invokes response/diagnostic helpers.
+It restores/returns through the existing terminal dispatch. Comments label
+message validation and error paths; names for external helpers remain
+inferred from call sites, not independently verified C-level APIs.
+
+The original decoder emission alone was insufficient to reproduce the OEM
+packet stream. Exact source assembly required (1) preserving `r0 = #2`
+before the `##0xffff` operation in one packet, (2) preserving the precise
+combine/store packet ordering in the block handling the message's address
+pair, and (3) explicitly extending three external far jumps with `##`.
+No `.word`, `.incbin` or private firmware payload is used in the authored
+assembly source. The selected routine has **114 packets and 213 encoded
+32-bit words**, of which **18 are constant extenders and 18 are duplex
+words**. It has no hardware-loop packet markers.
+
+Both independent compilers produced the same 852 bytes: LLVM **22.1.8**
+assembler targeting Hexagon V66 and LLVM **6.0.1** targeting V65.
+The V66 decoder accounted for every encoded word with zero unknowns.
+The entire **9,464-byte** cumulative executable prefix matches the pinned
+`wlanmdsp.mbn`, SHA-256
+`87c2c7bb1fe97eaf007a947832feba0898644b4d6626ac8ef49d8b94dd82604b`.
+The separately built 496-byte tables also match. These are instruction-level
+encoding equivalences; on-device behavior and high-level source semantics
+are not proven.
+
+```
+python3 tools/build-wlanmdsp-late.py /tmp/wlan-late-code.bin   --llvm-mc "$WLAN_LATE_LLVM_MC" --cpu hexagonv66   --independent-llvm-mc "$WLAN_LATE_SECOND_LLVM_MC"   --independent-cpu hexagonv65   --llvm-objdump "$WLAN_LATE_LLVM_OBJDUMP"   --reference "$WLANMDSP_REFERENCE" --through-checkpoint 9   --manifest /tmp/wlan-late-cp09.json
+```
+
+Rust workspace: **160 passed**. Python discovery: **125 discovered,
+120 passed, 5 skipped** (optional environment-dependent cases). Release
+build and `git diff --check` pass. The current continuation is the
+function at `0x1026bc`; **2,430,544 bytes of the exclusive assignment** remain
+uncovered, counting the leading 452-byte seam and excluding the separate
+496-byte jump-table range. This is not a complete or signed firmware.

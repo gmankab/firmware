@@ -413,6 +413,16 @@
       "sha256": "b0eeac83017fdee1b337c9a9ba179623683984b70c5ab558f2eb74da3bb10316",
       "checkpoint": 8,
       "classification": "executable"
+    },
+    {
+      "name": "command-message-parser",
+      "file_start": 1057640,
+      "file_end": 1058492,
+      "source": "sources/xiaomi-nabu/wlanmdsp/agent14-late-command-parser.S",
+      "symbol": "agent14_late_command_parser",
+      "sha256": "fd4d53401e3e295ac4be69fc5eec69761fbb9adc641d719d57ab461c835ddbc7",
+      "checkpoint": 9,
+      "classification": "executable"
     }
   ]
 }
