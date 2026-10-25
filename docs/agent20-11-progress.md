@@ -69,3 +69,11 @@ python3 -m unittest discover -s tests -p 'test_*.py'
 - Three dependent `r7=r0` plus `r5.h=0` packet pairs remain single two-instruction packets. Combined with the small LLVM6 packet-order normalizer, the entire new interval and all previous bytes match the reference exactly.
 - New Agent 11 cumulative `[0x4058,0x43d0)` = **888 independently generated executable bytes**; combined early-PT_LOAD prefix `[0x3000,0x43d0)` totals **5,072 bytes**: 3,860 executable, 412 named boot manifest, 800 architecture-linked alignment fill. SHA-256 for Agent11 region: `dee8e417c72363aa2185d61e2a195f46396e76c31e142015213c9b3665ef90df`.
 - Next instruction at modem file `0x43d0` (physical `0x8e0013d0`) is not yet reconstructed; this is still a partial executable and not a whole signed firmware.
+
+## Checkpoint 08 — Protected capabilities, MMIO handshake and exception traps
+
+- New `[file 0x43d0,0x44f0)` = **288 source-generated Hexagon executable bytes**, physical `[0x8e0013d0,0x8e0014f0)`.
+- Reads protected status, retries via earlier return shim when ownership mask mismatches, sets two cache-sensitive MMIO bits with `dcinva`, masks source fields and updates control registers 67633196/67633192. The readiness loop keeps an atomic packet-local `p0.new` branch. Three completion flags are cleared through addressed stores, barrier, `jumpr lr` and three intentional `brkpt` instructions.
+- Four-word source operand packet at `0x4448–0x4458` preserves both extended immediates and their `Continue`/`End` parse fields without importing reference code words.
+- Agent 11 `[0x4058,0x44f0)` totals **1,176 exact executable bytes**, SHA-256 `0d7008e7a707417c5b7b292e3e40a4305c0c8b1d0b97d2017839069589cc9d53`. Combined Agent 06+11 first `PT_LOAD` prefix `[0x3000,0x44f0)` is **5,360 total bytes**, decomposed as **4,148 executable**, **412 authored metadata**, **800 fixed linker fill**.
+- Next function starts at file `0x44f0`, physical `0x8e0014f0`. No original signer keys or authenticated full modem have been recreated.

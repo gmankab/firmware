@@ -328,6 +328,96 @@ agent11_modem_enable_controller_registers:
 // Preserve the callback's signed range mask and link register return PC.
 { r4 = ##67633664 }
 { r2 = ##-2147483648 }
+modem_mask_mismatch_retry:
 { r0 = ##192 }
 { r13 = add(pc,#8) }
 { jump agent11_modem_await_counter }
+
+// Await protected status then enable two controller ownership masks. This
+// shared callback may retry via the earlier r13/loop shim on mismatch.
+.globl agent11_modem_reconcile_protected_status
+agent11_modem_reconcile_protected_status:
+{ r1 = memw(r4+#0) }
+{ r3 = and(r1,r2) }
+{
+    p0 = cmp.eq(r2,r3)
+    if (!p0.new) jump:t modem_mask_mismatch_retry
+}
+{ r0 = ##67633676 }
+{
+    r7 = r0
+    r5.h = #0
+}
+{
+    r5.l = #2
+    dcinva(r7)
+}
+{
+    r6 = sub(#-1,r5)
+    r4 = memw(r0+#0)
+}
+{ r4 = and(r4,r6) }
+{ r4 = or(r4,r5) }
+{ memw(r0+#0) = r4 }
+{ barrier }
+{ r0 = ##67633664 }
+{
+    r7 = r0
+    r5.h = #0
+}
+{
+    r5.l = #1
+    dcinva(r7)
+}
+{
+    r6 = sub(#-1,r5)
+    r4 = memw(r0+#0)
+}
+{ r4 = and(r4,r6) }
+{ r4 = or(r4,r5) }
+{ memw(r0+#0) = r4 }
+{ barrier }
+
+// Preserve all capability flags except the write-sensitive 11-bit mask;
+// fold the control offset from r16 into the new word with a barrier.
+{ r0 = ##67633196 }
+{ r1 = memw(r0+#0) }
+{
+    r2 = ##1792
+    r3 = ##31
+}
+{ r2 = or(r2,r3) }
+{ r2 = sub(#-1,r2) }
+{ r1 = and(r1,r2) }
+{
+    r3 = asl(r16,#0)
+    r2 = ##256
+}
+{ r2 = or(r2,r3) }
+{ r1 = or(r1,r2) }
+{ memw(r0+#0) = r1 }
+{ barrier }
+{ r0 = ##67633192 }
+{ r1 = memw(r0+#0) }
+{ r2 = ##1 }
+{ r1 = or(r1,r2) }
+{ memw(r0+#0) = r1 }
+{ barrier }
+
+// Poll until all requested capability bits become observable, then clear
+// three completion flags and restore the original caller link register.
+modem_wait_capability:
+{ r1 = memw(r0+#0) }
+{ r3 = and(r1,r2) }
+{
+    p0 = cmp.eq(r3,r2)
+    if (p0.new) jump:t modem_wait_capability
+}
+MODEM_MMIO_STORE_WORD 68288576, 0
+MODEM_MMIO_STORE_WORD 68288580, 0
+MODEM_MMIO_STORE_WORD 68288584, 0
+{ barrier }
+{ jumpr lr }
+{ brkpt }
+{ brkpt }
+{ brkpt }
