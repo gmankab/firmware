@@ -85,3 +85,12 @@ python3 tools/agent20_06_a32_roundtrip.py /private/venus.mbn 0xa8ea0 0xa92c8 \
 - The shared checked public A32 encoder `signed_multiply_accumulate_bottom_halves` (`SMLABB`) is new. It encodes the low signed halfword multiply/accumulate at `0xa9bcc` and `0xa9bdc`, and rejects PC operands. Encoder source and tests are committed separately for integration review.
 - Direct source-generated Rust output matches all 7,408 reference bytes (SHA-256 `5a1a09cd923b2b5a624e36031c901f1120aa83cd2a39336df98f64a41ec40737`); independent Clang/LLVM reassembly of the new 316 instructions exactly matches original. All 189 Rust tests, 13 Python tests and offline release build passed.
 - Next missing runtime `0xa9cf0` (`venus.mbn` offset `0xadcf0`). No external OEM data is copied into the emitter. Remains provisional relative to unavailable checkpoint 50 integration base.
+
+## Checkpoint 08 — complete codec plane blending with error handling
+
+- Byte-identical ARM runtime `[0xa8000,0xaa22c)`: **8,748** consecutive bytes, MBN `[0xac000,0xae22c)`; SHA-256 `1d5215b5b71021ad2995b3d90ce4d823f3fea97056f94ab5e4cf301609b45a4b`.
+- Reconstructed additional `[0xa9cf0,0xaa22c)` = **1,340 bytes**: 321 typed ARM32 instructions (1,284 bytes), followed by 14 independently classified non-executable literal/data words (56 bytes) at `[0xaa1f4,0xaa22c)`. The data include codec status addresses and `0x77777777` patterns which the disassembler misreads as opcodes. No OEM bytes were copied into the generator.
+- The session begun at `0xa9578` now includes both its fast-path return at `0xa9cec` and its fallback paths and end-of-function data pool at `0xaa22c`.
+- Added checked `arm32` halfword load with pre-indexed **register** writeback, pre-indexed immediate writeback, and immediate post-indexing; dedicated ISA tests check exact independently decoded opcodes and reject unsafe register combinations. These changes are isolated in a shared-encoder commit.
+- Independent Clang/LLVM ARM mnemonic reassembly: 1,284 code bytes and 56 classified data bytes, zero differences. Full offline cargo test: 190 Rust tests passed, 13 Python tests passed; offline release build succeeded.
+- Next uncovered VMA `0xaa22c`, the next ARM32 function. This is still on a provisional branch derived from older Agent 03 commit `a3ffc58...`, not the inaccessible checkpoint-50 base.
