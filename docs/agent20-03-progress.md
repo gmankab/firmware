@@ -340,3 +340,9 @@ Original reference: private `map220v-nabu-firmware/venus.mbn`, SHA-256 `9d4af65d
 - Contiguous reference-matched A32 span `[0x21c78,0x2ea50)` = **52,696 bytes**, new `[0x2ddfc,0x2ea50)` = **3,156 bytes** comprising **782 ARM32 instructions** and **7 data words**.
 - Builds codec surface descriptor slots, validates the run-state, lays out multiple command lists and uses the public `SMULBB` formula. Seven constant/address words at `[0x2ea34,0x2ea50)` are separate, following the original return at `0x2ea30`. This is an instruction-byte reconstruction, not high-level behavioral equivalence or newly authenticated code.
 - Next uncovered executable routine starts `0x2ea50`.
+
+## Checkpoint 51 — packed bitstream and callback bootstrap
+
+- Generated continuous `[0x21c78,0x2ebbc)` = **53,060 exact bytes**, newly added `[0x2ea50,0x2ebbc)` = **364 bytes**, with **86 A32 instructions** and **5 controller address words**.
+- Transcribes the input packer (`0x2ea50–0x2eb30`) using checked halfword loads/stores, register-specified shifts and compares; followed by callback registration (`0x2eb30–0x2eba8`). The five trailing values are non-instruction constant pool `[0x2eba8,0x2ebbc)`.
+- Next uncovered runtime function begins at `0x2ebbc`. Instruction-level equivalence is not high-level semantic recovery or OEM signing.
