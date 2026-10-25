@@ -3,16 +3,20 @@
 //! ARM32 function-aligned interval, with the fixed thresholds and logging
 //! addresses separately named. No raw firmware instructions are embedded.
 use arm32::{branch, branch_exchange_immediate, bx, data_immediate,
-            data_register, mov_register, multiply_register, push_registers,
-            transfer_multiple, transfer_word, BlockMode, Condition as C,
+            data_register, mov_register, mov_shifted_register, multiply_register, push_registers,
+            transfer_multiple, transfer_word, transfer_byte, BlockMode, Condition as C,
             DataOp as Op, Register as R, Shift};
 
 pub const START:usize=0x710c0;
-pub const END:usize=0x7125c;
+pub const END:usize=0x71328;
 pub const FILE_BASE:usize=0x4000;
 // Fixed area threshold and allocator-failure log location are data words.
 const MAX_QUALITY_AREA:u32=0x001f_a401;
 const ALLOC_DIAGNOSTIC:u32=0x000f_2e4c;
+// Identifiers/addresses loaded by the controller profile initializer.
+const PROFILE_WORDS:[u32;5]=[
+    0x0010_b098,0x0010_b070,0x0010_af08,0x0010_aee0,0x0010_aed5,
+];
 
 struct Encoder { at:usize, bytes:Vec<u8> }
 impl Encoder {
@@ -187,6 +191,66 @@ fn release_if_allocated(c:&mut Encoder)->Result<(),String>{
     cmp(c,R::R0,0)?;
     c.word(bx(C::Eq,R::LR))?;
     c.branch(C::Al,0x2f1c)?;
+    c.at(0x7125c)
+}
+
+/// Configure the six named fields of a controller descriptor according to
+/// whether the supplied profile's mode index exceeds fourteen. Preserve the
+/// associated fixed callback/table pointers, and clear the 20-byte tail.
+fn initialize_controller_profile(c:&mut Encoder)->Result<(),String>{
+    let r3=R::new(3)?;let r4=R::new(4)?;let r5=R::new(5)?;
+    let saved=r4.bit()|r5.bit()|R::R11.bit()|R::LR.bit();
+    c.at(0x7125c)?;
+    c.word(push_registers(C::Al,saved)?)?;
+    i(c,C::Al,Op::Add,R::R11,R::SP,8)?;
+    mov(c,r4,R::R1)?;
+    cmp(c,R::R0,0)?;
+    i(c,C::Ne,Op::Cmp,R::R0,r4,0)?;
+    c.branch(C::Eq,0x71310)?;
+    set(c,C::Al,r5,0)?;
+    c.word(transfer_byte(C::Al,false,r5,r4,0x160)?)?;
+    c.word(transfer_word(C::Al,true,R::R0,R::R0,0x20)?)?;
+    c.word(mov_shifted_register(C::Al,R::R0,R::R0,Shift::Lsr,8)?)?;
+    cmp(c,R::R0,14)?;
+    c.branch(C::Hi,0x712ac)?;
+    c.literal(R::R12,0x7131c)?;
+    c.literal(R::LR,0x71320)?;
+    set(c,C::Al,R::R0,75)?;
+    set(c,C::Al,R::R2,26)?;
+    set(c,C::Al,r3,63)?;
+    set(c,C::Al,R::R1,55)?;
+    i(c,C::Al,Op::Orr,R::R0,R::R0,18176)?;
+    c.branch(C::Al,0x712c8)?;
+    c.at(0x712ac)?;
+    c.literal(R::R12,0x71314)?;
+    c.literal(R::LR,0x71318)?;
+    set(c,C::Al,R::R0,556)?;
+    set(c,C::Al,R::R2,31)?;
+    set(c,C::Al,r3,107)?;
+    set(c,C::Al,R::R1,27)?;
+    i(c,C::Al,Op::Orr,R::R0,R::R0,25600)?;
+    c.at(0x712c8)?;
+    for (reg,offset) in [(R::R1,0x140),(R::R0,0x144),(r3,0x148),
+                         (R::R2,0x150)] {
+        c.word(transfer_word(C::Al,false,reg,r4,offset)?)?;
+        if offset==0x144 {set(c,C::Al,R::R0,1)?;}
+    }
+    set(c,C::Al,R::R1,0)?;
+    set(c,C::Al,R::R2,320)?;
+    c.word(transfer_word(C::Al,false,R::R0,r4,0x14c)?)?;
+    c.literal(R::R0,0x71324)?;
+    c.word(transfer_word(C::Al,false,R::R0,r4,0x15c)?)?;
+    mov(c,R::R0,r4)?;
+    c.word(transfer_word(C::Al,false,R::LR,r4,0x158)?)?;
+    c.word(transfer_word(C::Al,false,R::R12,r4,0x154)?)?;
+    c.call(0x31ec)?;
+    for off in [0x164,0x168,0x16c,0x170] {
+        c.word(transfer_word(C::Al,false,r5,r4,off)?)?;
+    }
+    c.at(0x71310)?;
+    c.word(transfer_multiple(C::Al,true,R::SP,(saved & !R::LR.bit())|R::PC.bit(),BlockMode::IncrementAfter,true)?)?;
+    c.at(0x71314)?;
+    for word in PROFILE_WORDS { c.word(word)?; }
     c.at(END)
 }
 
@@ -195,6 +259,7 @@ pub fn fragment()->Result<Vec<u8>,String>{
     throughput_quality(&mut c)?;
     create_output_record(&mut c)?;
     release_if_allocated(&mut c)?;
+    initialize_controller_profile(&mut c)?;
     Ok(c.bytes)
 }
 
@@ -204,5 +269,9 @@ pub fn fragment()->Result<Vec<u8>,String>{
         let bytes=fragment().unwrap();assert_eq!(bytes.len(),END-START);
         assert_eq!(&bytes[0x71210-START..0x71214-START],&MAX_QUALITY_AREA.to_le_bytes());
         assert_eq!(&bytes[0x7124c-START..0x71250-START],&ALLOC_DIAGNOSTIC.to_le_bytes());
+        for (i,word) in PROFILE_WORDS.into_iter().enumerate(){
+            let pos=0x71314-START+4*i;
+            assert_eq!(&bytes[pos..pos+4],&word.to_le_bytes());
+        }
     }
 }
