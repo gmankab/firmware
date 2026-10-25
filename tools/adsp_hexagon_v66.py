@@ -23,6 +23,7 @@ class HexagonEncodingError(ValueError):
 class SystemRegister(IntEnum):
     SSR = 6
     SYSCFG = 18
+    CFGBASE = 27
 
 
 class CacheCommand(IntEnum):

@@ -367,3 +367,37 @@ python3 -S tools/emit-adsp-entry.py \
 
 The next uncovered contiguous controller byte is `0x4ae4`; the earlier
 `[0x3044,0x41e0)` gap is unchanged. Neither region forms a flashable image.
+
+## Checkpoint 19: configuration-base physical-access helper
+
+Extended controller reconstruction by **36 contiguous bytes** at ADSP file
+`[0x4ae4,0x4b08)` (physical `[0x8be01ae4,0x8be01b08)`). The
+`tools/adsp-controller-cfgbase.S` source obtains `CFGBASE`, shifts the
+controller aperture, reads its physical word, and writes the shifted result
+through the GP-relative control register with Hexagon new-value forwarding.
+LLVM6 fully emits the shift, extended immediate, GP-relative store and
+branch-in-packet, but cannot parse `CFGBASE` or `memw_phys` v66 mnemonics.
+Their two checked temporary sentinels are replaced by typed encodings:
+`read_system_register(1,SystemRegister.CFGBASE)` and
+`physical_word_load(2,0,1)`.
+
+CFGBASE system-register field 27 is independently corroborated at four ADSP
+sites (`0x3928`, `0x3948`, `0x40d4`, `0x4ae4`) using a separate Rizin decoder;
+physical word-load operand bit layout was previously verified at three
+separate call sites. Every assembled/typed byte matches this exact firmware.
+The contiguous controller is now **2,344 bytes** at `[0x41e0,0x4b08)`;
+including the separate 68-byte boot prefix, total independently generated
+ADSP executable coverage is **2,412 bytes**. All 62 Python tests pass.
+
+```sh
+python3 -S tools/emit-adsp-entry.py \
+  --segment controller-cfgbase --llvm-mc "$HEXAGON_LLVM_MC" \
+  --reference "$NABU_ADSP_REFERENCE" --output /tmp/adsp-cfgbase-36.bin
+python3 -S tools/emit-adsp-entry.py \
+  --segment counter-controller --llvm-mc "$HEXAGON_LLVM_MC" \
+  --reference "$NABU_ADSP_REFERENCE" --output /tmp/adsp-controller-2344.bin
+```
+
+The first missing controller byte is now at `0x4b08`. In addition, the
+original boot gap `[0x3044,0x41e0)` remains unimplemented. The output is not
+an authenticated or flashable image.

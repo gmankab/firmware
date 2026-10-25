@@ -17,6 +17,13 @@ import subprocess
 import sys
 import tempfile
 
+# Source modules are imported lazily by the instruction encoders. Keep this
+# executable usable both as `python tools/emit-adsp-entry.py` and when a test
+# imports it by file path via importlib.util.spec_from_file_location.
+_TOOLS_DIR = str(pathlib.Path(__file__).resolve().parent)
+if _TOOLS_DIR not in sys.path:
+    sys.path.insert(0, _TOOLS_DIR)
+
 ELF_MACHINE_HEXAGON = 164
 OEM_FILE_OFFSET = 0x3000
 OEM_RUNTIME_VADDR = 0xF0000000
@@ -34,14 +41,16 @@ CONTROLLER_BOOTSTRAP_SOURCE = pathlib.Path(__file__).with_name("adsp-controller-
 CONTROLLER_CACHE_COPY_SOURCE = pathlib.Path(__file__).with_name("adsp-controller-cache-copy.S")
 CONTROLLER_PHYSICAL_COPY_SOURCE = pathlib.Path(__file__).with_name("adsp-controller-physical-copy.S")
 CONTROLLER_PHYSICAL_COMPARE_SOURCE = pathlib.Path(__file__).with_name("adsp-controller-physical-compare.S")
+CONTROLLER_CFGBASE_SOURCE = pathlib.Path(__file__).with_name("adsp-controller-cfgbase.S")
 FRAGMENTS = {
     "vectors": (ASM_SOURCE, OEM_FILE_OFFSET, GENERATED_LENGTH),
     "boot-prefix": (ASM_SOURCE, OEM_FILE_OFFSET, 0x44),
-    "counter-controller": (CONTROLLER_SOURCE, 0x41e0, 0x904),
+    "counter-controller": (CONTROLLER_SOURCE, 0x41e0, 0x928),
     "controller-bootstrap": (CONTROLLER_BOOTSTRAP_SOURCE, 0x4980, 0x2c),
     "controller-cache-copy": (CONTROLLER_CACHE_COPY_SOURCE, 0x49ac, 0x5c),
     "controller-physical-copy": (CONTROLLER_PHYSICAL_COPY_SOURCE, 0x4a08, 0x4c),
     "controller-physical-compare": (CONTROLLER_PHYSICAL_COMPARE_SOURCE, 0x4a54, 0x90),
+    "controller-cfgbase": (CONTROLLER_CFGBASE_SOURCE, 0x4ae4, 0x24),
     "tlb-reconcile": (TLB_RECONCILE_SOURCE, 0x48d0, 0xb0),
     "cacheline-copy": (CACHELINE_COPY_SOURCE, 0x4818, 0x78),
     "tlb-flush": (TLB_FLUSH_SOURCE, 0x4788, 0x90),
@@ -368,6 +377,32 @@ def assemble_physical_compare(
     return bytes(code)
 
 
+def assemble_cfgbase_helper(
+    llvm_mc: str, source: pathlib.Path = CONTROLLER_CFGBASE_SOURCE
+) -> bytes:
+    """Reconstruct v66 CFGBASE read and physical load in a 36-byte helper.
+
+    LLVM6 assembles the extended return-packet GP store and shift operations.
+    It cannot parse CFGBASE or physical word accesses, which are represented by
+    two verified *temporary* placeholders, then generated from typed ISA
+    register fields. The GP store uses the new-value of r2 after its shift.
+    """
+    from adsp_hexagon_v66 import SystemRegister, read_system_register, physical_word_load
+
+    result = bytearray(assemble(llvm_mc, source, 0x24))
+    nop = struct.pack("<I", 0x7F00C000)
+    for offset, operation in (
+        (0x00, read_system_register(1, SystemRegister.CFGBASE)),
+        (0x10, physical_word_load(2, 0, 1)),
+    ):
+        if result[offset:offset + 4] != nop:
+            raise AdspError(f"CFGBASE helper slot 0x{offset:x} was not its placeholder")
+        result[offset:offset + 4] = struct.pack("<I", operation)
+    if any(result[i:i+4] == nop for i in range(0,len(result),4)):
+        raise AdspError("Unresolved privileged instruction in CFGBASE helper")
+    return bytes(result)
+
+
 def run(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--llvm-mc", required=True,
@@ -400,6 +435,8 @@ def run(argv: list[str] | None = None) -> int:
             out = assemble_tlb_map(args.llvm_mc, args.source or source)
         elif args.segment == "tlb-flush":
             out = assemble_tlb_flush(args.llvm_mc, args.source or source)
+        elif args.segment == "controller-cfgbase":
+            out = assemble_cfgbase_helper(args.llvm_mc, args.source or source)
         elif args.segment == "controller-physical-compare":
             out = assemble_physical_compare(args.llvm_mc, args.source or source)
         elif args.segment == "controller-physical-copy":
@@ -408,7 +445,7 @@ def run(argv: list[str] | None = None) -> int:
             out = assemble_tlb_reconcile(args.llvm_mc, args.source or source)
         elif args.segment == "counter-controller":
             # Compile the ISA-common controller and its V66-only tails
-            # independently, then emit a strictly adjacent 0x904-byte span.
+            # independently, then emit a strictly adjacent 0x928-byte span.
             if args.source is not None:
                 raise AdspError("--source override is not supported for the combined controller")
             out = (assemble(args.llvm_mc, CONTROLLER_SOURCE, 0x4c0) +
@@ -421,7 +458,8 @@ def run(argv: list[str] | None = None) -> int:
                    assemble(args.llvm_mc, CONTROLLER_BOOTSTRAP_SOURCE, 0x2c) +
                    assemble(args.llvm_mc, CONTROLLER_CACHE_COPY_SOURCE, 0x5c) +
                    assemble_physical_copy(args.llvm_mc) +
-                   assemble_physical_compare(args.llvm_mc))
+                   assemble_physical_compare(args.llvm_mc) +
+                   assemble_cfgbase_helper(args.llvm_mc))
         else:
             out = assemble(args.llvm_mc, args.source or source, expected_length)
         if len(out) != expected_length:

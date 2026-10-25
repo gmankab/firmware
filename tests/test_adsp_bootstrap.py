@@ -102,8 +102,9 @@ class ADSPBootstrapTests(unittest.TestCase):
                      adsp.assemble(LLVM_MC, adsp.CONTROLLER_BOOTSTRAP_SOURCE, 0x2c) +
                      adsp.assemble(LLVM_MC, adsp.CONTROLLER_CACHE_COPY_SOURCE, 0x5c) +
                      adsp.assemble_physical_copy(LLVM_MC) +
-                     adsp.assemble_physical_compare(LLVM_MC))
-        self.assertEqual(len(generated), 0x904)
+                     adsp.assemble_physical_compare(LLVM_MC) +
+                     adsp.assemble_cfgbase_helper(LLVM_MC))
+        self.assertEqual(len(generated), 0x928)
         original = Path(REFERENCE).read_bytes()
         adsp.verify_reference(generated, original, 0x41e0)
         mutated = bytearray(generated)
@@ -187,6 +188,26 @@ class ADSPBootstrapTests(unittest.TestCase):
                 "{ nop } // V66", "{ isync } // V66",1))
             with self.assertRaisesRegex(adsp.AdspError,"physical compare load sentinel"):
                 adsp.assemble_physical_compare(LLVM_MC,changed)
+
+    def test_cfgbase_helper_has_pc_register_and_gp_writeback(self) -> None:
+        src=adsp.CONTROLLER_CFGBASE_SOURCE.read_text()
+        self.assertIn("V66 r1=cfgbase",src)
+        self.assertIn("V66 r2 = memw_phys(r0,r1)",src)
+        self.assertIn("memw(gp+#0xf000eab4) = r2.new",src)
+        self.assertNotIn(".incbin",src)
+        self.assertNotIn(".word",src)
+
+    @unittest.skipUnless(LLVM_MC and REFERENCE,"Assembler and reference required")
+    def test_cfgbase_helper_generates_36_reference_bytes(self) -> None:
+        result=adsp.assemble_cfgbase_helper(LLVM_MC)
+        self.assertEqual(len(result),0x24)
+        adsp.verify_reference(result,Path(REFERENCE).read_bytes(),0x4ae4)
+        with tempfile.TemporaryDirectory() as td:
+            fake=Path(td)/"bad-cfgbase.S"
+            fake.write_text(adsp.CONTROLLER_CFGBASE_SOURCE.read_text().replace(
+                "{ nop } // V66 r1=cfgbase", "{ isync } // V66 r1=cfgbase",1))
+            with self.assertRaisesRegex(adsp.AdspError,"CFGBASE helper slot"):
+                adsp.assemble_cfgbase_helper(LLVM_MC,fake)
 
     @unittest.skipUnless(LLVM_MC, "Hexagon-capable llvm-mc unavailable")
     def test_syscfg_handoff_uses_typed_and_source_assembly(self) -> None:

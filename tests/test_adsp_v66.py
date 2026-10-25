@@ -98,6 +98,18 @@ class V66BootstrapTests(unittest.TestCase):
                 self.assertEqual(struct.unpack_from("<I",data,offset)[0],
                                  v66.physical_word_load(*regs))
 
+    def test_cfgbase_system_register_three_call_sites(self) -> None:
+        self.assertEqual(v66.read_system_register(1,v66.SystemRegister.CFGBASE),0x6e9bc001)
+        self.assertEqual(v66.read_system_register(0,v66.SystemRegister.CFGBASE),0x6e9bc000)
+
+    @unittest.skipUnless(REFERENCE,"ADSP reference required")
+    def test_cfgbase_decoder_agrees_across_four_sites(self) -> None:
+        data=Path(REFERENCE).read_bytes()
+        for offset,reg in [(0x3928,1),(0x3948,1),(0x40d4,0),(0x4ae4,1)]:
+            with self.subTest(offset=hex(offset)):
+                self.assertEqual(struct.unpack_from("<I",data,offset)[0],
+                                 v66.read_system_register(reg,v66.SystemRegister.CFGBASE))
+
     def test_fixed_operand_hexagon_tlb_write_encoding(self) -> None:
         self.assertEqual(v66.tlb_write_pair_r3_r2_index_r0(), 0x6c02c000)
         self.assertEqual((v66.tlb_write_pair_r3_r2_index_r0() >> 14) & 3, 3)
