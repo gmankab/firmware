@@ -138,3 +138,37 @@ python3 tools/build-wlanmdsp-startup.py /tmp/wlan-through-lookup.bin \
 The next unimplemented codec-format consumer begins at runtime
 `0xb0001c80`, ELF offset `0x41c80`; executable coverage remains partial and
 no full signed WLAN MBN is generated.
+
+### Checkpoint E: bounded WLAN record-consumer entry
+
+The next portion of the large packed-record consumer is independently
+assembled as 148 verified bytes, file `[0x41c80,0x41d14)` and runtime
+`[0xb0001c80,0xb0001d14)`. Source is
+`sources/xiaomi-nabu/wlanmdsp/wlan-record-consumer-prefix.S`. This is
+**explicitly an unfinished function**, not a complete callable routine.
+
+The entry sets up its Hexagon stack frame and saved registers, checks
+configuration parameters, reads global runtime state, verifies a bounded
+record count, and initializes local working variables. Three external
+calls/branches are represented as PC-relative branch instructions into known
+function addresses; new-value packet grouping is preserved. Hexagon LLVM6
+assembler for both `hexagonv62` and `hexagonv65` produces exactly the
+reference 148 bytes (zero differences), without embedding original opcode
+words. The next unimplemented bytes begin at runtime address `0xb0001d14`.
+
+`--with-record-prefix` implies all preceding stages and builds a
+**7,444-byte** exact executable-layout prefix (ELF file
+`[0x40000,0x41d14)`). Executable instructions total **3,668 bytes**; the
+3,776 linker-fill/alignment bytes remain separately identified. The
+reference can be supplied strictly for verification, but is never copied
+into the generated artifact at build time.
+
+```sh
+python3 tools/build-wlanmdsp-startup.py /tmp/wlan-through-consumer-prefix.bin \
+  --with-record-prefix --llvm-mc /path/to/llvm6/bin/llvm-mc \
+  --reference /private/wlanmdsp.mbn --manifest /tmp/consumer-prefix.json
+```
+
+The remaining ≈3.22 MiB Hexagon executable and all non-executable container
+and external authentication fields are not reconstructed. This fragment is
+not flashable WLAN firmware.

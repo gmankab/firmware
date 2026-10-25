@@ -141,6 +141,30 @@ class WlanHexagonAssemblyTests(unittest.TestCase):
             self.assertEqual(len(image), fw.THROUGH_CONFIG_LOOKUP_LENGTH)
             fw.check_reference(image, Path(ref).read_bytes())
 
+    def test_record_consumer_entry_is_explicit_partial_function(self):
+        src = fw.RECORD_PREFIX_SOURCE.read_text()
+        self.assertIn("verified function ENTRY ONLY", src)
+        for token in (".incbin", ".word", ".byte", ".long", ".quad"):
+            self.assertNotIn(token, src)
+        self.assertIn("if (p0.new) jump:nt fail_exit", src)
+        encoded = fw.assemble(fw.RECORD_PREFIX_SOURCE, self.mc,
+                              expected_length=fw.RECORD_CONSUMER_PREFIX_LENGTH)
+        self.assertEqual(len(encoded), 148)
+        self.assertEqual(encoded[:8], bytes.fromhex("505d545a0ec09da0"))
+        self.assertEqual(encoded[-16:],bytes.fromhex("1140007816400078035a9da105d49da1"))
+        for cpu in ("hexagonv62",):
+            self.assertEqual(encoded, fw.assemble(fw.RECORD_PREFIX_SOURCE, self.mc, cpu,
+                             expected_length=fw.RECORD_CONSUMER_PREFIX_LENGTH))
+        ref = os.environ.get("WLANMDSP_REFERENCE")
+        if ref:
+            startup = fw.assemble(fw.SOURCE, self.mc)
+            plt = fw.emit_with_plt(startup, self.mc,"hexagonv65")
+            hooks = fw.emit_with_loader_hooks(plt, self.mc,"hexagonv65")
+            lookup = fw.emit_with_config_lookup(hooks, self.mc,"hexagonv65")
+            full = fw.emit_with_record_prefix(lookup, self.mc,"hexagonv65")
+            self.assertEqual(len(full), fw.THROUGH_RECORD_PREFIX_LENGTH)
+            fw.check_reference(full, Path(ref).read_bytes())
+
     def test_unresolved_reference_is_rejected(self):
         with tempfile.TemporaryDirectory() as d:
             bad = Path(d) / "unresolved.S"
