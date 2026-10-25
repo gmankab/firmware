@@ -59,6 +59,11 @@ FRAGMENTS = {
     'guarded-counter': (TOOLS / 'adsp-late-guarded-counter.S', 0x3AB2C, 0x40),
     'probe-callbacks': (TOOLS / 'adsp-late-probe-callbacks.S', 0x3AB6C, 0x48),
     'controller-shutdown': (TOOLS / 'adsp-late-controller-shutdown.S', 0x3AFA0, 0x44),
+    'guarded-multiply': (TOOLS / 'adsp-late-guarded-multiply.S', 0x3BBE4, 0x14),
+    'platform-calculate': (TOOLS / 'adsp-late-platform-calculate.S', 0x3BBF8, 0x10),
+    'parameter-forward': (TOOLS / 'adsp-late-parameter-forward.S', 0x3BC08, 0x14),
+    'parameter-combine': (TOOLS / 'adsp-late-parameter-combine.S', 0x3BE70, 0x10),
+    'halfword-order': (TOOLS / 'adsp-late-halfword-order.S', 0x3BE80, 0x1C),
 }
 
 class LateAdspError(ValueError):

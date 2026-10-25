@@ -247,3 +247,22 @@ Total independently source-assembled ADSP **2,396 executable bytes in
 30 fragment entries**, excluding all interstitial NOPs and copied firmware.
 160 Rust and 147 Python tests, release build, exact reference check pass;
 this remains a provisional, not checkpoint-50-rooted, branch.
+
+**Checkpoint 18 — later parameter helpers and halfword order:** Independently
+source-assembled five small original Hexagon helpers using meaningful operations:
+`guarded-multiply` `[0x3bbe4,0x3bbf8)` (20 bytes), `platform-calculate`
+`[0x3bbf8,0x3bc08)` (16 bytes), `parameter-forward` `[0x3bc08,0x3bc1c)`
+(20 bytes), `parameter-combine` `[0x3be70,0x3be80)` (16 bytes), and
+`halfword-order` `[0x3be80,0x3be9c)` (28 bytes). The first three join into
+**56 contiguous source-assembled bytes**; the last two form **44 contiguous
+bytes**. The handoff to the parameter forwarding platform call needed the
+source memory-read packet separated from the following call/pair-combine
+packet for the correct Hexagon packet order. The bounded halfword order
+function uses `cl0` and a predicated upper cap, no copied original words.
+All five byte-match their original pinned reference intervals exactly, with
+separate SHA-256s in the manifest. This adds **100 executable bytes**, so
+Agent 20-08 now has **2,496 independently assembled source bytes across 35
+fragment entries**. Zero guessed code, linker fill, or OEM payload counted.
+160 Rust tests, 149 Python tests, offline release build and exact original
+verification all pass. The intended checkpoint-50-based integrated Git tree
+remains unavailable; this is the isolated Agent04-descended branch.

@@ -170,9 +170,9 @@ class ADSPExternalsAndCodeTests(unittest.TestCase):
     @unittest.skipUnless(LLVM_MC,'Hexagon LLVM6 assembler required')
     def test_complete_fragment_inventory_rejects_overlaps(self):
         manifest,regions=adsp.assembled_inventory(LLVM_MC,None)
-        self.assertEqual(len(manifest['fragments']),30)
-        self.assertEqual(manifest['total_independently_assembled_executable_bytes'],2396)
-        self.assertEqual(sum(map(len,regions.values())),2396)
+        self.assertEqual(len(manifest['fragments']),35)
+        self.assertEqual(manifest['total_independently_assembled_executable_bytes'],2496)
+        self.assertEqual(sum(map(len,regions.values())),2496)
         self.assertEqual(manifest['gap_bytes_included_in_generated_executables'],0)
         self.assertFalse(manifest['complete_adsp_image'])
         self.assertEqual(manifest['external_original_code_bytes_in_output'],0)
@@ -339,7 +339,7 @@ class ADSPExternalsAndCodeTests(unittest.TestCase):
     def test_inventory_every_fragment_uses_correct_original(self):
         inventory,_outputs=adsp.assembled_inventory(LLVM_MC,Path(REFERENCE).read_bytes())
         self.assertTrue(all(x['reference_byte_identical'] for x in inventory['fragments']))
-        self.assertEqual(inventory['total_independently_assembled_executable_bytes'],2396)
+        self.assertEqual(inventory['total_independently_assembled_executable_bytes'],2496)
 
     @unittest.skipUnless(LLVM_MC and REFERENCE,
                          'Hexagon LLVM6 and exact pinned ADSP reference required')
@@ -353,7 +353,7 @@ class ADSPExternalsAndCodeTests(unittest.TestCase):
                 adsp.verify_slice(built,original,off)
                 total+=len(built)
                 ranges.append((off,off+size))
-        self.assertEqual(total,2396)
+        self.assertEqual(total,2496)
         ranges.sort()
         self.assertEqual(ranges[0],(0x39000,0x39054))
         self.assertEqual(ranges[-1],(0x3640a8,0x3640f8))
@@ -539,3 +539,39 @@ class ControllerShutdownTests(unittest.TestCase):
     def test_controller_shutdown_exact_reference(self):
         source,off,size=adsp.FRAGMENTS['controller-shutdown']
         adsp.verify_slice(adsp.compile_source(LLVM_MC,source,size),Path(REFERENCE).read_bytes(),off)
+
+
+class LaterADSPParameterHelpersTests(unittest.TestCase):
+    @unittest.skipUnless(LLVM_MC,'Exact LLVM6 Hexagon assembler needed')
+    def test_small_helpers_build_without_oem_opcode_directives(self):
+        expected={
+            'guarded-multiply':(0x3bbe4,20,'4f39a724829cc889a92f114f6bbff204337596cb94669ae557dcea4cb1baa379'),
+            'platform-calculate':(0x3bbf8,16,'57e584847d38c36f21e3ee18c272e75a166fe976d34ebcb27319bf89051e6b54'),
+            'parameter-forward':(0x3bc08,20,'a066f025c4f231fec925ed367bfde296a81ba7c1cf9bda298f11414dbf42727b'),
+            'parameter-combine':(0x3be70,16,'12aa1bda4529576709d32bd2a877444f1852c3a2cd5f57d914664270e4c79b6a'),
+            'halfword-order':(0x3be80,28,'0a0883a467f72bcaf184f486a79372f3ec6f11a366cc069057de3bcd2d688c8a'),
+        }
+        for name,(start,length,digest) in expected.items():
+            with self.subTest(name=name):
+                source,off,size=adsp.FRAGMENTS[name]
+                self.assertEqual((off,size),(start,length))
+                text=source.read_text()
+                for forbidden in ('.word ','.long ','.byte ','.fill ','.incbin '):
+                    self.assertNotIn(forbidden,text)
+                self.assertEqual(hashlib.sha256(adsp.compile_source(LLVM_MC,source,size)).hexdigest(),digest)
+        self.assertIn('r2 = cl0(r0)',adsp.FRAGMENTS['halfword-order'][0].read_text())
+        self.assertIn('mpyi(r3,r3)',adsp.FRAGMENTS['guarded-multiply'][0].read_text())
+        self.assertIn('{ r2 = memw(r0+#0) }',adsp.FRAGMENTS['parameter-forward'][0].read_text())
+        a=[adsp.FRAGMENTS[x] for x in ('guarded-multiply','platform-calculate','parameter-forward')]
+        b=[adsp.FRAGMENTS[x] for x in ('parameter-combine','halfword-order')]
+        self.assertEqual([x[1] for x in a],[0x3bbe4,0x3bbf8,0x3bc08])
+        self.assertEqual(sum(x[2] for x in a),56)
+        self.assertEqual(sum(x[2] for x in b),44)
+
+    @unittest.skipUnless(LLVM_MC and REFERENCE,'Pinned ADSP and LLVM6 needed')
+    def test_both_contiguous_small_helper_groups_match_original(self):
+        original=Path(REFERENCE).read_bytes()
+        for names,off in [(['guarded-multiply','platform-calculate','parameter-forward'],0x3bbe4),
+                          (['parameter-combine','halfword-order'],0x3be70)]:
+            data=b''.join(adsp.compile_source(LLVM_MC,adsp.FRAGMENTS[name][0],adsp.FRAGMENTS[name][2]) for name in names)
+            adsp.verify_slice(data,original,off)
