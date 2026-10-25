@@ -107,8 +107,10 @@ class ADSPBootstrapTests(unittest.TestCase):
                      adsp.assemble(LLVM_MC, adsp.CONTROLLER_ALIGNMENT_SOURCE, 0xf8) +
                      adsp.assemble_controller_startup(LLVM_MC) +
                      adsp.assemble_controller_debug_check(LLVM_MC) +
-                     adsp.assemble_vector_handoff(LLVM_MC))
-        self.assertEqual(len(generated), 0xb08)
+                     adsp.assemble_vector_handoff(LLVM_MC) +
+                     adsp.assemble_privileged_restore(LLVM_MC) +
+                     adsp.assemble(LLVM_MC, adsp.CONTROLLER_RESTORE_PADDING_SOURCE, 0x100))
+        self.assertEqual(len(generated), 0xc3c)
         original = Path(REFERENCE).read_bytes()
         adsp.verify_reference(generated, original, 0x41e0)
         mutated = bytearray(generated)
@@ -277,6 +279,45 @@ class ADSPBootstrapTests(unittest.TestCase):
                 "{ nop } // V66 EVB = r1", "{ isync } // V66 EVB = r1",1))
             with self.assertRaisesRegex(adsp.AdspError,"EVB write sentinel"):
                 adsp.assemble_vector_handoff(LLVM_MC,invalid)
+
+    def test_restore_source_marks_all_seven_privileged_instructions(self) -> None:
+        source = adsp.CONTROLLER_PRIVILEGED_RESTORE_SOURCE.read_text()
+        self.assertIn("PMUEVTCFG", source)
+        self.assertIn("P3:0", source)
+        self.assertIn("LR:FP", source)
+        self.assertIn("S49:48", source)
+        self.assertIn("start(r23)", source)
+        self.assertIn("jump controller_cpu_resume", source)
+        self.assertNotIn(".incbin", source)
+        self.assertNotIn(".word", source)
+
+    @unittest.skipUnless(LLVM_MC and REFERENCE, "Hexagon assembler and reference required")
+    def test_privileged_restore_reconstructs_every_word(self) -> None:
+        reconstructed=adsp.assemble_privileged_restore(LLVM_MC)
+        self.assertEqual(len(reconstructed),52)
+        adsp.verify_reference(reconstructed,Path(REFERENCE).read_bytes(),0x4ce8)
+        # Ensure non-sentinel region is compiled from labels, not forced
+        # branch/address constants or source-derived binary bytes.
+        self.assertEqual(reconstructed[0x24:0x28],bytes.fromhex("88400058"))
+        with tempfile.TemporaryDirectory() as td:
+            altered=Path(td)/"invalid-privileged-restore.S"
+            altered.write_text(adsp.CONTROLLER_PRIVILEGED_RESTORE_SOURCE.read_text().replace(
+                "{ nop } // R24 = PMUEVTCFG", "{ isync } // R24 = PMUEVTCFG", 1))
+            with self.assertRaisesRegex(adsp.AdspError,"privileged state sentinel"):
+                adsp.assemble_privileged_restore(LLVM_MC,altered)
+
+    @unittest.skipUnless(LLVM_MC and REFERENCE, "Hexagon assembler and reference required")
+    def test_reset_padding_keeps_trap_vector_packet_structure(self) -> None:
+        source=adsp.CONTROLLER_RESTORE_PADDING_SOURCE.read_text()
+        self.assertIn(".rept 14", source)
+        self.assertIn("reset_trap_6:", source)
+        self.assertNotIn(".word", source)
+        binary=adsp.assemble(LLVM_MC,adsp.CONTROLLER_RESTORE_PADDING_SOURCE,0x100)
+        self.assertEqual(len(binary),256)
+        self.assertEqual(binary[:4],struct.pack("<I",0x7f00c000))
+        self.assertEqual(binary[-28:-24],struct.pack("<I",0x5800c00e))
+        self.assertEqual(binary[-4:],struct.pack("<I",0x5800c000))
+        adsp.verify_reference(binary,Path(REFERENCE).read_bytes(),0x4d1c)
 
     @unittest.skipUnless(LLVM_MC, "Hexagon-capable llvm-mc unavailable")
     def test_syscfg_handoff_uses_typed_and_source_assembly(self) -> None:

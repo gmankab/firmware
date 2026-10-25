@@ -28,6 +28,8 @@ class SystemRegister(IntEnum):
     S54 = 54
     ISDBEN = 42
     EVB = 16
+    PMUEVTCFG = 52
+    S47 = 47
 
 
 class CacheCommand(IntEnum):
@@ -50,6 +52,37 @@ def read_system_register(destination: int, sysreg: SystemRegister) -> int:
 def write_system_register(sysreg: SystemRegister, source: int) -> int:
     """SysReg = Rs; 5-bit source in bits[20:16], system reg bits[4:0]."""
     return 0x6700C000 | (gpr(source) << 16) | int(sysreg)
+
+
+def read_system_register_pair(destination_even: int, system_even: int) -> int:
+    """Hexagon V66 ``R(d+1):d = S(s+1):s`` paired system-register read.
+
+    Unlike an ordinary 32-bit system register transfer, both operands encode
+    their *even* register start. The low destination uses bits 4:0 and the
+    low system source uses bits 21:16. Reject odd/out-of-range pairs rather
+    than aliasing an architectural register or crossing a register bank.
+    """
+    if (not isinstance(destination_even, int) or destination_even % 2
+            or not 0 <= destination_even <= 30):
+        raise HexagonEncodingError("System-pair destination must be even GPR 0..30")
+    if (not isinstance(system_even, int) or system_even % 2
+            or not 0 <= system_even <= 62):
+        raise HexagonEncodingError("System-pair source must be even S register 0..62")
+    return 0x6F00C000 | (system_even << 16) | destination_even
+
+
+def write_predicate_group_from_gpr(source: int) -> int:
+    """``P3:0 = Rs`` with checked 5-bit source register, one-op packet.
+
+    This limited Hexagon privileged group transfer is used by the context
+    restore; no unconstrained predicate writes are inferred from its opcode.
+    """
+    return 0x6220C004 | (gpr(source) << 16)
+
+
+def start_thread_from_register(source: int) -> int:
+    """``start(Rs)`` on the V66 controller, single-instruction packet."""
+    return 0x6460C020 | (gpr(source) << 16)
 
 
 def set_bit(destination: int, source: int, bit: int) -> int:

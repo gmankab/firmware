@@ -46,10 +46,12 @@ CONTROLLER_ALIGNMENT_SOURCE = pathlib.Path(__file__).with_name("adsp-controller-
 CONTROLLER_STARTUP_SOURCE = pathlib.Path(__file__).with_name("adsp-controller-startup.S")
 CONTROLLER_DEBUG_CHECK_SOURCE = pathlib.Path(__file__).with_name("adsp-controller-debug-check.S")
 CONTROLLER_VECTOR_HANDOFF_SOURCE = pathlib.Path(__file__).with_name("adsp-controller-vector-handoff.S")
+CONTROLLER_PRIVILEGED_RESTORE_SOURCE = pathlib.Path(__file__).with_name("adsp-controller-privileged-restore.S")
+CONTROLLER_RESTORE_PADDING_SOURCE = pathlib.Path(__file__).with_name("adsp-controller-restore-padding.S")
 FRAGMENTS = {
     "vectors": (ASM_SOURCE, OEM_FILE_OFFSET, GENERATED_LENGTH),
     "boot-prefix": (ASM_SOURCE, OEM_FILE_OFFSET, 0x44),
-    "counter-controller": (CONTROLLER_SOURCE, 0x41e0, 0xb08),
+    "counter-controller": (CONTROLLER_SOURCE, 0x41e0, 0xc3c),
     "controller-bootstrap": (CONTROLLER_BOOTSTRAP_SOURCE, 0x4980, 0x2c),
     "controller-cache-copy": (CONTROLLER_CACHE_COPY_SOURCE, 0x49ac, 0x5c),
     "controller-physical-copy": (CONTROLLER_PHYSICAL_COPY_SOURCE, 0x4a08, 0x4c),
@@ -59,6 +61,8 @@ FRAGMENTS = {
     "controller-startup": (CONTROLLER_STARTUP_SOURCE, 0x4c00, 0x68),
     "controller-debug-check": (CONTROLLER_DEBUG_CHECK_SOURCE, 0x4c68, 0x58),
     "controller-vector-handoff": (CONTROLLER_VECTOR_HANDOFF_SOURCE, 0x4cc0, 0x28),
+    "controller-privileged-restore": (CONTROLLER_PRIVILEGED_RESTORE_SOURCE, 0x4ce8, 0x34),
+    "controller-restore-padding": (CONTROLLER_RESTORE_PADDING_SOURCE, 0x4d1c, 0x100),
     "tlb-reconcile": (TLB_RECONCILE_SOURCE, 0x48d0, 0xb0),
     "cacheline-copy": (CACHELINE_COPY_SOURCE, 0x4818, 0x78),
     "tlb-flush": (TLB_FLUSH_SOURCE, 0x4788, 0x90),
@@ -495,6 +499,41 @@ def assemble_vector_handoff(
     return bytes(b)
 
 
+def assemble_privileged_restore(
+    llvm_mc: str, source: pathlib.Path = CONTROLLER_PRIVILEGED_RESTORE_SOURCE
+) -> bytes:
+    """Hexagon privileged state restoration for the reset/thread handoff.
+
+    LLVM6 assembles the architectural R23 constant/relative jump and their
+    packet parse bits. The seven V66-only instructions use narrow typed
+    encoders, replacing exactly seven expected one-word assembler NOPs.
+    """
+    from adsp_hexagon_v66 import (
+        SystemRegister, read_system_register, read_system_register_pair,
+        write_predicate_group_from_gpr, start_thread_from_register,
+    )
+    b = bytearray(assemble(llvm_mc, source, 0x34))
+    instructions = (
+        (0x00, read_system_register(24, SystemRegister.PMUEVTCFG)),
+        (0x04, write_predicate_group_from_gpr(24)),
+        (0x08, read_system_register_pair(0, 48)),
+        (0x0c, read_system_register_pair(24, 44)),
+        (0x10, read_system_register(29, SystemRegister.S47)),
+        (0x14, read_system_register_pair(30, 50)),
+        (0x20, start_thread_from_register(23)),
+    )
+    sentinel = struct.pack("<I", 0x7f00c000)
+    for offset, instruction in instructions:
+        if b[offset:offset+4] != sentinel:
+            raise AdspError(f"Expected privileged state sentinel at 0x{offset:x}")
+        b[offset:offset+4] = struct.pack("<I", instruction)
+    # The last packet includes three *intentional* NOPs. Reject unpatched
+    # stand-alone sentinel operations only before the branch packet.
+    if sentinel in [b[i:i+4] for i in range(0,0x24,4)]:
+        raise AdspError("Unresolved privileged state placeholder")
+    return bytes(b)
+
+
 def run(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--llvm-mc", required=True,
@@ -529,6 +568,8 @@ def run(argv: list[str] | None = None) -> int:
             out = assemble_tlb_flush(args.llvm_mc, args.source or source)
         elif args.segment == "controller-vector-handoff":
             out = assemble_vector_handoff(args.llvm_mc, args.source or source)
+        elif args.segment == "controller-privileged-restore":
+            out = assemble_privileged_restore(args.llvm_mc, args.source or source)
         elif args.segment == "controller-debug-check":
             out = assemble_controller_debug_check(args.llvm_mc, args.source or source)
         elif args.segment == "controller-startup":
@@ -543,7 +584,7 @@ def run(argv: list[str] | None = None) -> int:
             out = assemble_tlb_reconcile(args.llvm_mc, args.source or source)
         elif args.segment == "counter-controller":
             # Compile the ISA-common controller and its V66-only tails
-            # independently, then emit a strictly adjacent 0xb08-byte span (including explicit NOP alignment).
+            # independently, then emit a strictly adjacent 0xc3c-byte span (including explicit NOP alignment).
             if args.source is not None:
                 raise AdspError("--source override is not supported for the combined controller")
             out = (assemble(args.llvm_mc, CONTROLLER_SOURCE, 0x4c0) +
@@ -561,7 +602,9 @@ def run(argv: list[str] | None = None) -> int:
                    assemble(args.llvm_mc, CONTROLLER_ALIGNMENT_SOURCE, 0xf8) +
                    assemble_controller_startup(args.llvm_mc) +
                    assemble_controller_debug_check(args.llvm_mc) +
-                   assemble_vector_handoff(args.llvm_mc))
+                   assemble_vector_handoff(args.llvm_mc) +
+                   assemble_privileged_restore(args.llvm_mc) +
+                   assemble(args.llvm_mc, CONTROLLER_RESTORE_PADDING_SOURCE, 0x100))
         else:
             out = assemble(args.llvm_mc, args.source or source, expected_length)
         if len(out) != expected_length:

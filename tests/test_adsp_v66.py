@@ -37,6 +37,49 @@ class V66BootstrapTests(unittest.TestCase):
                 with self.assertRaises(v66.HexagonEncodingError):
                     v66.set_bit(0, 0, invalid)
 
+    def test_architectural_restore_register_fields(self) -> None:
+        self.assertEqual(v66.read_system_register(24,v66.SystemRegister.PMUEVTCFG),0x6eb4c018)
+        self.assertEqual(v66.read_system_register(29,v66.SystemRegister.S47),0x6eafc01d)
+        self.assertEqual(v66.read_system_register_pair(0,48),0x6f30c000)
+        self.assertEqual(v66.read_system_register_pair(24,44),0x6f2cc018)
+        self.assertEqual(v66.read_system_register_pair(30,50),0x6f32c01e)
+        self.assertEqual(v66.write_predicate_group_from_gpr(24),0x6238c004)
+        self.assertEqual(v66.start_thread_from_register(23),0x6477c020)
+        for word in (
+            v66.read_system_register_pair(0,48),v66.read_system_register_pair(24,44),
+            v66.read_system_register_pair(30,50),v66.write_predicate_group_from_gpr(24),
+            v66.start_thread_from_register(23)):
+            self.assertEqual((word >> 14)&3,3)
+
+    def test_system_register_pair_rejects_invalid_register_width(self) -> None:
+        for dst,sys in [(-1,48),(1,48),(31,44),(32,44),(0,-2),(0,45),(0,64),
+                        (0,"S48"),("r0",44)]:
+            with self.subTest(dst=dst,sys=sys):
+                with self.assertRaises(v66.HexagonEncodingError):
+                    v66.read_system_register_pair(dst,sys)
+        for bad in [-1,32,"r23"]:
+            with self.subTest(source=bad):
+                with self.assertRaises(v66.HexagonEncodingError):
+                    v66.write_predicate_group_from_gpr(bad)
+                with self.assertRaises(v66.HexagonEncodingError):
+                    v66.start_thread_from_register(bad)
+
+    @unittest.skipUnless(REFERENCE,"Exact reference required")
+    def test_privileged_restore_instructions_at_all_seven_offsets(self) -> None:
+        ref=Path(REFERENCE).read_bytes()
+        operands={
+            0x4ce8:v66.read_system_register(24,v66.SystemRegister.PMUEVTCFG),
+            0x4cec:v66.write_predicate_group_from_gpr(24),
+            0x4cf0:v66.read_system_register_pair(0,48),
+            0x4cf4:v66.read_system_register_pair(24,44),
+            0x4cf8:v66.read_system_register(29,v66.SystemRegister.S47),
+            0x4cfc:v66.read_system_register_pair(30,50),
+            0x4d08:v66.start_thread_from_register(23),
+        }
+        for off,encoded in operands.items():
+            with self.subTest(offset=hex(off)):
+                self.assertEqual(struct.unpack_from("<I",ref,off)[0],encoded)
+
     def test_near_jump_alignment_and_range(self) -> None:
         self.assertEqual(v66.jump_near(0x40, 0x63c), 0x5800C2FE)
         with self.assertRaises(v66.HexagonEncodingError):
