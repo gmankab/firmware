@@ -161,3 +161,11 @@ python3 tools/agent20_06_a32_roundtrip.py /private/venus.mbn 0xa8ea0 0xa92c8 \
 - Fixed one ISA distinction: `LDRSB` signed byte register-offset at `0xad920` must sign-extend rather than use unsigned `LDRB`; added checked `arm32::load_signed_byte_register` encoder and unit tests.
 - LLVM/Clang round-trip matches the full interval using `--data-range 0xadc10:0xadc14`, **zero differences**.
 - Full Rust/Python tests pass; release build result is recorded separately. Next uncovered address `0xadc14` (MBN file `0xb1c14`). No OEM signature, complete image or semantic high-level equivalence is asserted.
+
+## Checkpoint 17 — controller channel activation, reset and deactivation
+
+- Contiguous source-built Venus runtime `[0xa8000,0xae020)` = **24,608 byte-identical bytes**, MBN file `[0xac000,0xb2020)`.
+- Newly constructed `[0xadc14,0xae020)` = 1,036 bytes: **255 typed A32 instructions (1,020 bytes)** and four diagnostic data words (16 bytes), two at `[0xadf10,0xadf18)` and two at `[0xae018,0xae020)`.
+- Includes complete surface/slot initialization `[0xadc14,0xadcbc)`, guarded buffer activation `[0xadcbc,0xadf18)` and guarded buffer deactivation `[0xadf18,0xae020)`; original conditional branches and returns preserved.
+- Independent LLVM/Clang round-trip passes with `--data-range 0xadf10:0xadf18 --data-range 0xae018:0xae020` and zero differing bytes.
+- Full Rust/Python suites pass; release build result is separately recorded. Next uncovered ARM runtime address `0xae020` (file `0xb2020`). This remains partial instruction re-encoding; no behavioral/hardware validation or newly OEM-signed image is claimed.
