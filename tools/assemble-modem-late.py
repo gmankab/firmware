@@ -23,6 +23,8 @@ AUX_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_au
 CONTROL_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_control.s"
 AUX_INIT_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_aux_init.s"
 AUX_GUARD_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_aux_guard.s"
+AUX_STAGE_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_aux_stage.s"
+AUX_MMIO_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_aux_mmio.s"
 ATOMIC_START = 0x7C000
 ATOMIC_END = 0x7C040
 CONTROL_START = 0x7C040
@@ -33,6 +35,10 @@ AUX_INIT_START = 0x446200
 AUX_INIT_END = 0x446254
 AUX_GUARD_START = 0x446260
 AUX_GUARD_END = 0x446278
+AUX_STAGE_START = 0x446278
+AUX_STAGE_END = 0x4462E0
+AUX_MMIO_START = 0x4462E0
+AUX_MMIO_END = 0x4462F8
 MARKER_MASK = 3 << 14
 CONTINUE_MARKER = 1 << 14
 END_MARKER = 3 << 14
@@ -132,6 +138,35 @@ def restore_aux_init_packet(assembled: bytes) -> bytes:
     return struct.pack("<" + "I" * len(words), *words)
 
 
+def restore_aux_stage_packets(assembled: bytes) -> bytes:
+    """Re-create checked Hexagon packet grouping for auxiliary resource setup.
+
+    LLVM6 disallows two branch-class instructions in the same packet and
+    terminates three other packets earlier than the original target compiler.
+    Each source-assembled instruction has matching semantics and relative
+    displacement. Recombine only parse-marker bits, after checking classes.
+    """
+    if len(assembled) != AUX_STAGE_END - AUX_STAGE_START:
+        raise ValueError("modem auxiliary stage must compile to 104 bytes")
+    words = list(struct.unpack("<"+"I"*(len(assembled)//4),assembled))
+    rewrites = [
+        (0x1c, 0xB0, END_MARKER, CONTINUE_MARKER),  # scalar frame-relative pointer
+        (0x28, 0x3C, END_MARKER, CONTINUE_MARKER),  # first extended MMIO write
+        (0x44, 0x5A, END_MARKER, CONTINUE_MARKER),  # call and immediately extended args
+        (0x5c, 0x5A, CONTINUE_MARKER, END_MARKER),  # stand-alone worker call
+        (0x60, 0x78, END_MARKER, CONTINUE_MARKER),  # r0 clears before return
+    ]
+    for off, opcode, old_marker, new_marker in rewrites:
+        index=off//4
+        original=words[index]
+        if original>>24 != opcode or original & MARKER_MASK != old_marker:
+            raise ValueError(f"auxiliary stage instruction class or packet marker changed at {AUX_STAGE_START+off:#x}")
+        words[index]=(original & ~MARKER_MASK)|new_marker
+    if words[0x20//4]>>24 != 0x28 or words[0x20//4]&MARKER_MASK != 0:
+        raise ValueError("auxiliary stage expected a valid final duplex instruction")
+    return struct.pack("<"+"I"*len(words),*words)
+
+
 def assemble(llvm_mc: Path, source: Path) -> bytes:
     with tempfile.TemporaryDirectory(prefix="nabu-modem-late-") as tmp:
         obj = Path(tmp) / "late.o"
@@ -153,8 +188,13 @@ def output_fragments(llvm_mc: Path) -> dict[int, bytes]:
     aux_guard = assemble(llvm_mc, AUX_GUARD_SOURCE)
     if len(aux_guard) != AUX_GUARD_END - AUX_GUARD_START:
         raise ValueError("auxiliary guard instruction block has invalid length")
+    aux_stage = restore_aux_stage_packets(assemble(llvm_mc,AUX_STAGE_SOURCE))
+    aux_mmio = assemble(llvm_mc,AUX_MMIO_SOURCE)
+    if len(aux_mmio) != AUX_MMIO_END-AUX_MMIO_START:
+        raise ValueError("auxiliary MMIO initialization source has invalid length")
+    assert AUX_GUARD_END == AUX_STAGE_START and AUX_STAGE_END == AUX_MMIO_START
     return {ATOMIC_START: atomic + controller, AUX_START: auxiliary,
-            AUX_INIT_START: aux_init, AUX_GUARD_START: aux_guard}
+            AUX_INIT_START: aux_init, AUX_GUARD_START: aux_guard+aux_stage+aux_mmio}
 
 
 def executable_segments(reference: bytes) -> dict[int, tuple[int, int, int, int]]:
