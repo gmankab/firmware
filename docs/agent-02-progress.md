@@ -119,3 +119,25 @@ python3 tools/agent-02-a32-roundtrip.py /private/venus.mbn \
   --data-range 0x913c:0x9140 --data-range 0x9258:0x9264 \
   --data-range 0x92c8:0x92d8 --data-range 0x934c:0x9358
 ```
+
+## Checkpoint 05 — IRQ flag transitions and readiness (`0x9400–0x970c`)
+
+- Another **780 contiguous verified bytes**, 182 ARM32 instructions and 13
+  explicitly distinguished non-instruction data words.
+- Routines finish device IRQ paths, enable/clear guarded controller flag
+  masks and poll two platform readiness pointers. Branches to other routines
+  are encoded but this is not executable independently as firmware.
+- **Cumulative gap bridge:** 4,732 exact bytes `[0x8490,0x970c)` /
+  file `[0xc490,0xd70c)`. With the existing 33,936-byte boot/runtime
+  prefix, **38,668 contiguous bytes** are reconstructed and byte-identical,
+  file `[0x4000,0xd70c)`.
+- Remaining bridge `[0x970c,0xaa0c)` is **4,864 bytes**.
+- Reproducible independent LLVM/Clang verification:
+
+```sh
+python3 tools/agent-02-a32-roundtrip.py /private/venus.mbn \
+  --file-offset 0xd400 --vma 0x9400 --length 0x30c \
+  --data-range 0x94e8:0x94f4 --data-range 0x9534:0x9538 \
+  --data-range 0x95e0:0x95e8 --data-range 0x96bc:0x96d0 \
+  --data-range 0x9704:0x970c
+```

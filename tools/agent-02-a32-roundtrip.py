@@ -74,7 +74,7 @@ def run() -> None:
             operand = re.sub(r'\s+<[^>]*>.*$', '', operand)
             conditions = ('eq', 'ne', 'lt', 'le', 'gt', 'ge', 'cs', 'cc',
                           'hs', 'lo', 'hi', 'ls', 'mi', 'pl', 'vs', 'vc')
-            if (op in ('bl', 'blx', 'b') or
+            if (op in ('bl', 'b') or (op == 'blx' and operand.startswith('0x')) or
                     (op.startswith('bl') and op[2:] in conditions) or
                     (op.startswith('b') and op[1:] in conditions)):
                 # Conditional BL (e.g., blne) is PC-relative just like B.
