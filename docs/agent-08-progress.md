@@ -67,3 +67,35 @@ Added overflow-checked mapping, reversible transport pack/unpack, word-count
 summaries, and bounded-reference checks. These routines **do not decode HALO
 instructions** and **do not increase independent reconstruction coverage**:
 3,984 / 34,236 bytes remains the correct count.
+
+## Checkpoint 08-06 — exact image packaging with explicitly external DSP code
+
+Added a dependency-free SHA-256 implementation with FIPS vectors and padding
+boundaries, plus an exact-variant manifest for all **seven opaque HALO DSP
+memory regions** (30,252 bytes). The CLI can extract those proprietary regions
+to a **private directory outside Git**, and can rebuild a full WMFW file from
+the independent 3,984 metadata bytes plus the separately provided original
+DSP payloads. Every required region is checked for file offset, WMFW type,
+length and SHA-256; the whole regenerated image is checked against its pinned
+reference SHA-256. No unknown data is silently padded or read from the
+original WMFW by the builder. All immutable OEM program bytes remain external
+source inputs, never embedded or committed.
+
+Example, with `$REF` the verified 34,236-byte WMFW reference and `$PRIVATE`
+a directory outside the repository:
+
+```sh
+cargo run --offline --locked -p firmware-tools -- \
+  extract-wmfw-external-payloads "$REF" "$PRIVATE"
+cargo run --offline --locked -p firmware-tools -- \
+  assemble-wmfw-with-external-payloads "$PRIVATE" /tmp/rebuilt-external.wmfw
+cmp "$REF" /tmp/rebuilt-external.wmfw
+sha256sum /tmp/rebuilt-external.wmfw
+```
+
+Local end-to-end reference test: output **34,236 bytes, 0 differences**,
+SHA-256 `d1bea27e41001024eb3878276292b5bcc0cda4484ffced0880e12c03ec9bac2c`.
+A deliberately modified opaque input is rejected before output. This is an
+**externally supplied opaque-payload repack, NOT an independently rebuilt
+HALO program**; source-derived coverage remains **3,984 / 34,236 bytes**.
+The proprietary blob files and generated complete WMFW are excluded from Git.

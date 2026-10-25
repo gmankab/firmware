@@ -286,6 +286,28 @@ fn run() -> Result<(), Box<dyn Error>> {
         println!("Generated 40-byte WMFW metadata header (NOT DSP firmware)");
         return Ok(());
     }
+    if args.len() == 3 && args[0] == "assemble-wmfw-with-external-payloads" {
+        let out=firmware_tools::wmfw_external_payload::assemble_directory(
+            std::path::Path::new(&args[1]))?;
+        fs::write(&args[2],&out)?;
+        println!("Wrote {}-byte WMFW from 3984 independent metadata bytes and 30252 EXTERNAL proprietary DSP payload bytes.",out.len());
+        println!("Exact reference SHA-256 verified. HALO instructions were not reconstructed; do not confuse this with independent compilation.");
+        return Ok(());
+    }
+    if args.len() == 3 && args[0] == "extract-wmfw-external-payloads" {
+        let original=fs::read(&args[1])?;
+        firmware_tools::wmfw_external_payload::extract_from_private_reference(
+            &original,std::path::Path::new(&args[2]))?;
+        println!("Extracted seven PRIVATELY HELD proprietary DSP binary inputs (30252 bytes). NEVER commit or redistribute them as independent source.");
+        return Ok(());
+    }
+    if args.len() == 1 && args[0] == "wmfw-external-manifest" {
+        println!("Opaque DSP region inputs for original WMFW revision (NOT independently rebuilt):");
+        for r in firmware_tools::wmfw_external_payload::OPAQUE_REGIONS {
+            println!("{}: {} bytes; SHA256 {}",r.filename(),r.size,r.expected_sha256);
+        }
+        return Ok(());
+    }
     if args.len() == 2 && args[0] == "inspect-wmfw-halo-memory" {
         use firmware_tools::wmfw_halo_memory::{self,HaloMemoryKind};
         let bytes = fs::read(&args[1])?;
