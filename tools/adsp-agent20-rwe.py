@@ -22,7 +22,7 @@ if str(TOOLS) not in sys.path:
 from adsp_hexagon_v66 import SystemRegister,read_system_register,write_system_register
 
 FILE_START=0x6030
-FILE_END=0x6148
+FILE_END=0x6194
 SIZE=FILE_END-FILE_START
 PADDR=0x8BE03030
 REFERENCE_SHA='4b579e5dc1333d634e5bdc93f3314e357e0e30dab7140833f6cc7aef086b1c1e'
@@ -34,6 +34,8 @@ FINALIZE_SOURCE=TOOLS/'adsp-agent20-rwe-finalize.S'
 DUPLEX_SOURCE=TOOLS/'adsp-agent20-rwe-duplex.S'
 FINALIZE_NOPAIR_SIZE=0x78
 FINALIZE_SIZE=0x74
+POLL_SOURCE=TOOLS/'adsp-agent20-rwe-poll.S'
+POLL_SIZE=0x4c
 
 
 def baseline():
@@ -109,6 +111,7 @@ def render(llvm_mc:str)->bytes:
     extra=previous.assemble(llvm_mc,DISPATCH_SOURCE,DISPATCH_SIZE)
     output.extend(extra)
     output.extend(finalize(llvm_mc,previous))
+    output.extend(previous.assemble(llvm_mc,POLL_SOURCE,POLL_SIZE))
     if len(output)!=SIZE:
         raise previous.AdspError("RWE source fragments are not contiguous")
     return bytes(output)

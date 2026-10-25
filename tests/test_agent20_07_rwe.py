@@ -21,9 +21,9 @@ class RweEntryTests(unittest.TestCase):
         cls.ref=os.environ.get('NABU_ADSP_REFERENCE')
     def test_ptload_offset_mapping(self):
         self.assertEqual(module.FILE_START,0x6030)
-        self.assertEqual(module.FILE_END,0x6148)
+        self.assertEqual(module.FILE_END,0x6194)
         self.assertEqual(module.PADDR,0x8BE03030)
-        self.assertEqual(module.SIZE,280)
+        self.assertEqual(module.SIZE,356)
     def test_source_assembler_with_checked_v66_registers(self):
         if not self.mc:self.skipTest('HEXAGON_LLVM_MC missing')
         b=module.render(self.mc)
@@ -60,6 +60,18 @@ class RweEntryTests(unittest.TestCase):
         self.assertEqual(struct.unpack_from('<I',b,offset+0x68)[0],0x29803A01)
         self.assertEqual(struct.unpack_from('<I',b,offset+0x6c)[0],0x5400C000)
         self.assertEqual(struct.unpack_from('<I',b,offset+0x70)[0],0x5800C000)
+
+    def test_poll_packet_extenders_and_duplex_writes(self):
+        if not self.mc:self.skipTest('HEXAGON_LLVM_MC missing')
+        b=module.render(self.mc)
+        off=module.STARTUP_SIZE+module.DISPATCH_SIZE+module.FINALIZE_SIZE
+        self.assertEqual(struct.unpack_from('<I',b,off)[0],0x0F004956)
+        self.assertEqual(struct.unpack_from('<I',b,off+0x0c)[0],0x0F0049BC)
+        self.assertEqual(struct.unpack_from('<I',b,off+0x18)[0],0x0F004955)
+        # Two simultaneous zero writes occupy one Hexagon duplex word.
+        self.assertEqual(struct.unpack_from('<I',b,off+0x24)[0],0xF0091008)
+        self.assertEqual(struct.unpack_from('<I',b,off+0x28)[0],0xF0041005)
+        self.assertEqual(struct.unpack_from('<I',b,off+0x48)[0],0x5800C000)
 
     def test_wrong_firmware_is_rejected(self):
         if not self.mc:self.skipTest('HEXAGON_LLVM_MC missing')
