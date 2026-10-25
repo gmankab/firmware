@@ -17,8 +17,8 @@ spec.loader.exec_module(builder)
 class Agent13WlanTests(unittest.TestCase):
     def test_starts_after_agent07_and_ends_at_full_function_return(self):
         self.assertEqual(builder.START, 0x2708)
-        self.assertEqual(builder.validate_fragment_layout(), 0x4960)
-        self.assertEqual(sum(length for _, _, _, length in builder.FRAGMENTS), 8792)
+        self.assertEqual(builder.validate_fragment_layout(), 0x4cd4)
+        self.assertEqual(sum(length for _, _, _, length in builder.FRAGMENTS), 9676)
         self.assertEqual(builder.FILE_OFFSET + builder.START, 0x42708)
 
     def test_does_not_embed_opaque_instructions(self):
@@ -112,6 +112,13 @@ class Agent13WlanTests(unittest.TestCase):
         self.assertIn("insert(",index["status-mask-update"])
         self.assertIn("jumpr r31",index["status-mask-query"])
 
+    def test_session_state_guard_and_reconfiguration_tail(self):
+        index={name:source.read_text() for name,source,_,_ in builder.FRAGMENTS}
+        self.assertIn("jump ##0x2a0e10",index["session-state-guard"])
+        self.assertIn("memub(r16+#0x80)", index["record-statistics-publish"])
+        self.assertIn("call",index["record-reconfigure-tail"])
+        self.assertIn("memw(r16+#0x84)",index["record-reset-helper"])
+
     def test_explicit_gap_rejected(self):
         old = builder.FRAGMENTS[0]
         with self.assertRaisesRegex(ValueError, "not adjacent"):
@@ -126,7 +133,7 @@ class Agent13WlanTests(unittest.TestCase):
     def test_optional_independent_assembler(self):
         parent=builder.load_parent()
         program=b"".join(parent.assemble(source,os.environ["HEXAGON_LLVM22"],"hexagonv66",expected_length=length) for _,source,_,length in builder.FRAGMENTS)
-        self.assertEqual(len(program),8792)
+        self.assertEqual(len(program),9676)
         firmware=os.getenv("NABU_WLAN_REFERENCE")
         if firmware:
             parent.check_reference(program,Path(firmware).read_bytes(),runtime_offset=builder.START)

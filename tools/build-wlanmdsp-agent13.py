@@ -71,6 +71,12 @@ FRAGMENTS = (
     ("record-list-query", WLAN_SRC / "agent13-runtime-record-list-query.S", 0x47dc, 0x28),
     ("status-mask-update", WLAN_SRC / "agent13-runtime-status-mask-update.S", 0x4804, 0x128),
     ("status-mask-query", WLAN_SRC / "agent13-runtime-status-mask-query.S", 0x492c, 0x34),
+    ("session-table-report", WLAN_SRC / "agent13-runtime-session-table-report.S", 0x4960, 0x78),
+    ("session-state-guard", WLAN_SRC / "agent13-runtime-session-state-guard.S", 0x49d8, 0x74),
+    ("record-health-check", WLAN_SRC / "agent13-runtime-record-health-check.S", 0x4a4c, 0xd4),
+    ("record-reset-helper", WLAN_SRC / "agent13-runtime-record-reset-helper.S", 0x4b20, 0x5c),
+    ("record-statistics-publish", WLAN_SRC / "agent13-runtime-record-statistics-publish.S", 0x4b7c, 0x138),
+    ("record-reconfigure-tail", WLAN_SRC / "agent13-runtime-record-reconfigure-tail.S", 0x4cb4, 0x20),
 )
 
 

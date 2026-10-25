@@ -188,3 +188,16 @@ python3 tools/build-wlanmdsp-agent13.py /tmp/wlan-prefix-through-27a0.bin \
 - New Agent13 source `[file 0x42708,0x44960)` totals **8,792 independently assembled instruction bytes**. Combined Agent7+13 WLAN executable layout `[file 0x40000,0x44960)` totals **18,784 exact bytes**: **15,008 instruction bytes** + **3,776 separately modeled linker-fill bytes**, with zero reference-byte mismatches.
 - LLC Hexagon LLVM22 V66 source assembly, 160 Rust tests, Python discovery 27 cases (**26 passed, 1 optional skip**), release build and Git diff checks passed.
 - Next routine starts at file `0x44960` / VMA `0xb0004960`. Agent13 owns to `0x100000`, and this is an Agent7-derived portable branch only, not a complete or signed WLAN firmware.
+
+## Checkpoint 16 — session table, record integrity, statistics and reconfiguration
+
+- Six complete contiguous original Hexagon V66 routines add **884 source-authored instruction bytes**:
+  - `[file 0x44960,0x449d8)` **120 bytes**: session table reporting;
+  - `[file 0x449d8,0x44a4c)` **116 bytes**: guard on session/controller mode;
+  - `[file 0x44a4c,0x44b20)` **212 bytes**: record health and state checks;
+  - `[file 0x44b20,0x44b7c)` **92 bytes**: record reset and callback helper;
+  - `[file 0x44b7c,0x44cb4)` **312 bytes**: record stats publisher and metadata;
+  - `[file 0x44cb4,0x44cd4)` **32 bytes**: reconfiguration tail handler.
+- Agent 13 new source `[file 0x42708,0x44cd4)` totals **9,676 typed LLVM22-assembled instruction bytes**. Joined Agent 7 + Agent 13 `[file 0x40000,0x44cd4)` is **19,668 byte-identical layout bytes**: **15,892 source-assembled instructions** and **3,776 distinct linker-fill bytes**. Exact pinned-reference validation: zero mismatches.
+- Full Cargo tests: **160 Rust passed**; Python suite: **28 total, 27 passed and 1 optional skipped**. `cargo build --workspace --release --offline --locked`, real LLVM22 v66 packet reassembly, and `git diff --check` all passed.
+- Next missing routine begins at WLAN file `0x44cd4`, virtual address `0xb0004cd4`; this agent's exclusive upper bound is file `0x100000`. Portable Agent7-derived branch, not checkpoint-50 integrated. Whole WLAN firmware and OEM authentication remain unrebuilt.
