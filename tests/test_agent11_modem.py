@@ -33,7 +33,7 @@ class ModemAgent11Tests(unittest.TestCase):
         if not llvm: self.skipTest("set AGENT11_LLVM_MC for external tool verification")
         source=SCRIPT.parent.parent/"crates/firmware-tools/src/devices/xiaomi_nabu/modem_entry_followup.s"
         data=module.assemble(Path(llvm),source)
-        self.assertEqual(len(data),3256)
+        self.assertEqual(len(data),3588)
         # Structural assertion checks the two adjacent word loads are in
         # one duplex slot and the final instruction is a packet-ending return.
         words=[int.from_bytes(data[n:n+4],"little") for n in range(0,len(data),4)]
@@ -97,7 +97,7 @@ class ModemAgent11Tests(unittest.TestCase):
         self.assertEqual(words[(0x4acc-module.FILE_START)//4]&0xc000,0xc000)
         # The exception state transition requires the original R24/P3:0 and
         # control-register operands, followed by exactly 14 NOP packets.
-        assert len(data) == 0x4d10-module.FILE_START
+        assert len(data) == 0x4e5c-module.FILE_START
         for offset,sys,reg in [(0x4ae8,52,24),(0x4af8,47,29)]:
             code=words[(offset-module.FILE_START)//4]
             self.assertEqual(code & ~(0x7f<<16 | 0x1f),0x6e80c000)
@@ -126,6 +126,15 @@ class ModemAgent11Tests(unittest.TestCase):
         self.assertEqual(w(0x4cf4),0x6e864003)  # SSR -> r3
         self.assertEqual(w(0x4d08),0x6e82c003)  # STID -> r3
         self.assertEqual(w(0x4d0c)&0xc000,0)  # paired duplex
+        # Preserve both new-predicate/branch packet orderings exactly.
+        for packet in [0x4d88,0x4db8]:
+            self.assertEqual([w(packet+i)&0xc000 for i in (0,4)],
+                             [0x4000,0xc000])
+        self.assertEqual(w(0x4db8)&0xff000000,0xbf000000) # R4 decrement
+        self.assertEqual(w(0x4d70)&0xc000,0x4000) # S54-relative table extender
+        # A numerical LLVM target would encode the wrong PC-relative branch.
+        # The monitor address is reconstructed from an explicit packet base.
+        self.assertEqual(w(0x4e50)&0xc000,0x4000) # call extender continues
 
 
 if __name__=='__main__':unittest.main()

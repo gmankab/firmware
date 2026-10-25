@@ -180,6 +180,37 @@ def restore_original_legal_hexagon_packet_order(code: bytes) -> bytes:
         cmp9=(cmp9&~marker)|(1<<14)
         branch9=(branch9&~marker)|(3<<14)
         struct.pack_into('<III',out,rel9,ext9,cmp9,branch9)
+    # The protected exception continuation checks controller R24 and
+    # branches on its new predicate within one two-word packet. LLVM6 moves
+    # the branch before the comparison, another architecturally valid order;
+    # keep the original compare-first ordering with strict ISA-class checks.
+    rel10=0x4d88-FILE_START
+    if len(out)>=rel10+8:
+        branch10,comparison10=struct.unpack_from('<II',out,rel10)
+        if ((branch10&0xff000000)!=0x5c000000 or
+            (branch10&marker)!=(1<<14) or
+            (comparison10&0xff000000)!=0x75000000 or
+            ((comparison10>>16)&31)!=24 or
+            (comparison10&marker)!=(3<<14)):
+            raise ValueError('unexpected Hexagon exception-controller compare/branch packet at 0x4d88')
+        comparison10=(comparison10&~marker)|(1<<14)
+        branch10=(branch10&~marker)|(3<<14)
+        struct.pack_into('<II',out,rel10,comparison10,branch10)
+    # Hexagon combines the R4 decrement with a predicate-and-loop branch.
+    # LLVM6 hoists the predicate/branch ahead of the decrement, while the
+    # original legal packet has the decrement first and its compact branch
+    # last. Reorder only after checking register and ISA operation classes.
+    rel11=0x4db8-FILE_START
+    if len(out)>=rel11+8:
+        branch11,decrement11=struct.unpack_from('<II',out,rel11)
+        if ((branch11&0xffff3fff)!=0x10440008 or
+            (branch11&marker)!=(1<<14) or
+            (decrement11&0xffff3fff)!=0xbfe43fe4 or
+            (decrement11&marker)!=(3<<14)):
+            raise ValueError('unexpected Hexagon exception MODECTL polling packet at 0x4db8')
+        decrement11=(decrement11&~marker)|(1<<14)
+        branch11=(branch11&~marker)|(3<<14)
+        struct.pack_into('<II',out,rel11,decrement11,branch11)
     return bytes(out)
 
 

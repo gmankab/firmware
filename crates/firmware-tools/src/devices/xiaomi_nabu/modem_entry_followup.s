@@ -1308,3 +1308,132 @@ MODEM_SYS_READ 3,2    // STID
     memd(r29+#176) = r3:2
     memd(r29+#80) = r21:20
 }
+
+// Only hardware thread zero performs the protected controller reset; other
+// threads branch directly to the original stop loop (defined symbolically,
+// outside this first source fragment until the following checkpoint).
+.set modem_exception_stop_loop, agent11_modem_exception_handler_entry + (0x4fd4-0x4c1c)
+.set modem_exception_save_controller_registers, agent11_modem_exception_handler_entry + (0x4e5c-0x4c1c)
+.set modem_exception_controller_drain, agent11_modem_exception_handler_entry + (0x4f38-0x4c1c)
+.set modem_exception_state_cache, agent11_modem_exception_handler_entry + (0x4fdc-0x4c1c)
+.set modem_exception_poll_fail, agent11_modem_exception_handler_entry + (0x4e24-0x4c1c)
+MODEM_SYS_READ 23,8 // HTID
+{ p0 = cmp.eq(r23,#0); if (p0.new) jump:nt modem_exception_thread_zero }
+{ jump modem_exception_stop_loop }
+modem_exception_thread_zero:
+MODEM_ICKILL
+MODEM_SYS_READ 23,54
+{
+    r22 = add(r23,##-1064891264)
+    r1 = add(r23,##-1064862344)
+}
+{
+    r0 = ##3229880928
+    r1 = memw(r1+#0)
+}
+{ r1 = add(r1,r0) }
+{
+    r0 = add(r22,#8)
+    r1 = memw(r1+#0)
+}
+{ call modem_exception_save_controller_registers }
+{
+    r0 = add(r23,##-1064890044)
+    r1 = #2
+}
+{ memw(r0+#0) = r1 }
+{ call modem_exception_controller_drain }
+{
+    r0 = add(r23,##-1064890044)
+    r1 = #3
+}
+{ memw(r0+#0) = r1 }
+{ r1 = add(r23,##-1064862344) }
+{ r1 = memw(r1+#0) }
+{ r24 = add(r1,##-1064892928) }
+{ r24 = memw(r24+#0) }
+{
+    p0 = cmp.eq(r24,#0)
+    if (!p0.new) jump:nt modem_exception_poll_fail
+}
+
+// Serialize controller status phases 4..7 around cache/TLB maintenance.
+// A bounded MODECTL polling loop checks synchronized memory ownership before
+// the exception thread forwards control to its protected stop mode.
+{ call modem_exception_state_cache }
+{
+    r0 = add(r23,##-1064890044)
+    r1 = #4
+}
+{ memw(r0+#0) = r1 }
+MODEM_SYS_READ 23,54,1
+{ r0 = #0 }
+{
+    r5 = add(r23,##-1064890048)
+    r4 = #10000
+}
+modem_exception_status_poll:
+{
+    r4 = add(r4,#-1)
+    p0 = cmp.eq(r4,#0)
+    if (!p0.new) jump:nt modem_exception_read_mode
+}
+{
+    jump modem_exception_set_phase_five
+    memw(r5+#0) = r1
+}
+modem_exception_read_mode:
+MODEM_SYS_READ 1,17 // MODECTL
+{ r2 = extractu(r1,#4,#0); r3 = extractu(r1,#4,#16) }
+{ r2 = xor(r2,r3) }
+{
+    r2 = clrbit(r2,r0)
+    if (!cmp.eq(r2.new,#0)) jump:t modem_exception_status_poll
+}
+{
+    r4 = #0
+    memw(r5+#0) = r4.new
+}
+modem_exception_set_phase_five:
+{
+    r0 = add(r23,##-1064890044)
+    r1 = #5
+}
+{ memw(r0+#0) = r1 }
+.set modem_exception_clean_cache,agent11_modem_exception_handler_entry + (0x4f08-0x4c1c)
+.set modem_exception_tlb_clean,agent11_modem_exception_handler_entry + (0x4f84-0x4c1c)
+{ call modem_exception_clean_cache }
+{
+    r0 = add(r23,##-1064890044)
+    r1 = #6
+}
+{ memw(r0+#0) = r1 }
+{ call modem_exception_tlb_clean }
+MODEM_SYS_READ 23,54
+{
+    r0 = add(r23,##-1064890044)
+    r1 = #7
+}
+{ memw(r0+#0) = r1 }
+
+// The original contains a deliberately always-true conditional branch into
+// the controller stop path; ## forces the source's zero constant extender.
+{
+    r0 = ##0
+    if (cmp.eq(r0.new,#0)) jump:nt modem_exception_stop_loop
+}
+MODEM_SYS_READ 0,18 // SYSCFG
+{ r1 = memw(r23+##-0x3f4c9adc) }
+{ r0 = insert(r1,#3,#16) }
+MODEM_SYS_WRITE 18,0
+{ isync }
+{ r0 = ##192 }
+// LLVM6 uses an explicitly provided numeric displacement as-is; the source
+// monitors at address 0x3f803000, while the instruction's *reference* packet
+// begins at file address 0x4e50. Compute the packet-relative displacement.
+.set modem_platform_monitor_delta, (0x3f803000-0x4e50)
+{ call ##modem_platform_monitor_delta }
+{ jump modem_exception_stop_loop }
+
+.globl agent11_modem_exception_capture_control_regs
+agent11_modem_exception_capture_control_regs:
