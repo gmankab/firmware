@@ -382,3 +382,9 @@ Original reference: private `map220v-nabu-firmware/venus.mbn`, SHA-256 `9d4af65d
 - Contiguous typed A32 reconstruction `[0x21c78,0x2f96c)` = **56,564 exact bytes**, newly added `[0x2f7d0,0x2f96c)` = **412 bytes**: **90 ARM32 instructions** and **13 data words**.
 - Includes MMIO-controller state predicates, version/mode tests and three per-channel counter helpers. Ten interspersed literal pools are each explicitly classified as data, preventing OEM address words from being interpreted as instructions.
 - Next routine begins at `0x2f96c`. This is instruction-byte re-encoding only, not independently recovered high-level semantics or an OEM-signed firmware.
+
+## Checkpoint 58 — IRQ register-bank logging and mask controls
+
+- Contiguous typed A32 reconstruction `[0x21c78,0x2fbc4)` = **57,164 exact bytes**; newly reconstructed `[0x2f96c,0x2fbc4)` = **600 bytes**, **131 instructions** and **19 literal data words**.
+- Includes controller register-bank reporting, interrupt mask shutdown, getters and indexed IRQ enable/disable functions. Five separate pools contain MMIO and diagnostic pointers (a register-list LDMIB is an instruction, not a literal).
+- Next unknown executable starts at `0x2fbc4`. This is source-level typed A32 *instruction encoding* verification, not a recovered high-level firmware implementation or OEM signature.
