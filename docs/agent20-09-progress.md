@@ -124,3 +124,11 @@
 - Standalone validator `tools/verify-agent20-09-exception-transition.py`: all 17 Hexagon words decoded correctly by Rizin V66; **15 LLVM6 independently assembled encodings** plus branch/call instruction-family checks. The privileged `S54` read is inherited from the previous source module and remains decoder-corroborated only.
 - Code coverage is `[0x41e0,0x4418)` (**568** bytes) plus `[0x4500,0x48a4)` (**932** bytes) = **1,500 typed source-generated executable bytes**, with **232 ELF linker zero bytes** `[0x4418,0x4500)` excluded from executable count.
 - Next original executable byte: file `0x48a4` (physical `0x96c018a4`) in the controller wait/retry path. This portable branch descends from Agent 05 and does **not** claim checkpoint-50 ancestry or fresh OEM signatures.
+
+## Checkpoint 15 — MODECTL retry/poll loop through file `0x48e8`
+
+- Independently generated **68 source executable bytes** at file `[0x48a4,0x48e8)` and physical `[0x96c018a4,0x96c018e8)`; the pinned CDSP reference comparison returns **zero mismatches**.
+- The routine reads supervisor register `S54`, initializes a bounded **10,000-count** retry counter, tests the updated counter with a packet-combined new-predicate branch, extracts two `MODECTL` nibble fields, XORs and masks them, executes an architecturally signed backward `.new` branch, and stores reset state via `R4.new`.
+- Verified **17 Rizin V66 decoded words**; **12 independent LLVM6 comparisons** (with parse markers and synthetic branch displacements normalized). `MODECTL`/`S54` privileged reads are *decoder-verified only*. The assembler's packet scheduler changes the producer/branch order, so comparisons match operand fields rather than blindly comparing whole LLVM-generated packets.
+- Cumulative independently typed executable coverage: `[0x41e0,0x4418)` = **568** bytes, `[0x4500,0x48e8)` = **1,000** bytes, total **1,568** executable bytes. Between them are 232 original ELF alignment bytes **not** counted as source code.
+- First unimplemented code instruction at `0x48e8` (physical `0x96c018e8`), where controller start-up resumes after retry. This branch remains based on Agent 05 and is not the missing checkpoint-50-rooted integration branch.
