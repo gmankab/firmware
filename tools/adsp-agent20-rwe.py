@@ -12,7 +12,9 @@ import hashlib
 import importlib.util
 from pathlib import Path
 import struct
+import subprocess
 import sys
+import tempfile
 
 TOOLS=Path(__file__).resolve().parent
 if str(TOOLS) not in sys.path:
@@ -20,7 +22,7 @@ if str(TOOLS) not in sys.path:
 from adsp_hexagon_v66 import SystemRegister,read_system_register,write_system_register
 
 FILE_START=0x6030
-FILE_END=0x60d4
+FILE_END=0x6148
 SIZE=FILE_END-FILE_START
 PADDR=0x8BE03030
 REFERENCE_SHA='4b579e5dc1333d634e5bdc93f3314e357e0e30dab7140833f6cc7aef086b1c1e'
@@ -28,6 +30,10 @@ SOURCE=TOOLS/'adsp-agent20-rwe-startup.S'
 DISPATCH_SOURCE=TOOLS/'adsp-agent20-rwe-dispatch.S'
 STARTUP_SIZE=0x5c
 DISPATCH_SIZE=0x48
+FINALIZE_SOURCE=TOOLS/'adsp-agent20-rwe-finalize.S'
+DUPLEX_SOURCE=TOOLS/'adsp-agent20-rwe-duplex.S'
+FINALIZE_NOPAIR_SIZE=0x78
+FINALIZE_SIZE=0x74
 
 
 def baseline():
@@ -37,6 +43,52 @@ def baseline():
     mod=importlib.util.module_from_spec(spec)
     spec.loader.exec_module(mod)
     return mod
+
+
+def finalize(llvm_mc:str, previous)->bytes:
+    """Build the privilege-state tail with its genuine two-op Hexagon duplex.
+
+    LLVM6's automatic packet pairing moves an unrelated scalar operation into
+    the duplex, changing instruction order. Disable pairing for the source
+    assembly, then insert one *independently assembled source-defined duplex*
+    in the verified two-word reserved location. This isn't a copied OEM word.
+    """
+    with tempfile.TemporaryDirectory(prefix='adsp-v66-state-') as dirname:
+        obj=Path(dirname)/'state.o'
+        result=subprocess.run([llvm_mc,'-triple=hexagon','-mcpu=hexagonv65',
+            '-mno-pairing','-filetype=obj',str(FINALIZE_SOURCE),'-o',str(obj)],
+            text=True,capture_output=True)
+        if result.returncode:
+            raise previous.AdspError('Hexagon no-pairing compilation failed: '+result.stderr)
+        out=bytearray(previous.read_text_section(obj.read_bytes(),FINALIZE_NOPAIR_SIZE))
+    # The LLVM6 non-duplex source must emit scalar r2=-1 and r3=-1 as two
+    # consecutive still-in-packet words followed by r0=24 and r1=-1.
+    # Their operand-encoded forms are independently produced by LLVM, not
+    # substituted with vendor memory; exact slot boundaries are checked.
+    src_words=tuple(struct.unpack_from('<I',out,at)[0] for at in (0x60,0x64,0x68,0x6c))
+    if src_words!=(0x78df7fe2,0x78df7fe3,0x78004300,0x78dfffe1):
+        raise previous.AdspError('unexpected scalar-pair instruction arrangement')
+    duet=previous.assemble(llvm_mc,DUPLEX_SOURCE,4)
+    if len(duet)!=4 or duet==struct.pack('<I',0x7f00c000):
+        raise previous.AdspError('missing source-encoded Hexagon duplex')
+    out=out[:0x68]+duet+out[0x70:]
+    if len(out)!=FINALIZE_SIZE:
+        raise previous.AdspError('size mismatch after Hexagon duplex scheduling')
+    # Four privileged system-register transfers are specific V66 encodings.
+    sentinel=struct.pack('<I',0x7f00c000)
+    replacements={
+        0x20:read_system_register(0,SystemRegister.SYSCFG),
+        0x2c:write_system_register(SystemRegister.SYSCFG,0),
+        0x30:read_system_register(0,SystemRegister.SSR),
+        0x38:write_system_register(SystemRegister.SSR,0),
+    }
+    for at,word in replacements.items():
+        if out[at:at+4]!=sentinel:
+            raise previous.AdspError(f'privileged transfer sentinel moved at +0x{at:x}')
+        out[at:at+4]=struct.pack('<I',word)
+    if sentinel in (out[i:i+4] for i in range(0,len(out),4)):
+        raise previous.AdspError('unresolved V66 sentinel in state-machine output')
+    return bytes(out)
 
 
 def render(llvm_mc:str)->bytes:
@@ -56,6 +108,7 @@ def render(llvm_mc:str)->bytes:
         raise previous.AdspError('unresolved privileged sentinel')
     extra=previous.assemble(llvm_mc,DISPATCH_SOURCE,DISPATCH_SIZE)
     output.extend(extra)
+    output.extend(finalize(llvm_mc,previous))
     if len(output)!=SIZE:
         raise previous.AdspError("RWE source fragments are not contiguous")
     return bytes(output)

@@ -21,9 +21,9 @@ class RweEntryTests(unittest.TestCase):
         cls.ref=os.environ.get('NABU_ADSP_REFERENCE')
     def test_ptload_offset_mapping(self):
         self.assertEqual(module.FILE_START,0x6030)
-        self.assertEqual(module.FILE_END,0x60d4)
+        self.assertEqual(module.FILE_END,0x6148)
         self.assertEqual(module.PADDR,0x8BE03030)
-        self.assertEqual(module.SIZE,164)
+        self.assertEqual(module.SIZE,280)
     def test_source_assembler_with_checked_v66_registers(self):
         if not self.mc:self.skipTest('HEXAGON_LLVM_MC missing')
         b=module.render(self.mc)
@@ -44,6 +44,22 @@ class RweEntryTests(unittest.TestCase):
         self.assertEqual(struct.unpack_from('<I',code,0x70)[0],0x1010C27A)
         self.assertEqual(struct.unpack_from('<I',code,0x74)[0],0x1000E152)
         self.assertEqual(struct.unpack_from('<I',code,0x80)[0],0x5A00C5C0)
+
+    def test_privileged_state_and_duplex_layout(self):
+        if not self.mc:self.skipTest('HEXAGON_LLVM_MC missing')
+        b=module.render(self.mc)
+        offset=module.STARTUP_SIZE+module.DISPATCH_SIZE
+        self.assertEqual(struct.unpack_from('<I',b,offset+0x20)[0],
+                         read_system_register(0,SystemRegister.SYSCFG))
+        self.assertEqual(struct.unpack_from('<I',b,offset+0x2c)[0],
+                         write_system_register(SystemRegister.SYSCFG,0))
+        self.assertEqual(struct.unpack_from('<I',b,offset+0x30)[0],
+                         read_system_register(0,SystemRegister.SSR))
+        self.assertEqual(struct.unpack_from('<I',b,offset+0x38)[0],
+                         write_system_register(SystemRegister.SSR,0))
+        self.assertEqual(struct.unpack_from('<I',b,offset+0x68)[0],0x29803A01)
+        self.assertEqual(struct.unpack_from('<I',b,offset+0x6c)[0],0x5400C000)
+        self.assertEqual(struct.unpack_from('<I',b,offset+0x70)[0],0x5800C000)
 
     def test_wrong_firmware_is_rejected(self):
         if not self.mc:self.skipTest('HEXAGON_LLVM_MC missing')
