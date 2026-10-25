@@ -121,3 +121,23 @@ Byte-for-byte checked against the pinned original ADSP and independently
 disassembled with the Rizin Hexagon decoder. The next unbuilt instruction
 starts at `0x638c`. This is still only a small fragment of the overall
 ADSP RWE `PT_LOAD`; reference-assisted full images remain outside scope.
+
+## Checkpoint 10: runtime diagnostics, recovery and controller wait `[0x638c,0x6474)`
+
+The next **232 independently authored executable bytes** write captured
+controller `SSR`, `ELR`, `DIAG` and `SYSCFG` into mapped status slots, clean
+cache lines, follow a conditional fallback chain, and poll the global
+controller pointers until their event loop is ready. LLVM6 compiles three
+bounded mnemonic packet sources; four V66 system-register reads are strictly
+checked typed replacements for LLVM6 placeholders, preserving the exact
+original packet parse markers. The recovery and polling fragments require **no
+raw opcode replacements**. All new words match the pinned ADSP reference and
+Rizin cross-decodes the Hexagon packets.
+
+The RWE code now covers **1,092 contiguous independently reconstructed bytes**,
+file `[0x6030,0x6474)`, physical `[0x8be03030,0x8be03474)`, SHA-256
+`79ad3e2b076a6766817c40c55330295914caefcf3103b6facb968d4a05a6cb2c`.
+The trailing one-word no-progress polling loop is genuine firmware control
+flow; the next independent routine starts at file `0x6474`. Metadata
+`[0x6000,0x6030)` is still not reconstructed, and complete ADSP code and
+authentication are not implied.

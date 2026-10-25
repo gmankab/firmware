@@ -24,7 +24,7 @@ from adsp_hexagon_v66 import (SystemRegister, ControlRegister, read_system_regis
                               write_predicate_group_from_gpr,packet_continuation)
 
 FILE_START=0x6030
-FILE_END=0x638c
+FILE_END=0x6474
 SIZE=FILE_END-FILE_START
 PADDR=0x8BE03030
 REFERENCE_SHA='4b579e5dc1333d634e5bdc93f3314e357e0e30dab7140833f6cc7aef086b1c1e'
@@ -48,6 +48,12 @@ RUNTIME_CALLS_SOURCE=TOOLS/'adsp-agent20-rwe-runtime-calls.S'
 RUNTIME_CALLS_SIZE=0x70
 RUNTIME_REGISTERS_SOURCE=TOOLS/'adsp-agent20-rwe-runtime-registers.S'
 RUNTIME_REGISTERS_SIZE=0x54
+RUNTIME_DIAGNOSTICS_SOURCE=TOOLS/'adsp-agent20-rwe-runtime-diagnostics.S'
+RUNTIME_DIAGNOSTICS_SIZE=0x4c
+RUNTIME_RECOVERY_SOURCE=TOOLS/'adsp-agent20-rwe-runtime-recovery.S'
+RUNTIME_RECOVERY_SIZE=0x68
+RUNTIME_POLL_SOURCE=TOOLS/'adsp-agent20-rwe-runtime-poll.S'
+RUNTIME_POLL_SIZE=0x34
 
 
 def baseline():
@@ -174,6 +180,30 @@ def runtime_registers(llvm_mc:str,previous)->bytes:
     return bytes(out)
 
 
+def runtime_diagnostics(llvm_mc:str,previous)->bytes:
+    """Capture V66 SSR/ELR/DIAG/SYSCFG and notify the runtime event loop."""
+    out=bytearray(previous.assemble(llvm_mc,RUNTIME_DIAGNOSTICS_SOURCE,
+                                    RUNTIME_DIAGNOSTICS_SIZE))
+    final=struct.pack('<I',0x7f00c000)
+    middle=struct.pack('<I',0x7f004000)
+    checks={
+        0x08:(final,read_system_register(1,SystemRegister.SSR)),
+        0x0c:(middle,packet_continuation(read_system_register(
+            0,SystemRegister.ELR))),
+        0x18:(middle,packet_continuation(read_system_register(
+            1,SystemRegister.DIAG))),
+        0x24:(middle,packet_continuation(read_system_register(
+            0,SystemRegister.SYSCFG))),
+    }
+    for offset,(marker,encoded) in checks.items():
+        if out[offset:offset+4]!=marker:
+            raise previous.AdspError(f'V66 diagnostic-state sentinel moved +0x{offset:x}')
+        out[offset:offset+4]=struct.pack('<I',encoded)
+    if any(out[i:i+4] in (middle,final) for i in range(0,len(out),4)):
+        raise previous.AdspError('unresolved diagnostic privileged operation')
+    return bytes(out)
+
+
 def render(llvm_mc:str)->bytes:
     previous=baseline()
     output=bytearray(previous.assemble(llvm_mc,SOURCE,STARTUP_SIZE))
@@ -198,6 +228,9 @@ def render(llvm_mc:str)->bytes:
     output.extend(previous.assemble(llvm_mc,FRAME_INIT_SOURCE,FRAME_INIT_SIZE))
     output.extend(previous.assemble(llvm_mc,RUNTIME_CALLS_SOURCE,RUNTIME_CALLS_SIZE))
     output.extend(runtime_registers(llvm_mc,previous))
+    output.extend(runtime_diagnostics(llvm_mc,previous))
+    output.extend(previous.assemble(llvm_mc,RUNTIME_RECOVERY_SOURCE,RUNTIME_RECOVERY_SIZE))
+    output.extend(previous.assemble(llvm_mc,RUNTIME_POLL_SOURCE,RUNTIME_POLL_SIZE))
     if len(output)!=SIZE:
         raise previous.AdspError("RWE source fragments are not contiguous")
     return bytes(output)
