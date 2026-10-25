@@ -8,7 +8,7 @@
 use arm32::{Condition as C, DataOp as Op, Register as R, Shift, BlockMode};
 
 pub const START: usize = 0x21c78;
-pub const END: usize = 0x2ebbc;
+pub const END: usize = 0x2ec94;
 pub const FILE_BASE:usize = 0x4000;
 pub const FILE_OFFSET:usize=FILE_BASE+START;
 pub const RESERVATION_END:usize=0x40000;
@@ -60,6 +60,15 @@ fn encode_smulbb(cond:C,rd:R,rm:R,rs:R)->Result<u32,String>{
         return Err("SMULBB requires general-purpose registers r0..r12".into());
     }
     Ok(((cond as u32)<<28)|0x0160_0080|(rd.number()<<16)|(rs.number()<<8)|rm.number())
+}
+
+/// A32 ADC immediate #0; add the current carry to a 32-bit register.
+/// Minimal checked form required to propagate a 64-bit counter increment.
+fn encode_adc_zero(cond:C,rd:R,rn:R)->Result<u32,String>{
+    if [rd,rn].iter().any(|r|r.number()>=13) {
+        return Err("A32 ADC counter increment requires ordinary GPR registers".into());
+    }
+    Ok(((cond as u32)<<28)|0x02a0_0000|(rn.number()<<16)|(rd.number()<<12))
 }
 
 #[path="venus_runtime_mid_initialize.rs"]
@@ -162,6 +171,8 @@ mod command_registers;
 mod encoder_init;
 #[path="venus_runtime_mid_packed_bits.rs"]
 mod packed_bits;
+#[path="venus_runtime_mid_event_publish.rs"]
+mod event_publish;
 
 fn frame_allocation(c:&mut Code)->Result<(),String>{
     c.check(START)?;
@@ -704,6 +715,7 @@ pub fn fragment()->Result<Vec<u8>,String>{
     command_registers::emit(&mut code)?;
     encoder_init::emit(&mut code)?;
     packed_bits::emit(&mut code)?;
+    event_publish::emit(&mut code)?;
     Ok(code.bytes)
 }
 
@@ -721,9 +733,13 @@ pub fn verify_reference(reference:&[u8])->Result<usize,String>{
 #[cfg(test)] mod tests {
     use super::*;
     #[test] fn generated_region_exact_layout(){
-        assert_eq!(END-START,0xcf44);
+        assert_eq!(END-START,0xd01c);
         assert_eq!(fragment().unwrap().len(),END-START);
         assert_eq!(FILE_OFFSET,0x25c78);
+    }
+    #[test]fn adc_zero_and_carry_are_checked(){
+        assert_eq!(encode_adc_zero(C::Al,R::new(3).unwrap(),R::new(3).unwrap()).unwrap(),0xe2a3_3000);
+        assert!(encode_adc_zero(C::Al,R::PC,R::R0).is_err());
     }
     #[test] fn smulbb_has_checked_operands_and_architecture_encoding(){
         assert_eq!(encode_smulbb(C::Al,R::R0,R::R1,R::R0).unwrap(),0xe160_0081);

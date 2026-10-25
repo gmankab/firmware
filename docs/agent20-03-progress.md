@@ -346,3 +346,9 @@ Original reference: private `map220v-nabu-firmware/venus.mbn`, SHA-256 `9d4af65d
 - Generated continuous `[0x21c78,0x2ebbc)` = **53,060 exact bytes**, newly added `[0x2ea50,0x2ebbc)` = **364 bytes**, with **86 A32 instructions** and **5 controller address words**.
 - Transcribes the input packer (`0x2ea50–0x2eb30`) using checked halfword loads/stores, register-specified shifts and compares; followed by callback registration (`0x2eb30–0x2eba8`). The five trailing values are non-instruction constant pool `[0x2eba8,0x2ebbc)`.
 - Next uncovered runtime function begins at `0x2ebbc`. Instruction-level equivalence is not high-level semantic recovery or OEM signing.
+
+## Checkpoint 52 — event publication and 64-bit counter
+
+- Contiguous A32 region `[0x21c78,0x2ec94)` = **53,276 exact bytes**, new `[0x2ebbc,0x2ec94)` = **216 bytes** comprised of **50 instructions** and **4 named data words**.
+- Rebuilds a controller message publisher and 64-bit event sequence update with architecturally typed `LDRD`, `ADDS`, checked `ADC #0` and `STRD` instructions. Four literal address words `[0x2ec84,0x2ec94)` remain separate from executable instructions.
+- The next original routine has a nonstandard single `SUB SP,SP,#8` at `0x2ec94` preceding its `PUSH`, and must retain that prologue intact. No borrowed opaque instruction bytes, no OEM-authenticated output claimed.
