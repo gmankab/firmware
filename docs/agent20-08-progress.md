@@ -232,3 +232,18 @@ It abuts the earlier 8-byte pointer helper at `0x3a7e0`; the two NOPs
 counts. **2,328 total source-assembled executable bytes in 29 fragments.**
 All 160 Rust and 145 Python tests, offline release build, pinned-reference
 verification and Git diff checks pass. Agent04-descended provisional branch.
+
+**Checkpoint 17 — controller callback shutdown:** A 68-byte source-assembled
+controller cleanup routine `[file 0x3afa0,0x3afe4)` invokes optional
+before/after callbacks around platform object cleanup and has two intentional
+conditional-return paths. The packet assembler initially selected a duplex
+for a merged callback argument/call; splitting the preceding memory load into
+its original packet restored the exact 17-word layout. More importantly,
+the branch at file `0x3afb8` must skip to the platform-call operation at
+`0x3afc4`, not the preceding optional memory read at `0x3afc0`. The resolved
+semantics and all bytes independently match the pinned ADSP reference;
+SHA-256 `bf3b1b5096280746287d320a30ba84f658edcc4fdea416d42046e2aceae1199a`.
+Total independently source-assembled ADSP **2,396 executable bytes in
+30 fragment entries**, excluding all interstitial NOPs and copied firmware.
+160 Rust and 147 Python tests, release build, exact reference check pass;
+this remains a provisional, not checkpoint-50-rooted, branch.

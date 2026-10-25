@@ -170,9 +170,9 @@ class ADSPExternalsAndCodeTests(unittest.TestCase):
     @unittest.skipUnless(LLVM_MC,'Hexagon LLVM6 assembler required')
     def test_complete_fragment_inventory_rejects_overlaps(self):
         manifest,regions=adsp.assembled_inventory(LLVM_MC,None)
-        self.assertEqual(len(manifest['fragments']),29)
-        self.assertEqual(manifest['total_independently_assembled_executable_bytes'],2328)
-        self.assertEqual(sum(map(len,regions.values())),2328)
+        self.assertEqual(len(manifest['fragments']),30)
+        self.assertEqual(manifest['total_independently_assembled_executable_bytes'],2396)
+        self.assertEqual(sum(map(len,regions.values())),2396)
         self.assertEqual(manifest['gap_bytes_included_in_generated_executables'],0)
         self.assertFalse(manifest['complete_adsp_image'])
         self.assertEqual(manifest['external_original_code_bytes_in_output'],0)
@@ -339,7 +339,7 @@ class ADSPExternalsAndCodeTests(unittest.TestCase):
     def test_inventory_every_fragment_uses_correct_original(self):
         inventory,_outputs=adsp.assembled_inventory(LLVM_MC,Path(REFERENCE).read_bytes())
         self.assertTrue(all(x['reference_byte_identical'] for x in inventory['fragments']))
-        self.assertEqual(inventory['total_independently_assembled_executable_bytes'],2328)
+        self.assertEqual(inventory['total_independently_assembled_executable_bytes'],2396)
 
     @unittest.skipUnless(LLVM_MC and REFERENCE,
                          'Hexagon LLVM6 and exact pinned ADSP reference required')
@@ -353,7 +353,7 @@ class ADSPExternalsAndCodeTests(unittest.TestCase):
                 adsp.verify_slice(built,original,off)
                 total+=len(built)
                 ranges.append((off,off+size))
-        self.assertEqual(total,2328)
+        self.assertEqual(total,2396)
         ranges.sort()
         self.assertEqual(ranges[0],(0x39000,0x39054))
         self.assertEqual(ranges[-1],(0x3640a8,0x3640f8))
@@ -516,4 +516,26 @@ class ControllerHandoffTailTests(unittest.TestCase):
     @unittest.skipUnless(LLVM_MC and REFERENCE,'Exact ADSP reference and LLVM6 required')
     def test_handoff_fragment_matches_pinned_original(self):
         source,off,size=adsp.FRAGMENTS['controller-handoff-tail']
+        adsp.verify_slice(adsp.compile_source(LLVM_MC,source,size),Path(REFERENCE).read_bytes(),off)
+
+
+class ControllerShutdownTests(unittest.TestCase):
+    @unittest.skipUnless(LLVM_MC,'Hexagon LLVM6 assembler needed')
+    def test_conditional_before_after_callback_source(self):
+        source,off,size=adsp.FRAGMENTS['controller-shutdown']
+        self.assertEqual((off,size),(0x3afa0,68))
+        text=source.read_text()
+        for forbidden in ('.word ','.long ','.byte ','.fill ','.incbin '):
+            self.assertNotIn(forbidden,text)
+        self.assertIn('no_pre_callback:',text)
+        self.assertIn('return_empty:',text)
+        self.assertIn('call platform_cleanup',text)
+        self.assertIn('if (cmp.eq(r2.new,#0)) jump:nt no_pre_callback',text)
+        built=adsp.compile_source(LLVM_MC,source,size)
+        self.assertEqual(hashlib.sha256(built).hexdigest(),'bf3b1b5096280746287d320a30ba84f658edcc4fdea416d42046e2aceae1199a')
+        self.assertEqual(len(built),68)
+
+    @unittest.skipUnless(LLVM_MC and REFERENCE,'Private exact ADSP needed')
+    def test_controller_shutdown_exact_reference(self):
+        source,off,size=adsp.FRAGMENTS['controller-shutdown']
         adsp.verify_slice(adsp.compile_source(LLVM_MC,source,size),Path(REFERENCE).read_bytes(),off)

@@ -58,6 +58,7 @@ FRAGMENTS = {
     'return-mode-two': (TOOLS / 'adsp-late-return-mode-two.S', 0x3AB28, 0x04),
     'guarded-counter': (TOOLS / 'adsp-late-guarded-counter.S', 0x3AB2C, 0x40),
     'probe-callbacks': (TOOLS / 'adsp-late-probe-callbacks.S', 0x3AB6C, 0x48),
+    'controller-shutdown': (TOOLS / 'adsp-late-controller-shutdown.S', 0x3AFA0, 0x44),
 }
 
 class LateAdspError(ValueError):
