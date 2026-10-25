@@ -47,6 +47,7 @@ EFFECT_FIXTURES = (
     ("40b81c09", {"operation": "srli", "destination_register": 11, "source_register": 16, "shift": 7}),
     ("48000abb", {"operation": "j", "target_low25": 0x1576}),
     ("4900101a", {"operation": "jal", "target_low25": 0x2034}),
+    ("1032ffdb", {"operation": "sbi", "source_register": 3, "base_register": 5, "displacement": -37}),
 )
 
 
@@ -104,6 +105,20 @@ class TestListingValidation(unittest.TestCase):
             with self.subTest(text=bad), self.assertRaises(verifier.VerificationFailure):
                 verifier.parse_listing(bad, "postmarketos")
 
+    def test_checkpoint_counts_keep_shared_prefixes_and_profile_specific_ends(self):
+        shared = {0x6BC: (25, 16, 9, 5, 3), 0x79C: (117, 36, 81, 19, 13),
+                  0x95A: (292, 84, 208, 40, 20)}
+        for profile in ("postmarketos", "map220v"):
+            for end, counts in shared.items():
+                verifier.verify_checkpoint_counts(profile, end, counts)
+        verifier.verify_checkpoint_counts("postmarketos", 0xB1A, (455, 145, 310, 55, 29))
+        verifier.verify_checkpoint_counts("map220v", 0xB1C, (455, 146, 309, 54, 28))
+        for profile, end, counts in (("postmarketos", 0xB1C, (455, 146, 309, 54, 28)),
+                                     ("map220v", 0xB1A, (455, 145, 310, 55, 29)),
+                                     ("map220v", 0xB1C, (455, 145, 310, 55, 29))):
+            with self.subTest(profile=profile, end=end), self.assertRaises(verifier.VerificationFailure):
+                verifier.verify_checkpoint_counts(profile, end, counts)
+
 
 class TestControlFlow(unittest.TestCase):
     def test_ifcall9_literal_is_a_displacement_from_the_instruction_pc(self):
@@ -157,6 +172,24 @@ class TestExternalEffects(unittest.TestCase):
                 with self.subTest(operation=effect["operation"], mutated_bit=bit):
                     self.assertFalse(verifier.verify_effect(changed, effect))
 
+    def test_gp_effects_require_matching_base_signed_displacement_and_word_scale(self):
+        gp = 0x24000
+        # Independently assembled: lwi.gp r9,[-508]; swi.gp r11,[+260].
+        fixtures = (
+            ("3c9dff81", {"operation": "lwi.gp", "destination_register": 9, "address": gp - 508}),
+            ("3cbe0041", {"operation": "swi.gp", "source_register": 11, "address": gp + 260}),
+        )
+        for raw, effect in fixtures:
+            original = bytes.fromhex(raw)
+            self.assertTrue(verifier.verify_effect(original, effect, gp=gp))
+            self.assertFalse(verifier.verify_effect(original, effect, gp=gp + 4))
+            with self.assertRaisesRegex(verifier.VerificationFailure, "pinned profile GP"):
+                verifier.verify_effect(original, effect)
+            for bit in range(32):
+                changed = (int.from_bytes(original, "big") ^ (1 << bit)).to_bytes(4, "big")
+                with self.subTest(operation=effect["operation"], mutated_bit=bit):
+                    self.assertFalse(verifier.verify_effect(changed, effect, gp=gp))
+
     def test_unknown_or_truncated_effects_fail(self):
         with self.assertRaisesRegex(verifier.VerificationFailure, "truncated"):
             verifier.verify_effect(b"\0\0", {"operation": "movi"})
@@ -190,8 +223,46 @@ class TestExternalEffects(unittest.TestCase):
             verifier.control_flow(rows, 0x46A, 0x46E)
 
 
+class TestFreshProducts(unittest.TestCase):
+    def test_exit_zero_without_output_cannot_reuse_an_old_product(self):
+        with tempfile.TemporaryDirectory() as directory:
+            for name in ("generated.bin", "independent.o", "independent.elf", "independent.bin"):
+                output = Path(directory) / name
+                output.write_bytes(b"stale product")
+                with self.subTest(name=name), mock.patch.object(verifier, "run", return_value=""):
+                    with self.assertRaisesRegex(verifier.VerificationFailure, "without creating"):
+                        verifier.run_producing(["synthetic-producer"], output, {"commands": []})
+                self.assertFalse(output.exists())
+
+    def test_new_output_is_required_and_replaces_old_content(self):
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory) / "generated.bin"
+            output.write_bytes(b"old product")
+
+            def producer(command, report):
+                self.assertFalse(output.exists())
+                output.write_bytes(b"new product")
+                return "producer log"
+
+            with mock.patch.object(verifier, "run", side_effect=producer):
+                stdout = verifier.run_producing(["synthetic-producer"], output, {"commands": []})
+            self.assertEqual(stdout, "producer log")
+            self.assertEqual(output.read_bytes(), b"new product")
+
+    def test_protected_input_is_never_removed_as_a_stale_output(self):
+        with tempfile.TemporaryDirectory() as directory:
+            reference = Path(directory) / "reference.bin"
+            reference.write_bytes(b"reference fixture")
+            report = {"commands": [], "reference": {"path": str(reference)}}
+            with mock.patch.object(verifier, "run") as command:
+                with self.assertRaisesRegex(verifier.VerificationFailure, "protected input"):
+                    verifier.run_producing(["synthetic-producer"], reference, report)
+            command.assert_not_called()
+            self.assertEqual(reference.read_bytes(), b"reference fixture")
+
+
 class TestCliFailurePolicy(unittest.TestCase):
-    def synthetic_run(self, directory, skip, wrong_hash=False):
+    def synthetic_run(self, directory, skip, wrong_hash=False, omit_emission=False):
         """Exercise real main/report policy with a fake source emitter and pinned synthetic image."""
         image = bytearray(0x1200)
         struct.pack_into("<III", image, 0, 0x200, 0, 0xFFF)
@@ -209,10 +280,14 @@ class TestCliFailurePolicy(unittest.TestCase):
             if command[1] == "listing":
                 return source_listing
             self.assertEqual(command[1], "emit", "an external assembler must not run under --skip")
-            Path(command[3]).write_bytes(emitted)
+            if not omit_emission:
+                Path(command[3]).write_bytes(emitted)
             return ""
 
         output = directory / "report"
+        if omit_emission:
+            output.mkdir()
+            (output / "generated.bin").write_bytes(emitted)
         args = ["--reference", str(reference), "--profile", "postmarketos",
                 "--emitter", sys.executable, "--output-directory", str(output),
                 "--as", str(directory / "intentionally-missing-assembler")]
@@ -248,6 +323,14 @@ class TestCliFailurePolicy(unittest.TestCase):
         self.assertEqual(report["overall_status"], "failed")
         self.assertIn("whole-firmware", report["error"])
         self.assertEqual(calls, 0)
+
+    def test_successful_but_nonwriting_emitter_cannot_pass_using_a_prior_binary(self):
+        with tempfile.TemporaryDirectory() as directory:
+            code, report, calls = self.synthetic_run(Path(directory), skip=True, omit_emission=True)
+        self.assertEqual(code, 1)
+        self.assertEqual(report["overall_status"], "failed")
+        self.assertIn("without creating", report["error"])
+        self.assertEqual(calls, 2)
 
 
 if __name__ == "__main__":

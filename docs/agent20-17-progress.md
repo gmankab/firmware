@@ -145,11 +145,79 @@ Remaining exclusive postmarketOS assignment: **63,142 bytes**. Including
 the inherited prefix, adjacent emitted instruction spans total 1,290 bytes;
 the inherited semantic corrections remain outstanding.
 
-## Next work
+## Checkpoint 04 — Complete startup routine with distinct profile layouts
 
-Continue the startup routine beginning at file `0x95a`. It diverges in
-length between firmware profiles, so it requires explicit per-profile
-endpoints rather than assuming matching offsets. Preserve IFC state
-semantics and verify each referenced EX9 instruction independently. Agent 01
-should correct the inherited JRAL5 and compact-register defects; Agent 18
-owns independent EX9 table source.
+Added the startup routine beginning at file `0x95a`: 448 bytes for
+postmarketOS and 450 bytes for map220v. The routine inspects peripheral
+status, clears state, installs a descriptor pointer, calls the preceding
+diagnostic routine, copies descriptor bytes, swaps byte pairs through an
+explicit IFC tail, and dispatches the returned status. Numeric peripheral
+addresses retain their exact values without speculative hardware names.
+
+At runtime `0x828`, postmarketOS uses the two-byte `EX9 #444`, whose table
+effect is a GP-relative word store. map220v uses a four-byte `SWI.GP` at
+that position. Every subsequent map220v instruction location and local
+branch target is explicitly shifted by two bytes. The emitter, comparison,
+listing metadata, and verifier now use profile-specific endpoints.
+
+| Quantity | PostmarketOS | map220v |
+| --- | ---: | ---: |
+| Cumulative file interval | `[0x66a,0xb1a)` | `[0x66a,0xb1c)` |
+| Cumulative runtime interval | `[0x46a,0x91a)` | `[0x46a,0x91c)` |
+| Generated executable bytes | **1,200** | **1,202** |
+| Instructions | 455 | 455 |
+| Four-byte / two-byte instructions | 145 / 310 | 146 / 309 |
+| Metadata/data bytes | 0 | 0 |
+| Layout/fill bytes | 0 | 0 |
+| External bytes copied into generated span | 0 | 0 |
+| Reference byte mismatches | **0** | **0** |
+| GNU/Rust byte mismatches | **0** | **0** |
+| EX9 uses / distinct table entries | 55 / 29 | 54 / 28 |
+| External Agent 18 table dependency bytes | 116 | 112 |
+
+All external table dependency bytes contribute **zero** Agent 17 source
+coverage. Each profile has 16 verified EX9 control-transfer uses and
+27 control-flow edges outside the emitted interval; targets are recorded
+in the verification JSON. The report distinguishes these checked edges
+from a complete IFC-state or hardware model.
+
+| Profile | SHA-256 of complete generated span |
+| --- | --- |
+| postmarketOS | `d46efb9d0f33d90e96f4339352b4c408384548b5da06b45de6d37c2cbf30e2e2` |
+| map220v | `b5b86148494d47c1ff40466740eeb8f7e59671652510f2d99e3962976ed8d53b` |
+
+Required gates: **209 Rust tests and 35 Python tests passed, zero skipped**;
+offline locked release build and `git diff --check` passed. Unmodified
+GNU binutils 2.25.1 independently assembled and decoded all 455 instructions
+for each profile. The verified release emitter SHA-256 is
+`39712931515f6281adcc9acf7af761e6af162ad9e3f58e8076370bf2b21fcb1a`.
+Detailed reports and logs are under `verification/agent20-17/checkpoint04-*`.
+
+New regression cases cover the layout divergence, GP/immediate alignment
+and range checks, compact register limits, and multi-register masks. Review
+also found a verifier robustness issue: a successful command that wrote no
+new output could leave a stale artifact eligible for verification. Every
+producer now removes its expected output first and must create a fresh
+file; regression tests cover that failure mode and protect input files.
+The preceding helper's control-word comment now states the exact OR
+operation without assuming the caller's high byte was zero.
+
+First uncovered postmarketOS file offset: **`0xb1a`**, runtime **`0x91a`**.
+The map220v comparison first uncovered address is file **`0xb1c`**, runtime
+**`0x91c`**. Both are complete routine boundaries. **62,694 bytes** of the
+exclusive postmarketOS assignment remain. The full assigned lower ILM has
+not been reconstructed. No hardware-execution or flashability claim is made.
+
+## Next work and integration handoff
+
+Continue with the small setter at postmarketOS runtime `0x91a` / map220v
+`0x91c`. The postmarketOS routine at `0x922` has no corresponding map220v
+block, so later code needs a new explicit profile mapping; a uniform
+two-byte shift must not be extrapolated past that divergence.
+
+Agent 01 should integrate this portable contribution into its verified
+checkpoint-50-based history and correct the inherited JRAL5 and compact
+register defects documented in the accompanying audit. Agent 18 owns the
+EX9 table source and its separately counted dependencies. The published
+checkpoint-50-based merged history remains an outstanding integration
+dependency; applying a portable patch alone does not establish that base.

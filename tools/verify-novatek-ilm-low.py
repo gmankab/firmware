@@ -39,15 +39,24 @@ PROFILES = {
             0x36: {"operation": "movi", "destination_register": 3, "immediate": 0x55},
             0x3A: {"operation": "movi", "destination_register": 2, "immediate": 0x3F04A},
             0x3C: {"operation": "movi", "destination_register": 2, "immediate": 0x55},
+            0x3F: {"operation": "lwi.gp", "destination_register": 0, "address": 0x2C510},
             0x53: {"operation": "movi", "destination_register": 1, "immediate": 0x3F04A},
+            0x58: {"operation": "jal", "target_low25": 0x2CEC},
             0x66: {"operation": "andi", "destination_register": 6, "source_register": 6, "immediate": 0x7FFF},
             0x68: {"operation": "movi", "destination_register": 0, "immediate": 0x2FEF0},
             0x6A: {"operation": "ori", "destination_register": 0, "source_register": 0, "immediate": 1},
             0x7D: {"operation": "mtsr", "source_register": 0, "csr": 0xC1, "csr_name": "int_mask2"},
+            0xA1: {"operation": "movi", "destination_register": 0, "immediate": 0x20000},
+            0xAF: {"operation": "movi", "destination_register": 1, "immediate": 0x2FE50},
+            0xDC: {"operation": "swi.gp", "source_register": 0, "address": 0x2C580},
             0x11A: {"operation": "movi", "destination_register": 0, "immediate": 0x2FEF1},
             0x121: {"operation": "andi", "destination_register": 0, "source_register": 0, "immediate": 0xF0},
             0x162: {"operation": "mtsr", "source_register": 0, "csr": 0xC2, "csr_name": "int_mask3"},
             0x166: {"operation": "srli", "destination_register": 0, "source_register": 6, "shift": 8},
+            0x18C: {"operation": "sbi", "source_register": 1, "base_register": 0, "displacement": 0x3C},
+            0x1A4: {"operation": "movi", "destination_register": 0, "immediate": 0x3F00E},
+            0x1AF: {"operation": "ori", "destination_register": 0, "source_register": 0, "immediate": 8},
+            0x1BC: {"operation": "swi.gp", "source_register": 0, "address": 0x2C58C},
             0x1C5: {"operation": "movi", "destination_register": 0, "immediate": 0x2FE60},
         },
     },
@@ -68,15 +77,23 @@ PROFILES = {
             0x28: {"operation": "movi", "destination_register": 2, "immediate": 0x55},
             0x31: {"operation": "movi", "destination_register": 3, "immediate": 0x55},
             0x36: {"operation": "movi", "destination_register": 2, "immediate": 0x3F04A},
+            0x3F: {"operation": "lwi.gp", "destination_register": 0, "address": 0x2C4E8},
             0x40: {"operation": "movi", "destination_register": 1, "immediate": 0x3F04A},
             0x43: {"operation": "ori", "destination_register": 0, "source_register": 0, "immediate": 1},
+            0x5B: {"operation": "jal", "target_low25": 0x2BA4},
             0x65: {"operation": "andi", "destination_register": 6, "source_register": 6, "immediate": 0x7FFF},
             0x66: {"operation": "movi", "destination_register": 0, "immediate": 0x2FEF0},
             0x7A: {"operation": "mtsr", "source_register": 0, "csr": 0xC1, "csr_name": "int_mask2"},
+            0x9D: {"operation": "movi", "destination_register": 0, "immediate": 0x20000},
+            0xAC: {"operation": "movi", "destination_register": 1, "immediate": 0x2FE50},
+            0xB4: {"operation": "ori", "destination_register": 0, "source_register": 0, "immediate": 8},
+            0xDA: {"operation": "swi.gp", "source_register": 0, "address": 0x2C558},
             0x11D: {"operation": "movi", "destination_register": 0, "immediate": 0x2FEF1},
             0x121: {"operation": "andi", "destination_register": 0, "source_register": 0, "immediate": 0xF0},
             0x16D: {"operation": "mtsr", "source_register": 0, "csr": 0xC2, "csr_name": "int_mask3"},
             0x173: {"operation": "srli", "destination_register": 0, "source_register": 6, "shift": 8},
+            0x190: {"operation": "sbi", "source_register": 1, "base_register": 0, "displacement": 0x3C},
+            0x1AD: {"operation": "movi", "destination_register": 0, "immediate": 0x3F00E},
             0x1C3: {"operation": "movi", "destination_register": 0, "immediate": 0x2FE60},
         },
     },
@@ -87,24 +104,27 @@ ASSIGNED_END = 0x10000
 ILM_FILE_BASE = 0x200
 # Semantic operands above are explicit expectations, not instruction-table
 # byte snapshots. The table remains a comparison-only external dependency.
-CHECKPOINT_COUNTS = {
+COMMON_CHECKPOINT_COUNTS = {
     # file end: (instructions, 32-bit, 16-bit, EX9 uses, distinct EX9 entries)
     0x6BC: (25, 16, 9, 5, 3),
     0x79C: (117, 36, 81, 19, 13),
     0x95A: (292, 84, 208, 40, 20),
 }
+CHECKPOINT_COUNTS = {profile: dict(COMMON_CHECKPOINT_COUNTS) for profile in PROFILES}
+CHECKPOINT_COUNTS["postmarketos"][0xB1A] = (455, 145, 310, 55, 29)
+CHECKPOINT_COUNTS["map220v"][0xB1C] = (455, 146, 309, 54, 28)
 SUPPORTED_MNEMONICS = {
     2: frozenset({
         "addi45", "beqs38", "bnes38", "beqz38", "bnez38", "beqzs8", "bnezs8",
         "bmski33", "ex9.it", "ifcall9", "ifret16", "j8", "jr5", "jral5",
-        "lbi333", "lwi333", "lwi37", "lwi450", "mov55", "movi55", "or33",
-        "pop25", "push25", "ret5", "sbi333", "shi333", "srli45", "subi45",
+        "lbi333", "lhi333", "lwi333", "lwi37", "lwi450", "mov55", "movi55", "movpi45", "or33",
+        "pop25", "push25", "ret5", "sbi333", "seb33", "shi333", "slti45", "srli45", "subi333", "subi45",
         "swi450", "xlsb33", "zeb33", "zeh33",
     }),
     4: frozenset({
-        "add_slli", "addi", "andi", "beqc", "bitci", "bnec", "bset", "dsb",
-        "ifcall", "j", "jal", "jr", "jral", "lb", "lwi.gp", "mfsr", "movi",
-        "mtsr", "or_slli", "ori", "sb", "sbi.gp", "sethi", "sll", "srli",
+        "add_slli", "addi", "andi", "beqc", "beqz", "bitci", "bnec", "bset", "dsb",
+        "ifcall", "j", "jal", "jr", "jral", "lb", "lbi.gp", "lmw.bim", "lwi", "lwi.gp", "mfsr", "movi",
+        "mtsr", "or_slli", "ori", "sb", "sbi", "sbi.gp", "sethi", "sll", "smw.adm", "srli", "swi.gp",
     }),
 }
 # No directives, labels, strings, statement separators or assembler comments.
@@ -141,6 +161,19 @@ def run(command, report):
     require(proc.returncode == 0,
             f"command failed ({proc.returncode}): {record['argv'][0]}: {proc.stderr.strip()}")
     return proc.stdout
+
+
+def run_producing(command, output, report, inputs=()):
+    """Require a fresh product even when a producer incorrectly exits zero."""
+    output = Path(output)
+    protected = [report.get("reference", {}).get("path"), report.get("emitter", {}).get("path"),
+                 command[0], *inputs]
+    require(all(output.resolve() != Path(path).resolve() for path in protected if path is not None),
+            f"tool output would overwrite a protected input: {output}")
+    output.unlink(missing_ok=True)
+    stdout = run(command, report)
+    require(output.is_file(), f"command succeeded without creating its output: {output}")
+    return stdout
 
 
 def executable(value):
@@ -252,7 +285,12 @@ def compare_bytes(actual, expected, file_start, description):
     return result
 
 
-def verify_effect(table_bytes, effect):
+def signed_field(word, bits):
+    value = word & ((1 << bits) - 1)
+    return value - (1 << bits) if value & (1 << (bits - 1)) else value
+
+
+def verify_effect(table_bytes, effect, gp=None):
     """Check documented operand fields against the expected effect, not copied opcode constants."""
     require(len(table_bytes) == 4, "truncated EX9 dependency entry")
     word = int.from_bytes(table_bytes, "big")
@@ -266,11 +304,8 @@ def verify_effect(table_bytes, effect):
                 and (word >> 15 & 31) == effect["source_register"]
                 and (word & 0x7FFF) == effect["immediate"])
     if operation == "movi":
-        immediate = word & 0xFFFFF
-        if immediate & 0x80000:
-            immediate -= 1 << 20
         return ((word >> 25) == 0x22 and (word >> 20 & 31) == effect["destination_register"]
-                and immediate == effect["immediate"])
+                and signed_field(word, 20) == effect["immediate"])
     if operation == "srli":
         return ((word >> 25) == 0x20 and (word >> 20 & 31) == effect["destination_register"]
                 and (word >> 15 & 31) == effect["source_register"]
@@ -278,6 +313,20 @@ def verify_effect(table_bytes, effect):
     if operation in {"j", "jal"}:
         return ((word >> 25) == 0x24 and (word >> 24 & 1) == (operation == "jal")
                 and (word & 0xFFFFFF) << 1 == effect["target_low25"])
+    if operation in {"lwi.gp", "swi.gp"}:
+        require(gp is not None and 0 <= gp <= 0xFFFFFFFF,
+                "GP-relative EX9 effect requires the pinned profile GP")
+        load = operation == "lwi.gp"
+        register = effect["destination_register" if load else "source_register"]
+        # HWGP selectors 6/7 carry a signed 17-bit word displacement.
+        # GNU 2.25.1 opcodes/nds32-asm.c: lwi.gp/swi.gp, operand i17s2.
+        address = (gp + signed_field(word, 17) * 4) & 0xFFFFFFFF
+        return ((word >> 25) == 0x1E and (word >> 20 & 31) == register
+                and (word >> 17 & 7) == (6 if load else 7) and address == effect["address"])
+    if operation == "sbi":
+        return ((word >> 25) == 0x8 and (word >> 20 & 31) == effect["source_register"]
+                and (word >> 15 & 31) == effect["base_register"]
+                and signed_field(word, 15) == effect["displacement"])
     raise VerificationFailure(f"unsupported expected EX9 effect: {operation}")
 
 
@@ -311,7 +360,7 @@ def inspect_ex9(reference, profile, metadata, instructions):
         table_runtime = metadata["itb"] + 4 * index
         table_file = table_runtime + ILM_FILE_BASE
         table_bytes = reference[table_file:table_file + 4]
-        require(verify_effect(table_bytes, effect),
+        require(verify_effect(table_bytes, effect, gp=PROFILES[profile]["gp"]),
                 f"EX9 index 0x{index:x} at table file 0x{table_file:x} does not match expected {effect}")
         use = {"runtime_address": instruction["runtime_address"], "file_offset": instruction["file_offset"],
                "index": index, "expected_effect": effect}
@@ -327,8 +376,19 @@ def inspect_ex9(reference, profile, metadata, instructions):
             "external_reference_bytes": 4 * len(entries), "source_owner": "Agent 18",
             "control_transfer_uses": sum("target_runtime_address" in use for use in uses),
             "jump_semantics_source": GNU_NDS32_SOURCE,
+            "gp_assumption": PROFILES[profile]["gp"],
             "counted_as_agent17_reconstructed_bytes": 0, "use_sites": uses,
             "entries": [entries[i] for i in sorted(entries)]}
+
+
+def verify_checkpoint_counts(profile, file_end, counts):
+    expected = CHECKPOINT_COUNTS[profile]
+    known_ends = {end for checkpoints in CHECKPOINT_COUNTS.values() for end in checkpoints}
+    require(file_end not in known_ends or file_end in expected,
+            f"checkpoint end 0x{file_end:x} belongs to a different firmware profile")
+    if file_end in expected:
+        require(tuple(counts) == expected[file_end],
+                f"{profile} checkpoint ending at file 0x{file_end:x} changed instruction/dependency accounting unexpectedly")
 
 
 def control_flow(instructions, start, end, ex9_dependencies=None):
@@ -429,9 +489,12 @@ def independent_check(args, directory, metadata, instructions, emitted, report):
     obj = directory / "independent.o"
     elf = directory / "independent.elf"
     binary = directory / "independent.bin"
-    run([paths["assembler"], "-march=v3", "-mno-all-relax", "-EL", "-mall-ext", "-o", obj, source], report)
-    run([paths["linker"], "--no-relax", "-T", linker_script, "-o", elf, obj], report)
-    run([paths["objcopy"], "-O", "binary", "-j", ".text", elf, binary], report)
+    run_producing([paths["assembler"], "-march=v3", "-mno-all-relax", "-EL", "-mall-ext", "-o", obj, source],
+                  obj, report, inputs=(source,))
+    run_producing([paths["linker"], "--no-relax", "-T", linker_script, "-o", elf, obj],
+                  elf, report, inputs=(linker_script, obj))
+    run_producing([paths["objcopy"], "-O", "binary", "-j", ".text", elf, binary],
+                  binary, report, inputs=(elf,))
     comparison = compare_bytes(binary.read_bytes(), emitted, metadata["file_start"], "independent assembly")
     disassembly = run([paths["objdump"], "-d", "-z", elf], report)
     (directory / "independent-disassembly.txt").write_text(disassembly)
@@ -471,7 +534,7 @@ def verify(args, report):
     metadata, instructions = parse_listing(listing, args.profile)
     emitted_path = directory / "generated.bin"
     require(emitted_path != reference_path, "output would overwrite the original reference")
-    run([emitter, "emit", args.profile, emitted_path], report)
+    run_producing([emitter, "emit", args.profile, emitted_path], emitted_path, report)
     (directory / "source-listing.tsv").write_text(listing)
     emitted = emitted_path.read_bytes()
     reference_span = data[metadata["file_start"]:metadata["file_end"]]
@@ -485,10 +548,9 @@ def verify(args, report):
                         "metadata_bytes": 0, "layout_fill_bytes": 0, "external_bytes_in_generated_span": 0}
     report["instructions"] = instructions
     report["ex9_dependencies"] = inspect_ex9(data, args.profile, metadata, instructions)
-    if metadata["file_end"] in CHECKPOINT_COUNTS:
-        require((len(instructions), widths[4], widths[2], report["ex9_dependencies"]["uses"],
-                 report["ex9_dependencies"]["distinct_entries"]) == CHECKPOINT_COUNTS[metadata["file_end"]],
-                f"checkpoint ending at file 0x{metadata['file_end']:x} changed instruction/dependency accounting unexpectedly")
+    verify_checkpoint_counts(args.profile, metadata["file_end"],
+                             (len(instructions), widths[4], widths[2], report["ex9_dependencies"]["uses"],
+                              report["ex9_dependencies"]["distinct_entries"]))
     report["control_flow"] = control_flow(instructions, report["interval"]["runtime_start"],
                                           report["interval"]["runtime_end"], report["ex9_dependencies"])
     report["independent_assembly"] = independent_check(args, directory, metadata, instructions, emitted, report)

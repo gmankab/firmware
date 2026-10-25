@@ -99,6 +99,16 @@ Primary implementation discussions and sources:
 - GNU assembler BEQZS8 relaxation to `beqz r15`:
   https://gnu.googlesource.com/binutils-gdb/+/3fb6f5457e5b53fdb73a98a24b3764e821e8ccc5/gas/config/tc-nds32.c
 
+The Andes-maintained simulator also supplies direct implementation evidence:
+https://github.com/nds32/gdb/blob/master/sim/nds32/interp.c
+Its `ifcall9` handler preserves IFCLP when chaining an already-active inline
+call; otherwise it saves the following halfword address. The `mov55 or
+ifret16` handler branches through IFCLP and clears IFCON only when IFCON
+was set. Agent 17 therefore retains explicit IFC instructions and does not
+replace these shared tails with ordinary call/return assumptions. The
+verification report records this limitation; it does not emulate full IFC
+state through each routine.
+
 ## Address and GP accounting
 
 The reference ILM descriptor maps file offset `0x200` to SRAM address zero.

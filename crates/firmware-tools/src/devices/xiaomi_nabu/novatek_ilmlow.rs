@@ -8,9 +8,12 @@ pub mod isa;
 mod helpers;
 #[path="novatek_ilmlow_diagnostic.rs"]
 mod diagnostic;
+#[path="novatek_ilmlow_startup.rs"]
+mod startup;
 use isa::{Csr,Insn,Reg,R0,R1,R2};
 pub const FILE_START: usize = 0x66a;
-pub const FILE_END: usize = 0x95a;
+/// Endpoint of the authoritative postmarketOS interval.
+pub const FILE_END: usize = 0xb1a;
 pub const ILM_FILE_BASE: usize = 0x200;
 pub const ASSIGNED_END: usize = 0x10000;
 
@@ -21,6 +24,7 @@ impl Profile {
     pub fn name(self)->&'static str{match self{Self::Postmarketos=>"postmarketos",Self::Map220v=>"map220v"}}
     pub fn gp(self)->u32{match self{Self::Postmarketos=>0x2d9e0,Self::Map220v=>0x2d7f0}}
     pub fn itb(self)->u32{match self{Self::Postmarketos=>0x17bc0,Self::Map220v=>0x17010}}
+    pub fn file_end(self)->usize{match self{Self::Postmarketos=>FILE_END,Self::Map220v=>0xb1c}}
     pub fn reference_sha256(self)->&'static str{match self{
         Self::Postmarketos=>"8b845514621ebfd95759a0919f3aa3d825314abb478a7cad1c3fb4c6872b70b5",
         Self::Map220v=>"72364eca0a91855d59e043371aca774354e5ad0885df5024edcec8f976543ad2"}}
@@ -67,6 +71,7 @@ pub fn program(profile:Profile)->Vec<Located>{
     let mut instructions:Vec<_>=source.into_iter().map(|(pc,instruction)|Located{pc,instruction}).collect();
     instructions.extend(helpers::instructions(profile));
     instructions.extend(diagnostic::instructions(profile));
+    instructions.extend(startup::instructions(profile));
     instructions
 }
 pub fn build(profile:Profile)->Result<Vec<u8>,String>{
@@ -76,11 +81,11 @@ pub fn build(profile:Profile)->Result<Vec<u8>,String>{
         if instruction.pc as usize!=expected{return Err(format!("source gap/overlap at runtime 0x{expected:x}"));}
         output.extend(instruction.instruction.encode(instruction.pc,profile.gp())?);
     }
-    if FILE_START+output.len()!=FILE_END || FILE_END>ASSIGNED_END{return Err("invalid source interval".into());}
+    if FILE_START+output.len()!=profile.file_end() || profile.file_end()>ASSIGNED_END{return Err("invalid source interval".into());}
     Ok(output)
 }
 pub fn compare(firmware:&[u8],profile:Profile)->Result<(),String>{
-    let expected=firmware.get(FILE_START..FILE_END).ok_or("truncated Novatek reference")?;
+    let expected=firmware.get(FILE_START..profile.file_end()).ok_or("truncated Novatek reference")?;
     let actual=build(profile)?;
     if let Some(i)=actual.iter().zip(expected).position(|(a,b)|a!=b){return Err(format!("byte mismatch at file 0x{:x}",FILE_START+i));}
     Ok(())
@@ -90,12 +95,27 @@ mod tests{
     use super::*;
     #[test]fn source_intervals_and_profile_selection(){
         let p=build(Profile::Postmarketos).unwrap();let m=build(Profile::Map220v).unwrap();
-        assert_eq!(p.len(),752);assert_eq!(m.len(),752);assert_ne!(p,m);
+        assert_eq!(p.len(),1200);assert_eq!(m.len(),1202);assert_ne!(p,m);
         assert!(Profile::parse("unknown").is_err());
         let mut f=vec![0;FILE_END];f[FILE_START..FILE_END].copy_from_slice(&p);
         assert!(compare(&f,Profile::Postmarketos).is_ok());
         assert!(compare(&f,Profile::Map220v).is_err());
         f[FILE_START+20]^=1;assert!(compare(&f,Profile::Postmarketos).is_err());
         assert!(compare(&f[..FILE_END-1],Profile::Postmarketos).is_err());
+    }
+    #[test]fn startup_profile_width_change_relocates_targets(){
+        let p=program(Profile::Postmarketos);let m=program(Profile::Map220v);
+        let at=|items:&Vec<Located>,pc|items.iter().find(|i|i.pc==pc).unwrap().instruction;
+        assert_eq!(at(&p,0x828),Insn::Ex9(444));
+        assert_eq!(at(&m,0x828),Insn::StoreWordGp{source:R0,address:0x2c564});
+        assert_eq!(at(&p,0x79e),Insn::BranchZeroWide{reg:R1,nonzero:false,target:0x8a8});
+        assert_eq!(at(&m,0x79e),Insn::BranchZeroWide{reg:R1,nonzero:false,target:0x8aa});
+        assert_eq!(at(&p,0x88e),Insn::InlineCall{target:0x898});
+        assert_eq!(at(&m,0x890),Insn::InlineCall{target:0x89a});
+        assert_eq!(p.last().unwrap().pc,0x918);assert_eq!(m.last().unwrap().pc,0x91a);
+        let mut f=vec![0;Profile::Map220v.file_end()];
+        f[FILE_START..].copy_from_slice(&build(Profile::Map220v).unwrap());
+        assert!(compare(&f,Profile::Map220v).is_ok());
+        assert!(compare(&f,Profile::Postmarketos).is_err());
     }
 }

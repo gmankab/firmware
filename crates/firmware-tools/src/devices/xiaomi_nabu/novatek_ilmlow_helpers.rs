@@ -34,8 +34,8 @@ pub fn instructions(profile:Profile)->Vec<Located>{
         (0x4e8,Return{reg:LP}),
         // Separate empty leaf at the next halfword.
         (0x4ea,Return{reg:LP}),
-        // Configure a controller transfer while preserving the high control
-        // byte. IFCALL9 shares the polling setup at 0x526; IFRET16 is a
+        // OR the old control word's high byte into the caller's r0 value,
+        // then configure the transfer. IFCALL9 shares setup at 0x526; IFRET16 is a
         // conditional IFC-state return, not a conventional unconditional RET.
         (0x4ec,MoveImmediate{dest:R4,value:0x3f114}),
         (0x4f0,WordAtRegister{store:false,reg:R3,base:R4}),
