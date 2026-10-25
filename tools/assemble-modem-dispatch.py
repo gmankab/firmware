@@ -11,7 +11,7 @@ import sys
 import tempfile
 
 FILE_START = 0x3644
-FILE_END = 0x3900
+FILE_END = 0x39c8
 CONTIGUOUS_START = 0x3000
 LENGTH = FILE_END - FILE_START
 PREFIX_LENGTH = FILE_START - CONTIGUOUS_START
@@ -25,6 +25,7 @@ text_from_object = runpy.run_path(str(Path(__file__).with_name('assemble-modem-t
 # refusing to handle any unexpected instruction class or packet marker.
 PREDICATE_LOOKUP_PACKETS = (0x3710, 0x3758, 0x37a0, 0x37e8)
 PREDICATE_BRANCH_PACKETS = (0x3814,)
+IMMEDIATE_BEFORE_BRANCH_PACKETS = (0x39a0,)
 MARKER_MASK = 3 << 14
 CONTINUE = 1 << 14
 END_PACKET = 3 << 14
@@ -50,6 +51,15 @@ def restore_predicate_order(data: bytes) -> bytes:
         if [branch & MARKER_MASK,comparison & MARKER_MASK] != [CONTINUE,END_PACKET]:
             raise ValueError(f'unexpected conditional branch packet markers at {addr:#x}')
         words[at:at+2] = [(comparison & ~MARKER_MASK)|CONTINUE,
+                          (branch & ~MARKER_MASK)|END_PACKET]
+    for addr in IMMEDIATE_BEFORE_BRANCH_PACKETS:
+        at=(addr-FILE_START)//4
+        branch, extender, destination = words[at:at+3]
+        if (branch >> 24) != 0x10 or (extender >> 24) != 0x0c or (destination >> 24) != 0x78:
+            raise ValueError(f'unexpected constant-load/jump instruction class at {addr:#x}')
+        if [w & MARKER_MASK for w in (branch, extender, destination)] != [CONTINUE,CONTINUE,END_PACKET]:
+            raise ValueError(f'unexpected constant-load/jump markers at {addr:#x}')
+        words[at:at+3] = [extender, (destination & ~MARKER_MASK)|CONTINUE,
                           (branch & ~MARKER_MASK)|END_PACKET]
     return struct.pack('<'+'I'*len(words),*words)
 

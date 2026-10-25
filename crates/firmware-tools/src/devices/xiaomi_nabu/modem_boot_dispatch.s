@@ -273,3 +273,77 @@ HEX_PHYSICAL_WORD_LOAD 2,0,1
  r2 = asl(r2,#16)
  memw(r25+##-1064935420) = r2.new
 }
+// Fault-status initialization. Respect S42 hardware gating and only
+// enable the translated-address cache when controller probes have succeeded.
+HEX_SYSTEM_READ 10,42
+.set skip_fault_status_probe, modem_boot_dispatch+0x304
+{
+ p0 = tstbit(r10,#2)
+ if (!p0.new) jump:t skip_fault_status_probe
+}
+HEX_SYSTEM_READ 1,27,1
+{ r3 = #0 }
+{ r1 = insert(r3,#12,#20) }
+{
+ r1 = asl(r1,#5)
+ r0 = #8
+}
+HEX_PHYSICAL_WORD_LOAD 1,0,1
+{ r1 = insert(r3,#12,#20) }
+{
+ r1 = asl(r1,#5)
+ r0 = #24
+}
+{ r1 = add(r1,#-256) }
+HEX_PHYSICAL_WORD_LOAD 1,0,1
+{ r2 = memw(r25+##-1061985012) }
+{ r0 = and(r1,r2) }
+.set test_cache_probe_done, modem_boot_dispatch+0x314
+{ p0 = cmp.eq(r0,#0); if (p0.new) jump:t test_cache_probe_done }
+{ r1 = #1 }
+HEX_SYSTEM_WRITE 42,1
+{ isync }
+{ brkpt }
+test_cache_probe_done:
+{
+ r0 = #18
+ memw(r25+##-1065353148) = r0.new
+}
+.set vector_remap_done, modem_boot_dispatch+0x33c
+{
+ r5 = memw(r25+##-1064935400)
+ if (cmp.eq(r5.new,#0)) jump:t vector_remap_done
+}
+{ p0 = tstbit(r5,#0) }
+{ if (p0) r5 = add(r5,#-1) }
+{ if (p0) r5 = add(r5,r24) }
+{ callr r5 }
+vector_remap_done:
+HEX_SYSTEM_READ 0,18
+{ r0 = setbit(r0,#2) }
+HEX_SYSTEM_WRITE 18,0
+{ isync }
+// Relocate the initial 64-bit word stream into staged memory. The copy loop
+// processes one 8-byte pair per packet and branches only while the source
+// pointer has not reached the end of the mapped segment.
+{
+ r0 = ##88080384
+ r2 = ##-1065201664
+}
+.set memory_map_done, modem_boot_dispatch+0x384
+{
+ r1 = ##-1065287680
+ p0 = cmp.eq(r0,#0); if (p0.new) jump:nt memory_map_done
+}
+{ p0 = cmp.eq(r1,r2); if (p0.new) jump:nt memory_map_done }
+{
+ r1 = add(r1,r25)
+ r2 = add(r2,r25)
+}
+{ r5:4 = memd(r1++#8) }
+initial_memory_copy:
+{
+ p0 = cmp.eq(r1,r2); if (!p0.new) jump:t initial_memory_copy
+ r5:4 = memd(r1++#8)
+ memd(r0++#8) = r5:4
+}

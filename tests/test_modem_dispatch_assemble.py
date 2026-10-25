@@ -12,10 +12,10 @@ SPEC.loader.exec_module(modem)
 class DispatchChecks(unittest.TestCase):
     def test_contiguous_size(self):
         self.assertEqual(modem.FILE_START,0x3644)
-        self.assertEqual(modem.FILE_END,0x3900)
-        self.assertEqual(modem.LENGTH,700)
+        self.assertEqual(modem.FILE_END,0x39c8)
+        self.assertEqual(modem.LENGTH,900)
         self.assertEqual(modem.PREFIX_LENGTH,1604)
-        self.assertEqual(modem.LENGTH+modem.PREFIX_LENGTH,2304)
+        self.assertEqual(modem.LENGTH+modem.PREFIX_LENGTH,2504)
 
     def test_rejects_wrong_revision(self):
         with self.assertRaisesRegex(ValueError,'wrong modem reference'):
@@ -23,6 +23,7 @@ class DispatchChecks(unittest.TestCase):
 
     def test_all_packet_sites_are_inside_reconstructed_source(self):
         self.assertEqual(modem.PREDICATE_BRANCH_PACKETS,(0x3814,))
+        self.assertEqual(modem.IMMEDIATE_BEFORE_BRANCH_PACKETS,(0x39a0,))
         self.assertEqual(modem.PREDICATE_LOOKUP_PACKETS,
                          (0x3710, 0x3758, 0x37a0, 0x37e8))
         self.assertTrue(all(modem.FILE_START <= pc < modem.FILE_END for pc in modem.PREDICATE_LOOKUP_PACKETS))
@@ -37,6 +38,7 @@ class DispatchChecks(unittest.TestCase):
         self.assertIn('if (p0.new) memw(r23+#0) = r0',text)
         self.assertIn('HEX_PHYSICAL_WORD_LOAD 2,0,1', text)
         self.assertIn('r2 = asl(r2,#16)', text)
+        self.assertIn('memd(r0++#8) = r5:4', text)
         self.assertNotIn('.incbin',text)
 
 if __name__=='__main__':unittest.main()
