@@ -336,3 +336,27 @@ is **1,360 bytes across five intervals**: `[0x7c000,0x7c0a0)` 160,
 `[0x446200,0x446254)` 84, and `[0x446260,0x446420)` 448.
 Byte-for-byte comparison passes against pinned original `modem.mbn`.
 Next candidate is the separate list/registry lookup routine `[0x446420,0x446488)`.
+
+## Checkpoint 11: auxiliary controller registry lookup and notification
+
+Added **104 independently assembled Hexagon V60 bytes** at modem file
+`[0x446420,0x446488)` (ELF vaddr `[0x1e400420,0x1e400488)`, physical
+`[0x90000420,0x90000488)`). The named source reconstructs a linked-object
+lookup, identity and refcount check, optional diagnostic callback through a
+function pointer, and platform lookup notification.
+
+LLVM6 emits a standalone `r0=r16` immediately before the architectural
+duplex frame-restore/dealloc-return instruction, whereas the original compiler
+marks `r0=r16` as a packet continuation. The checked
+`restore_aux_lookup_return_packet` validates the 104-byte length,
+instruction class and Hexagon packet-marker positions and changes only the
+one parse field. Negative tests reject malformed classes, markers and length.
+
+The contiguous auxiliary service/control/heap/worker/lookup region is now
+`[0x446260,0x446488)` = **552 bytes**; the aggregate later-modem verified
+executable coverage is **1,464 bytes** in five disjoint spans. The 552-byte
+fragment has SHA-256
+`eff34c8ff5dc3f6cb6efc1970752a3aa463f6019d2d11423a265c25e7a857a1e`.
+All source-created bytes match the SHA-pinned modem reference; no vendor
+binary slices, certificate blobs or authentication keys are embedded. The
+next independent routine starts at file `0x446488`.

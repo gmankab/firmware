@@ -31,6 +31,7 @@ SERVICE_FLAGS_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/mod
 SERVICE_ALLOC_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_service_alloc.s"
 AUX_HEAP_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_aux_heap.s"
 AUX_WORKER_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_aux_worker.s"
+AUX_LOOKUP_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_aux_registry_lookup.s"
 ATOMIC_START = 0x7C000
 ATOMIC_END = 0x7C040
 SERVICE_START = 0x7C2EC
@@ -57,6 +58,8 @@ AUX_HEAP_START = 0x4462F8
 AUX_HEAP_END = 0x4463B4
 AUX_WORKER_START = 0x4463B4
 AUX_WORKER_END = 0x446420
+AUX_LOOKUP_START = 0x446420
+AUX_LOOKUP_END = 0x446488
 MARKER_MASK = 3 << 14
 CONTINUE_MARKER = 1 << 14
 END_MARKER = 3 << 14
@@ -333,6 +336,29 @@ def restore_aux_worker_packets(assembled: bytes) -> bytes:
     return struct.pack("<27I",*words)
 
 
+def restore_aux_lookup_return_packet(assembled: bytes) -> bytes:
+    """Rejoin a valid scalar return move with an adjacent duplex restore.
+
+    LLVM6 emits the `r0=r16` instruction in an isolated packet. The original
+    controller's return path has a continuation marker before a compound
+    64-bit register load and `dealloc_return`. Only this parse marker changes
+    after ISA class/length validation; code bytes are source-assembled.
+    """
+    if len(assembled) != AUX_LOOKUP_END-AUX_LOOKUP_START:
+        raise ValueError("aux registry lookup requires exactly 104 source bytes")
+    words=list(struct.unpack("<26I",assembled))
+    i=0x60//4
+    move,stack_restore=words[i:i+2]
+    if [v>>24 for v in (move,stack_restore)]!=[0x70,0x3e]:
+        raise ValueError("aux registry return opcode classes changed")
+    if [v&MARKER_MASK for v in (move,stack_restore)]!=[
+        END_MARKER,0
+    ]:
+        raise ValueError("aux registry return packet marker mismatch")
+    words[i]=(move&~MARKER_MASK)|CONTINUE_MARKER
+    return struct.pack("<26I",*words)
+
+
 def assemble(llvm_mc: Path, source: Path) -> bytes:
     with tempfile.TemporaryDirectory(prefix="nabu-modem-late-") as tmp:
         obj = Path(tmp) / "late.o"
@@ -358,10 +384,12 @@ def output_fragments(llvm_mc: Path) -> dict[int, bytes]:
     aux_mmio = assemble(llvm_mc,AUX_MMIO_SOURCE)
     aux_heap = restore_aux_heap_predicate_packet(assemble(llvm_mc,AUX_HEAP_SOURCE))
     aux_worker = restore_aux_worker_packets(assemble(llvm_mc,AUX_WORKER_SOURCE))
+    aux_lookup = restore_aux_lookup_return_packet(assemble(llvm_mc,AUX_LOOKUP_SOURCE))
     if len(aux_mmio) != AUX_MMIO_END-AUX_MMIO_START:
         raise ValueError("auxiliary MMIO initialization source has invalid length")
     assert AUX_GUARD_END == AUX_STAGE_START and AUX_STAGE_END == AUX_MMIO_START
     assert AUX_MMIO_END == AUX_HEAP_START and AUX_HEAP_END == AUX_WORKER_START
+    assert AUX_WORKER_END == AUX_LOOKUP_START
     service = restore_service_probe_packets(assemble(llvm_mc,SERVICE_SOURCE))
     service_mmio = restore_service_mmio_packets(assemble(llvm_mc,SERVICE_MMIO_SOURCE))
     service_flags = restore_service_flag_packets(assemble(llvm_mc,SERVICE_FLAGS_SOURCE))
@@ -370,7 +398,7 @@ def output_fragments(llvm_mc: Path) -> dict[int, bytes]:
     assert SERVICE_FLAGS_END == SERVICE_ALLOC_START
     return {ATOMIC_START: atomic + controller, SERVICE_START: service+service_mmio+service_flags+service_alloc,
             AUX_START: auxiliary, AUX_INIT_START: aux_init,
-            AUX_GUARD_START: aux_guard+aux_stage+aux_mmio+aux_heap+aux_worker}
+            AUX_GUARD_START: aux_guard+aux_stage+aux_mmio+aux_heap+aux_worker+aux_lookup}
 
 
 def executable_segments(reference: bytes) -> dict[int, tuple[int, int, int, int]]:
