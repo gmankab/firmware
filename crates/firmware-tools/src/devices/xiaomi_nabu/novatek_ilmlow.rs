@@ -6,9 +6,11 @@
 pub mod isa;
 #[path="novatek_ilmlow_helpers.rs"]
 mod helpers;
+#[path="novatek_ilmlow_diagnostic.rs"]
+mod diagnostic;
 use isa::{Csr,Insn,Reg,R0,R1,R2};
 pub const FILE_START: usize = 0x66a;
-pub const FILE_END: usize = 0x79c;
+pub const FILE_END: usize = 0x95a;
 pub const ILM_FILE_BASE: usize = 0x200;
 pub const ASSIGNED_END: usize = 0x10000;
 
@@ -64,6 +66,7 @@ pub fn program(profile:Profile)->Vec<Located>{
     ];
     let mut instructions:Vec<_>=source.into_iter().map(|(pc,instruction)|Located{pc,instruction}).collect();
     instructions.extend(helpers::instructions(profile));
+    instructions.extend(diagnostic::instructions(profile));
     instructions
 }
 pub fn build(profile:Profile)->Result<Vec<u8>,String>{
@@ -87,7 +90,7 @@ mod tests{
     use super::*;
     #[test]fn source_intervals_and_profile_selection(){
         let p=build(Profile::Postmarketos).unwrap();let m=build(Profile::Map220v).unwrap();
-        assert_eq!(p.len(),306);assert_eq!(m.len(),306);assert_ne!(p,m);
+        assert_eq!(p.len(),752);assert_eq!(m.len(),752);assert_ne!(p,m);
         assert!(Profile::parse("unknown").is_err());
         let mut f=vec![0;FILE_END];f[FILE_START..FILE_END].copy_from_slice(&p);
         assert!(compare(&f,Profile::Postmarketos).is_ok());
