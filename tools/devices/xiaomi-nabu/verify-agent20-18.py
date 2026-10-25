@@ -21,6 +21,7 @@ START, END = 0x10016, 0x17DC0
 BASE_COMMIT = "51b1f91f32d32542aa03e114f5a2f4d94b559e2a"
 # start, end, executable bytes, data bytes, fill bytes, instruction count
 EXPECTED_SPANS = [
+    (0x10000,0x10016,22,0,0,7),
     (0x10016,0x17dc0,32102,67,1,11506),
     (0x17dc0,0x185c0,2048,0,0,512),
     (0x185c0,0x18620,0,96,0,0),
@@ -34,7 +35,7 @@ EXPECTED_SPANS = [
     (0x19b04,0x19bbc,0,182,2,0),
     (0x19bf0,0x1ac80,0,4240,0,0),
 ]
-EXPECTED_GAPS = [(0x10000,0x10016),(0x18620,0x195b0),(0x196f8,0x198dc),(0x19bbc,0x19bf0)]
+EXPECTED_GAPS = [(0x18620,0x195b0),(0x196f8,0x198dc),(0x19bbc,0x19bf0)]
 EXPECTED_HASHES = {
     0x10016: "6b78bd0f2cd788b7c82a65119859a5e70111dd496f986b1727daed13e6f2aab4",
     0x17dc0: "a58613094f4ce93767d70120205520453bc193fea1c7f0fcaf7f1f0cb124a23c",
@@ -76,7 +77,7 @@ def validate_manifest(manifest):
         raise ValueError("unresolved gaps were changed or silently filled")
     if any(g["bytes"] != g["file_end"]-g["file_start"] for g in manifest["unresolved"]):
         raise ValueError("incorrect gap byte count")
-    for field,expected in [("covered_bytes",39618),("executable_bytes",34150),
+    for field,expected in [("covered_bytes",39640),("executable_bytes",34172),
                            ("data_bytes",5459),("layout_fill_bytes",9)]:
         if manifest[field] != expected:
             raise ValueError(f"incorrect {field}")
@@ -157,7 +158,13 @@ def main():
         spec.loader.exec_module(module)
         allocation_bytes=module.serialize()
         compare(generated[0x185c0],allocation_bytes,"decoded controller allocation address structure",0x185c0)
-        if set(independent) != set(generated)-{0x10016,0x17dc0,0x185c0}:
+        seam_path=Path(__file__).with_name("verify_agent20_18_boundary.py")
+        spec=importlib.util.spec_from_file_location("agent18_independent_seam",seam_path)
+        boundary_module=importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(boundary_module)
+        seam_bytes=boundary_module.emit()
+        compare(generated[0x10000],seam_bytes,"independent NDS32 bitfield suffix",0x10000)
+        if set(independent) != set(generated)-{0x10000,0x10016,0x17dc0,0x185c0}:
             raise ValueError("independent data validator does not cover exactly the declared data spans")
         for start,content in independent.items():
             compare(generated[start],content,"independent data",start)
@@ -174,17 +181,19 @@ def main():
                 raise ValueError("synthetic ISA matrix unexpectedly changed length")
             matrix_bytes=len(matrix)
         report={
-            "agent":"20-18","checkpoint":3,
+            "agent":"20-18","checkpoint":4,
             "git_head":run("git","-C",root,"rev-parse","HEAD"),
             "actual_parent":BASE_COMMIT,"checkpoint50_integration":False,
             "reference_sha256":PINNED_SHA256,"reference_size":len(reference),
             "reserved_file_start":0x10000,"reserved_file_end":0x1ac80,
             "ordinary_instructions":11506,"ex9_instructions":512,
-            "executable_bytes":34150,"data_bytes":5459,"layout_fill_bytes":9,
-            "covered_bytes":39618,"uncovered_bytes":4542,
+            "executable_bytes":34172,"data_bytes":5459,"layout_fill_bytes":9,
+            "covered_bytes":39640,"uncovered_bytes":4520,
             "reference_payload_bytes_embedded":0,"byte_mismatches":0,
-            "first_uncovered_file":0x10000,"first_uncovered_data_file":0x18620,
+            "first_uncovered_file":0x18620,"first_uncovered_data_file":0x18620,
             "reference_decoded_absolute_metadata_bytes":96,
+            "cross_boundary_owned_instruction_suffix_bytes":22,
+            "independent_seam_bitfield_bytes":len(seam_bytes),
             "gnu_assembled_bytes_this_run":gnu_bytes,
             "gnu_checks_explicitly_skipped":args.source_only,
             "independently_generated_data_and_alignment_bytes":sum(map(len,independent.values())),

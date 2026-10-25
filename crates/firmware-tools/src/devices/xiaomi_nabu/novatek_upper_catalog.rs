@@ -4,10 +4,10 @@
 
 use super::{novatek_upper_ex9 as ex9, novatek_upper_ilm as ilm,
     novatek_upper_log_data as logarithm, novatek_upper_math_data as math,
-    novatek_upper_allocations as allocations};
+    novatek_upper_allocations as allocations, novatek_upper_boundary as boundary};
 
-pub const GENERATED_BYTES: usize = 39_618;
-pub const UNRESOLVED_BYTES: usize = 4_542;
+pub const GENERATED_BYTES: usize = 39_640;
+pub const UNRESOLVED_BYTES: usize = 4_520;
 
 #[derive(Debug)]
 pub struct Fragment {
@@ -29,6 +29,9 @@ impl Fragment {
 
 pub fn fragments() -> Result<Vec<Fragment>, String> {
     let mut all = vec![
+        Fragment { name: "source-rebuilt upper-ILM ownership seam (MOVI suffix plus six instructions)",
+            file: boundary::FILE_START, bytes: boundary::emit()?,
+            instructions: boundary::INSTRUCTION_COUNT, executable: boundary::OWNED_BYTES, data: 0, fill: 0 },
         Fragment { name: "upper routines and switch tables", file: ilm::SOURCE_START,
             bytes: ilm::emit()?, instructions: ilm::CODE.len(),
             executable: ilm::EXECUTABLE_BYTES, data: ilm::SWITCH_DATA_BYTES,
@@ -120,11 +123,11 @@ mod tests {
     fn source_union_does_not_count_any_hole_as_padding() {
         let f = fragments().unwrap();
         assert_eq!(f.iter().map(|f| f.bytes.len()).sum::<usize>(), GENERATED_BYTES);
-        assert_eq!(f.iter().map(|f| f.executable).sum::<usize>(), 34_150);
+        assert_eq!(f.iter().map(|f| f.executable).sum::<usize>(), 34_172);
         assert_eq!(f.iter().map(|f| f.data).sum::<usize>(), 5_459);
         assert_eq!(f.iter().map(|f| f.fill).sum::<usize>(), 9);
         let holes = gaps(&f).unwrap();
-        assert_eq!(holes, vec![(0x10000,0x10016), (0x18620,0x195b0),
+        assert_eq!(holes, vec![(0x18620,0x195b0),
             (0x196f8,0x198dc), (0x19bbc,0x19bf0)]);
         assert_eq!(holes.iter().map(|(s,e)| (e-s) as usize).sum::<usize>(), UNRESOLVED_BYTES);
         assert_eq!(GENERATED_BYTES + UNRESOLVED_BYTES, (ilm::RESERVED_END-ilm::RESERVED_START) as usize);

@@ -13,6 +13,8 @@ mod novatek_upper_log_data;
 mod novatek_upper_math_data;
 #[path = "../devices/xiaomi_nabu/novatek_upper_allocations.rs"]
 mod novatek_upper_allocations;
+#[path = "../devices/xiaomi_nabu/novatek_upper_boundary.rs"]
+mod novatek_upper_boundary;
 #[path = "../devices/xiaomi_nabu/novatek_upper_catalog.rs"]
 mod novatek_upper_catalog;
 
