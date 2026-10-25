@@ -258,3 +258,11 @@ python3 tools/agent20_06_a32_roundtrip.py /private/venus.mbn 0xa8ea0 0xa92c8 \
 - The diagnostic/data words are pointer-like values (`0x000f89a4`, `0x000f89ce`, `0x000e2788`, `0x000f88c7`, `0x000f7058`, `0x000f7095`), not unclassified A32 instructions.
 - Independent Clang/LLVM `tools/agent20_06_a32_roundtrip.py` with `--data-range 0xb2d30:0xb2d48` reconstructs all 1,160 bytes with zero differences. Rust direct verifier and fragment-specific tests also pass; the full offline Rust and Python suites pass. Release build status is logged separately; do not claim success if incomplete.
 - Next uncovered ARM runtime address is **`0xb2f08`** (original file `0xb6f08`). Work remains a *provisional older-base typed instruction re-encoding* rather than checkpoint-50 integration, independent behavioral decompilation, hardware testing, complete firmware or OEM signing.
+
+## Checkpoint 29 — queued codec-frame reconciliation
+
+- Contiguous byte-identical runtime `[0xa8000,0xb3bdc)` = **48,092 bytes**, original MBN file `[0xac000,0xb7bdc)`.
+- Added `[0xb2f08,0xb3bdc)` = **3,284 bytes**, comprising **816 typed ARM32 instructions (3,264 bytes)** and **five data words (20 bytes)** `[0xb3bc8,0xb3bdc)`, with values `0x000f8c24`, `0x000e2788`, `0x000f8be8`, `0x000f8c4b`, `0x000f8c72` classified as diagnostics, not executable opcodes.
+- The function handles active and queued codec-plane records, branch-back resource status loops, signed byte loads, bounded descriptor scans and callback notification. The last branch at `0xb3bc4` returns to an earlier status path; `0xb3bdc` is a new function entry.
+- The private-reference compare and the independent Clang/LLVM mnemonic assembly check **both report zero byte mismatches**. The full Rust workspace (199 tests) and 13 Python tests pass. No release-build success is claimed for this checkpoint.
+- The branch is still *provisional*, rooted in the older Agent 03 history. This is byte-identical typed ARM32 encoding, **not** high-level source reconstruction, authenticated firmware, or on-device execution.
