@@ -27,6 +27,8 @@ RIZIN_ASM = os.environ.get('RZ_HEXAGON_ASM')
 EXPECTED_DIGEST = 'cc93ab6de47bc8514f946f427a059bc279975b4e99b9cfdc0be450f9d559a233'
 ZERO_MEMORY_DIGEST = 'd8c1f7e013d349af5011c3a1a99db6e19689d99bb2fb7c459ed346625f550f1c'
 CONTROLLER_DIGEST = '2b6f8caaaded06ece47aadd8e97090ca9269ac2f7f7e16242e21094f128aadbf'
+STARTUP_DIGEST = '1c8e4b6d1b7c128032440a941956f3d45ae2968b9b17b36b2acccf5f67d5db03'
+JOINED_STARTUP_DIGEST = '8ae46f2b16461df880aff54fcd6bfba13587266045ae619997286b8393524d72'
 
 
 class ADSPExternalsAndCodeTests(unittest.TestCase):
@@ -95,6 +97,36 @@ class ADSPExternalsAndCodeTests(unittest.TestCase):
         result=adsp.compile_source(LLVM_MC,source,length)
         self.assertEqual(hashlib.sha256(result).hexdigest(),CONTROLLER_DIGEST)
         self.assertEqual(length,120)
+
+    @unittest.skipUnless(LLVM_MC,'Hexagon LLVM6 assembler required')
+    def test_second_rx_startup_calls_zero_filler_at_exact_boundary(self):
+        source,off,length=adsp.FRAGMENTS['rx-startup']
+        self.assertEqual((off,length),(0x364000,168))
+        body=source.read_text()
+        for token in ('framelimit = r0', 'gp = r0', 'stop_forever:',
+                      'call init_platform', '.set init_platform',
+                      'adsp_late_rx_startup+0xa8'):
+            self.assertIn(token,body)
+        original_startup=adsp.compile_source(LLVM_MC,source,length)
+        self.assertEqual(hashlib.sha256(original_startup).hexdigest(),STARTUP_DIGEST)
+        filler_src, next_off, filllen=adsp.FRAGMENTS['zero-memory']
+        self.assertEqual(off+length,next_off)
+        self.assertEqual(len(original_startup),0xa8)
+        composite=original_startup+adsp.compile_source(LLVM_MC,filler_src,filllen)
+        self.assertEqual(len(composite),248)
+        self.assertEqual(hashlib.sha256(composite).hexdigest(),JOINED_STARTUP_DIGEST)
+
+    @unittest.skipUnless(LLVM_MC and REFERENCE,
+                         'Hexagon LLVM6 and exact pinned ADSP reference required')
+    def test_second_rx_contiguous_bootstrap_and_memory_fill_reference(self):
+        source,off,length=adsp.FRAGMENTS['rx-startup']
+        memory_src, _, size=adsp.FRAGMENTS['zero-memory']
+        composite=adsp.compile_source(LLVM_MC,source,length)+adsp.compile_source(LLVM_MC,memory_src,size)
+        reference=Path(REFERENCE).read_bytes()
+        adsp.verify_slice(composite,reference,off)
+        mutated=bytearray(composite);mutated[0x74]^=1
+        with self.assertRaisesRegex(adsp.LateAdspError, 'Mismatch'):
+            adsp.verify_slice(bytes(mutated),reference,off)
 
     @unittest.skipUnless(LLVM_MC and REFERENCE,
                          'Hexagon LLVM6 and exact pinned ADSP reference required')

@@ -29,6 +29,7 @@ FRAGMENTS = {
     'queue-drain': (TOOLS / 'adsp-late-callback-drain.S', 0x39000, 0x54),
     'controller-dispatch': (TOOLS / 'adsp-late-controller-dispatch.S', 0x39060, 0x78),
     'zero-memory': (TOOLS / 'adsp-late-zero-memory.S', 0x3640A8, 0x50),
+    'rx-startup': (TOOLS / 'adsp-late-rx-startup.S', 0x364000, 0xA8),
 }
 
 class LateAdspError(ValueError):
