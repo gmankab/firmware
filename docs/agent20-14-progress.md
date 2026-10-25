@@ -1,5 +1,10 @@
 # Agent 20-14 — WLAN late Hexagon reconstruction
 
+Latest checkpoint: **04**, with **5,472 executable bytes** in 26 authored
+routines and **496 separately emitted data bytes** in two symbolic dispatch
+tables. The non-overlapping coverage total is **5,968 bytes**. See checkpoint
+04 below for its exact ranges, tests and remaining gaps.
+
 ## Assignment and provenance
 
 Branch: `agents20/14-wlan-late`.
@@ -355,3 +360,100 @@ Cumulative checkpoint-03 code SHA-256:
 Four diagnostic-ending entry boundaries in this group rely on the explicit
 non-return inference for the external diagnostic target; no hardware test of
 that contract has been performed.
+
+## Checkpoint 04 — dispatch tables derived from source labels
+
+The two dispatch-table dependencies identified in checkpoint 03 are now
+reconstructed as **496 data bytes**, emitted by
+`tools/build-wlanmdsp-late-tables.py`. The 5,472-byte executable fragment is
+unchanged. Two assembly header comments now describe the separate table
+builder; their source-file hashes change, but their encoded bytes do not.
+
+| Table | File range | Runtime range | Entries | Bytes |
+| --- | --- | --- | ---: | ---: |
+| Types `0x0000..0x0012` | `[0x2f6cd0,0x2f6d1c)` | `[0xb02b6cd0,0xb02b6d1c)` | 19 | 76 |
+| Tags `0x1002..0x106a` | `[0x2f6d1c,0x2f6ec0)` | `[0xb02b6d1c,0xb02b6ec0)` | 105 | 420 |
+
+The builder assembles fixed snapshots of the two registered source functions,
+checks their complete code fingerprints, and reads the resulting ELF32 symbol
+tables. Each output word is a little-endian runtime address calculated from
+the registered function base plus a named label's section offset. The source
+specifies case-type sets and a default label; it contains no copied firmware
+address array. Optional reference access occurs only after data generation.
+
+Every required target must be a defined symbol in the correct `.text` section,
+strictly inside the function and at a structurally parsed packet start. A
+missing explicit case label is an error, never an implicit default. LLVM 18
+with `hexagonv66` and LLVM 6 with `hexagonv65` produce identical dependency
+code, symbol-derived target mappings and table bytes. These are two LLVM
+versions, not two independent ISA implementations.
+
+Both default mappings target **`restore_status`**, not `return_success`.
+The short dispatch packet has already set `r0` to zero; the wide dispatch
+packet has already set `r3` to zero. Their table loads use the old register
+value from the same packet. The short table has 14 explicit cases and five
+defaults, for types `1,7,8,10,16`; defaults target `0xb00c0d6c`. The wide table
+has 53 explicit cases and 52 defaults targeting `0xb00c125c`. All 124 generated
+entries equal the pinned reference. The complete mappings and dependency
+fingerprints are recorded in checkpoint-04 evidence.
+
+The new 25 tests cover malformed and ambiguous ELF symbols, missing labels,
+undefined and wrong-section targets, out-of-function targets, instructions
+inside a packet, dependency drift, reference-free generation, exact reference
+equality and a changed reference byte outside the emitted span. The full
+regression passes **160 Rust tests and 108 Python tests, with zero skips**;
+the release build and `git diff --check` also pass.
+
+### Coverage and gaps
+
+The separate code and table outputs must be placed at their own file offsets.
+They must not be concatenated and treated as one contiguous firmware range.
+No intervening bytes, alignment fill or original firmware bytes are emitted.
+
+| Classification | File range | Bytes |
+| --- | --- | ---: |
+| Source-derived executable | `[0x1001c4,0x101724)` | 5,472 |
+| Source-derived data | `[0x2f6cd0,0x2f6ec0)` | 496 |
+| Total covered union | Two disjoint ranges | 5,968 |
+| Uncovered leading seam | `[0x100000,0x1001c4)` | 452 |
+| Uncovered between code and tables | `[0x101724,0x2f6cd0)` | 2,053,548 |
+| Uncovered after tables | `[0x2f6ec0,0x353d38)` | 380,536 |
+
+The remaining allocation is **2,434,536 bytes**. Forward code reconstruction
+can continue at file `0x101724`, runtime `0xb00c1724`. The lower seam still
+requires coordination with Agent 13 / the integration owner. Neither the
+later RW load nor another agent's allocated range has been modified.
+
+Code SHA-256, unchanged from checkpoint 03:
+
+```text
+4242c17caba9322e7ac687357acffa510839599dc5ebf85b856fc414ffa638e7
+```
+
+Combined 496-byte table SHA-256:
+
+```text
+f33f4dae122e666e9eefcfd539eb2405bc967d4928e96a72b3897907144f7390
+```
+
+### Reproduce the separate table artifact
+
+```sh
+python3 tools/build-wlanmdsp-late-tables.py /tmp/wlan-late-tables.bin \
+  --llvm-mc "$WLAN_LATE_LLVM_MC" \
+  --independent-llvm-mc "$WLAN_LATE_SECOND_LLVM_MC" \
+  --reference "$WLANMDSP_REFERENCE" \
+  --manifest /tmp/wlan-late-tables.json
+```
+
+Omit `--reference` for source-only emission; its manifest then records
+`reference_checked: false` and null mismatch counts. The main code builder
+with `--through-checkpoint 3` emits all 26 routines. Run the same Rust,
+release and Python regression commands documented under checkpoint 01.
+
+The checkpoint-04 handoff records the exact tested commit, clean-clone and
+portable-patch replay results, artifact hashes and complete coverage union.
+This remains a portable contribution on `d6104bb`, pending checkpoint-50
+integration. The two reconstructed tables resolve those specific data
+dependencies; external callees, other referenced data, hardware behavior,
+authentication and whole-firmware completion remain unverified.

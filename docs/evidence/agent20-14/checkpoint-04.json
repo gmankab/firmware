@@ -1,0 +1,1668 @@
+{
+  "agent": "20-14",
+  "architecture": "hexagonv66",
+  "checkpoint": 4,
+  "code": {
+    "architecture": "hexagonv66",
+    "complete_firmware": false,
+    "constant_extender_word_count": 80,
+    "data_bytes": 0,
+    "decoder_checked": true,
+    "decoder_unknown_instruction_count": 0,
+    "duplex_packet_count": 99,
+    "encoded_word_count": 1368,
+    "external_reference_bytes_in_output": 0,
+    "file_end": 1054500,
+    "file_start": 1049028,
+    "generated_bytes": 5472,
+    "independent_assembler_byte_mismatches": 0,
+    "independent_assembler_checked": true,
+    "independent_assembler_cpu": "hexagonv65",
+    "layout_fill_bytes": 0,
+    "loop0_end_packet_count": 2,
+    "loop1_end_packet_count": 0,
+    "next_continuation_file_offset": 1054500,
+    "next_uncovered_file_offset": 1048576,
+    "owned_file_end": 3489080,
+    "owned_file_start": 1048576,
+    "packet_count": 675,
+    "reference_byte_mismatches": 0,
+    "reference_checked": true,
+    "reference_sha256": "87c2c7bb1fe97eaf007a947832feba0898644b4d6626ac8ef49d8b94dd82604b",
+    "regions": [
+      {
+        "bytes": 124,
+        "checkpoint": 1,
+        "classification": "executable",
+        "constant_extender_word_count": 2,
+        "decoder_word_count": 31,
+        "duplex_packet_count": 4,
+        "encoded_word_count": 31,
+        "file_end": 1049152,
+        "file_start": 1049028,
+        "loop0_end_packet_count": 0,
+        "loop1_end_packet_count": 0,
+        "name": "state-apply",
+        "packet_count": 19,
+        "sha256": "efd11b08610533a7f96e6e0eb61868b9e61563a13510d70fb200a34978904cbb",
+        "source": "sources/xiaomi-nabu/wlanmdsp/agent14-late-state-apply.S",
+        "source_sha256": "1845d2fe096dce1aaa25535283a5fcaa54b5e921b95174586f1a2b79f4093f76",
+        "symbol": "wlan_late_state_apply",
+        "vaddr_end": 2953577024,
+        "vaddr_start": 2953576900
+      },
+      {
+        "bytes": 464,
+        "checkpoint": 1,
+        "classification": "executable",
+        "constant_extender_word_count": 11,
+        "decoder_word_count": 116,
+        "duplex_packet_count": 6,
+        "encoded_word_count": 116,
+        "file_end": 1049616,
+        "file_start": 1049152,
+        "loop0_end_packet_count": 0,
+        "loop1_end_packet_count": 0,
+        "name": "descriptor-submit",
+        "packet_count": 50,
+        "sha256": "9a3149d216f9e73e2f61a4d44e29f5b309e7d8b08c8f064e6db79ebc80bb873d",
+        "source": "sources/xiaomi-nabu/wlanmdsp/agent14-late-descriptor-submit.S",
+        "source_sha256": "46362e32b77885d116c57fabca3ca83e653a752ee36491af395bf7de2790eb5a",
+        "symbol": "wlan_late_descriptor_submit",
+        "vaddr_end": 2953577488,
+        "vaddr_start": 2953577024
+      },
+      {
+        "bytes": 216,
+        "checkpoint": 1,
+        "classification": "executable",
+        "constant_extender_word_count": 3,
+        "decoder_word_count": 54,
+        "duplex_packet_count": 4,
+        "encoded_word_count": 54,
+        "file_end": 1049832,
+        "file_start": 1049616,
+        "loop0_end_packet_count": 0,
+        "loop1_end_packet_count": 0,
+        "name": "record-gate",
+        "packet_count": 26,
+        "sha256": "3feb4a0800468a55afacf92f0f9c78c065fef1fa22b9a1cf0870a3c66771d8ac",
+        "source": "sources/xiaomi-nabu/wlanmdsp/agent14-late-record-gate.S",
+        "source_sha256": "6bac5958aac429ccd33b3d145c7a014ee3bdfbad8282d1ed75c613c02fae87b5",
+        "symbol": "wlan_late_record_gate",
+        "vaddr_end": 2953577704,
+        "vaddr_start": 2953577488
+      },
+      {
+        "bytes": 64,
+        "checkpoint": 1,
+        "classification": "executable",
+        "constant_extender_word_count": 1,
+        "decoder_word_count": 16,
+        "duplex_packet_count": 4,
+        "encoded_word_count": 16,
+        "file_end": 1049896,
+        "file_start": 1049832,
+        "loop0_end_packet_count": 1,
+        "loop1_end_packet_count": 0,
+        "name": "rate-code-set",
+        "packet_count": 11,
+        "sha256": "9abd11959ebf542b45eeb4e5f413724f849b7f335903aaaccf8f6f562285fd31",
+        "source": "sources/xiaomi-nabu/wlanmdsp/agent14-late-rate-code-set.S",
+        "source_sha256": "765dc8ba19ff69119aea047a01002f04afd50b14f731380460c3cfef6a26d181",
+        "symbol": "wlan_late_rate_code_set",
+        "vaddr_end": 2953577768,
+        "vaddr_start": 2953577704
+      },
+      {
+        "bytes": 116,
+        "checkpoint": 2,
+        "classification": "executable",
+        "constant_extender_word_count": 1,
+        "decoder_word_count": 29,
+        "duplex_packet_count": 3,
+        "encoded_word_count": 29,
+        "file_end": 1050012,
+        "file_start": 1049896,
+        "loop0_end_packet_count": 0,
+        "loop1_end_packet_count": 0,
+        "name": "caller-frame-search",
+        "packet_count": 16,
+        "sha256": "6c0e4f7929016de1fff78e0d62e8cc87bf1435a9c21688b2392efd53f7ea9741",
+        "source": "sources/xiaomi-nabu/wlanmdsp/agent14-late-caller-frame-search.S",
+        "source_sha256": "3441b82a926286da72128f72b6bc8eead0850cbb187cb32eb416eef0fac06cf8",
+        "symbol": "wlan_late_caller_frame_search",
+        "vaddr_end": 2953577884,
+        "vaddr_start": 2953577768
+      },
+      {
+        "bytes": 252,
+        "checkpoint": 2,
+        "classification": "executable",
+        "constant_extender_word_count": 2,
+        "decoder_word_count": 63,
+        "duplex_packet_count": 3,
+        "encoded_word_count": 63,
+        "file_end": 1050264,
+        "file_start": 1050012,
+        "loop0_end_packet_count": 0,
+        "loop1_end_packet_count": 0,
+        "name": "counted-record-collect",
+        "packet_count": 33,
+        "sha256": "73a5a0b1ff4fa713aae3825ae1d4d7764972132c5b4e5ba1ccb337c91f2c5da8",
+        "source": "sources/xiaomi-nabu/wlanmdsp/agent14-late-counted-record-collect.S",
+        "source_sha256": "01cb21d52c361016b0061796854240b931cbd7e5e9b5943eb4a058f94efeef71",
+        "symbol": "wlan_late_counted_record_collect",
+        "vaddr_end": 2953578136,
+        "vaddr_start": 2953577884
+      },
+      {
+        "bytes": 300,
+        "checkpoint": 2,
+        "classification": "executable",
+        "constant_extender_word_count": 2,
+        "decoder_word_count": 75,
+        "duplex_packet_count": 6,
+        "encoded_word_count": 75,
+        "file_end": 1050564,
+        "file_start": 1050264,
+        "loop0_end_packet_count": 0,
+        "loop1_end_packet_count": 0,
+        "name": "signature-dispatch",
+        "packet_count": 39,
+        "sha256": "dfc9e3290d8e03393e197168d6ead53e61d02d70ec4c7a7b0944d4dc5aa53ebe",
+        "source": "sources/xiaomi-nabu/wlanmdsp/agent14-late-signature-dispatch.S",
+        "source_sha256": "622e861e798be600e59843fd13cdc0a62767e439ba27bdd72eb7968604aacaa4",
+        "symbol": "wlan_late_signature_dispatch",
+        "vaddr_end": 2953578436,
+        "vaddr_start": 2953578136
+      },
+      {
+        "bytes": 124,
+        "checkpoint": 2,
+        "classification": "executable",
+        "constant_extender_word_count": 2,
+        "decoder_word_count": 31,
+        "duplex_packet_count": 0,
+        "encoded_word_count": 31,
+        "file_end": 1050688,
+        "file_start": 1050564,
+        "loop0_end_packet_count": 0,
+        "loop1_end_packet_count": 0,
+        "name": "configuration-check",
+        "packet_count": 18,
+        "sha256": "2b31178aedfcb47d63d49d87d5f782d525380c861fc21b27416687a1c3df07ee",
+        "source": "sources/xiaomi-nabu/wlanmdsp/agent14-late-configuration-check.S",
+        "source_sha256": "c12f98471c70c59194b1d3007d58cbbc357b2fa67ad8db8f9e84c1342250bf3b",
+        "symbol": "wlan_late_configuration_check",
+        "vaddr_end": 2953578560,
+        "vaddr_start": 2953578436
+      },
+      {
+        "bytes": 348,
+        "checkpoint": 2,
+        "classification": "executable",
+        "constant_extender_word_count": 7,
+        "decoder_word_count": 87,
+        "duplex_packet_count": 8,
+        "encoded_word_count": 87,
+        "file_end": 1051036,
+        "file_start": 1050688,
+        "loop0_end_packet_count": 0,
+        "loop1_end_packet_count": 0,
+        "name": "request-submit",
+        "packet_count": 37,
+        "sha256": "f5a085b22e05b5b09a7304e76d891570ce889dc6f76be04ca686b2be7fc2bacd",
+        "source": "sources/xiaomi-nabu/wlanmdsp/agent14-late-request-submit.S",
+        "source_sha256": "d2232e8e4408c8c0932d8eefaa6135095786d25244af667a709e3084d9122a13",
+        "symbol": "wlan_late_request_submit",
+        "vaddr_end": 2953578908,
+        "vaddr_start": 2953578560
+      },
+      {
+        "bytes": 104,
+        "checkpoint": 2,
+        "classification": "executable",
+        "constant_extender_word_count": 2,
+        "decoder_word_count": 26,
+        "duplex_packet_count": 4,
+        "encoded_word_count": 26,
+        "file_end": 1051140,
+        "file_start": 1051036,
+        "loop0_end_packet_count": 0,
+        "loop1_end_packet_count": 0,
+        "name": "request-teardown",
+        "packet_count": 14,
+        "sha256": "9c1a500677386fcbee3665999fc7eed014232ea9bd2ed16ff3c61fbf24474a6a",
+        "source": "sources/xiaomi-nabu/wlanmdsp/agent14-late-request-teardown.S",
+        "source_sha256": "aeac7b9c2cc7cfebf0d7258e0af974da6ddf6e9a02b116a0457896d466c29e5d",
+        "symbol": "wlan_late_request_teardown",
+        "vaddr_end": 2953579012,
+        "vaddr_start": 2953578908
+      },
+      {
+        "bytes": 196,
+        "checkpoint": 3,
+        "classification": "executable",
+        "constant_extender_word_count": 5,
+        "decoder_word_count": 49,
+        "duplex_packet_count": 5,
+        "encoded_word_count": 49,
+        "file_end": 1051336,
+        "file_start": 1051140,
+        "loop0_end_packet_count": 0,
+        "loop1_end_packet_count": 0,
+        "name": "attribute-record-apply",
+        "packet_count": 23,
+        "sha256": "f5f6f30a9d9c2c9554700bbe974c018c94fda52426a4491aea22c712a83892e3",
+        "source": "sources/xiaomi-nabu/wlanmdsp/agent14-late-attribute-record-apply.S",
+        "source_sha256": "1373d6a604e044f0e92933d0d665cddc8ebac1613f6feb2a503810c8b2ae19b7",
+        "symbol": "wlan_late_attribute_record_apply",
+        "vaddr_end": 2953579208,
+        "vaddr_start": 2953579012
+      },
+      {
+        "bytes": 148,
+        "checkpoint": 3,
+        "classification": "executable",
+        "constant_extender_word_count": 3,
+        "decoder_word_count": 37,
+        "duplex_packet_count": 5,
+        "encoded_word_count": 37,
+        "file_end": 1051484,
+        "file_start": 1051336,
+        "loop0_end_packet_count": 0,
+        "loop1_end_packet_count": 0,
+        "name": "three-byte-record-parse",
+        "packet_count": 18,
+        "sha256": "7eac568924cc9fb8f65a75c6ade30cf394e9cf5e686337161c8d9330b4d7d4b2",
+        "source": "sources/xiaomi-nabu/wlanmdsp/agent14-late-three-byte-record-parse.S",
+        "source_sha256": "53a4d8589b3bf468a7a2a324bda2ad58cb2587e215b790ea8ddee57da80eb4a1",
+        "symbol": "wlan_late_three_byte_record_parse",
+        "vaddr_end": 2953579356,
+        "vaddr_start": 2953579208
+      },
+      {
+        "bytes": 540,
+        "checkpoint": 3,
+        "classification": "executable",
+        "constant_extender_word_count": 5,
+        "decoder_word_count": 135,
+        "duplex_packet_count": 7,
+        "encoded_word_count": 135,
+        "file_end": 1052024,
+        "file_start": 1051484,
+        "loop0_end_packet_count": 1,
+        "loop1_end_packet_count": 0,
+        "name": "short-type-dispatch",
+        "packet_count": 67,
+        "sha256": "92976e5e33cc2efa0ba8c0f82a309de381758ef8b198cfd32df337d8db4b912e",
+        "source": "sources/xiaomi-nabu/wlanmdsp/agent14-late-short-type-dispatch.S",
+        "source_sha256": "fb5fadfa3c31a1c273bc90060867cb9a0761fbe8dff489e8af16eb793b9562d5",
+        "symbol": "wlan_late_short_type_dispatch",
+        "vaddr_end": 2953579896,
+        "vaddr_start": 2953579356
+      },
+      {
+        "bytes": 156,
+        "checkpoint": 3,
+        "classification": "executable",
+        "constant_extender_word_count": 3,
+        "decoder_word_count": 39,
+        "duplex_packet_count": 4,
+        "encoded_word_count": 39,
+        "file_end": 1052180,
+        "file_start": 1052024,
+        "loop0_end_packet_count": 0,
+        "loop1_end_packet_count": 0,
+        "name": "big-endian-attribute-parse",
+        "packet_count": 19,
+        "sha256": "29c5bad92c6e679e609848d3443764fc35f4bb23848bf584720b473b4931350c",
+        "source": "sources/xiaomi-nabu/wlanmdsp/agent14-late-big-endian-attribute-parse.S",
+        "source_sha256": "ce2ebc58587f411baf64951eb6838ec1669b7fc81cebee7a9e4530c44fdf6db8",
+        "symbol": "wlan_late_big_endian_attribute_parse",
+        "vaddr_end": 2953580052,
+        "vaddr_start": 2953579896
+      },
+      {
+        "bytes": 96,
+        "checkpoint": 3,
+        "classification": "executable",
+        "constant_extender_word_count": 0,
+        "decoder_word_count": 24,
+        "duplex_packet_count": 8,
+        "encoded_word_count": 24,
+        "file_end": 1052276,
+        "file_start": 1052180,
+        "loop0_end_packet_count": 0,
+        "loop1_end_packet_count": 0,
+        "name": "eight-byte-pattern-match",
+        "packet_count": 16,
+        "sha256": "e099795057bde055cc5f0434cbe3ac7600e0d5751bd882eeb966f3b8014a1131",
+        "source": "sources/xiaomi-nabu/wlanmdsp/agent14-late-eight-byte-pattern-match.S",
+        "source_sha256": "ff13aa07a8bca52a803f5fa47e7b98d43bf326517f74ae37ab0a0b9097131d00",
+        "symbol": "wlan_late_eight_byte_pattern_match",
+        "vaddr_end": 2953580148,
+        "vaddr_start": 2953580052
+      },
+      {
+        "bytes": 60,
+        "checkpoint": 3,
+        "classification": "executable",
+        "constant_extender_word_count": 2,
+        "decoder_word_count": 15,
+        "duplex_packet_count": 2,
+        "encoded_word_count": 15,
+        "file_end": 1052336,
+        "file_start": 1052276,
+        "loop0_end_packet_count": 0,
+        "loop1_end_packet_count": 0,
+        "name": "pattern-pointer-search",
+        "packet_count": 8,
+        "sha256": "c8304667babfd182ff215b45ec6ea8c6292c95d7991de7d66ce249d6a41b67d4",
+        "source": "sources/xiaomi-nabu/wlanmdsp/agent14-late-pattern-pointer-search.S",
+        "source_sha256": "c8abd6580d7a1d74962cefc9aa6f5cfe715d3d3a1874123b33519d078f97c6e1",
+        "symbol": "wlan_late_pattern_pointer_search",
+        "vaddr_end": 2953580208,
+        "vaddr_start": 2953580148
+      },
+      {
+        "bytes": 1008,
+        "checkpoint": 3,
+        "classification": "executable",
+        "constant_extender_word_count": 6,
+        "decoder_word_count": 252,
+        "duplex_packet_count": 3,
+        "encoded_word_count": 252,
+        "file_end": 1053344,
+        "file_start": 1052336,
+        "loop0_end_packet_count": 0,
+        "loop1_end_packet_count": 0,
+        "name": "wide-type-dispatch",
+        "packet_count": 118,
+        "sha256": "850c9f47ff163129af2b110388752ac281f2fee9dfbbc37a8aefa0cf2e79757b",
+        "source": "sources/xiaomi-nabu/wlanmdsp/agent14-late-wide-type-dispatch.S",
+        "source_sha256": "525c040412458dc96eae994075a47f9dd1eafa8b92cdc2881562b9c0cde6cb1a",
+        "symbol": "wlan_late_wide_type_dispatch",
+        "vaddr_end": 2953581216,
+        "vaddr_start": 2953580208
+      },
+      {
+        "bytes": 84,
+        "checkpoint": 3,
+        "classification": "executable",
+        "constant_extender_word_count": 2,
+        "decoder_word_count": 21,
+        "duplex_packet_count": 4,
+        "encoded_word_count": 21,
+        "file_end": 1053428,
+        "file_start": 1053344,
+        "loop0_end_packet_count": 0,
+        "loop1_end_packet_count": 0,
+        "name": "shared-resource-create",
+        "packet_count": 10,
+        "sha256": "b7e398b5be43baec6a659b0966355a3e32a9f250538e62b8db2256121f492310",
+        "source": "sources/xiaomi-nabu/wlanmdsp/agent14-late-shared-resource-create.S",
+        "source_sha256": "2182ed478afced5da599eaa5a8fb0c090028d5c2d87af250c0e7abd732356e10",
+        "symbol": "wlan_late_shared_resource_create",
+        "vaddr_end": 2953581300,
+        "vaddr_start": 2953581216
+      },
+      {
+        "bytes": 16,
+        "checkpoint": 3,
+        "classification": "executable",
+        "constant_extender_word_count": 1,
+        "decoder_word_count": 4,
+        "duplex_packet_count": 0,
+        "encoded_word_count": 4,
+        "file_end": 1053444,
+        "file_start": 1053428,
+        "loop0_end_packet_count": 0,
+        "loop1_end_packet_count": 0,
+        "name": "failure-forward",
+        "packet_count": 2,
+        "sha256": "36369adb56fa0137f719beb3f8753c25b5d04f733123777a373a84fab2cca394",
+        "source": "sources/xiaomi-nabu/wlanmdsp/agent14-late-failure-forward.S",
+        "source_sha256": "754f4ba8bc9df0980cdf511ade053082b09dec9ac626bd547ee07786b2ae088d",
+        "symbol": "wlan_late_failure_forward",
+        "vaddr_end": 2953581316,
+        "vaddr_start": 2953581300
+      },
+      {
+        "bytes": 144,
+        "checkpoint": 3,
+        "classification": "executable",
+        "constant_extender_word_count": 5,
+        "decoder_word_count": 36,
+        "duplex_packet_count": 7,
+        "encoded_word_count": 36,
+        "file_end": 1053588,
+        "file_start": 1053444,
+        "loop0_end_packet_count": 0,
+        "loop1_end_packet_count": 0,
+        "name": "session-resource-setup",
+        "packet_count": 18,
+        "sha256": "7b490f5903741e934b2a6ebfc10888d949a524cfaf23845ca1c8511d82be95b0",
+        "source": "sources/xiaomi-nabu/wlanmdsp/agent14-late-session-resource-setup.S",
+        "source_sha256": "b35a2b4baba65b49f23866510a7861ff30de003abc909bf6ca83e8b343e7dfa0",
+        "symbol": "wlan_late_session_resource_setup",
+        "vaddr_end": 2953581460,
+        "vaddr_start": 2953581316
+      },
+      {
+        "bytes": 400,
+        "checkpoint": 3,
+        "classification": "executable",
+        "constant_extender_word_count": 6,
+        "decoder_word_count": 100,
+        "duplex_packet_count": 5,
+        "encoded_word_count": 100,
+        "file_end": 1053988,
+        "file_start": 1053588,
+        "loop0_end_packet_count": 0,
+        "loop1_end_packet_count": 0,
+        "name": "session-state-callback",
+        "packet_count": 50,
+        "sha256": "7ee824cb9dfbf4d3368122d03f99037e24b40d83b3e1c9154363fbeae6d35b04",
+        "source": "sources/xiaomi-nabu/wlanmdsp/agent14-late-session-state-callback.S",
+        "source_sha256": "d6085f207f7b18a983c65dd9450ccd6770d81c2f3f3b3fa43ca11c7c3d15149f",
+        "symbol": "wlan_late_session_state_callback",
+        "vaddr_end": 2953581860,
+        "vaddr_start": 2953581460
+      },
+      {
+        "bytes": 176,
+        "checkpoint": 3,
+        "classification": "executable",
+        "constant_extender_word_count": 3,
+        "decoder_word_count": 44,
+        "duplex_packet_count": 3,
+        "encoded_word_count": 44,
+        "file_end": 1054164,
+        "file_start": 1053988,
+        "loop0_end_packet_count": 0,
+        "loop1_end_packet_count": 0,
+        "name": "session-resource-switch",
+        "packet_count": 22,
+        "sha256": "55437e9af6243bead891fbac9ae843ff12065e7fd4fde9fe261ab74785f60af2",
+        "source": "sources/xiaomi-nabu/wlanmdsp/agent14-late-session-resource-switch.S",
+        "source_sha256": "c15c9e2005671440f1643f476a8987b671cca945b5f7ee00b7e8e47848a6920b",
+        "symbol": "wlan_late_session_resource_switch",
+        "vaddr_end": 2953582036,
+        "vaddr_start": 2953581860
+      },
+      {
+        "bytes": 172,
+        "checkpoint": 3,
+        "classification": "executable",
+        "constant_extender_word_count": 2,
+        "decoder_word_count": 43,
+        "duplex_packet_count": 1,
+        "encoded_word_count": 43,
+        "file_end": 1054336,
+        "file_start": 1054164,
+        "loop0_end_packet_count": 0,
+        "loop1_end_packet_count": 0,
+        "name": "session-resource-release",
+        "packet_count": 22,
+        "sha256": "9ce99a3780d75a67437d61d63dbad21c3fa6c175442a77bea750af27e6dc6282",
+        "source": "sources/xiaomi-nabu/wlanmdsp/agent14-late-session-resource-release.S",
+        "source_sha256": "ee446fb4a065fd6b594c199e9dc90e9c7bfa8e157c7d5ea7276e5ba3b99b7e95",
+        "symbol": "wlan_late_session_resource_release",
+        "vaddr_end": 2953582208,
+        "vaddr_start": 2953582036
+      },
+      {
+        "bytes": 8,
+        "checkpoint": 3,
+        "classification": "executable",
+        "constant_extender_word_count": 1,
+        "decoder_word_count": 2,
+        "duplex_packet_count": 0,
+        "encoded_word_count": 2,
+        "file_end": 1054344,
+        "file_start": 1054336,
+        "loop0_end_packet_count": 0,
+        "loop1_end_packet_count": 0,
+        "name": "resource-disable-thunk",
+        "packet_count": 1,
+        "sha256": "698325d6a0e86c9c7baa85d73d36c00e3186d667e61bb6b685e92aa9058ad8d6",
+        "source": "sources/xiaomi-nabu/wlanmdsp/agent14-late-resource-disable-thunk.S",
+        "source_sha256": "0be612a73e68f3f6af50d7ff438d0966cab6ae82d8b8bd564516f7620d271193",
+        "symbol": "wlan_late_resource_disable_thunk",
+        "vaddr_end": 2953582216,
+        "vaddr_start": 2953582208
+      },
+      {
+        "bytes": 12,
+        "checkpoint": 3,
+        "classification": "executable",
+        "constant_extender_word_count": 1,
+        "decoder_word_count": 3,
+        "duplex_packet_count": 0,
+        "encoded_word_count": 3,
+        "file_end": 1054356,
+        "file_start": 1054344,
+        "loop0_end_packet_count": 0,
+        "loop1_end_packet_count": 0,
+        "name": "session-mode-reset-thunk",
+        "packet_count": 1,
+        "sha256": "5bbceff2f62fa16936c8dc6d32d24edfff48c9e68e4eb6f7a98e951f2a3db1b1",
+        "source": "sources/xiaomi-nabu/wlanmdsp/agent14-late-session-mode-reset-thunk.S",
+        "source_sha256": "436a7801ea16651864b81799e3b38bfd40a0ce9915adeda82b5c8797693d9a19",
+        "symbol": "wlan_late_session_mode_reset_thunk",
+        "vaddr_end": 2953582228,
+        "vaddr_start": 2953582216
+      },
+      {
+        "bytes": 144,
+        "checkpoint": 3,
+        "classification": "executable",
+        "constant_extender_word_count": 2,
+        "decoder_word_count": 36,
+        "duplex_packet_count": 3,
+        "encoded_word_count": 36,
+        "file_end": 1054500,
+        "file_start": 1054356,
+        "loop0_end_packet_count": 0,
+        "loop1_end_packet_count": 0,
+        "name": "timing-count-adjust",
+        "packet_count": 17,
+        "sha256": "ea65cecc5cc3c36aabdb2aacfeb3350faebb1e0fdd381e0685f5acd86c03c73a",
+        "source": "sources/xiaomi-nabu/wlanmdsp/agent14-late-timing-count-adjust.S",
+        "source_sha256": "62c5ab76c5cd67ad992796c01b4e85e83d8b61bbbdb0675738e16622b90a8a7e",
+        "symbol": "wlan_late_timing_count_adjust",
+        "vaddr_end": 2953582372,
+        "vaddr_start": 2953582228
+      }
+    ],
+    "schema_version": 1,
+    "scope_gaps": [
+      {
+        "bytes": 452,
+        "file_end": 1049028,
+        "file_start": 1048576
+      },
+      {
+        "bytes": 2434580,
+        "file_end": 3489080,
+        "file_start": 1054500
+      }
+    ],
+    "sha256": "4242c17caba9322e7ac687357acffa510839599dc5ebf85b856fc414ffa638e7",
+    "source_derived_executable_bytes": 5472,
+    "through_checkpoint": 3,
+    "vaddr_end": 2953582372,
+    "vaddr_start": 2953576900,
+    "verification_scope": "byte equality and packet structure; hardware behavior remains unverified"
+  },
+  "code_source_changes": "Only dispatch-table explanatory header comments changed in checkpoint04; all 5472 executable bytes are unchanged.",
+  "comparison_toolchain_note": "LLVM18 v66 and LLVM6 v65 are separate LLVM versions, not independent ISA implementations.",
+  "complete_firmware": false,
+  "emitted_file_ranges": [
+    {
+      "artifact": "agent20-14-checkpoint-04-code.bin",
+      "bytes": 5472,
+      "classification": "executable",
+      "file_end": 1054500,
+      "file_start": 1049028,
+      "sha256": "4242c17caba9322e7ac687357acffa510839599dc5ebf85b856fc414ffa638e7",
+      "vaddr_end": 2953582372,
+      "vaddr_start": 2953576900
+    },
+    {
+      "artifact": "agent20-14-checkpoint-04-tables.bin",
+      "bytes": 496,
+      "classification": "data",
+      "file_end": 3108544,
+      "file_start": 3108048,
+      "sha256": "f33f4dae122e666e9eefcfd539eb2405bc967d4928e96a72b3897907144f7390",
+      "vaddr_end": 2955636416,
+      "vaddr_start": 2955635920
+    }
+  ],
+  "external_reference_bytes_in_output": 0,
+  "function_boundary_qualification": "Four diagnostic-ending checkpoint03 boundaries rely on an external diagnostic target being non-returning; hardware confirmation remains absent.",
+  "generated_byte_count_semantics": "sum of two disjoint output ranges; not one contiguous image",
+  "generated_bytes": 5968,
+  "git_provenance": {
+    "branch": "agents20/14-wlan-late",
+    "checkpoint50_integrated": false,
+    "commit_parent": "8f2b38f6f164696da30376d8f1ed84ca133d832d",
+    "starting_base": "d6104bb257ad60aa52f36eb91f338ef3e08586c5"
+  },
+  "implementation_sha256": {
+    "tests/test_wlanmdsp_late_tables.py": "63c396968fc8475b3ef26de46da0fcc2085a71684356834efc9beae56f3a200e",
+    "tools/build-wlanmdsp-late-tables.py": "0807b49fd084bc8e8bb75bd5c5312b5994e08313980a0b55c9c49bac664c5cc1"
+  },
+  "layout_fill_bytes": 0,
+  "new_tests": 25,
+  "next_continuation_file_offset": 1054500,
+  "next_uncovered_file_offset": 1048576,
+  "normalized_commands": [
+    "cargo test --workspace --offline --locked",
+    "cargo build --workspace --release --offline --locked",
+    "python3 -m unittest discover -s tests -p 'test_*.py' -v",
+    "git diff --check"
+  ],
+  "owned_bytes": 2440504,
+  "owned_file_end": 3489080,
+  "owned_file_start": 1048576,
+  "reference_byte_mismatches": 0,
+  "reference_checked": true,
+  "reference_sha256": "87c2c7bb1fe97eaf007a947832feba0898644b4d6626ac8ef49d8b94dd82604b",
+  "schema_version": 1,
+  "scope_gaps": [
+    {
+      "bytes": 452,
+      "file_end": 1049028,
+      "file_start": 1048576
+    },
+    {
+      "bytes": 2053548,
+      "file_end": 3108048,
+      "file_start": 1054500
+    },
+    {
+      "bytes": 380536,
+      "file_end": 3489080,
+      "file_start": 3108544
+    }
+  ],
+  "source_derived_data_bytes": 496,
+  "source_derived_executable_bytes": 5472,
+  "tables": {
+    "architecture": "hexagonv66",
+    "artifact_kind": "separate-dispatch-table-data",
+    "classification": "data",
+    "complete_firmware": false,
+    "coverage_scope": "only the table ranges; dependency code and intervening bytes are not emitted",
+    "data_bytes": 496,
+    "emitted_file_ranges": [
+      {
+        "bytes": 496,
+        "classification": "data",
+        "file_end": 3108544,
+        "file_start": 3108048
+      }
+    ],
+    "entry_count": 124,
+    "external_reference_bytes_in_output": 0,
+    "file_end": 3108544,
+    "file_start": 3108048,
+    "generated_bytes": 496,
+    "independent_assembler_byte_mismatches": 0,
+    "independent_assembler_checked": true,
+    "independent_assembler_cpu": "hexagonv65",
+    "layout_fill_bytes": 0,
+    "owned_file_end": 3489080,
+    "owned_file_start": 1048576,
+    "reference_byte_mismatches": 0,
+    "reference_checked": true,
+    "reference_entry_mismatches": 0,
+    "reference_sha256": "87c2c7bb1fe97eaf007a947832feba0898644b4d6626ac8ef49d8b94dd82604b",
+    "schema_version": 1,
+    "sha256": "f33f4dae122e666e9eefcfd539eb2405bc967d4928e96a72b3897907144f7390",
+    "source_derived_data_bytes": 496,
+    "source_derived_executable_bytes": 0,
+    "tables": [
+      {
+        "bytes": 76,
+        "classification": "data",
+        "default_case_count": 5,
+        "default_label": "restore_status",
+        "entry_count": 19,
+        "entry_width_bytes": 4,
+        "explicit_case_count": 14,
+        "file_end": 3108124,
+        "file_start": 3108048,
+        "first_type": 0,
+        "independent_assembler_byte_mismatches": 0,
+        "independent_assembler_checked": true,
+        "last_type": 18,
+        "mappings": [
+          {
+            "is_default": false,
+            "label": "type_0000",
+            "target_code_offset": 24,
+            "target_vaddr": 2953579380,
+            "type": 0
+          },
+          {
+            "is_default": true,
+            "label": "restore_status",
+            "target_code_offset": 528,
+            "target_vaddr": 2953579884,
+            "type": 1
+          },
+          {
+            "is_default": false,
+            "label": "type_0002",
+            "target_code_offset": 36,
+            "target_vaddr": 2953579392,
+            "type": 2
+          },
+          {
+            "is_default": false,
+            "label": "type_0003",
+            "target_code_offset": 56,
+            "target_vaddr": 2953579412,
+            "type": 3
+          },
+          {
+            "is_default": false,
+            "label": "type_0004",
+            "target_code_offset": 76,
+            "target_vaddr": 2953579432,
+            "type": 4
+          },
+          {
+            "is_default": false,
+            "label": "type_0005",
+            "target_code_offset": 88,
+            "target_vaddr": 2953579444,
+            "type": 5
+          },
+          {
+            "is_default": false,
+            "label": "type_0006",
+            "target_code_offset": 108,
+            "target_vaddr": 2953579464,
+            "type": 6
+          },
+          {
+            "is_default": true,
+            "label": "restore_status",
+            "target_code_offset": 528,
+            "target_vaddr": 2953579884,
+            "type": 7
+          },
+          {
+            "is_default": true,
+            "label": "restore_status",
+            "target_code_offset": 528,
+            "target_vaddr": 2953579884,
+            "type": 8
+          },
+          {
+            "is_default": false,
+            "label": "type_0009",
+            "target_code_offset": 124,
+            "target_vaddr": 2953579480,
+            "type": 9
+          },
+          {
+            "is_default": true,
+            "label": "restore_status",
+            "target_code_offset": 528,
+            "target_vaddr": 2953579884,
+            "type": 10
+          },
+          {
+            "is_default": false,
+            "label": "type_000b",
+            "target_code_offset": 144,
+            "target_vaddr": 2953579500,
+            "type": 11
+          },
+          {
+            "is_default": false,
+            "label": "type_000c",
+            "target_code_offset": 168,
+            "target_vaddr": 2953579524,
+            "type": 12
+          },
+          {
+            "is_default": false,
+            "label": "type_000d",
+            "target_code_offset": 256,
+            "target_vaddr": 2953579612,
+            "type": 13
+          },
+          {
+            "is_default": false,
+            "label": "type_000e",
+            "target_code_offset": 456,
+            "target_vaddr": 2953579812,
+            "type": 14
+          },
+          {
+            "is_default": false,
+            "label": "type_000f",
+            "target_code_offset": 468,
+            "target_vaddr": 2953579824,
+            "type": 15
+          },
+          {
+            "is_default": true,
+            "label": "restore_status",
+            "target_code_offset": 528,
+            "target_vaddr": 2953579884,
+            "type": 16
+          },
+          {
+            "is_default": false,
+            "label": "type_0011",
+            "target_code_offset": 500,
+            "target_vaddr": 2953579856,
+            "type": 17
+          },
+          {
+            "is_default": false,
+            "label": "type_0012",
+            "target_code_offset": 516,
+            "target_vaddr": 2953579872,
+            "type": 18
+          }
+        ],
+        "name": "short-type-dispatch-table",
+        "reference_checked": true,
+        "reference_entry_mismatches": 0,
+        "sha256": "7c375e48709b69e965a818eb8fe680cae93f2fbb0283192c640a38669afe646c",
+        "source": "sources/xiaomi-nabu/wlanmdsp/agent14-late-short-type-dispatch.S",
+        "source_code_sha256": "92976e5e33cc2efa0ba8c0f82a309de381758ef8b198cfd32df337d8db4b912e",
+        "source_entry_symbol": "wlan_late_short_type_dispatch",
+        "source_function_bytes": 540,
+        "source_function_file_end": 1052024,
+        "source_function_file_start": 1051484,
+        "source_function_vaddr": 2953579356,
+        "source_registry_checkpoint": 3,
+        "source_sha256": "fb5fadfa3c31a1c273bc90060867cb9a0761fbe8dff489e8af16eb793b9562d5",
+        "target_packet_starts_checked": true,
+        "unique_target_count": 15,
+        "vaddr_end": 2955635996,
+        "vaddr_start": 2955635920
+      },
+      {
+        "bytes": 420,
+        "classification": "data",
+        "default_case_count": 52,
+        "default_label": "restore_status",
+        "entry_count": 105,
+        "entry_width_bytes": 4,
+        "explicit_case_count": 53,
+        "file_end": 3108544,
+        "file_start": 3108124,
+        "first_type": 4098,
+        "independent_assembler_byte_mismatches": 0,
+        "independent_assembler_checked": true,
+        "last_type": 4202,
+        "mappings": [
+          {
+            "is_default": false,
+            "label": "type_1002",
+            "target_code_offset": 48,
+            "target_vaddr": 2953580256,
+            "type": 4098
+          },
+          {
+            "is_default": false,
+            "label": "type_1003",
+            "target_code_offset": 64,
+            "target_vaddr": 2953580272,
+            "type": 4099
+          },
+          {
+            "is_default": false,
+            "label": "type_1004",
+            "target_code_offset": 80,
+            "target_vaddr": 2953580288,
+            "type": 4100
+          },
+          {
+            "is_default": false,
+            "label": "type_1005",
+            "target_code_offset": 96,
+            "target_vaddr": 2953580304,
+            "type": 4101
+          },
+          {
+            "is_default": true,
+            "label": "restore_status",
+            "target_code_offset": 940,
+            "target_vaddr": 2953581148,
+            "type": 4102
+          },
+          {
+            "is_default": true,
+            "label": "restore_status",
+            "target_code_offset": 940,
+            "target_vaddr": 2953581148,
+            "type": 4103
+          },
+          {
+            "is_default": false,
+            "label": "type_1008",
+            "target_code_offset": 112,
+            "target_vaddr": 2953580320,
+            "type": 4104
+          },
+          {
+            "is_default": false,
+            "label": "type_1009",
+            "target_code_offset": 128,
+            "target_vaddr": 2953580336,
+            "type": 4105
+          },
+          {
+            "is_default": true,
+            "label": "restore_status",
+            "target_code_offset": 940,
+            "target_vaddr": 2953581148,
+            "type": 4106
+          },
+          {
+            "is_default": true,
+            "label": "restore_status",
+            "target_code_offset": 940,
+            "target_vaddr": 2953581148,
+            "type": 4107
+          },
+          {
+            "is_default": true,
+            "label": "restore_status",
+            "target_code_offset": 940,
+            "target_vaddr": 2953581148,
+            "type": 4108
+          },
+          {
+            "is_default": false,
+            "label": "type_100d",
+            "target_code_offset": 144,
+            "target_vaddr": 2953580352,
+            "type": 4109
+          },
+          {
+            "is_default": false,
+            "label": "type_100e",
+            "target_code_offset": 160,
+            "target_vaddr": 2953580368,
+            "type": 4110
+          },
+          {
+            "is_default": false,
+            "label": "type_100f",
+            "target_code_offset": 208,
+            "target_vaddr": 2953580416,
+            "type": 4111
+          },
+          {
+            "is_default": false,
+            "label": "type_1010",
+            "target_code_offset": 224,
+            "target_vaddr": 2953580432,
+            "type": 4112
+          },
+          {
+            "is_default": false,
+            "label": "type_1011",
+            "target_code_offset": 240,
+            "target_vaddr": 2953580448,
+            "type": 4113
+          },
+          {
+            "is_default": false,
+            "label": "type_1012",
+            "target_code_offset": 252,
+            "target_vaddr": 2953580460,
+            "type": 4114
+          },
+          {
+            "is_default": true,
+            "label": "restore_status",
+            "target_code_offset": 940,
+            "target_vaddr": 2953581148,
+            "type": 4115
+          },
+          {
+            "is_default": false,
+            "label": "type_1014",
+            "target_code_offset": 268,
+            "target_vaddr": 2953580476,
+            "type": 4116
+          },
+          {
+            "is_default": false,
+            "label": "type_1015",
+            "target_code_offset": 288,
+            "target_vaddr": 2953580496,
+            "type": 4117
+          },
+          {
+            "is_default": false,
+            "label": "type_1016",
+            "target_code_offset": 308,
+            "target_vaddr": 2953580516,
+            "type": 4118
+          },
+          {
+            "is_default": false,
+            "label": "type_1017",
+            "target_code_offset": 324,
+            "target_vaddr": 2953580532,
+            "type": 4119
+          },
+          {
+            "is_default": false,
+            "label": "type_1018",
+            "target_code_offset": 340,
+            "target_vaddr": 2953580548,
+            "type": 4120
+          },
+          {
+            "is_default": true,
+            "label": "restore_status",
+            "target_code_offset": 940,
+            "target_vaddr": 2953581148,
+            "type": 4121
+          },
+          {
+            "is_default": false,
+            "label": "type_101a",
+            "target_code_offset": 352,
+            "target_vaddr": 2953580560,
+            "type": 4122
+          },
+          {
+            "is_default": true,
+            "label": "restore_status",
+            "target_code_offset": 940,
+            "target_vaddr": 2953581148,
+            "type": 4123
+          },
+          {
+            "is_default": true,
+            "label": "restore_status",
+            "target_code_offset": 940,
+            "target_vaddr": 2953581148,
+            "type": 4124
+          },
+          {
+            "is_default": true,
+            "label": "restore_status",
+            "target_code_offset": 940,
+            "target_vaddr": 2953581148,
+            "type": 4125
+          },
+          {
+            "is_default": false,
+            "label": "type_101e",
+            "target_code_offset": 368,
+            "target_vaddr": 2953580576,
+            "type": 4126
+          },
+          {
+            "is_default": true,
+            "label": "restore_status",
+            "target_code_offset": 940,
+            "target_vaddr": 2953581148,
+            "type": 4127
+          },
+          {
+            "is_default": false,
+            "label": "type_1020",
+            "target_code_offset": 384,
+            "target_vaddr": 2953580592,
+            "type": 4128
+          },
+          {
+            "is_default": false,
+            "label": "type_1021",
+            "target_code_offset": 400,
+            "target_vaddr": 2953580608,
+            "type": 4129
+          },
+          {
+            "is_default": false,
+            "label": "type_1022",
+            "target_code_offset": 412,
+            "target_vaddr": 2953580620,
+            "type": 4130
+          },
+          {
+            "is_default": false,
+            "label": "type_1023",
+            "target_code_offset": 428,
+            "target_vaddr": 2953580636,
+            "type": 4131
+          },
+          {
+            "is_default": false,
+            "label": "type_1024",
+            "target_code_offset": 440,
+            "target_vaddr": 2953580648,
+            "type": 4132
+          },
+          {
+            "is_default": true,
+            "label": "restore_status",
+            "target_code_offset": 940,
+            "target_vaddr": 2953581148,
+            "type": 4133
+          },
+          {
+            "is_default": false,
+            "label": "type_1026",
+            "target_code_offset": 452,
+            "target_vaddr": 2953580660,
+            "type": 4134
+          },
+          {
+            "is_default": false,
+            "label": "type_1027",
+            "target_code_offset": 468,
+            "target_vaddr": 2953580676,
+            "type": 4135
+          },
+          {
+            "is_default": false,
+            "label": "type_1028",
+            "target_code_offset": 480,
+            "target_vaddr": 2953580688,
+            "type": 4136
+          },
+          {
+            "is_default": true,
+            "label": "restore_status",
+            "target_code_offset": 940,
+            "target_vaddr": 2953581148,
+            "type": 4137
+          },
+          {
+            "is_default": true,
+            "label": "restore_status",
+            "target_code_offset": 940,
+            "target_vaddr": 2953581148,
+            "type": 4138
+          },
+          {
+            "is_default": true,
+            "label": "restore_status",
+            "target_code_offset": 940,
+            "target_vaddr": 2953581148,
+            "type": 4139
+          },
+          {
+            "is_default": false,
+            "label": "type_102c",
+            "target_code_offset": 496,
+            "target_vaddr": 2953580704,
+            "type": 4140
+          },
+          {
+            "is_default": false,
+            "label": "type_102d",
+            "target_code_offset": 516,
+            "target_vaddr": 2953580724,
+            "type": 4141
+          },
+          {
+            "is_default": true,
+            "label": "restore_status",
+            "target_code_offset": 940,
+            "target_vaddr": 2953581148,
+            "type": 4142
+          },
+          {
+            "is_default": true,
+            "label": "restore_status",
+            "target_code_offset": 940,
+            "target_vaddr": 2953581148,
+            "type": 4143
+          },
+          {
+            "is_default": true,
+            "label": "restore_status",
+            "target_code_offset": 940,
+            "target_vaddr": 2953581148,
+            "type": 4144
+          },
+          {
+            "is_default": true,
+            "label": "restore_status",
+            "target_code_offset": 940,
+            "target_vaddr": 2953581148,
+            "type": 4145
+          },
+          {
+            "is_default": false,
+            "label": "type_1032",
+            "target_code_offset": 532,
+            "target_vaddr": 2953580740,
+            "type": 4146
+          },
+          {
+            "is_default": true,
+            "label": "restore_status",
+            "target_code_offset": 940,
+            "target_vaddr": 2953581148,
+            "type": 4147
+          },
+          {
+            "is_default": true,
+            "label": "restore_status",
+            "target_code_offset": 940,
+            "target_vaddr": 2953581148,
+            "type": 4148
+          },
+          {
+            "is_default": true,
+            "label": "restore_status",
+            "target_code_offset": 940,
+            "target_vaddr": 2953581148,
+            "type": 4149
+          },
+          {
+            "is_default": true,
+            "label": "restore_status",
+            "target_code_offset": 940,
+            "target_vaddr": 2953581148,
+            "type": 4150
+          },
+          {
+            "is_default": true,
+            "label": "restore_status",
+            "target_code_offset": 940,
+            "target_vaddr": 2953581148,
+            "type": 4151
+          },
+          {
+            "is_default": true,
+            "label": "restore_status",
+            "target_code_offset": 940,
+            "target_vaddr": 2953581148,
+            "type": 4152
+          },
+          {
+            "is_default": false,
+            "label": "type_1039",
+            "target_code_offset": 544,
+            "target_vaddr": 2953580752,
+            "type": 4153
+          },
+          {
+            "is_default": false,
+            "label": "type_103a",
+            "target_code_offset": 560,
+            "target_vaddr": 2953580768,
+            "type": 4154
+          },
+          {
+            "is_default": false,
+            "label": "type_103b",
+            "target_code_offset": 804,
+            "target_vaddr": 2953581012,
+            "type": 4155
+          },
+          {
+            "is_default": false,
+            "label": "type_103c",
+            "target_code_offset": 576,
+            "target_vaddr": 2953580784,
+            "type": 4156
+          },
+          {
+            "is_default": false,
+            "label": "type_103d",
+            "target_code_offset": 592,
+            "target_vaddr": 2953580800,
+            "type": 4157
+          },
+          {
+            "is_default": false,
+            "label": "type_103e",
+            "target_code_offset": 820,
+            "target_vaddr": 2953581028,
+            "type": 4158
+          },
+          {
+            "is_default": false,
+            "label": "type_103f",
+            "target_code_offset": 612,
+            "target_vaddr": 2953580820,
+            "type": 4159
+          },
+          {
+            "is_default": false,
+            "label": "type_1040",
+            "target_code_offset": 628,
+            "target_vaddr": 2953580836,
+            "type": 4160
+          },
+          {
+            "is_default": false,
+            "label": "type_1041",
+            "target_code_offset": 644,
+            "target_vaddr": 2953580852,
+            "type": 4161
+          },
+          {
+            "is_default": false,
+            "label": "type_1042",
+            "target_code_offset": 660,
+            "target_vaddr": 2953580868,
+            "type": 4162
+          },
+          {
+            "is_default": true,
+            "label": "restore_status",
+            "target_code_offset": 940,
+            "target_vaddr": 2953581148,
+            "type": 4163
+          },
+          {
+            "is_default": false,
+            "label": "type_1044",
+            "target_code_offset": 672,
+            "target_vaddr": 2953580880,
+            "type": 4164
+          },
+          {
+            "is_default": false,
+            "label": "type_1045",
+            "target_code_offset": 688,
+            "target_vaddr": 2953580896,
+            "type": 4165
+          },
+          {
+            "is_default": true,
+            "label": "restore_status",
+            "target_code_offset": 940,
+            "target_vaddr": 2953581148,
+            "type": 4166
+          },
+          {
+            "is_default": false,
+            "label": "type_1047",
+            "target_code_offset": 700,
+            "target_vaddr": 2953580908,
+            "type": 4167
+          },
+          {
+            "is_default": false,
+            "label": "type_1048",
+            "target_code_offset": 840,
+            "target_vaddr": 2953581048,
+            "type": 4168
+          },
+          {
+            "is_default": true,
+            "label": "restore_status",
+            "target_code_offset": 940,
+            "target_vaddr": 2953581148,
+            "type": 4169
+          },
+          {
+            "is_default": false,
+            "label": "type_104a",
+            "target_code_offset": 716,
+            "target_vaddr": 2953580924,
+            "type": 4170
+          },
+          {
+            "is_default": true,
+            "label": "restore_status",
+            "target_code_offset": 940,
+            "target_vaddr": 2953581148,
+            "type": 4171
+          },
+          {
+            "is_default": true,
+            "label": "restore_status",
+            "target_code_offset": 940,
+            "target_vaddr": 2953581148,
+            "type": 4172
+          },
+          {
+            "is_default": false,
+            "label": "type_104d",
+            "target_code_offset": 732,
+            "target_vaddr": 2953580940,
+            "type": 4173
+          },
+          {
+            "is_default": true,
+            "label": "restore_status",
+            "target_code_offset": 940,
+            "target_vaddr": 2953581148,
+            "type": 4174
+          },
+          {
+            "is_default": true,
+            "label": "restore_status",
+            "target_code_offset": 940,
+            "target_vaddr": 2953581148,
+            "type": 4175
+          },
+          {
+            "is_default": true,
+            "label": "restore_status",
+            "target_code_offset": 940,
+            "target_vaddr": 2953581148,
+            "type": 4176
+          },
+          {
+            "is_default": true,
+            "label": "restore_status",
+            "target_code_offset": 940,
+            "target_vaddr": 2953581148,
+            "type": 4177
+          },
+          {
+            "is_default": true,
+            "label": "restore_status",
+            "target_code_offset": 940,
+            "target_vaddr": 2953581148,
+            "type": 4178
+          },
+          {
+            "is_default": false,
+            "label": "type_1053",
+            "target_code_offset": 744,
+            "target_vaddr": 2953580952,
+            "type": 4179
+          },
+          {
+            "is_default": false,
+            "label": "type_1054",
+            "target_code_offset": 856,
+            "target_vaddr": 2953581064,
+            "type": 4180
+          },
+          {
+            "is_default": true,
+            "label": "restore_status",
+            "target_code_offset": 940,
+            "target_vaddr": 2953581148,
+            "type": 4181
+          },
+          {
+            "is_default": true,
+            "label": "restore_status",
+            "target_code_offset": 940,
+            "target_vaddr": 2953581148,
+            "type": 4182
+          },
+          {
+            "is_default": false,
+            "label": "type_1057",
+            "target_code_offset": 760,
+            "target_vaddr": 2953580968,
+            "type": 4183
+          },
+          {
+            "is_default": true,
+            "label": "restore_status",
+            "target_code_offset": 940,
+            "target_vaddr": 2953581148,
+            "type": 4184
+          },
+          {
+            "is_default": false,
+            "label": "type_1059",
+            "target_code_offset": 776,
+            "target_vaddr": 2953580984,
+            "type": 4185
+          },
+          {
+            "is_default": true,
+            "label": "restore_status",
+            "target_code_offset": 940,
+            "target_vaddr": 2953581148,
+            "type": 4186
+          },
+          {
+            "is_default": true,
+            "label": "restore_status",
+            "target_code_offset": 940,
+            "target_vaddr": 2953581148,
+            "type": 4187
+          },
+          {
+            "is_default": true,
+            "label": "restore_status",
+            "target_code_offset": 940,
+            "target_vaddr": 2953581148,
+            "type": 4188
+          },
+          {
+            "is_default": true,
+            "label": "restore_status",
+            "target_code_offset": 940,
+            "target_vaddr": 2953581148,
+            "type": 4189
+          },
+          {
+            "is_default": true,
+            "label": "restore_status",
+            "target_code_offset": 940,
+            "target_vaddr": 2953581148,
+            "type": 4190
+          },
+          {
+            "is_default": true,
+            "label": "restore_status",
+            "target_code_offset": 940,
+            "target_vaddr": 2953581148,
+            "type": 4191
+          },
+          {
+            "is_default": true,
+            "label": "restore_status",
+            "target_code_offset": 940,
+            "target_vaddr": 2953581148,
+            "type": 4192
+          },
+          {
+            "is_default": false,
+            "label": "type_1061",
+            "target_code_offset": 788,
+            "target_vaddr": 2953580996,
+            "type": 4193
+          },
+          {
+            "is_default": false,
+            "label": "type_1062",
+            "target_code_offset": 872,
+            "target_vaddr": 2953581080,
+            "type": 4194
+          },
+          {
+            "is_default": true,
+            "label": "restore_status",
+            "target_code_offset": 940,
+            "target_vaddr": 2953581148,
+            "type": 4195
+          },
+          {
+            "is_default": true,
+            "label": "restore_status",
+            "target_code_offset": 940,
+            "target_vaddr": 2953581148,
+            "type": 4196
+          },
+          {
+            "is_default": true,
+            "label": "restore_status",
+            "target_code_offset": 940,
+            "target_vaddr": 2953581148,
+            "type": 4197
+          },
+          {
+            "is_default": true,
+            "label": "restore_status",
+            "target_code_offset": 940,
+            "target_vaddr": 2953581148,
+            "type": 4198
+          },
+          {
+            "is_default": true,
+            "label": "restore_status",
+            "target_code_offset": 940,
+            "target_vaddr": 2953581148,
+            "type": 4199
+          },
+          {
+            "is_default": true,
+            "label": "restore_status",
+            "target_code_offset": 940,
+            "target_vaddr": 2953581148,
+            "type": 4200
+          },
+          {
+            "is_default": true,
+            "label": "restore_status",
+            "target_code_offset": 940,
+            "target_vaddr": 2953581148,
+            "type": 4201
+          },
+          {
+            "is_default": false,
+            "label": "type_106a",
+            "target_code_offset": 888,
+            "target_vaddr": 2953581096,
+            "type": 4202
+          }
+        ],
+        "name": "wide-type-dispatch-table",
+        "reference_checked": true,
+        "reference_entry_mismatches": 0,
+        "sha256": "33dc7257afa9baecbc797b149fe51e08ee071ed0b319c216682249593310f930",
+        "source": "sources/xiaomi-nabu/wlanmdsp/agent14-late-wide-type-dispatch.S",
+        "source_code_sha256": "850c9f47ff163129af2b110388752ac281f2fee9dfbbc37a8aefa0cf2e79757b",
+        "source_entry_symbol": "wlan_late_wide_type_dispatch",
+        "source_function_bytes": 1008,
+        "source_function_file_end": 1053344,
+        "source_function_file_start": 1052336,
+        "source_function_vaddr": 2953580208,
+        "source_registry_checkpoint": 3,
+        "source_sha256": "525c040412458dc96eae994075a47f9dd1eafa8b92cdc2881562b9c0cde6cb1a",
+        "target_packet_starts_checked": true,
+        "unique_target_count": 54,
+        "vaddr_end": 2955636416,
+        "vaddr_start": 2955635996
+      }
+    ],
+    "target_packet_starts_checked": true,
+    "vaddr_end": 2955636416,
+    "vaddr_start": 2955635920,
+    "verification_scope": "symbolic targets, registered source hashes, packet starts and optional byte equality; hardware behavior remains unverified"
+  },
+  "tests": {
+    "git_diff_check": "passed",
+    "python_passed": 108,
+    "python_skipped": 0,
+    "release_build": "passed",
+    "rust_passed": 160,
+    "skipped_tests": []
+  },
+  "toolchains": {
+    "decoder": "Ubuntu LLVM 18.1.3 / hexagonv66",
+    "independent": "LLVM 6.0.1 / hexagonv65",
+    "primary": "Ubuntu LLVM 18.1.3 / hexagonv66",
+    "rustc": "rustc 1.99.1 (58cf8f9c3 2026-10-13)"
+  },
+  "uncovered_bytes": 2434536,
+  "verification_scope": "exact generated bytes, symbolic target provenance, packet starts, two LLVM versions and regressions; no hardware execution or whole-firmware behavior claim"
+}

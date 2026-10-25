@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // Agent 20-14: file [0x100eb0, 0x1012a0),
 // runtime [0xb00c0eb0, 0xb00c12a0).
-// Dispatch tags 0x1002..0x106a through the external 105-entry table at 0xb02b6d1c.
-// The table remains external data; only the executable handler region is built.
+// Dispatch tags 0x1002..0x106a through the 105-entry table at 0xb02b6d1c.
+// tools/build-wlanmdsp-late-tables.py derives the table as separate DATA from
+// these case labels; this source emits only the executable handler region.
 // Handlers enforce fixed lengths or retain pointer/length pairs. Two bounded
 // arrays admit at most 10 entries. Unhandled tags return zero without writes.
 // Explicit V66 mnemonic/packet source; no reference bytes are used at build time.

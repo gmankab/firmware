@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // Agent 20-14: file [0x100b5c, 0x100d78),
 // runtime [0xb00c0b5c, 0xb00c0d78).
-// Dispatch types 0..18 through the external 19-entry table at 0xb02b6cd0.
-// All handler instructions are source encoded here; the table remains external
-// data and contributes no recovered bytes to this fragment.
+// Dispatch types 0..18 through the 19-entry table at 0xb02b6cd0.
+// tools/build-wlanmdsp-late-tables.py derives that separate DATA fragment from
+// these case labels; the table contributes no executable bytes to this source.
 // Handlers validate payload lengths, retain pointers/counts, and parse a bounded
 // string with control bytes replaced by underscores. Unknown types return zero.
 // Explicit V66 mnemonic/packet source; no reference bytes are used at build time.
