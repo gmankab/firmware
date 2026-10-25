@@ -399,3 +399,39 @@ python3 tools/verify-cdsp-copyfast.py \
 The merge ancestry limitation is unchanged: Agent 5 starts from `69ebf0d`,
 not checkpoint 50, so these commits require review/cherry-pick onto the
 checkpoint-50 source rather than blind fast-forward.
+
+## Checkpoint 12 — V66 cache-controller CFGBASE prefix
+
+A further **80 contiguous independently encoded bytes** were reconstructed at
+CDSP file `[0x3f24,0x3f74)` (physical `[0x96c00f24,0x96c00f74)`). The code
+reads `CFGBASE`, scales it by five bits, performs three V66 `memw_phys`
+reads at offsets `0x4c`, `0x38` and `0x3c`, shifts the returned words by 16,
+16 and 10 bits, respectively, and stores those new values through fixed
+negative-offset controller MMIO pointers. All relative offsets and register
+fields are source-encoded through constrained typed constructors; the final
+routine's cache-maintenance loop beyond `0x3f74` is still incomplete.
+
+**Independent checks:** LLVM6 Hexagon assembles the 16 ordinary words (64
+bytes), where one ASL packet parse marker differs because LLVM schedules
+it as a standalone packet. The other **four privileged V66 words** (`CFGBASE`
+and three `memw_phys`) are not supported by LLVM6 and are verified via
+Rizin V66 decoding, including independent mutations of the physical load's
+register fields. LLVM independently reproduces the extended `.new` MMIO
+stores, rather than merely decoding the original. Original CDSP reference
+comparison is **80/80 bytes exact**. The joined supervisor/TLB/cache/control
+region is now **564 bytes** (`0x3d40–0x3f74`); including the separate 68-byte
+entry prefix, **632 reconstructed bytes** exist in two disjoint regions.
+
+```sh
+cargo run --offline --locked -p firmware-tools --bin cdsp-rebuild -- \
+  emit-cache-controller-prefix /tmp/cdsp-cfgbase-80.bin
+cargo run --offline --locked -p firmware-tools --bin cdsp-rebuild -- \
+  verify-cluster-with-cache-controller /private/cdsp.mbn
+python3 tools/verify-cdsp-cache-controller.py \
+  --llvm-mc /path/to/llvm-mc --rz-asm /path/to/rz-asm \
+  --rust-output /tmp/cdsp-cfgbase-80.bin --reference /private/cdsp.mbn
+```
+
+This branch descends from old checkpoint `69ebf0d`, **not** checkpoint 50;
+any integration must review/cherry-pick the agent commits. OEM auth and
+uncovered DSP executable text remain unimplemented; no flashable output.

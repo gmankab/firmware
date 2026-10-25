@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-only
 //! CDSP partial reconstruction command. Reference bytes stay outside Git.
-use firmware_tools::devices::xiaomi_nabu::{cdsp_boot as cdsp, cdsp_privilege as privileged, cdsp_tlb as tlb, cdsp_tlb_extension as extension, cdsp_copyfast as cache_copy};
+use firmware_tools::devices::xiaomi_nabu::{cdsp_boot as cdsp, cdsp_privilege as privileged, cdsp_tlb as tlb, cdsp_tlb_extension as extension, cdsp_copyfast as cache_copy, cdsp_cache_controller as cache_ctl};
 use std::{env, fs};
 
 fn run() -> Result<(), Box<dyn std::error::Error>> {
@@ -25,6 +25,22 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
             println!("Verified {} CDSP Hexagon supervisor-reset bytes at file {:#x}..{:#x}, separate from the entry prefix.",
                 privileged::FUNCTION_SIZE, privileged::FILE_OFFSET,
                 privileged::FILE_OFFSET + privileged::FUNCTION_SIZE);
+        }
+        [action, output] if action == "emit-cache-controller-prefix" => {
+            fs::write(output,cache_ctl::build_prefix()?)?;
+            println!("Emitted typed 80-byte CFGBASE setup prefix at CDSP file 0x3f24..0x3f74; routine incomplete.");
+        }
+        [action, reference] if action == "verify-cache-controller-prefix" => {
+            cache_ctl::verify_prefix(&fs::read(reference)?)?;
+            println!("Verified 80 reconstructed CDSP CFGBASE setup bytes at 0x3f24..0x3f74.");
+        }
+        [action, output] if action == "emit-cluster-with-cache-controller" => {
+            fs::write(output,cache_ctl::build_joined_cache_controller_prefix()?)?;
+            println!("Emitted 564 contiguous reconstructed CDSP supervisor/TLB/cache setup bytes, file 0x3d40..0x3f74.");
+        }
+        [action, reference] if action == "verify-cluster-with-cache-controller" => {
+            cache_ctl::verify_joined_prefix(&fs::read(reference)?)?;
+            println!("Verified 564 contiguous CDSP bytes file 0x3d40..0x3f74.");
         }
         [action, output] if action == "emit-copyfast" => {
             fs::write(output,cache_copy::build_complete()?)?;

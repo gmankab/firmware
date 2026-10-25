@@ -140,6 +140,13 @@ pub enum ScalarPacket {
     HardwareLoop { loop_index: u8, counter: GeneralRegister, displacement_bytes: u16 },
     /// Store a 64-bit register pair then increment the pointer by 16 bytes.
     MemDoubleStorePostIncrement { low: GeneralRegister, base: GeneralRegister, increment: u8 },
+    /// Read privileged Hexagon V66 special register (e.g. CFGBASE) into GPR.
+    /// Unlike `ReadSyscfg`, the caller explicitly names the system selector.
+    ReadSystem { system: SystemRegister, dst: GeneralRegister },
+    /// V66 physical word read, two GPR sources and GPR result. LLVM 6 lacks
+    /// this privileged operation; register fields were checked with the
+    /// Rizin Hexagon decoder by varying each register independently.
+    ReadPhysicalWord { dst: GeneralRegister, offset: GeneralRegister, base: GeneralRegister },
     /// One Hexagon singleton NOP. Its packet marker can also denote endloop.
     Nop,
     /// Cache and instruction synchronization (singleton packets).
@@ -154,10 +161,11 @@ pub enum ScalarPacket {
 pub enum SystemRegister {
     Ssr,
     Syscfg,
+    Cfgbase,
 }
 impl SystemRegister {
     fn opcode_selector(self) -> u32 {
-        match self { Self::Ssr => 6, Self::Syscfg => 18 }
+        match self { Self::Ssr => 6, Self::Syscfg => 18, Self::Cfgbase => 27 }
     }
 }
 
@@ -374,6 +382,17 @@ impl ScalarPacket {
                 Ok(0xabc0_c000 | (u32::from(base.number()) << 16)
                     | (u32::from(low.number()) << 8) | u32::from(increment))
             }
+            Self::ReadSystem { system, dst } => {
+                Ok(0x6e80_c000 | (system.opcode_selector() << 16)
+                    | u32::from(dst.number()))
+            }
+            Self::ReadPhysicalWord { dst, offset, base } => {
+                // Hexagon V66 physical read: offset in [20:16], mapped base
+                // in [12:8], destination in [4:0]. Four independent register
+                // mutations were validated by the Rizin Hexagon backend.
+                Ok(0x9200_f000 | (u32::from(offset.number()) << 16)
+                    | (u32::from(base.number()) << 8) | u32::from(dst.number()))
+            }
             Self::Nop => Ok(0x7f00_c000),
             Self::Dckill => Ok(0xa200_c000),
             Self::Ickill => Ok(0x56c0_d000),
@@ -422,6 +441,22 @@ pub fn encode_extended_gp_word_load(dst: GeneralRegister, absolute: u32) -> [u32
     let ext=((absolute>>20)<<16) | ((absolute>>6)&0x3fff) | 0x4000;
     let load=0x4980_c000 | ((absolute&0x3f)<<5) | u32::from(dst.number());
     [ext,load]
+}
+
+/// Encode a negative-offset word store of the preceding `.new` producer.
+/// The consumer appears last in a packet with exactly one earlier producer;
+/// Hexagon encodes a *new-value distance*, not the producer's GPR number.
+/// LLVM6 independently reproduced the packet for several producer/base
+/// registers; this constructor supports only the observed distance-two form.
+pub fn encode_extended_new_value_store(base: GeneralRegister,
+                                       byte_offset: i32) -> Result<[u32;2],String> {
+    if byte_offset % 4 != 0 {
+        return Err("Hexagon extended word store requires a 4-byte aligned offset".into());
+    }
+    let bits=byte_offset as u32;
+    let ext=((bits>>20)<<16) | ((bits>>6)&0x3fff) | 0x4000;
+    let body=0xa1a0_d200 | (u32::from(base.number())<<16) | (bits&0x3f);
+    Ok([ext,body])
 }
 
 /// Preserve the parse bits chosen for a multi-instruction Hexagon packet.
