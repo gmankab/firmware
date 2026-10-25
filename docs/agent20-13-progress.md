@@ -101,3 +101,14 @@ python3 tools/build-wlanmdsp-agent13.py /tmp/wlan-prefix-through-27a0.bin \
 - Rebuild command: `LD_LIBRARY_PATH=/private/ubuntu-runtime/flat python3 tools/build-wlanmdsp-agent13.py /tmp/agent13-prefix.bin --join-agent07 --llvm6 /private/llvm6/bin/llvm-mc --llvm22 /private/llvm22/bin/llvm-mc --reference /private/wlanmdsp.mbn --manifest /tmp/agent13-prefix.json`.
 - Isolated Rust workspace tests **160 pass**; Python discovery **22 tests, 21 pass, 1 skip**; LLVM22 optional packet-roundtrip checked with reference; offline release build passed; `git diff --check` clean.
 - Source ancestry is still Agent 7's `d6104bb`, **not** missing checkpoint-50. Whole firmware and OEM signing are not reproduced; later WLAN Hexagon executable remains unimplemented from **file `0x43410` / VMA `0xb0003410`** to this agent's reserved upper bound `0x100000`.
+
+## Checkpoint 08 — record-context allocation and state initialization
+
+- Added **464 source-assembled Hexagon V66 bytes** across three complete adjacent routines:
+  - `[file 0x43410,0x434a8)` = 152-byte allocator/record context constructor; initializes command blocks and a mapped record pointer.
+  - `[file 0x434a8,0x434b4)` = 12-byte allocator tail-call wrapper; separate entrypoint, not padding.
+  - `[file 0x434b4,0x435e0)` = 300-byte record state constructor that configures object byte/word metadata and registers controller callbacks.
+- LLVM22 packet encoding required preserving a compound duplex grouping around VMA `0x3480`, a packet-relative extended far jump at `0x34a0`, another correct far jump at `0x35d8`, and `:mem_noshuf` ordering of an ordered doubleword store and word load at `0x3534`. All are expressed as Hexagon V66 assembly operations, no imported instruction words.
+- Total Agent 13 independently assembled code is **3,800 bytes** `[file 0x42708,0x435e0)`. Combined with Agent 7, full independently reconstructed executable layout `[file 0x40000,0x435e0)` has **13,792 exact bytes**: **10,016 encoded instruction bytes** + **3,776 linker-fill/layout bytes**. SHA-256 `9f7552d0888952b6d89ba761d607f2b2b54a3f3837a9f48a7f3c451338c9c6cb`.
+- Real LLVM22 assembler and strict pinned reference check passed for all three new functions and the complete joined prefix, with zero byte mismatches. Offline Rust suite **160 pass**. Python discovery **22 tests, 21 pass, 1 skip**. Offline release build and `git diff --check` passed.
+- Next code begins **file `0x435e0` / VMA `0xb00035e0`**. The owner boundary is still file `0x100000`, and the branch remains Agent 7-based, not checkpoint-50-descended. Signed/flashable firmware is not produced.

@@ -41,6 +41,9 @@ FRAGMENTS = (
     ("record-readiness", WLAN_SRC / "agent13-runtime-record-readiness.S", 0x2f18, 0x5c),
     ("record-callback-guard", WLAN_SRC / "agent13-runtime-record-callback-guard.S", 0x2f74, 0x38),
     ("incoming-record-processing", WLAN_SRC / "agent13-runtime-record-processing.S", 0x2fac, 0x464),
+    ("record-context-allocation", WLAN_SRC / "agent13-runtime-record-create.S", 0x3410, 0x98),
+    ("record-allocator-tail", WLAN_SRC / "agent13-runtime-record-allocator-tail.S", 0x34a8, 0x0c),
+    ("record-state-init", WLAN_SRC / "agent13-runtime-record-context-init.S", 0x34b4, 0x12c),
 )
 
 
