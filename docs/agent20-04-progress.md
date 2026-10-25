@@ -45,3 +45,11 @@ git diff --check
 - Independent Clang/LLVM reassembly of all 254 mnemonics exactly matches the 1,016 typed Rust instruction bytes; the four-word literal pool matches independently. The complete private-reference verifier now checks **three separate fragments** with zero differences.
 - Verified source-derived total through this checkpoint is **2,140 bytes** over three disjoint intervals (488 + 1,032 + 620): **2,120 A32 executable instruction bytes** (530 instructions), **20 known data bytes** (five literal words), no padding or external code. The remaining uncovered intervals within the first group are runtime `[0x40000,0x40a2c)`, `[0x40c14,0x412b8)` and `[0x416c0,0x424c0)`.
 - The next confirmed function entry after the third reconstructed interval is `0x4272c`; its later ranges remain pending. The owned exclusive upper boundary is still `0x68000`.
+
+## Checkpoint 04 — contiguous fixed-point codec controller writer
+
+- New source-derived span `[0x40c14,0x412b8)` = **1,700 bytes**, MBN `[0x44c14,0x452b8)`: **422 typed ARM32 instructions** `[0x40c14,0x412ac)` and **three literal data words** `[0x412ac,0x412b8)`.
+- Full original function dispatches codec/controller formats, normalizes signed-byte parameters, emits input descriptor records and calls fixed-point ARM-to-Thumb helpers; it uses public SMULL/SMULBB/SMLABB architecture encodings with module-local operand checks. These encoders have tests against independent Clang/LLVM assembly, including signed multiply-accumulate operands and expected instruction words.
+- Independent 422-instruction LLVM mnemonic reassembly agrees byte-for-byte with the source-generated code; original reference comparison of every 1,700 bytes likewise passes. Three named literal constants (`0x26201c16`, `0x88888889`, `0xfffffdda`) are verified independently.
+- The previously separate first and third fragments now form **3,220 consecutive bytes** `[0x40a2c,0x416c0)`. The additional capability function `[0x424c0,0x4272c)` is still **disjoint**; the next uncovered region is `[0x416c0,0x424c0)`.
+- Source-derived total through this checkpoint = **3,840 bytes**, of which **3,808 executable bytes** (952 instructions) and **32 literal data bytes** (eight words), without inferred padding, externally borrowed code or implicit original-byte copying.

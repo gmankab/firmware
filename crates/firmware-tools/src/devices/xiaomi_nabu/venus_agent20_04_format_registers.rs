@@ -18,7 +18,7 @@ const FORMAT_DATA:[u32;4]=[0x3c0f_0002,0x007f_ffff,0x000e_e028,0x0003_fffd];
 /// into Rt with pre-indexed positive offset `Rm` (no base writeback).
 /// Verified against Clang/LLVM assembly of `ldrsb r1,[r0,r1]` and
 /// `ldrsb r6,[r3,r6]`. This is not proprietary OEM instruction data.
-fn signed_byte_register(cond:C,dst:R,base:R,index:R)->Result<u32,String>{
+pub(super) fn signed_byte_register(cond:C,dst:R,base:R,index:R)->Result<u32,String>{
     if dst==R::PC || base==R::PC || index==R::PC {
         return Err("LDRSB register mode cannot use PC".into());
     }
