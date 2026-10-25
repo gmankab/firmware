@@ -115,3 +115,43 @@ cargo run --offline --locked -p firmware-tools --bin cdsp-rebuild -- verify-sysc
 python3 tools/verify-cdsp-v66-init.py --profile syscfg-disable --rz-asm /path/to/rz-asm \
   --rust-output /tmp/cdsp-syscfg-disable.bin --reference /private/cdsp.mbn
 ```
+
+## Checkpoint 05 — complete supervisor cluster and relocation trampoline
+
+The previously missing 20 bytes at file `[0x3d6c,0x3d80)` are a
+**Hexagon relocation trampoline**. A named `FP=##-0x1fff280` extended
+assignment occupies two words (continuation marker on the second), followed
+by `LR=add(LR,R25)` in the same packet; singleton `FP=add(FP,R25)` and
+`jumpr FP` finish the trampoline. The typed Rust constructor
+`encode_extended_assignment` models split immediate bitfields and packet
+parse markers; `AddRegisters` has independent register-field tests.
+
+LLVM6 independently assembles this five-word trampoline from:
+
+```asm
+{
+ r30 = ##-0x1fff280
+ r31 = add(r31,r25)
+}
+{ r30 = add(r30,r25) }
+{ jumpr r30 }
+```
+
+Thus the three functions are **84 contiguous independently generated
+executable bytes** at `[0x3d40,0x3d94)` (physical
+`[0x96c00d40,0x96c00d94)`). The separate entry prefix is still 68
+bytes. Total verified executable content is **152 bytes across two disjoint
+regions** (68 + 84), not a contiguous 152-byte boot image. This accurately
+accounts for all supervisor bytes without placeholder instructions or
+reference copying. The base checkpoint-50 bundle remains unavailable;
+branch ancestry remains `69ebf0d`.
+
+```sh
+cargo run --offline --locked -p firmware-tools --bin cdsp-rebuild -- \
+  emit-supervisor-span /tmp/cdsp-supervisor.bin
+cargo run --offline --locked -p firmware-tools --bin cdsp-rebuild -- \
+  verify-supervisor-span /private/cdsp.mbn
+python3 tools/verify-cdsp-supervisor-bridge.py \
+  --llvm-mc /path/to/llvm-mc --rust-output /tmp/cdsp-relocator.bin \
+  --reference /private/cdsp.mbn
+```

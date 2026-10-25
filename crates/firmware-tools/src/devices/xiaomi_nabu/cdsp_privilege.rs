@@ -86,8 +86,88 @@ pub fn verify_syscfg_disable(reference: &[u8]) -> Result<(), String> {
     Ok(())
 }
 
+/// A Hexagon relocator trampoline, occupying the previously missing space
+/// between the SYSCFG reset and SYSCFG disable functions. LLVM separately
+/// assembles the 3-instruction first packet (one immext pair plus addition)
+/// followed by singleton addition and register-jump packets.
+pub const RELOCATOR_OFFSET: usize = 0x3d6c;
+pub const RELOCATOR_SIZE: usize = 5 * 4;
+pub fn build_relocator_trampoline() -> Result<Vec<u8>,String> {
+    use cdsp_boot::encode_extended_assignment;
+    let fp=Gpr::new(30)?;
+    let lr=Gpr::new(31)?;
+    let relocate=Gpr::new(25)?;
+    let mut data=Vec::with_capacity(RELOCATOR_SIZE);
+    for word in encode_extended_assignment(fp,-0x1fff280,false) {
+        data.extend_from_slice(&word.to_le_bytes());
+    }
+    for packet in [
+        Hexagon::AddRegisters { dst:lr, left:lr, right:relocate },
+        Hexagon::AddRegisters { dst:fp, left:fp, right:relocate },
+        Hexagon::JumpRegister { source:fp },
+    ] { data.extend_from_slice(&packet.encode()?.to_le_bytes()); }
+    if data.len()!=RELOCATOR_SIZE { return Err("CDSP relocator is not 20 bytes".into()); }
+    Ok(data)
+}
+
+pub fn verify_relocator_trampoline(reference: &[u8]) -> Result<(),String> {
+    cdsp_boot::validate_reference(reference)?;
+    let built=build_relocator_trampoline()?;
+    let found=reference.get(RELOCATOR_OFFSET..RELOCATOR_OFFSET+RELOCATOR_SIZE)
+        .ok_or("CDSP reference missing relocator")?;
+    if let Some((i,(a,b)))=found.iter().zip(&built).enumerate().find(|(_,(a,b))|a!=b) {
+        return Err(format!("CDSP relocator difference at {:#x}: {a:02x} != {b:02x}",RELOCATOR_OFFSET+i));
+    }
+    Ok(())
+}
+
+/// The reset, relocator, and disable functions now form one CONTIGUOUS
+/// 84-byte Hexagon runtime interval, entirely generated from typed source.
+pub const SUPERVISOR_SPAN_SIZE: usize = FUNCTION_SIZE + RELOCATOR_SIZE + DISABLE_SIZE;
+pub fn build_supervisor_span() -> Result<Vec<u8>,String> {
+    if FILE_OFFSET+FUNCTION_SIZE!=RELOCATOR_OFFSET ||
+       RELOCATOR_OFFSET+RELOCATOR_SIZE!=DISABLE_OFFSET {
+        return Err("CDSP privileged fragment adjacency violation".into());
+    }
+    let mut result=build_syscfg_reset()?;
+    result.extend(build_relocator_trampoline()?);
+    result.extend(build_syscfg_disable()?);
+    if result.len()!=SUPERVISOR_SPAN_SIZE { return Err("CDSP supervisor length mismatch".into()); }
+    Ok(result)
+}
+
+pub fn verify_supervisor_span(reference: &[u8]) -> Result<(),String> {
+    cdsp_boot::validate_reference(reference)?;
+    let actual=build_supervisor_span()?;
+    let found=reference.get(FILE_OFFSET..FILE_OFFSET+SUPERVISOR_SPAN_SIZE)
+        .ok_or("CDSP reference lacks supervisor interval")?;
+    if let Some((i,(a,b)))=found.iter().zip(&actual).enumerate().find(|(_,(a,b))|a!=b) {
+        return Err(format!("CDSP supervisor span mismatch at {:#x}: reference {a:02x}, generated {b:02x}", FILE_OFFSET+i));
+    }
+    Ok(())
+}
+
 #[cfg(test)] mod tests {
     use super::*;
+    #[test]
+    fn relocator_uses_long_immediate_nonfinal_packet_marker() {
+        let b=build_relocator_trampoline().unwrap();
+        assert_eq!(b.len(),20);
+        let words:Vec<u32>=b.chunks_exact(4).map(|c|u32::from_le_bytes(c.try_into().unwrap())).collect();
+        assert_eq!(words[0]&0xc000,0x4000);
+        assert_eq!(words[1]&0xc000,0x4000);
+        assert_eq!(words[2]&0xc000,0xc000);
+        assert_eq!(words[3]&0xc000,0xc000);
+        assert_eq!(words[4]&0xc000,0xc000);
+    }
+    #[test]
+    fn supervisor_segment_is_exactly_adjacent() {
+        let data=build_supervisor_span().unwrap();
+        assert_eq!(data.len(),84);
+        assert_eq!(&data[..FUNCTION_SIZE],build_syscfg_reset().unwrap());
+        assert_eq!(&data[FUNCTION_SIZE..FUNCTION_SIZE+RELOCATOR_SIZE],build_relocator_trampoline().unwrap());
+        assert_eq!(&data[FUNCTION_SIZE+RELOCATOR_SIZE..],build_syscfg_disable().unwrap());
+    }
     #[test] fn syscfg_disable_has_correct_size_and_singleton_packet_markers() {
         let result=build_syscfg_disable().unwrap();
         assert_eq!(result.len(), DISABLE_SIZE);

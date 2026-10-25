@@ -66,6 +66,8 @@ pub enum ScalarPacket {
     ClearBit { dst: GeneralRegister, src: GeneralRegister, position: u8 },
     /// Hexagon `Rd = or(Rs,#imm)` with the confirmed nonnegative immediate field.
     OrSmallImmediate { dst: GeneralRegister, src: GeneralRegister, value: u8 },
+    /// Hexagon `Rd = add(Rs,Rt)`, with register fields confirmed using LLVM.
+    AddRegisters { dst: GeneralRegister, left: GeneralRegister, right: GeneralRegister },
     /// Hexagon `Rd = sub(Rs,Rt)`; fields confirmed with distinct operands.
     SubtractRegisters { dst: GeneralRegister, left: GeneralRegister, right: GeneralRegister },
     /// Hexagon `jumpr Rn` (not a return/stack ABI assumption).
@@ -140,6 +142,13 @@ impl ScalarPacket {
                 Ok(0x7680_c000 | (u32::from(src.number()) << 16)
                     | (u32::from(value) << 5) | u32::from(dst.number()))
             }
+            Self::AddRegisters { dst, left, right } => {
+                // ADD and SUB use different operand-field orderings in
+                // these Hexagon instruction families. LLVM cross-check:
+                // r2=add(r4,r5) -> f304c502.
+                Ok(0xf300_c000 | (u32::from(left.number()) << 16)
+                    | (u32::from(right.number()) << 8) | u32::from(dst.number()))
+            }
             Self::SubtractRegisters { dst, left, right } => {
                 // Hexagon subtraction register fields are **not** laid out
                 // like the ARM32 data-processing fields. Independent LLVM
@@ -154,6 +163,24 @@ impl ScalarPacket {
             Self::Isync => Ok(0x57c0_c002),
         }
     }
+}
+
+/// Encode a Hexagon extended signed 32-bit assignment as a TWO-WORD bundle.
+/// `end_packet` describes the last word's parse marker. In the supervisor
+/// relocation trampoline, this assignment and the next add instruction must
+/// occur within the same Hexagon instruction packet, so end_packet=false.
+/// The immediate fields were confirmed using LLVM 6 for multiple operands
+/// and both positive and negative extended values. This is not a raw opcode
+/// copy from the vendor firmware.
+pub fn encode_extended_assignment(dst: GeneralRegister, value: i32,
+                                  end_packet: bool) -> [u32; 2] {
+    let bits=value as u32;
+    // immext carries the high twelve and middle fourteen immediate bits;
+    // each instruction includes its own packet parse marker.
+    let extender=((bits >> 20) << 16) | ((bits >> 6) & 0x3fff) | 0x4000;
+    let mut assignment=0x7800_c000 | ((bits & 0x3f) << 5) | u32::from(dst.number());
+    if !end_packet { assignment &= !0x8000; }
+    [extender,assignment]
 }
 
 /// The reference opens with a selector branch, six guarded self-branches,
@@ -356,6 +383,21 @@ mod tests {
             assert_eq!(u32::from_le_bytes(word.try_into().unwrap()) & 0xc000, 0xc000);
         }
         assert_eq!(u32::from_le_bytes(b[64..68].try_into().unwrap()), 0x5800_c082);
+    }
+
+    #[test]
+    fn extended_signed_immediates_and_addition_match_independent_llvm() {
+        let r=|n| GeneralRegister::new(n).unwrap();
+        assert_eq!(encode_extended_assignment(r(30), -0x1fff280, false),
+                   [0x0fe0_4036, 0x7800_401e]);
+        assert_eq!(encode_extended_assignment(r(30), -0x1fff280, true),
+                   [0x0fe0_4036, 0x7800_c01e]);
+        assert_eq!(encode_extended_assignment(r(30), 0x1234_5678, true),
+                   [0x0123_5159, 0x7800_c71e]);
+        assert_eq!(ScalarPacket::AddRegisters { dst: r(31), left:r(31), right:r(25) }.encode().unwrap(),
+                   0xf31f_d91f);
+        assert_eq!(ScalarPacket::AddRegisters { dst: r(2), left:r(4), right:r(5) }.encode().unwrap(),
+                   0xf304_c502);
     }
 
     #[test]

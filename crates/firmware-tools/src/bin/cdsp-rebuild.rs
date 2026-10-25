@@ -26,6 +26,34 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
                 privileged::FUNCTION_SIZE, privileged::FILE_OFFSET,
                 privileged::FILE_OFFSET + privileged::FUNCTION_SIZE);
         }
+        [action, output] if action == "emit-relocator" => {
+            let data=privileged::build_relocator_trampoline()?;
+            fs::write(output,data)?;
+            println!("Generated {} CDSP Hexagon relocator bytes at file {:#x}..{:#x}",
+                privileged::RELOCATOR_SIZE,privileged::RELOCATOR_OFFSET,
+                privileged::RELOCATOR_OFFSET+privileged::RELOCATOR_SIZE);
+        }
+        [action, input] if action == "verify-relocator" => {
+            let reference=fs::read(input)?;
+            privileged::verify_relocator_trampoline(&reference)?;
+            println!("Verified {} Hexagon relocator bytes at file {:#x}..{:#x}",
+                privileged::RELOCATOR_SIZE,privileged::RELOCATOR_OFFSET,
+                privileged::RELOCATOR_OFFSET+privileged::RELOCATOR_SIZE);
+        }
+        [action, output] if action == "emit-supervisor-span" => {
+            let data=privileged::build_supervisor_span()?;
+            fs::write(output,data)?;
+            println!("Generated {} contiguous CDSP Hexagon supervisor bytes, file {:#x}..{:#x}",
+                privileged::SUPERVISOR_SPAN_SIZE,privileged::FILE_OFFSET,
+                privileged::FILE_OFFSET+privileged::SUPERVISOR_SPAN_SIZE);
+        }
+        [action, input] if action == "verify-supervisor-span" => {
+            let reference=fs::read(input)?;
+            privileged::verify_supervisor_span(&reference)?;
+            println!("Verified {} CDSP supervisor bytes, file {:#x}..{:#x}",
+                privileged::SUPERVISOR_SPAN_SIZE,privileged::FILE_OFFSET,
+                privileged::FILE_OFFSET+privileged::SUPERVISOR_SPAN_SIZE);
+        }
         [action, output] if action == "emit-syscfg-disable" => {
             let bytes = privileged::build_syscfg_disable()?;
             fs::write(output, bytes)?;
@@ -65,7 +93,7 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
                 cdsp::HEXAGON_ELF_MACHINE, cdsp::CDSP_ELF_FLAGS, cdsp::ENTRY_PHYS,
                 cdsp::START_FILE_OFFSET, cdsp::ENTRY_ELF_VADDR, cdsp::ENTRY_PHYS, cdsp::FIRST_EXECUTABLE_SIZE);
         }
-        _ => return Err("Usage: cargo run -p firmware-tools --bin cdsp-rebuild -- [inspect REFERENCE | verify-entry REFERENCE | emit-entry OUTPUT | verify-init-prefix REFERENCE | emit-init-prefix OUTPUT | emit-syscfg-reset OUTPUT | verify-syscfg-reset REFERENCE | emit-syscfg-disable OUTPUT | verify-syscfg-disable REFERENCE]".into()),
+        _ => return Err("Usage: cargo run -p firmware-tools --bin cdsp-rebuild -- [inspect REFERENCE | verify-entry REFERENCE | emit-entry OUTPUT | verify-init-prefix REFERENCE | emit-init-prefix OUTPUT | emit-syscfg-reset OUTPUT | verify-syscfg-reset REFERENCE | emit-syscfg-disable OUTPUT | verify-syscfg-disable REFERENCE | emit-relocator OUTPUT | verify-relocator REFERENCE | emit-supervisor-span OUTPUT | verify-supervisor-span REFERENCE]".into()),
     }
     Ok(())
 }
