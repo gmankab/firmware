@@ -27,6 +27,8 @@ pub const COMPLETE_CONFIG_PREFIX_LEN:usize=CONFIG_COMMON_EXIT_OFFSET-FILE_OFFSET
 pub const SHARED_MMIO_COMMIT_OFFSET:usize=CONFIG_COMMON_EXIT_OFFSET;
 pub const SHARED_CLEAR_FLAGS_END:usize=0x5532c;
 pub const FLAG_CLEAR_PREFIX_LEN:usize=SHARED_CLEAR_FLAGS_END-FILE_OFFSET;
+pub const ENABLE_AND_WAIT_END:usize=0x5539c;
+pub const ENABLE_AND_WAIT_LEN:usize=ENABLE_AND_WAIT_END-FILE_OFFSET;
 
 /// Checked Hexagon `memw(Rbase + #offset) = ##value` with an immediate extender.
 /// Only the small verified 32-bit, word-aligned addressing form is admitted;
@@ -343,6 +345,69 @@ pub fn verify_controller_through_flag_clear(reference:&[u8])->Result<(),String>{
     Ok(())
 }
 
+/// A checked short Hexagon PC-relative link: `R13=add(PC,#8)`.
+/// The exact scalar form is independently LLVM6-assembled. It is deliberately
+/// restricted to this proven operand/offset pair, rather than accepting an
+/// arbitrary PC-relative literal encoding without ISA evidence.
+pub fn encode_pic_link(dst:GeneralRegister,forward_bytes:u8)->Result<u32,String>{
+    if dst.number()!=13 || forward_bytes!=8 {
+        return Err("Hexagon PIC link verified only for R13=PC+8".into());
+    }
+    Ok(0x6a49_c40d)
+}
+
+/// Set bit 2 in controller register 0x8300200 after a cache invalidate,
+/// update another hardware status register, then branch to the shared
+/// counter-wait code at physical 0x96cc7038. This is original control-flow
+/// reconstruction, not a source-code substitute for hardware validation.
+pub fn build_enable_feature_and_spin()->Result<Vec<u8>,String>{
+    let r=|n|GeneralRegister::new(n);
+    let mut out=Vec::with_capacity(0x70);
+    for word in cdsp_boot::encode_extended_assignment(r(0)?,0x0830_0200,true){push_word(&mut out,word);}
+    push_word(&mut out,PacketMarker::ContinuationA.apply(
+        ScalarPacket::AssignRegister{dst:r(7)?,src:r(0)?}.encode()?));
+    push_word(&mut out,encode_halfword_literal(r(5)?,true,0));
+    push_word(&mut out,PacketMarker::ContinuationA.apply(encode_halfword_literal(r(5)?,false,4)));
+    // V66 `dcinva(R7)`; narrow checked A32-like source constructor is
+    // supported here after independent LLVM6 assembly and Rizin decode.
+    push_word(&mut out,0xa020_c000|(u32::from(r(7)?.number())<<16));
+    push_word(&mut out,PacketMarker::ContinuationA.apply(encode_not_via_sub_neg1(r(6)?,r(5)?)));
+    push_word(&mut out,encode_word_load_immediate(r(4)?,r(0)?,0)?);
+    push_word(&mut out,encode_register_logic(RegisterLogic::And,r(4)?,r(4)?,r(6)?));
+    push_word(&mut out,encode_register_logic(RegisterLogic::Or,r(4)?,r(4)?,r(5)?));
+    push_word(&mut out,encode_word_store_register(r(0)?,r(4)?));
+    push_word(&mut out,0xa800_c000);
+    for word in cdsp_boot::encode_extended_assignment(r(0)?,0x0830_0238,true){push_word(&mut out,word);}
+    push_word(&mut out,encode_word_load_immediate(r(1)?,r(0)?,0)?);
+    for word in cdsp_boot::encode_extended_assignment(r(2)?,1,true){push_word(&mut out,word);}
+    push_word(&mut out,encode_register_logic(RegisterLogic::Or,r(1)?,r(1)?,r(2)?));
+    push_word(&mut out,encode_word_store_register(r(0)?,r(1)?));
+    push_word(&mut out,0xa800_c000);
+    for (destination,value) in [(4,0x0830_0200_i32),(2,i32::MIN),(0,0xc0)]{
+        for word in cdsp_boot::encode_extended_assignment(r(destination)?,value,true){push_word(&mut out,word);}
+    }
+    push_word(&mut out,encode_pic_link(r(13)?,8)?);
+    push_word(&mut out,ScalarPacket::JumpBackward{displacement_bytes:-0x360}.encode()?);
+    if out.len()!=0x70{return Err("CDSP feature-enable and spin loop must have 112 bytes".into());}
+    Ok(out)
+}
+
+pub fn build_controller_through_wait_handoff()->Result<Vec<u8>,String>{
+    let mut out=build_controller_through_flag_clear()?;
+    out.extend(build_enable_feature_and_spin()?);
+    if out.len()!=ENABLE_AND_WAIT_LEN{return Err("CDSP controller wait handoff length mismatch".into());}
+    Ok(out)
+}
+
+pub fn verify_controller_through_wait_handoff(reference:&[u8])->Result<(),String>{
+    cdsp_boot::validate_reference(reference)?;
+    let out=build_controller_through_wait_handoff()?;
+    if reference.get(FILE_OFFSET..FILE_OFFSET+out.len())!=Some(out.as_slice()){
+        return Err("CDSP PIC wait/control source differs from pinned original".into());
+    }
+    Ok(())
+}
+
 pub fn verify_mmio_setup(reference:&[u8])->Result<(),String>{
     cdsp_boot::validate_reference(reference)?;
     let actual=build_mmio_setup()?;
@@ -364,6 +429,20 @@ mod tests {
         assert_eq!(encode_extended_word_store_immediate(r0,0,0x1234).unwrap(),[0x0000_4048,0x3c40_c034]);
         assert!(encode_extended_word_store_immediate(r0,2,7).is_err());
         assert!(encode_extended_word_store_immediate(r0,16,7).is_err());
+    }
+    #[test]
+    fn enabled_controller_feature_returns_through_pic_wait(){
+        let r=|n|GeneralRegister::new(n).unwrap();
+        assert_eq!(encode_pic_link(r(13),8).unwrap(),0x6a49_c40d);
+        assert!(encode_pic_link(r(0),8).is_err());
+        assert!(encode_pic_link(r(13),12).is_err());
+        let blob=build_controller_through_wait_handoff().unwrap();
+        assert_eq!(blob.len(),ENABLE_AND_WAIT_LEN);
+        assert_eq!(FILE_OFFSET+blob.len(),ENABLE_AND_WAIT_END);
+        let read=|offset:usize|u32::from_le_bytes(blob[offset-FILE_OFFSET..offset-FILE_OFFSET+4].try_into().unwrap());
+        assert_eq!(read(0x55340),0xa027_c000); // dcinva(R7)
+        assert_eq!(read(0x55394),0x6a49_c40d); // R13=add(PC,#8)
+        assert_eq!(read(0x55398),0x59ff_fe50); // jump to physical 0x96cc7038
     }
     #[test]
     fn reset_and_clear_mmio_source_encoding_is_bounded(){

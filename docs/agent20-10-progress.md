@@ -60,3 +60,12 @@ Agent 20-10 owns only new `cdsp_late_*` sources, its verification tool, focused 
 - The first extended R0 assignment is the continuation of a **three-word packet** with `R1=R14`, so its immediate-consumer parse marker must be `ContinuationA`, not a standalone final packet. Independent LLVM6 assembly of the same semantic grouped packet produces **all 120 bytes exactly**, and Rizin V66 decodes all 30 words. The check independently confirms the first consumer packet marker; only treating the instructions as independent singletons would be incorrect.
 - Typed constructors separately model `memw(Rbase+#0)=Rsrc`, `AND/OR` register fields, high/low halfword literals, and short `sub(#-1,Rsrc)`. These are backed by LLVM6 and direct reference comparison, not imported OEM words.
 - Next missing segment bytes `[0x5532c,0x554b0)` = **388 bytes**, inside the same 1,200-byte late executable `PT_LOAD`.
+
+## Checkpoint 06 — controller feature enable and PIC wait handoff, 924 bytes
+
+- Complete strictly contiguous CDSP executable file `[0x55000,0x5539c)`, **924 independently generated Hexagon instruction bytes**, ELF VMA `[0xc00c7000,0xc00c739c)`, physical `[0x96cc7000,0x96cc739c)`.
+- Added the 112-byte feature-enable and spin-loop handoff `[0x5532c,0x5539c)`: invalidates controller cache, changes the MMIO bit field at `0x08300200`, sets bit at `0x08300238`, reloads the controller base and jumps to the shared wait routine at `0x96cc7038` after `R13=add(PC,#8)`.
+- Corrected the precise checked PIC-link field from `0x6a49_c00d` to `0x6a49_c40d` (bit 10) based on independently authored LLVM6 Hexagon assembly **and** Rizin V66 decoding. Tests check this field, the branch displacement and exact generated count.
+- `tools/verify-agent20-10-cdsp-handoff.py` independently assembles all 112 bytes with LLVM6 and decodes 28 words with Rizin V66; direct reference comparison reports zero differing bytes.
+- The remaining short `R E` segment is file `[0x5539c,0x554b0)` = 276 bytes. The previous `R E` region `[0x3b000,0x5475c)` is non-executable metadata despite flag `R E`; not counted.
+- The checkpoint remains a **provisional preparation branch** based on Agent 05 `a02618f…`, not the absent checkpoint-50 integrated base. `git -c commit.gpgsign=false` uses author and committer identity `Codex <codex@openai.com>`; there is no new OEM signature.
