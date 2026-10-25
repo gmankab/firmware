@@ -8,7 +8,7 @@
 use arm32::{Condition as C, DataOp as Op, Register as R, Shift, BlockMode};
 
 pub const START: usize = 0x21c78;
-pub const END: usize = 0x22040;
+pub const END: usize = 0x2265c;
 pub const FILE_BASE:usize = 0x4000;
 pub const FILE_OFFSET:usize=FILE_BASE+START;
 pub const RESERVATION_END:usize=0x40000;
@@ -39,6 +39,19 @@ impl Code {
         self.emit(arm32::transfer_word(C::Al,true,rd,R::PC,offset)?)
     }
 }
+
+/// Checked generic A32 SMULL/UMULL with correct RdLo/RdHi input fields.
+/// Validates public ISA constraints; no vendor-specific opcode words.
+fn encode_long_multiply(condition:C,signed:bool,rd_lo:R,rd_hi:R,rm:R,rs:R)->Result<u32,String>{
+    if rd_lo==rd_hi || [rd_lo,rd_hi,rm,rs].contains(&R::PC){
+        return Err("A32 long multiply requires distinct non-PC destinations and operands".into());
+    }
+    Ok(((condition as u32)<<28) | if signed {0x00c0_0090} else {0x0080_0090}
+       |(rd_hi.number()<<16)|(rd_lo.number()<<12)|(rs.number()<<8)|rm.number())
+}
+
+#[path="venus_runtime_mid_initialize.rs"]
+mod initialize;
 
 fn frame_allocation(c:&mut Code)->Result<(),String>{
     c.check(START)?;
@@ -522,7 +535,7 @@ fn validate_descriptor_count(c:&mut Code)->Result<(),String>{
         0x000e_6b44,0x000e_2788,0x000e_6a43,0x000e_6b97,
     ];
     for value in COUNT_DIAGNOSTICS {c.emit(value)?;}
-    c.check(END)
+    c.check(0x22040)
 }
 
 pub fn fragment()->Result<Vec<u8>,String>{
@@ -531,6 +544,7 @@ pub fn fragment()->Result<Vec<u8>,String>{
     descriptor_words(&mut code)?;
     validate_descriptor_address(&mut code)?;
     validate_descriptor_count(&mut code)?;
+    initialize::emit_next(&mut code)?;
     Ok(code.bytes)
 }
 
@@ -548,9 +562,14 @@ pub fn verify_reference(reference:&[u8])->Result<usize,String>{
 #[cfg(test)] mod tests {
     use super::*;
     #[test] fn generated_region_exact_layout(){
-        assert_eq!(END-START,0x3c8);
+        assert_eq!(END-START,0x9e4);
         assert_eq!(fragment().unwrap().len(),END-START);
         assert_eq!(FILE_OFFSET,0x25c78);
+    }
+    #[test] fn long_multiply_encodings_are_checked(){
+        assert_eq!(encode_long_multiply(C::Al,false,R::new(3).unwrap(),R::new(7).unwrap(),R::R1,R::LR).unwrap(),0xe087_3e91);
+        assert!(encode_long_multiply(C::Al,false,R::R1,R::R1,R::new(7).unwrap(),R::LR).is_err());
+        assert!(encode_long_multiply(C::Al,true,R::R2,R::new(7).unwrap(),R::PC,R::R1).is_err());
     }
     #[test] fn named_jump_table_is_data(){
         let blob=fragment().unwrap();
