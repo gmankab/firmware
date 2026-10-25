@@ -6,6 +6,8 @@ mod modem_hexagon;
 mod modem_bootstrap;
 #[path = "../devices/xiaomi_nabu/modem_boot_manifest.rs"]
 mod modem_boot_manifest;
+#[path = "../devices/xiaomi_nabu/modem_tlb_tail.rs"]
+mod modem_tlb_tail;
 use std::{env, fs};
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -19,6 +21,18 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             fs::write(&path, &bytes)?;
             println!("Generated {} independent Hexagon bootstrap bytes, ELF file offset 0x{:x}, physical 0x{:08x}",
                      bytes.len(),modem_bootstrap::ELF_OFFSET,modem_bootstrap::PHYSICAL_ADDR);
+        },
+        "emit-tlb-tail" => {
+            let bytes=modem_tlb_tail::rebuild()?;
+            fs::write(&path,&bytes)?;
+            println!("Generated {} independent Hexagon TLB/cache-management bytes at file offset 0x{:x}; disconnected fragment",
+                     bytes.len(),modem_tlb_tail::FILE_START);
+        },
+        "verify-tlb-tail" => {
+            let reference=fs::read(path)?;
+            modem_tlb_tail::verify(&reference)?;
+            println!("Verified {} independently reconstructed TLB/cache bytes at file 0x{:x}, physical 0x{:08x}; partial firmware",
+                     modem_tlb_tail::CODE_LENGTH,modem_tlb_tail::FILE_START,modem_tlb_tail::PHYSICAL_ADDRESS);
         },
         "emit-layout" => {
             let mut bytes=modem_bootstrap::rebuild()?;

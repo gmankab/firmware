@@ -44,6 +44,23 @@ pub enum Operation {
     ReadSystem { dst: u8, src: SpecialReg },
     SetBit { dst: u8, src: u8, index: u8 },
     Cache(CacheCommand),
+    /// S2_clrbit_i: `Rd = clrbit(Rs,#bit)`.
+    ClearBit {dst:u8,src:u8,index:u8},
+    /// Y2_isync instruction barrier.
+    InstructionSync,
+    /// Y2_tlbw(Rss,Rt), with `pair_low` the even low register number.
+    WriteTlb {pair_low:u8,index:u8},
+    /// J2_jumpr Rs.
+    JumpRegister {src:u8},
+}
+
+#[derive(Debug,Clone,Copy,Eq,PartialEq)]
+pub enum PacketMarker {
+    Continue,
+    End,
+}
+impl PacketMarker {
+    const fn bits(self)->u32 { match self {Self::Continue=>1u32<<14,Self::End=>PACKET_END} }
 }
 
 fn general_register(reg: u8) -> Result<u32, String> {
@@ -57,6 +74,10 @@ fn general_register(reg: u8) -> Result<u32, String> {
 /// Encode an architectural operation with packet-end markers. No opcode
 /// literals from the reference firmware are embedded in this implementation.
 pub fn encode_single(op: Operation) -> Result<u32, String> {
+    encode(op,PacketMarker::End)
+}
+
+pub fn encode(op:Operation,marker:PacketMarker)->Result<u32,String> {
     let word = match op {
         Operation::Jump { offset_bytes } => {
             // J2_jump uses a signed packet-relative displacement, represented
@@ -92,8 +113,25 @@ pub fn encode_single(op: Operation) -> Result<u32, String> {
             CacheCommand::DataKill => 0xa200_0000, // Y2_dckill
             CacheCommand::InstructionKill => 0x56c0_1000, // Y2_ickill
         },
+        Operation::ClearBit {dst,src,index} => {
+            if index>31 {return Err("Hexagon clrbit index must be in 0..31".into());}
+            // S2_clrbit_i: 10001100110sssssPP0iiiii001ddddd.
+            0x8cc0_0020|(general_register(src)?<<16)|((index as u32)<<8)|general_register(dst)?
+        },
+        Operation::InstructionSync => 0x57c0_0002, // Y2_isync
+        Operation::WriteTlb {pair_low,index} => {
+            if pair_low>30 || pair_low%2!=0 {
+                return Err("Hexagon TLB entry pair must be an even rN:rN+1 register".into());
+            }
+            // Y2_tlbw: 01101100000sssssPP0ttttt00000000
+            0x6c00_0000|((pair_low as u32)<<16)|(general_register(index)?<<8)
+        },
+        Operation::JumpRegister {src} => {
+            // J2_jumpr: 01010010100sssssPP00000000000000.
+            0x5280_0000|(general_register(src)?<<16)
+        },
     };
-    Ok(word | PACKET_END)
+    Ok(word | marker.bits())
 }
 
 #[cfg(test)]
