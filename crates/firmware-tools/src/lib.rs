@@ -10,6 +10,7 @@ pub mod sha384;
 pub mod qcom_mbn;
 pub mod qcom_mbn_validation;
 pub mod qcom_mbn_profiles;
+pub mod mbn_source_builder;
 pub mod elf32_prefix;
 pub mod elf_file_coverage;
 pub mod devices;

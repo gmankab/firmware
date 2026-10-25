@@ -3,16 +3,11 @@
 //!
 //! The ELF header, all QRISC/IR3 instructions, alignment, unsigned MBNv6
 //! header, and SHA-384 segment hashes can be generated independently.
-//! The OEM metadata, original signature and certificate chain remain absent.
+//! The OEM image-policy metadata is generated from typed fields. The original
+//! signature and certificate chain remain externally supplied and ungenerated.
 //! The resulting ImagePlan refuses to emit a potentially misleading firmware.
 
-use crate::{
-    elf32_prefix::write_elf32_first_page,
-    image_plan::ImagePlan,
-    qcom_mbn_profiles::unsigned_header_and_policy,
-    qcom_mbn_validation::sha384_table_from_generated_plan,
-    parse_elf32,
-};
+use crate::{image_plan::ImagePlan,mbn_source_builder::MbnSourceBuilder};
 use super::{a640_plan, elf_specs::KNOWN_ELFS};
 
 pub const HEADER_BYTES: usize = 0x1000;
@@ -42,47 +37,20 @@ pub fn partial_container() -> Result<ImagePlan, String> {
         return Err("authentication segment overlaps executable".into());
     }
 
-    let prefix = write_elf32_first_page(spec)?;
-    if prefix.len() != HEADER_BYTES { return Err("unexpected ELF header page size".into()); }
-    let program = a640_plan::partial_executable()?.build_complete()?;
-
-    let (signed_header, signed_policy) = unsigned_header_and_policy(spec)?;
-    let signed_layout = signed_header.layout(hash.filesz as usize)?;
-    if signed_layout.padding.len() != 0 || signed_layout.hashes.len() != 3 * 48 {
-        return Err("unexpected A640 signed segment layout".into());
+    // The generic MBNv6 assembler writes the typed ELF/header/policy fields,
+    // refuses to hash unimplemented bytes, and leaves OEM authentication
+    // absent. This A640 specialization supplies its fully authored QRISC/IR3
+    // code and its format-defined, independently checked alignment zeros.
+    let mut builder=MbnSourceBuilder::new(spec,total)?;
+    let program=a640_plan::partial_executable()?.build_complete()?;
+    builder.add_generated_segment(2,&program)?;
+    builder.add_verified_zero_padding(authentication_end..EXECUTABLE_OFFSET)?;
+    builder.generate_hashes()?;
+    let plan=builder.into_plan();
+    if plan.holes()!=vec![0x1138..0x2a38] ||
+        plan.coverage().generated_bytes!=7856 {
+        return Err("A640 unsigned build layout unexpectedly changed".into());
     }
-    // For an ELF32 header without section records, the first digest covers
-    // e_ehsize and all program headers, not the rest of the first zero page.
-    let elf_header_len = 52usize.checked_add(spec.headers.len() * 32)
-        .ok_or("ELF header digest length overflow")?;
-    if elf_header_len > prefix.len() { return Err("ELF digest exceeds prefix".into()); }
-    if elf_header_len != spec.headers[0].filesz as usize {
-        return Err("A640 ELF header hash span changed".into());
-    }
-    let oem_metadata = signed_policy.encode();
-    if oem_metadata.len() != signed_layout.oem_metadata.len() {
-        return Err("MBNv6 OEM metadata size mismatch".into());
-    }
-    let mut plan = ImagePlan::new(total)?;
-    plan.place("ELF32 metadata and program headers", 0, &prefix)?;
-    plan.place("typed MBNv6 unsigned header", AUTHENTICATION_OFFSET,
-        &signed_header.encode())?;
-    plan.place("typed MBNv6 OEM image-policy metadata",
-        AUTHENTICATION_OFFSET + signed_layout.oem_metadata.start, &oem_metadata)?;
-    plan.place("deterministic zero ELF alignment padding", authentication_end,
-        &vec![0; EXECUTABLE_OFFSET - authentication_end])?;
-    plan.place("fully encoded QRISC and IR3 executable", EXECUTABLE_OFFSET, &program)?;
-
-    // The source-generated spans are the only permissible inputs to the
-    // hash builder. This avoids accidentally hashing imported reference or
-    // signed-authentication bytes and makes future missing ELF text fatal.
-    let elf = parse_elf32(&prefix)?;
-    let segment_hashes = sha384_table_from_generated_plan(&elf, 1, &plan)?;
-    if segment_hashes.len() != signed_layout.hashes.len() {
-        return Err("MBNv6 digest count does not match ELF segments".into());
-    }
-    plan.place("SHA-384 digest table of generated ELF and executable",
-        AUTHENTICATION_OFFSET + signed_layout.hashes.start, &segment_hashes)?;
     Ok(plan)
 }
 
@@ -165,7 +133,7 @@ pub fn audit_complete_reference(reference: &[u8]) -> Result<A640ReferenceAudit, 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::qcom_mbn::sha384_table;
+    use crate::{qcom_mbn::sha384_table,elf32_prefix::write_elf32_first_page};
 
     #[test]
     fn unsigned_mbnv6_fields_and_hashes_do_not_make_signed_image_complete() {
@@ -224,7 +192,7 @@ mod tests {
             Some(&a640_plan::partial_executable().unwrap().build_complete().unwrap()),
         ]).unwrap();
         let hashes = plan.regions().iter()
-            .find(|r| r.name == "SHA-384 digest table of generated ELF and executable").unwrap();
+            .find(|r| r.name == "generated ELF segment SHA-384 digests").unwrap();
         let mut bytes = vec![0u8; plan.total_bytes()];
         // compare_known validates generated bytes independently; only a
         // complete signed image can be emitted by build_complete().
