@@ -89,3 +89,12 @@
 - Verified new supervisor `[0x4500,0x471c)` = **540 code bytes**; earlier `[0x41e0,0x4418)` = **568**. Total source-authored CDSP coverage is now **1,108 disjoint executable bytes**; **232 linker-alignment zeros** are verified separately and not counted as executable source. These two executable regions abut their respective neighbors but remain separated by structural zeros.
 - CLI `emit-vectors` emits only the new `[0x45c0,0x471c)` 348-byte span; `emit-supervisor` emits `[0x4500,0x471c)`; `verify` compares the cumulative code, alignment and all previously built source instructions with the original pinned CDSP reference.
 - First uncovered executable byte after this function is file `0x471c` (physical `0x96c0171c`). Agent 09 remains on Agent 05 old-base ancestry, not missing checkpoint-50 integration. Codex author/committer identity does not imply a cryptographic Git signature or an OEM firmware signature.
+
+## Checkpoint 11 — thread-local exception prologue
+
+- Reconstructed the first **68 executable bytes** of the exception entry at CDSP firmware file `[0x471c,0x4760)`, physical `[0x96c0171c,0x96c01760)` and ELF vaddr `[0xfe00171c,0xfe001760)`. This includes HTID access, the 16-bit upper/lower materialization of thread-local controller pointers, S54 addressing, a packed MAC, a doubleword store, and the initial SP handoff.
+- All **17** 32-bit words decode correctly with Rizin V66; **13** scalar/extended instruction fields match LLVM6 independently (after normalizing packet markers). Privileged `HTID` and `S54` reads remain decoder-confirmed only.
+- Confirmed independent LLVM register-bitfield formulas for `R23.l=#0x58a0`, `R23.h=#0xfe02`, and `R23 |= lsr(R23,#16)` using changed register/immediate samples, rather than embedding original instruction words.
+- Supervisor fragment grows to `[0x4500,0x4760)` = **608** independently generated executable bytes. Together with earlier `[0x41e0,0x4418)` = **568**, there are **1,176 source-encoded code bytes** in two disjoint intervals. The 232 ELF zero-alignment bytes `[0x4418,0x4500)` remain separately recorded, not counted as executable code.
+- `emit-supervisor` now generates all 608 supervisor bytes. First **missing executable instruction** is at CDSP file `0x4760`, physical `0x96c01760`, within the larger exception handler, not a standalone function boundary.
+- This branch remains based on Agent 05 `a02618f…`; checkpoint 50 was not supplied and is not claimed in ancestry.
