@@ -519,3 +519,20 @@ executable bytes** across two intervals. The large zero-fill ranges and the
 unclassified 144-byte material at `[0xff20,0xffb0)` remain unclaimed.
 Rust 160 tests, Python 163 tests and the release build pass. Next
 unimplemented code begins at file `0x10430`.
+
+## Checkpoint 28: controller MMIO ready polls `[0x10430,0x10460)`
+
+Another **48 source-assembled V66 bytes** poll two controller status registers:
+`0xf061e740` and `0xf0017d38`. They issue the two `memw(R0+off) = clrbit(#2)`
+commands then wait for bit 0 in the corresponding MMIO readback to clear.
+Both Hexagon `.new`-value retry branches and their backward destinations
+are preserved by LLVM6 packetization; all **12 instruction words** are
+assembled from mnemonic source with no special-register patches.
+
+The disjoint source-built block `[0x10330,0x10460)` is now **304 bytes**,
+SHA-256 `63cf29f5f96eabe7d406273cabc60e9b0132682b03f1fda92dafb0b77ab1180f`.
+Together with the separate `[0x6030,0x6c6c)` prefix, that makes **3,436
+source-generated executable bytes** (not including zeros or the unknown
+144-byte table). The next unimplemented ADSP instruction starts at file
+`0x10460`. Rust 160 tests, Python 164 tests, release build and reference
+comparison all pass.

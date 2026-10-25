@@ -17,7 +17,7 @@ from adsp_hexagon_v66 import (SystemRegister, read_system_register,
     read_system_register_pair, write_system_register, packet_continuation)
 SOURCE=TOOLS/'adsp-agent20-rwe-next-getter.S'
 FILE_START=0x10330
-FILE_END=0x10430
+FILE_END=0x10460
 SIZE=FILE_END-FILE_START
 GETTER_SIZE=0x1c
 THREAD_CYCLES_SOURCE=TOOLS/'adsp-agent20-rwe-next-thread-cycles.S'
@@ -26,6 +26,8 @@ ISDB_GUARD_SOURCE=TOOLS/'adsp-agent20-rwe-next-isdb-guard.S'
 ISDB_GUARD_SIZE=0x2c
 SRAM_CLONE_SOURCE=TOOLS/'adsp-agent20-rwe-next-sram-clone.S'
 SRAM_CLONE_SIZE=0x60
+CONTROLLER_POLL_SOURCE=TOOLS/'adsp-agent20-rwe-next-status-poll.S'
+CONTROLLER_POLL_SIZE=0x30
 PHYS_START=0x8be0d330
 SHA256_REFERENCE='4b579e5dc1333d634e5bdc93f3314e357e0e30dab7140833f6cc7aef086b1c1e'
 FILL_START=0x6c6c
@@ -92,7 +94,9 @@ def render(llvm_mc: str)->bytes:
     # This is a real Hexagon packet even though LLVM6 cannot assemble the
     # privileged R5:4=PCYCLE instruction with the following mpyi increment.
     # The packet continuation bit comes from the typed architecture encoder.
-    return getter+bytes(trace)+isdb_guard(llvm_mc,b)+b.assemble(llvm_mc,SRAM_CLONE_SOURCE,SRAM_CLONE_SIZE)
+    return (getter+bytes(trace)+isdb_guard(llvm_mc,b)
+            +b.assemble(llvm_mc,SRAM_CLONE_SOURCE,SRAM_CLONE_SIZE)
+            +b.assemble(llvm_mc,CONTROLLER_POLL_SOURCE,CONTROLLER_POLL_SIZE))
 
 def verify(reference:bytes,built:bytes)->None:
     if hashlib.sha256(reference).hexdigest()!=SHA256_REFERENCE:

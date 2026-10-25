@@ -13,14 +13,14 @@ class SparseRwe(unittest.TestCase):
         cls.mc=os.getenv('HEXAGON_LLVM_MC')
         cls.ref=os.getenv('NABU_ADSP_REFERENCE')
     def test_file_layout_is_explicit_and_disjoint(self):
-        self.assertEqual((sparse.FILE_START,sparse.FILE_END,sparse.SIZE),(0x10330,0x10430,256))
+        self.assertEqual((sparse.FILE_START,sparse.FILE_END,sparse.SIZE),(0x10330,0x10460,304))
         self.assertEqual(sparse.FILL_END-sparse.FILL_START,0xff20-0x6c6c)
         self.assertEqual(sparse.UNKNOWN_RECORD_END-sparse.UNKNOWN_RECORD_START,0x90)
         self.assertEqual(sparse.FILL2_END-sparse.FILL2_START,0x380)
     def test_source_packets_and_strict_reference(self):
         if not self.mc:self.skipTest('HEXAGON_LLVM_MC required')
         result=sparse.render(self.mc)
-        self.assertEqual(len(result),256)
+        self.assertEqual(len(result),304)
         # Function return is not a packet boundary: packet continues with
         # extended GP load from the next function, so no artificial split.
         self.assertEqual((struct.unpack_from('<I',result,0x10)[0]>>14)&3,1)
@@ -49,6 +49,16 @@ class SparseRwe(unittest.TestCase):
         self.assertEqual((struct.unpack_from('<I',clone,0x38)[0]>>14)&3,1)
         if self.ref:
             self.assertEqual(clone,Path(self.ref).read_bytes()[0x103d0:0x10430])
+
+    def test_controller_status_poll_uses_source_packet_pairs(self):
+        if not self.mc:self.skipTest('HEXAGON_LLVM_MC required')
+        source=sparse.base().assemble(self.mc,sparse.CONTROLLER_POLL_SOURCE,0x30)
+        self.assertEqual(len(source),48)
+        self.assertEqual(struct.unpack_from('<I',source,0x08)[0],0x2402e018)
+        self.assertEqual(struct.unpack_from('<I',source,0x20)[0],0x2582c000)
+        self.assertEqual(struct.unpack_from('<I',source,0x2c)[0],0x2582c000)
+        if self.ref:
+            self.assertEqual(source,Path(self.ref).read_bytes()[0x10430:0x10460])
 
     def test_reject_reference_mutation(self):
         if not self.mc or not self.ref:self.skipTest('reference and LLVM6 required')
