@@ -25,10 +25,12 @@ GENERATED_LENGTH = 0x24
 REFERENCE_SHA256 = "4b579e5dc1333d634e5bdc93f3314e357e0e30dab7140833f6cc7aef086b1c1e"
 ASM_SOURCE = pathlib.Path(__file__).with_name("adsp-boot-vectors.S")
 CONTROLLER_SOURCE = pathlib.Path(__file__).with_name("adsp-counter-controller.S")
+TLB_MAP_SOURCE = pathlib.Path(__file__).with_name("adsp-tlb-map.S")
 FRAGMENTS = {
     "vectors": (ASM_SOURCE, OEM_FILE_OFFSET, GENERATED_LENGTH),
     "boot-prefix": (ASM_SOURCE, OEM_FILE_OFFSET, 0x44),
-    "counter-controller": (CONTROLLER_SOURCE, 0x41e0, 0x514),
+    "counter-controller": (CONTROLLER_SOURCE, 0x41e0, 0x5a8),
+    "tlb-map": (TLB_MAP_SOURCE, 0x46f4, 0x94),
     "syscfg-handoff": (CONTROLLER_SOURCE, 0x46a0, 0x54),
 }
 
@@ -211,6 +213,29 @@ def assemble_syscfg_handoff(llvm_mc: str) -> bytes:
     return bytes(output)
 
 
+def assemble_tlb_map(llvm_mc: str, source: pathlib.Path = TLB_MAP_SOURCE) -> bytes:
+    """Replace three source-level TLBW placeholders with typed ISA operations.
+
+    LLVM6 assembles all regular instructions *and the branch packet structure*
+    from labels in the original source. Three single-packet ``nop`` sentinels
+    occupy locations that the V66 toolchain cannot express. Replace only
+    these precisely checked slots with the independently decoded, fixed
+    operand ``tlbw(R3:2,R0)`` architectural opcode; reject any changed layout.
+    """
+    from adsp_hexagon_v66 import tlb_write_pair_r3_r2_index_r0
+
+    out = bytearray(assemble(llvm_mc, source, 0x94))
+    sentinel = struct.pack("<I", 0x7F00C000)  # Architecturally encoded NOP.
+    replacement = struct.pack("<I", tlb_write_pair_r3_r2_index_r0())
+    for offset in (0x20, 0x5C, 0x88):
+        if out[offset:offset + 4] != sentinel:
+            raise AdspError(f"Expected TLB placeholder at 0x{offset:x}")
+        out[offset:offset + 4] = replacement
+    if sentinel in (out[i:i + 4] for i in range(0, len(out), 4)):
+        raise AdspError("Unresolved TLB placeholder in final generated code")
+    return bytes(out)
+
+
 def run(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--llvm-mc", required=True,
@@ -239,11 +264,16 @@ def run(argv: list[str] | None = None) -> int:
             if args.source is not None:
                 raise AdspError("--source override is not supported for the typed SYS_CFG handoff")
             out = assemble_syscfg_handoff(args.llvm_mc)
+        elif args.segment == "tlb-map":
+            out = assemble_tlb_map(args.llvm_mc, args.source or source)
         elif args.segment == "counter-controller":
-            # The Hexagon ISA-common controller source and the next V66-only
-            # system handoff are adjacent. Build each independently, then join.
-            out = (assemble(args.llvm_mc, args.source or source, 0x4c0) +
-                   assemble_syscfg_handoff(args.llvm_mc))
+            # Compile the ISA-common controller and its V66-only tails
+            # independently, then emit a strictly adjacent 0x5a8-byte span.
+            if args.source is not None:
+                raise AdspError("--source override is not supported for the combined controller")
+            out = (assemble(args.llvm_mc, CONTROLLER_SOURCE, 0x4c0) +
+                   assemble_syscfg_handoff(args.llvm_mc) +
+                   assemble_tlb_map(args.llvm_mc))
         else:
             out = assemble(args.llvm_mc, args.source or source, expected_length)
         if len(out) != expected_length:

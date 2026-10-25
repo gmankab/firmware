@@ -93,8 +93,9 @@ class ADSPBootstrapTests(unittest.TestCase):
                          "Hexagon assembler and exact Nabu ADSP reference required")
     def test_controller_is_byte_identical_to_original(self) -> None:
         generated = (adsp.assemble(LLVM_MC, adsp.CONTROLLER_SOURCE, 0x4c0) +
-                     adsp.assemble_syscfg_handoff(LLVM_MC))
-        self.assertEqual(len(generated), 0x514)
+                     adsp.assemble_syscfg_handoff(LLVM_MC) +
+                     adsp.assemble_tlb_map(LLVM_MC))
+        self.assertEqual(len(generated), 0x5a8)
         original = Path(REFERENCE).read_bytes()
         adsp.verify_reference(generated, original, 0x41e0)
         mutated = bytearray(generated)
@@ -126,6 +127,35 @@ class ADSPBootstrapTests(unittest.TestCase):
         bad[0x46b0] ^= 1
         with self.assertRaisesRegex(adsp.AdspError, "Wrong Xiaomi Nabu ADSP revision"):
             adsp.verify_reference(handoff, bytes(bad), 0x46a0)
+
+    def test_tlb_source_has_three_checked_assembler_sentinels(self) -> None:
+        source = adsp.TLB_MAP_SOURCE.read_text()
+        self.assertEqual(source.count("{ nop }"), 3)
+        self.assertIn("tlb_loop:", source)
+        self.assertIn("adsp_tlb_map_7f:", source)
+        self.assertIn("adsp_tlb_map_7e:", source)
+        self.assertNotIn(".word", source)
+        self.assertNotIn(".incbin", source)
+
+    @unittest.skipUnless(LLVM_MC, "Hexagon-capable llvm-mc unavailable")
+    def test_tlb_placeholder_replacement_is_exact_and_guarded(self) -> None:
+        generated = adsp.assemble_tlb_map(LLVM_MC)
+        self.assertEqual(len(generated), 0x94)
+        special = struct.pack("<I", 0x6c02c000)
+        for offset in (0x20, 0x5c, 0x88):
+            self.assertEqual(generated[offset:offset+4], special)
+        self.assertNotIn(struct.pack("<I", 0x7f00c000), generated)
+        with tempfile.TemporaryDirectory() as td:
+            tampered = Path(td) / "mismatched-tlb-source.S"
+            tampered.write_text(adsp.TLB_MAP_SOURCE.read_text().replace(
+                "{ nop }", "{ isync }", 1))
+            with self.assertRaisesRegex(adsp.AdspError, "Expected TLB placeholder"):
+                adsp.assemble_tlb_map(LLVM_MC, tampered)
+
+    @unittest.skipUnless(LLVM_MC and REFERENCE, "Exact ADSP reference required")
+    def test_complete_tlb_region_matches_reference(self) -> None:
+        generated = adsp.assemble_tlb_map(LLVM_MC)
+        adsp.verify_reference(generated, Path(REFERENCE).read_bytes(), 0x46f4)
 
     @unittest.skipUnless(LLVM_MC, "Hexagon-capable llvm-mc unavailable")
     def test_reject_relocations_and_malformed_section_offsets(self) -> None:

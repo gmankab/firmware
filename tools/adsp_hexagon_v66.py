@@ -70,6 +70,17 @@ def jump_near(current_relative_pc: int, target_relative_pc: int) -> int:
     return 0x5800C000 | (displacement >> 1)
 
 
+def tlb_write_pair_r3_r2_index_r0() -> int:
+    """Encode V66 ``tlbw(R3:2,R0)``, a fixed-operand system operation.
+
+    LLVM6 cannot assemble this privileged instruction. This narrow opcode
+    form is cross-checked against multiple instructions in the OEM reference
+    and a separate Hexagon decoder. It is *not* a generic writable TLB API:
+    other operands require independently validated architecture field rules.
+    """
+    return 0x6C02C000
+
+
 def boot_special_code() -> bytes:
     """Eight typed V66 bootstrap instructions immediately after the vectors.
 

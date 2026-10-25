@@ -53,6 +53,18 @@ class V66BootstrapTests(unittest.TestCase):
         for word in struct.unpack("<8I", code):
             self.assertEqual((word >> 14) & 3, 3)
 
+    def test_fixed_operand_hexagon_tlb_write_encoding(self) -> None:
+        self.assertEqual(v66.tlb_write_pair_r3_r2_index_r0(), 0x6c02c000)
+        self.assertEqual((v66.tlb_write_pair_r3_r2_index_r0() >> 14) & 3, 3)
+
+    @unittest.skipUnless(REFERENCE, "ADSP reference required")
+    def test_fixed_tlb_encoding_repeats_at_independent_call_sites(self) -> None:
+        data = Path(REFERENCE).read_bytes()
+        encoded = struct.pack("<I", v66.tlb_write_pair_r3_r2_index_r0())
+        for location in (0x3ebc, 0x4714, 0x4750, 0x477c, 0x478c):
+            with self.subTest(location=hex(location)):
+                self.assertEqual(data[location:location + 4], encoded)
+
     def test_syscfg_handoff_steps_use_explicit_source_and_operand_boundaries(self) -> None:
         steps = v66.syscfg_handoff_steps()
         self.assertEqual(sum(size for _, _, size in steps), 84)
