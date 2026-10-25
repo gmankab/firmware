@@ -123,6 +123,25 @@ pub enum ScalarPacket {
     /// Compound Hexagon packet `P0=cmp.eq(Rsrc,#0); if(P0.new) jump:t`.
     /// This is one word with a short forward branch counted in bytes.
     SkipIfSourceZero { src: GeneralRegister, displacement_bytes: u16 },
+    /// Hexagon GP-relative 32-bit load uses a separate checked extender.
+    /// Compound zero/new branch predicted not taken, forward only.
+    SkipIfSourceZeroNotTaken { src: GeneralRegister, displacement_bytes: u16 },
+    /// Predicate P0 compare `R2 > #0x20`; the exact non-extender form is
+    /// confirmed by independent Rizin V66 decoding. Other sources remain
+    /// unsupported until independently assembled.
+    PredicateP0R2GreaterThan32,
+    /// `if (!P0.new) jump:nt +disp`, predicted not taken.
+    JumpIfNotNewP0NotTaken { displacement_bytes: u16 },
+    /// L2 prefetch with a general-register control descriptor.
+    L2Fetch { address: GeneralRegister, control: GeneralRegister },
+    /// Clear an entire cache line addressed by the given register.
+    CacheZeroLine { address: GeneralRegister },
+    /// Select a hardware-loop counter and target within this routine.
+    HardwareLoop { loop_index: u8, counter: GeneralRegister, displacement_bytes: u16 },
+    /// Store a 64-bit register pair then increment the pointer by 16 bytes.
+    MemDoubleStorePostIncrement { low: GeneralRegister, base: GeneralRegister, increment: u8 },
+    /// One Hexagon singleton NOP. Its packet marker can also denote endloop.
+    Nop,
     /// Cache and instruction synchronization (singleton packets).
     Dckill,
     Ickill,
@@ -318,6 +337,44 @@ impl ScalarPacket {
                 Ok(0x1000_e000 | (u32::from(src.number()) << 16)
                    | u32::from(displacement_bytes/2))
             }
+            Self::SkipIfSourceZeroNotTaken { src, displacement_bytes } => {
+                if src.number()>7 || displacement_bytes==0 ||
+                   displacement_bytes>0x1fe || displacement_bytes%2!=0 {
+                    return Err("Hexagon P0.new :nt branch needs low register and short aligned displacement".into());
+                }
+                Ok(0x1000_c000 | (u32::from(src.number())<<16)
+                   | u32::from(displacement_bytes/2))
+            }
+            Self::PredicateP0R2GreaterThan32 => Ok(0x7542_c400),
+            Self::JumpIfNotNewP0NotTaken { displacement_bytes } => {
+                if displacement_bytes==0 || displacement_bytes>0x1fe || displacement_bytes%2!=0 {
+                    return Err("Hexagon negative-P0.new :nt branch outside tested range".into());
+                }
+                Ok(0x5c20_c800 | u32::from(displacement_bytes/2))
+            }
+            Self::L2Fetch { address, control } => {
+                Ok(0xa600_c000 | (u32::from(address.number()) << 16)
+                    | (u32::from(control.number()) << 8))
+            }
+            Self::CacheZeroLine { address } => {
+                Ok(0xa0c0_c000 | (u32::from(address.number()) << 16))
+            }
+            Self::HardwareLoop { loop_index, counter, displacement_bytes } => {
+                if loop_index > 1 || displacement_bytes == 0 || displacement_bytes > 0x1ff8 || displacement_bytes%4!=0 {
+                    return Err("Hexagon hardware loop supports loop0/1, positive aligned short displacements".into());
+                }
+                Ok(0x6000_c000 | (u32::from(loop_index) << 21)
+                    | (u32::from(counter.number()) << 16)
+                    | (u32::from(displacement_bytes) << 1))
+            }
+            Self::MemDoubleStorePostIncrement { low, base, increment } => {
+                if low.number()%2!=0 || low.number()>30 || increment!=16 {
+                    return Err("Hexagon MEMD postincrement store requires even pair and verified +16-byte stride".into());
+                }
+                Ok(0xabc0_c000 | (u32::from(base.number()) << 16)
+                    | (u32::from(low.number()) << 8) | u32::from(increment))
+            }
+            Self::Nop => Ok(0x7f00_c000),
             Self::Dckill => Ok(0xa200_c000),
             Self::Ickill => Ok(0x56c0_d000),
             Self::Isync => Ok(0x57c0_c002),
@@ -356,17 +413,29 @@ pub fn encode_extended_add(dst: GeneralRegister, src: GeneralRegister,
     [ext, if end_packet {body} else {body&!0x8000}]
 }
 
+/// Two-word V66 `Rd=memw(GP+##unsigned32)` in its extended-offset
+/// addressing form. Hexagon immext stores bits 31:6; the consumer stores
+/// bits 5:0 in the lower immediate field. This form is corroborated by V66
+/// Rizin and by LLVM's independent GP load encoding (which sometimes emits
+/// a shorter GP-relative alternative for the same absolute address).
+pub fn encode_extended_gp_word_load(dst: GeneralRegister, absolute: u32) -> [u32; 2] {
+    let ext=((absolute>>20)<<16) | ((absolute>>6)&0x3fff) | 0x4000;
+    let load=0x4980_c000 | ((absolute&0x3f)<<5) | u32::from(dst.number());
+    [ext,load]
+}
+
 /// Preserve the parse bits chosen for a multi-instruction Hexagon packet.
 /// ScalarPacket::encode() yields a standalone final instruction (0xc000);
 /// packet interior words can carry 0x4000 or 0x0000. This helper rejects
 /// unsupported parse-bit patterns rather than fabricating unrelated words.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum PacketMarker { ContinuationA, ContinuationB, Final }
+pub enum PacketMarker { ContinuationA, ContinuationB, LoopEnd, Final }
 impl PacketMarker {
     pub fn apply(self, standalone: u32) -> u32 {
         let marker = match self {
             Self::ContinuationA => 0x4000,
             Self::ContinuationB => 0x0000,
+            Self::LoopEnd => 0x8000,
             Self::Final => 0xc000,
         };
         (standalone & !0xc000) | marker
@@ -679,6 +748,40 @@ mod tests {
         assert!(SkipIfSourceZero{src:r(8),displacement_bytes:16}.encode().is_err());
         assert!(SkipIfSourceZero{src:r(2),displacement_bytes:0}.encode().is_err());
         assert!(SkipIfSourceZero{src:r(2),displacement_bytes:15}.encode().is_err());
+    }
+
+    #[test]
+    fn vectorized_cache_copy_entry_fields_are_restricted() {
+        use ScalarPacket::*;
+        let r=|n|GeneralRegister::new(n).unwrap();
+        assert_eq!(SkipIfSourceZeroNotTaken{src:r(2),displacement_bytes:104}.encode().unwrap(),0x1002_c034);
+        assert_eq!(SkipIfSourceZeroNotTaken{src:r(0),displacement_bytes:84}.encode().unwrap(),0x1000_c02a);
+        assert_eq!(PredicateP0R2GreaterThan32.encode().unwrap(),0x7542_c400);
+        assert_eq!(JumpIfNotNewP0NotTaken{displacement_bytes:92}.encode().unwrap(),0x5c20_c82e);
+        assert_eq!(encode_extended_gp_word_load(r(0),0xc067_3260),[0x0c06_5cc9,0x4980_c400]);
+        assert_eq!(encode_extended_gp_word_load(r(3),0xc067_3220),[0x0c06_5cc8,0x4980_c403]);
+        assert!(SkipIfSourceZeroNotTaken{src:r(8),displacement_bytes:104}.encode().is_err());
+        assert!(JumpIfNotNewP0NotTaken{displacement_bytes:0}.encode().is_err());
+        assert!(JumpIfNotNewP0NotTaken{displacement_bytes:17}.encode().is_err());
+    }
+
+    #[test]
+    fn hexagon_cache_zero_and_doubleword_loop_encodings_are_checked() {
+        use ScalarPacket::*;
+        let r=|n|GeneralRegister::new(n).unwrap();
+        assert_eq!(L2Fetch{address:r(1),control:r(7)}.encode().unwrap(),0xa601_c700);
+        assert_eq!(CacheZeroLine{address:r(1)}.encode().unwrap(),0xa0c1_c000);
+        assert_eq!(HardwareLoop{loop_index:1,counter:r(6),displacement_bytes:12}.encode().unwrap(),0x6026_c018);
+        assert_eq!(HardwareLoop{loop_index:0,counter:r(3),displacement_bytes:4}.encode().unwrap(),0x6003_c008);
+        assert_eq!(MemDoubleStorePostIncrement{low:r(6),base:r(1),increment:16}.encode().unwrap(),0xabc1_c610);
+        assert_eq!(MemDoubleStorePostIncrement{low:r(8),base:r(5),increment:16}.encode().unwrap(),0xabc5_c810);
+        assert_eq!(PacketMarker::LoopEnd.apply(Nop.encode().unwrap()),0x7f00_8000);
+        assert_eq!(PacketMarker::LoopEnd.apply(MemDoubleStorePostIncrement{
+            low:r(6),base:r(1),increment:16}.encode().unwrap()),0xabc1_8610);
+        assert!(HardwareLoop{loop_index:2,counter:r(3),displacement_bytes:4}.encode().is_err());
+        assert!(HardwareLoop{loop_index:0,counter:r(3),displacement_bytes:1}.encode().is_err());
+        assert!(MemDoubleStorePostIncrement{low:r(7),base:r(1),increment:16}.encode().is_err());
+        assert!(MemDoubleStorePostIncrement{low:r(6),base:r(1),increment:8}.encode().is_err());
     }
 
     #[test]

@@ -358,3 +358,44 @@ python3 tools/verify-cdsp-tlb-tables.py \
 **Integration caveat:** branch ancestry remains the old `69ebf0d` checkout;
 agent changes must be transplanted onto checkpoint 50 by reviewing the
 diff. This artifact is not a full or flashable CDSP firmware.
+
+## Checkpoint 11 — contiguous 108-byte Hexagon cache-copy routine
+
+A further **108 source-generated executable bytes** at CDSP file
+`[0x3eb8,0x3f24)` (physical `[0x96c00eb8,0x96c00f24)`) follow the dual
+TLB-table walkers without a gap. The routine tests the source length and a
+GP-relative controller pointer; if eligible, it uses Hexagon `l2fetch`,
+`dczeroa`, nested `loop1`/`loop0` hardware loops, two doubleword source loads
+and two doubleword destination stores per iteration. The final packet has
+the Hexagon special `endloop01` marker, represented using typed `LoopEnd`
+packet markers rather than pasted opcode bytes.
+
+The two-word GP-relative absolute pointer and extended constant 128 are
+source-generated through independently audited bitfield constructors; LLVM 6
+uses shorter encodings for those addresses and does **not** independently
+reassemble that entire 32-byte prefix. For the 76-byte body, LLVM 6
+independently builds instructions with **74 of 76 bytes identical**; the
+other two bytes contain hardware-loop end markers unsupported by LLVM 6's
+bundle syntax. Rizin V66 independently decodes all 27 words, including the
+GP pointer, branch targets, prefetch/cache operations, and `endloop01`.
+All **108/108 new bytes** match the privately supplied CDSP reference; the
+entire **484-byte supervisor/TLB/cache cluster** now matches file offsets
+`[0x3d40,0x3f24)`. Together with the disjoint 68-byte entry prefix,
+**552 unique executable bytes in two disjoint intervals** are generated;
+the full CDSP firmware remains unreconstructed and unauthenticated.
+
+```sh
+cargo run --offline --locked -p firmware-tools --bin cdsp-rebuild -- \
+  emit-copyfast /tmp/cdsp-copyfast-108.bin
+cargo run --offline --locked -p firmware-tools --bin cdsp-rebuild -- \
+  emit-cluster-with-copyfast /tmp/cdsp-tlb-cache-484.bin
+cargo run --offline --locked -p firmware-tools --bin cdsp-rebuild -- \
+  verify-cluster-with-copyfast /private/cdsp.mbn
+python3 tools/verify-cdsp-copyfast.py \
+  --llvm-mc /path/to/llvm-mc --rz-asm /path/to/rz-asm \
+  --rust-output /tmp/cdsp-copyfast-108.bin --reference /private/cdsp.mbn
+```
+
+The merge ancestry limitation is unchanged: Agent 5 starts from `69ebf0d`,
+not checkpoint 50, so these commits require review/cherry-pick onto the
+checkpoint-50 source rather than blind fast-forward.

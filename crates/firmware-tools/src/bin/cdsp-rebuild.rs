@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-only
 //! CDSP partial reconstruction command. Reference bytes stay outside Git.
-use firmware_tools::devices::xiaomi_nabu::{cdsp_boot as cdsp, cdsp_privilege as privileged, cdsp_tlb as tlb, cdsp_tlb_extension as extension};
+use firmware_tools::devices::xiaomi_nabu::{cdsp_boot as cdsp, cdsp_privilege as privileged, cdsp_tlb as tlb, cdsp_tlb_extension as extension, cdsp_copyfast as cache_copy};
 use std::{env, fs};
 
 fn run() -> Result<(), Box<dyn std::error::Error>> {
@@ -25,6 +25,30 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
             println!("Verified {} CDSP Hexagon supervisor-reset bytes at file {:#x}..{:#x}, separate from the entry prefix.",
                 privileged::FUNCTION_SIZE, privileged::FILE_OFFSET,
                 privileged::FILE_OFFSET + privileged::FUNCTION_SIZE);
+        }
+        [action, output] if action == "emit-copyfast" => {
+            fs::write(output,cache_copy::build_complete()?)?;
+            println!("Emitted 108 source-rebuilt Hexagon fast-copy bytes at file 0x3eb8..0x3f24.");
+        }
+        [action, reference] if action == "verify-copyfast" => {
+            cache_copy::verify_complete(&fs::read(reference)?)?;
+            println!("Verified 108 Hexagon fast-copy bytes against private CDSP image.");
+        }
+        [action, output] if action == "emit-cluster-with-copyfast" => {
+            fs::write(output,cache_copy::build_cluster_with_copyfast()?)?;
+            println!("Emitted contiguous 484-byte CDSP supervisor/TLB/cache cluster at 0x3d40..0x3f24.");
+        }
+        [action, reference] if action == "verify-cluster-with-copyfast" => {
+            cache_copy::verify_full_cluster(&fs::read(reference)?)?;
+            println!("Verified contiguous 484-byte supervisor/TLB/cache cluster.");
+        }
+        [action, output] if action == "emit-copyfast-prefix" => {
+            fs::write(output,cache_copy::build_prefix()?)?;
+            println!("Emitted 32 typed Hexagon cache-copy entry bytes at file 0x3eb8..0x3ed8; body incomplete.");
+        }
+        [action, original] if action == "verify-copyfast-prefix" => {
+            cache_copy::verify_prefix(&fs::read(original)?)?;
+            println!("Verified 32 CDSP cache-copy bytes against the original reference.");
         }
         [action, output] if action == "emit-tlb-tables" => {
             fs::write(output,extension::build_tlb_table_walks()?)?;
