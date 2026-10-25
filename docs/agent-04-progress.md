@@ -265,3 +265,35 @@ Both full-reference SHA checks and the Python test suite (50 tests) pass.
 The next uncovered byte on the joined controller path is `0x49ac`.
 The earlier boot-code gap `[0x3044,0x41e0)` remains entirely untouched.
 This is not a complete authenticated ADSP firmware image.
+
+## Checkpoint 16: guarded Hexagon cache-line duplication
+
+Independently built **92 bytes** at file `[0x49ac,0x4a08)`, physical
+`[0x8be019ac,0x8be01a08)`, from the meaningful source in
+`tools/adsp-controller-cache-copy.S`. The source loads the pointer pair and
+size from GP-relative controller words, skips missing/short input, then uses
+Hexagon `loop0` to process 32 bytes of cache-aligned data per iteration with
+`dczeroa`, paired 64-bit loads and post-incrementing stores.
+
+The source intentionally expresses the `cmp.gt(r2,#32)` as a *non-extended*
+operand and the two `add(...,#8)` operands with their smallest legal
+encodings. A forced `##32` would introduce an unnecessary `immext`, and
+forced extended adds produce invalid packet size. The assembler independently
+chooses packet parse bits and branch displacements. No reference opcodes,
+`.incbin` or `.word` instructions are present.
+
+All **92 source-assembled bytes match the exact Nabu reference** with the
+validated image SHA-256. The combined controller interval is now
+`[0x41e0,0x4a08)`, **2,088 contiguous bytes**; together with the separate
+68-byte boot prefix, cumulative independently reconstructed executable code
+is **2,156 bytes**. The first still-missing boot byte is `0x3044`; the next
+missing controller byte is `0x4a08`. All 52 Python regression tests pass.
+
+```sh
+python3 -S tools/emit-adsp-entry.py \
+  --segment controller-cache-copy --llvm-mc "$HEXAGON_LLVM_MC" \
+  --reference "$NABU_ADSP_REFERENCE" --output /tmp/adsp-cache-copy-92.bin
+python3 -S tools/emit-adsp-entry.py \
+  --segment counter-controller --llvm-mc "$HEXAGON_LLVM_MC" \
+  --reference "$NABU_ADSP_REFERENCE" --output /tmp/adsp-controller-2088.bin
+```

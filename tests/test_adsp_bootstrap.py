@@ -99,8 +99,9 @@ class ADSPBootstrapTests(unittest.TestCase):
                      adsp.assemble(LLVM_MC, adsp.CACHELINE_COPY_SOURCE, 0x78) +
                      adsp.assemble(LLVM_MC, adsp.MEMORY_COPY_SOURCE, 0x40) +
                      adsp.assemble_tlb_reconcile(LLVM_MC) +
-                     adsp.assemble(LLVM_MC, adsp.CONTROLLER_BOOTSTRAP_SOURCE, 0x2c))
-        self.assertEqual(len(generated), 0x7cc)
+                     adsp.assemble(LLVM_MC, adsp.CONTROLLER_BOOTSTRAP_SOURCE, 0x2c) +
+                     adsp.assemble(LLVM_MC, adsp.CONTROLLER_CACHE_COPY_SOURCE, 0x5c))
+        self.assertEqual(len(generated), 0x828)
         original = Path(REFERENCE).read_bytes()
         adsp.verify_reference(generated, original, 0x41e0)
         mutated = bytearray(generated)
@@ -125,6 +126,22 @@ class ADSPBootstrapTests(unittest.TestCase):
         adsp.verify_reference(generated, Path(REFERENCE).read_bytes(), 0x4980)
         self.assertEqual(len(generated), 44)
         self.assertEqual(generated[-4:], adsp.assemble(LLVM_MC, source, 0x2c)[-4:])
+
+    def test_cache_copy_uses_hexagon_hardware_loop_and_gp_guards(self) -> None:
+        src = adsp.CONTROLLER_CACHE_COPY_SOURCE.read_text()
+        self.assertIn("loop0(cache_loop,r3)", src)
+        self.assertIn("dczeroa(r1)", src)
+        self.assertIn(":endloop0", src)
+        self.assertIn("memd(r0++#16)", src)
+        self.assertIn("immext(#0xf02d1480)", src)
+        self.assertNotIn(".word", src)
+        self.assertNotIn(".incbin", src)
+
+    @unittest.skipUnless(LLVM_MC and REFERENCE, "Assembler and reference required")
+    def test_cache_copy_assembles_exactly_to_reference(self) -> None:
+        out=adsp.assemble(LLVM_MC, adsp.CONTROLLER_CACHE_COPY_SOURCE,0x5c)
+        adsp.verify_reference(out,Path(REFERENCE).read_bytes(),0x49ac)
+        self.assertEqual(len(out),92)
 
     @unittest.skipUnless(LLVM_MC, "Hexagon-capable llvm-mc unavailable")
     def test_syscfg_handoff_uses_typed_and_source_assembly(self) -> None:
