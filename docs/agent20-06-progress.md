@@ -308,3 +308,10 @@ python3 tools/agent20_06_a32_roundtrip.py /private/venus.mbn 0xa8ea0 0xa92c8 \
 - Completes the codec stream-classification function begun at `0xb5008`: command-state loops, slot class selection, session event/retry handling and controller buffer status. Its original branch-only terminal path at `0xb60a0` returns to an earlier controller state instead of inventing a new return instruction.
 - Direct Rust verifier and Clang/LLVM independent reconstruction pass with zero differing bytes, using `--data-range 0xb60a4:0xb60ec`. Unit test validates all 18 controller data values separately. **206 Rust and 13 Python tests pass.** Release build not reported as passed here.
 - The next function begins at runtime `0xb60ec` (MBN file `0xba0ec`). Work is still provisional older-base typed ARM32 instruction re-encoding, not a high-level behavioral equivalent, complete OEM-authenticated image or on-device proof.
+
+## Checkpoint 35 — codec plane initialization and default controller fields
+
+- Contiguous Venus ARM32 tail `[0xa8000,0xb62d0)` = **58,064 byte-identical bytes**, original MBN file `[0xac000,0xba2d0)`.
+- New interval `[0xb60ec,0xb62d0)` = **484 bytes**: **118 typed A32 instructions (472 bytes)** plus three distinct data words (12 bytes) `[0xb6258,0xb6264)`. The first function initializes codec controller plane fields and validates frame sizes; the second short function writes default input/descriptor values and returns via the original `BX LR` at `0xb62cc`.
+- Independent Clang/LLVM reassembly and complete typed-Rust emitter match pinned reference with zero differences; a Rust unit test validates the data pool. **207 Rust tests and 13 Python tests passed**. Release build is not claimed as passed for this checkpoint.
+- Next missing runtime address is `0xb62d0` (MBN file `0xba2d0`). Branch remains provisional older-base typed A32 instruction encoding, not high-level behavioral equivalent or signed firmware.
