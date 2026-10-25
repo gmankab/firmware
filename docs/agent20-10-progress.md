@@ -188,3 +188,21 @@ Agent 20-10 owns only new `cdsp_late_*` sources, its verification tool, focused 
   ```
 
 - This **provisional** branch descends from the old Agent05 CDSP checkpoint17, not from the still-unavailable checkpoint-50 integrated branch. Independent source reconstruction covers only the explicitly listed ranges, does not prove real hardware behavior, and does not provide or imply a newly signed Qualcomm image. The next CDSP callback function begins at file `0x562c8`.
+
+## Checkpoint 16 — CDSP callback completion and aligned RWE prefix
+
+- Added **80 independently generated V66 executable bytes** at CDSP file `[0x562c8,0x56318)`, corresponding to ELF virtual `[0xc00c82c8,0xc00c8318)` and physical `[0x96cc82c8,0x96cc8318)`. Original private firmware comparison is exact (0 differing bytes).
+- Source-level operations: signed `R0=-2` guard, 8-byte frame save, repeated calls to the shared poll helper at `0x96cc8230`, a forced GP-relative word load at `0xc028c538`, an extended `0xfffe`/`add #1` duplex, controller call at `0x96cca640`, two register-pair manipulations, frame restore, and branch to `0x96ccc7a0`.
+- Two alignment `nop` words at file `[0x56318,0x56320)` are reconstructed **layout**, not independently authored executable program logic. Exact contiguous RWE file prefix `[0x56000,0x56320)` = **800 bytes**, accounted as **768 independently generated executable bytes + 32 explicitly identified NOP/fill bytes**.
+- The other disjoint late-CDSP `R E` controller segment `[0x55000,0x554b0)` is still source-generated 1,200 executable bytes. Thus this agent's total independently source-emitted executable coverage is **1,968 bytes**; no invented or OEM-imported code bytes are counted.
+- LLVM6 independently assembles a semantic fixture in 84 bytes versus 88 original bytes including two alignment words (compiler moves a backward call and shortens the forced GP load). Thirteen original instruction words are unchanged in the compiler's semantic assembly; this is **not** a claim of exact LLVM6 full binary output. Rizin V66 independently decodes all 20 original packet-order source-built words, including the physical direct-call and final branch destinations.
+- Checked encoder tests reject unsupported register/value/branch offsets, with explicit overflow and packet marker rules. Reproduce using `cargo run --offline --locked -p firmware-tools --bin cdsp-late-callback-completion -- verify-prefix /private/cdsp.mbn`, or direct two-assembler check:
+
+  ```sh
+  python3 tools/verify-agent20-10-cdsp-rwe-finish.py \
+    --llvm-mc /private/llvm6/bin/llvm-mc --rz-asm /private/rz-asm \
+    --generated /private/callback-finish-80.bin \
+    --prefix /private/cdsp-rwe-800.bin --reference /private/cdsp.mbn
+  ```
+
+- Next missing CDSP executable code begins file `0x56320` (physical `0x96cc8320`), a separate RNG/callback routine. Checkpoint-50 integration remains unavailable: this branch still descends from the original Agent05 CDSP checkpoint 17 and is a **provisional portable patch**.
