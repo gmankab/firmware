@@ -497,3 +497,25 @@ unclassified 144-byte table between them remain excluded. The next
 instruction is at `0x103d0`, inside the same controller-initialization
 routine. Both Rust (160), Python (162) and offline release build pass with
 strict private-reference byte comparison.
+
+## Checkpoint 27: controller SRAM clone and D-cache cleaning `[0x103d0,0x10430)`
+
+Another **96 original-byte-identical Hexagon V66 bytes** source-assemble the
+controller's conditional SRAM clone and cache-cleaning path. The source in
+`adsp-agent20-rwe-next-sram-clone.S` verifies status flag bit 21,
+conditionally clones 50 32-bit words from the original controller frame
+(with a `.new` store dependency) and cleans ten 32-byte cache-line groups.
+LLVM6 emits **all 24 instruction words** without any unsupported/privileged
+opcode substitutions. The original `r4=memw(r0++#16)` stands in its own
+packet; the following `r4=#1` and `memw(r3++#16)=r4.new` share a packet.
+The two loops' Hexagon endloop parse bits are preserved.
+
+The disjoint controller fragment is now `[0x10330,0x10430)` = **256 verified
+source-built bytes**, SHA-256
+`a48adb597242649fbaeab2ace5a54960db887fc56aa572be01274afe0ff3fbe5`.
+The previously reconstructed `[0x6030,0x6c6c)` remains separately
+**3,132 bytes**; source-built RWE coverage therefore totals **3,388
+executable bytes** across two intervals. The large zero-fill ranges and the
+unclassified 144-byte material at `[0xff20,0xffb0)` remain unclaimed.
+Rust 160 tests, Python 163 tests and the release build pass. Next
+unimplemented code begins at file `0x10430`.

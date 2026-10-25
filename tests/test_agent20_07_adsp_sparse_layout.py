@@ -13,14 +13,14 @@ class SparseRwe(unittest.TestCase):
         cls.mc=os.getenv('HEXAGON_LLVM_MC')
         cls.ref=os.getenv('NABU_ADSP_REFERENCE')
     def test_file_layout_is_explicit_and_disjoint(self):
-        self.assertEqual((sparse.FILE_START,sparse.FILE_END,sparse.SIZE),(0x10330,0x103d0,160))
+        self.assertEqual((sparse.FILE_START,sparse.FILE_END,sparse.SIZE),(0x10330,0x10430,256))
         self.assertEqual(sparse.FILL_END-sparse.FILL_START,0xff20-0x6c6c)
         self.assertEqual(sparse.UNKNOWN_RECORD_END-sparse.UNKNOWN_RECORD_START,0x90)
         self.assertEqual(sparse.FILL2_END-sparse.FILL2_START,0x380)
     def test_source_packets_and_strict_reference(self):
         if not self.mc:self.skipTest('HEXAGON_LLVM_MC required')
         result=sparse.render(self.mc)
-        self.assertEqual(len(result),160)
+        self.assertEqual(len(result),256)
         # Function return is not a packet boundary: packet continues with
         # extended GP load from the next function, so no artificial split.
         self.assertEqual((struct.unpack_from('<I',result,0x10)[0]>>14)&3,1)
@@ -38,6 +38,18 @@ class SparseRwe(unittest.TestCase):
         if self.ref:
             original=Path(self.ref).read_bytes()
             sparse.verify(original,result)
+    def test_sram_clone_loop_packet_and_reference(self):
+        if not self.mc:self.skipTest('HEXAGON_LLVM_MC required')
+        clone=sparse.base().assemble(self.mc,sparse.SRAM_CLONE_SOURCE,0x60)
+        self.assertEqual(len(clone),96)
+        # Two original controller loops: 50 word copies and ten cache cleans.
+        self.assertEqual(struct.unpack_from('<I',clone,0x40)[0],0x6901c08a)
+        self.assertEqual(struct.unpack_from('<I',clone,0x54)[0],0x6000c008)
+        self.assertEqual((struct.unpack_from('<I',clone,0x34)[0]>>14)&3,3)
+        self.assertEqual((struct.unpack_from('<I',clone,0x38)[0]>>14)&3,1)
+        if self.ref:
+            self.assertEqual(clone,Path(self.ref).read_bytes()[0x103d0:0x10430])
+
     def test_reject_reference_mutation(self):
         if not self.mc or not self.ref:self.skipTest('reference and LLVM6 required')
         b=sparse.render(self.mc)
