@@ -26,6 +26,22 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
                 privileged::FUNCTION_SIZE, privileged::FILE_OFFSET,
                 privileged::FILE_OFFSET + privileged::FUNCTION_SIZE);
         }
+        [action, output] if action == "emit-remaining-controller-descriptors" => {
+            fs::write(output,cache_ctl::build_remaining_descriptors_and_return()?)?;
+            println!("Emitted typed 316-byte CDSP controller descriptors plus SYSCFG return, file 0x4058..0x4194.");
+        }
+        [action, reference] if action == "verify-remaining-controller-descriptors" => {
+            cache_ctl::verify_remaining_descriptors(&fs::read(reference)?)?;
+            println!("Verified 316 new CDSP controller descriptor bytes, file 0x4058..0x4194.");
+        }
+        [action, output] if action == "emit-cluster-with-controller-return" => {
+            fs::write(output,cache_ctl::build_joined_complete_cache_controller()?)?;
+            println!("Emitted 1108 contiguous CDSP supervisor/TLB/cache/controller bytes file 0x3d40..0x4194.");
+        }
+        [action, reference] if action == "verify-cluster-with-controller-return" => {
+            cache_ctl::verify_complete_cache_controller(&fs::read(reference)?)?;
+            println!("Verified 1108 contiguous CDSP supervisor/TLB/cache/controller bytes file 0x3d40..0x4194.");
+        }
         [action, output] if action == "emit-first-controller-descriptor" => {
             fs::write(output,cache_ctl::build_first_controller_descriptor()?)?;
             println!("Generated 108 checked Hexagon descriptor bytes at CDSP file 0x3fec..0x4058.");

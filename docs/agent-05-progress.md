@@ -533,3 +533,43 @@ python3 tools/verify-cdsp-controller-first-descriptor.py \
 This agent's Git parent remains the older `69ebf0d` branch, requiring source
 change review or cherry-pick for checkpoint 50. No OEM signature or full CDSP
 image is generated.
+
+## Checkpoint 16 — Complete four-entry CDSP cache-controller initialization
+
+Three further 256-byte-spaced descriptor entries, including conditional
+feature-register selection and packed bitfields, are **independently
+reconstructed over 316 bytes**, CDSP file `[0x4058,0x4194)` and physical
+`[0x96c01058,0x96c01194)`. A parameterized encoder uses three independent
+triples of hardware-feature register offsets, two conditional `.new` loads per
+entry and common header/counter operations. The final five words read
+`SYSCFG`, set bit two, write `SYSCFG`, perform `isync`, and return via LR.
+There are **no unknown executable bytes** before its return. The following
+three zero words `[0x4194,0x41a0)` appear to be alignment/padding and have
+**not** been counted as reconstructed executable instructions.
+
+LLVM6 independently assembles 77 of the 79 new instruction words
+(308 of 316 bytes); the two privileged V66-only `SYSCFG` register accesses
+are confirmed by Rizin V66. Rizin confirms all 79 instruction interpretations
+and the register-target constraints. The complete 316 bytes match the exact
+private CDSP reference, with no mismatches. The fully reconstructed
+controller function spans `[0x3f24,0x4194)` (624 bytes), and the overall
+supervisor/TLB/cache/controller region spans `[0x3d40,0x4194)`
+(**1,108 contiguous verified executable bytes**). With the disjoint
+68-byte entry prefix `[0x3000,0x3044)`, CDSP now has **1,176 independently
+generated executable bytes** across **two separate regions**. Most CDSP
+executable code, all OEM-authenticated imaging, and on-device behavior remain
+unimplemented.
+
+```sh
+cargo run --offline --locked -p firmware-tools --bin cdsp-rebuild -- \
+  emit-cluster-with-controller-return /tmp/cdsp-cluster-1108.bin
+cargo run --offline --locked -p firmware-tools --bin cdsp-rebuild -- \
+  verify-cluster-with-controller-return /private/cdsp.mbn
+python3 tools/verify-cdsp-controller-complete.py \
+  --llvm-mc /path/to/llvm-mc --rz-asm /path/to/rz-asm \
+  --rust-output /tmp/cdsp-remaining-controller-316.bin \
+  --reference /private/cdsp.mbn
+```
+
+Integration note remains: this branch descends from `69ebf0d`, not the
+checkpoint-50 commit; do not fast-forward the central checkpoint branch.

@@ -334,3 +334,122 @@ pub fn verify_joined_first_descriptor(reference:&[u8])->Result<(),String>{
         assert!(H::BranchIfNewLoadZeroForward{displacement_bytes:0}.encode().is_err());
     }
 }
+
+/// One 256-byte controller descriptor entry: two fixed header words, three
+/// independent feature probes, conditional class value and packed size bits.
+/// The `feature_offsets` are pointer differences, not copied opcode words.
+fn emit_descriptor_row(out:&mut Vec<u8>, feature_offsets:[i32;3],
+                       advance:bool)->Result<(),String>{
+    let r=|n|Gpr::new(n);
+    for (value,offset) in [(170,44),(10,48)] {
+        put(out,H::AssignUnsignedImmediate{dst:r(23)?,value},P::ContinuationA)?;
+        for word in cdsp_boot::encode_v66_new_word_store(r(21)?,offset)? {
+            out.extend_from_slice(&word.to_le_bytes());
+        }
+    }
+    for (index,&feature_address) in feature_offsets.iter().enumerate().take(2){
+        put(out,H::AssignUnsignedImmediate{dst:r(23)?,value:5},P::ContinuationA)?;
+        for word in cdsp_boot::encode_extended_word_load(r(22)?,r(25)?,feature_address)?{
+            out.extend_from_slice(&P::ContinuationA.apply(word).to_le_bytes());
+        }
+        put(out,H::BranchIfNewLoadZeroForward{displacement_bytes:20},P::Final)?;
+        put(out,H::AssignUnsignedImmediate{dst:r(23)?,value:10},P::Final)?;
+        if index==0 {
+            for word in cdsp_boot::encode_v66_plain_word_store(r(21)?,r(23)?,0)? {
+                out.extend_from_slice(&word.to_le_bytes());
+            }
+        }
+    }
+    for word in cdsp_boot::encode_extended_word_load(r(22)?,r(25)?,feature_offsets[2])? {
+        out.extend_from_slice(&word.to_le_bytes());
+    }
+    put(out,H::ArithmeticShiftLeft{dst:r(22)?,src:r(22)?,amount:4},P::Final)?;
+    put(out,H::AddRegisters{dst:r(23)?,left:r(23)?,right:r(22)?},P::Final)?;
+    for word in cdsp_boot::encode_v66_plain_word_store(r(21)?,r(23)?,40)? {
+        out.extend_from_slice(&word.to_le_bytes());
+    }
+    if advance {
+        put(out,H::AddUnsignedImmediate12{dst:r(21)?,src:r(21)?,value:256},P::Final)?;
+    }
+    Ok(())
+}
+
+/// All three remaining static controller descriptor entries, followed by a
+/// SYSCFG cache enable, instruction barrier and LR return. Full routine ends
+/// at file 0x4194; the immediately following three zero words are alignment
+/// padding, not independently authored executable instructions.
+pub const ADDITIONAL_DESCRIPTORS_BYTES:usize=316;
+pub fn build_remaining_descriptors_and_return()->Result<Vec<u8>,String>{
+    let r=|n|Gpr::new(n);
+    let mut out=Vec::with_capacity(ADDITIONAL_DESCRIPTORS_BYTES);
+    for (i,feature_offsets) in [
+        [-0x1fd92b0,-0x1fd92ac,-0x1fd92a8],
+        [-0x1fd92a4,-0x1fd92a0,-0x1fd929c],
+        [-0x1fd9298,-0x1fd9294,-0x1fd9290],
+    ].into_iter().enumerate() {
+        emit_descriptor_row(&mut out,feature_offsets,i!=2)?;
+    }
+    for instr in [
+        H::ReadSyscfg{dst:r(21)?},
+        H::SetBit{dst:r(21)?,src:r(21)?,position:2},
+        H::WriteSystem{system:SystemRegister::Syscfg,src:r(21)?},
+        H::Isync,
+        H::JumpRegister{source:r(31)?},
+    ]{put(&mut out,instr,P::Final)?;}
+    if out.len()!=ADDITIONAL_DESCRIPTORS_BYTES {
+        return Err(format!("CDSP remaining descriptor bytes {} != 316",out.len()));
+    }
+    Ok(out)
+}
+
+pub fn build_complete_cache_controller()->Result<Vec<u8>,String>{
+    let mut out=build_prefix()?;
+    out.extend(build_cache_maintenance()?);
+    out.extend(build_controller_table_clear()?);
+    out.extend(build_first_controller_descriptor()?);
+    out.extend(build_remaining_descriptors_and_return()?);
+    if out.len()!=80+88+32+108+316 {return Err("full CDSP controller routine has uncovered bytes".into());}
+    Ok(out)
+}
+
+pub fn build_joined_complete_cache_controller()->Result<Vec<u8>,String>{
+    let mut out=super::cdsp_copyfast::build_cluster_with_copyfast()?;
+    if super::cdsp_copyfast::FILE_OFFSET+super::cdsp_copyfast::TOTAL_BYTES!=FILE_OFFSET{
+        return Err("CDSP cache-controller and copyfast gap".into());
+    }
+    out.extend(build_complete_cache_controller()?);
+    if out.len()!=1108 {return Err("CDSP joined 1108-byte cluster gap".into());}
+    Ok(out)
+}
+
+pub fn verify_remaining_descriptors(reference:&[u8])->Result<(),String>{
+    cdsp_boot::validate_reference(reference)?;
+    let start=0x4058;
+    let bytes=build_remaining_descriptors_and_return()?;
+    if reference.get(start..start+bytes.len())!=Some(bytes.as_slice()) {
+        return Err("CDSP remaining controller descriptor bytes differ".into());
+    }
+    Ok(())
+}
+
+pub fn verify_complete_cache_controller(reference:&[u8])->Result<(),String>{
+    cdsp_boot::validate_reference(reference)?;
+    let bytes=build_joined_complete_cache_controller()?;
+    if reference.get(0x3d40..0x3d40+bytes.len())!=Some(bytes.as_slice()) {
+        return Err("CDSP complete cache-controller initialization does not match reference".into());
+    }
+    Ok(())
+}
+
+#[cfg(test)]mod static_descriptor_tests{
+    use super::*;
+    #[test]fn complete_controller_has_four_descriptor_entries(){
+        let rest=build_remaining_descriptors_and_return().unwrap();
+        assert_eq!(rest.len(),316);
+        assert_eq!(build_complete_cache_controller().unwrap().len(),624);
+        assert_eq!(build_joined_complete_cache_controller().unwrap().len(),1108);
+        let words:Vec<u32>=rest.chunks_exact(4)
+          .map(|bytes|u32::from_le_bytes(bytes.try_into().unwrap())).collect();
+        assert_eq!(*words.last().unwrap(),0x529f_c000);
+    }
+}
