@@ -358,3 +358,9 @@ Original reference: private `map220v-nabu-firmware/venus.mbn`, SHA-256 `9d4af65d
 - Source-generated `[0x21c78,0x2efc0)` = **54,088 exact bytes**, newly added `[0x2ec94,0x2efc0)` = **812 bytes**: **187 A32 instructions** and **16 data words**.
 - Original function starts at `0x2ec94` with an 8-byte stack reservation before its saved-register frame, monitors active source classes and emits diagnostic records. The separate 16-word data pool `[0x2ef78,0x2efb8)` is followed by two code words leading into the next function at `0x2efc0`.
 - First missing code after this checkpoint begins at `0x2efc0`; referential equivalence is not device execution or a new OEM signature.
+
+## Checkpoint 54 — controller ring buffer helpers
+
+- Contiguous source-generated `[0x21c78,0x2f394)` = **55,068 bytes**, newly rebuilt `[0x2efc0,0x2f394)` = **980 bytes** with **232 typed ARM32 instructions** and **13 data words**.
+- Reconstructs two separate ring-buffer request/response routines and their buffer-length validation, copy paths and completion flags. Literal pools at `[0x2f1c8,0x2f1e4)` and `[0x2f37c,0x2f394)` contain 7 and 6 data words, respectively, each following a function's branch/return.
+- Next original function begins at `0x2f394`. Exact A32 machine-code agreement is not high-level behavioral recovery or new OEM firmware authentication.
