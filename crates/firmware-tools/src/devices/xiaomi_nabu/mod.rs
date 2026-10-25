@@ -139,3 +139,4 @@ pub mod cdsp_early_exception_entry; // Agent 20-09 exception thread context star
 pub mod cdsp_early_exception_context; // Hexagon V66 context save to 0x481c
 pub mod cdsp_early_exception_setup; // Agent20-09 controller setup through 0x4860
 pub mod cdsp_early_exception_transition; // Agent20-09 transition through 0x48a4
+pub mod cdsp_early_exception_wait; // Agent20-09 MODECTL status/retry loop to 0x48e8
