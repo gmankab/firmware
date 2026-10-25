@@ -340,3 +340,21 @@ borrowed OEM code words, and extends contiguous RWE reconstruction to
 `350430f6928737b8bd71e1d40dee5d3931aca9f93fc1a7134aad01dd01670547`.
 The classifier function remains incomplete after the next instruction at
 `0x6ab0`; all upstream code and external OEM signatures remain unchanged.
+
+## Checkpoint 21: complete codec-format classifier `[0x6ab0,0x6c10)`
+
+Another **352 byte-identical source-assembled V66 executable bytes** finish
+the bitmask classifier (the paired `0x20`/`0x1f` and `0x40`/`0x3f` codec
+classes). The branch-prediction annotations `:nt` vs `:t` on `.new`
+predicate jumps are retained verbatim; removing the hints changes machine
+words. Error `-0x19` and fallback `-1` are source-assembled into two separate
+controller return packets, followed by the function's genuine
+`deallocframe`/`jumpr lr` epilogue. LLVM6 emits **88 instruction words**, all
+byte-equal to the pinned ADSP original and independently decoded by Rizin.
+
+The **complete classifier** is now `[0x6818,0x6c10)` = 1,016 bytes;
+cumulative source-generated ADSP RWE interval is **3,040 contiguous bytes**,
+file `[0x6030,0x6c10)` and physical `[0x8be03030,0x8be03c10)`.
+SHA-256 `78881b6f1f11029d0689ed1dd1e6034bdf0e5681b3776645e774c6c04aaee269`.
+The next **separate TLB controller helper** begins at `0x6c10`; other ADSP
+executable sections and the original auth container remain unimplemented.

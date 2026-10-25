@@ -19,8 +19,8 @@ class FeatureModeTests(unittest.TestCase):
         cls.reference=os.getenv('NABU_ADSP_REFERENCE')
     def test_source_region_length(self):
         self.assertEqual(RWE.FEATURE_MODES_A_SIZE,0xa4)
-        self.assertEqual(RWE.FILE_END,0x6ab0)
-        self.assertEqual(RWE.SIZE,2688)
+        self.assertEqual(RWE.FILE_END,0x6c10)
+        self.assertEqual(RWE.SIZE,3040)
     def test_adjacent_bitmask_classifiers_are_independently_compiled(self):
         if not self.llvm:self.skipTest('HEXAGON_LLVM_MC required')
         output=RWE.baseline().assemble(self.llvm,RWE.FEATURE_MODES_B_SOURCE,0xc0)
@@ -39,6 +39,21 @@ class FeatureModeTests(unittest.TestCase):
             if self.reference:
                 ref=Path(self.reference).read_bytes()
                 self.assertEqual(b,ref[first:first+length],name)
+    def test_final_codec_pattern_branch_hints_and_return(self):
+        if not self.llvm:self.skipTest('HEXAGON_LLVM_MC is required')
+        emitted=RWE.baseline()
+        for name,length,first in [
+            ('FEATURE_MODES_E_SOURCE',0xa4,0x6ab0),
+            ('FEATURE_MODES_F_SOURCE',0xbc,0x6b54),
+        ]:
+            b=emitted.assemble(self.llvm,getattr(RWE,name),length)
+            if self.reference:
+                ref=Path(self.reference).read_bytes()
+                self.assertEqual(b,ref[first:first+length],name)
+        epilogue=emitted.assemble(self.llvm,RWE.FEATURE_MODES_F_SOURCE,0xbc)
+        # The classifier closes with an original deallocframe + return, not
+        # a synthetic branch added at an arbitrary byte boundary.
+        self.assertEqual(len(epilogue[-8:]),8)
     def test_predicate_decode_is_byte_stable(self):
         if not self.llvm:self.skipTest('HEXAGON_LLVM_MC is required')
         encoded=RWE.baseline().assemble(self.llvm,RWE.FEATURE_MODES_A_SOURCE,0xa4)
