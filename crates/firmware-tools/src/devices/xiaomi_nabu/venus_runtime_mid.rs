@@ -8,7 +8,7 @@
 use arm32::{Condition as C, DataOp as Op, Register as R, Shift, BlockMode};
 
 pub const START: usize = 0x21c78;
-pub const END: usize = 0x22a44;
+pub const END: usize = 0x22fac;
 pub const FILE_BASE:usize = 0x4000;
 pub const FILE_OFFSET:usize=FILE_BASE+START;
 pub const RESERVATION_END:usize=0x40000;
@@ -54,6 +54,8 @@ fn encode_long_multiply(condition:C,signed:bool,rd_lo:R,rd_hi:R,rm:R,rs:R)->Resu
 mod initialize;
 #[path="venus_runtime_mid_input.rs"]
 mod input;
+#[path="venus_runtime_mid_commands.rs"]
+mod commands;
 
 fn frame_allocation(c:&mut Code)->Result<(),String>{
     c.check(START)?;
@@ -548,6 +550,7 @@ pub fn fragment()->Result<Vec<u8>,String>{
     validate_descriptor_count(&mut code)?;
     initialize::emit_next(&mut code)?;
     input::emit_next(&mut code)?;
+    commands::emit_next(&mut code)?;
     Ok(code.bytes)
 }
 
@@ -565,7 +568,7 @@ pub fn verify_reference(reference:&[u8])->Result<usize,String>{
 #[cfg(test)] mod tests {
     use super::*;
     #[test] fn generated_region_exact_layout(){
-        assert_eq!(END-START,0xdcc);
+        assert_eq!(END-START,0x1334);
         assert_eq!(fragment().unwrap().len(),END-START);
         assert_eq!(FILE_OFFSET,0x25c78);
     }
