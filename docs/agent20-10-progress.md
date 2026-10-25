@@ -394,3 +394,41 @@ Agent 20-10 owns only new `cdsp_late_*` sources, its verification tool, focused 
   `0x96cc8540`). This Git branch is still based on the old Agent05 CDSP
   checkpoint 17, not the unavailable checkpoint-50 integration branch.
   No OEM signature, full CDSP image or hardware execution is implied.
+
+## Checkpoint 23 — CDSP GP-state multiplier and backedge, 2,552 executable bytes
+
+- Added **40 independently encoded Hexagon V66 executable bytes** at CDSP
+  MBN file `[0x56540,0x56568)`, ELF virtual `[0xc00c8540,0xc00c8568)`,
+  physical `[0x96cc8540,0x96cc8568)`; direct pinned-original comparison
+  reports **zero byte differences**.
+- The routine reads a forced-extended GP word at `0xc028c02c`, initializes
+  its state through a packed `R3=1; R4=R3` duplex, multiplies by the checked
+  extended constant `0x015a4e35`, branches backward to physical `0x96cc8548`
+  while the predicate is active, and finally writes GP state and caller output.
+- LLVM6 independently assembles a **32-byte semantic** program. It shortens
+  the two forced GP immexts and consequently changes one branch displacement,
+  while the duplex, multiplier extender and result store have unchanged word
+  encodings. The verifier checks the exact permitted marker/branch deltas.
+  Rizin V66 independently decodes **all 10 original 32-bit packet words**.
+  LLVM6 full binary byte-identical reconstruction is *not* claimed.
+- The agent's contiguous RWE output `[0x56000,0x56568)` now measures **1,384
+  source-built file bytes**, of which **1,352 are reconstructed executable
+  bytes** and **32 are separately identified NOP/fill bytes**. Adding the
+  independent 1,200-byte controller executable `[0x55000,0x554b0)` yields
+  **2,552 independently authored source-code bytes across disjoint regions**.
+- `cdsp-late-gp-multiplier` CLI emits only the source-derived interval or the
+  joined prefix; its `verify`/`verify-prefix` commands compare byte-exactly
+  with the pinned private reference. Regression tests reject unsupported
+  GP addresses, multiplier values and branch targets. Independent check:
+
+  ```sh
+  python3 tools/verify-agent20-10-cdsp-gp-multiplier.py \
+    --llvm-mc /private/llvm6/bin/llvm-mc --rz-asm /private/rz-asm \
+    --generated /private/gp-multiplier-40.bin \
+    --prefix /private/cdsp-rwe-1384.bin --reference /private/cdsp.mbn
+  ```
+
+- **Next unimplemented region** begins at file offset `0x56568` (physical
+  `0x96cc8568`). All contributions remain provisional on Agent 05's older
+  CDSP base, not a checkpoint-50-integrated repository; no copied OEM
+  authentication or verified hardware behavior is claimed.
