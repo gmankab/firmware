@@ -8,7 +8,7 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
     let args: Vec<_> = env::args().skip(1).collect();
     let (command, file) = match args.as_slice() {
         [command, file] => (command.as_str(), file.as_str()),
-        _ => return Err("usage: venus_bridge <emit|verify|verify-joined> <filename>".into()),
+        _ => return Err("usage: venus_bridge <emit|emit-joined|verify|verify-joined> <filename>".into()),
     };
     let fragment = bridge::fragment()?;
     match command {
@@ -16,6 +16,12 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
             fs::write(file, &fragment)?;
             println!("Emitted {} Venus bridge bytes [0x{:x},0x{:x}), partial firmware.",
                 fragment.len(), bridge::START, bridge::END);
+        }
+        "emit-joined" => {
+            let contiguous=bridge::contiguous_boot_and_bridge()?.build_complete()?;
+            fs::write(file, &contiguous)?;
+            println!("Emitted {} contiguous Venus boot+bridge bytes at file offset 0x{:x}; partial firmware.",
+                     contiguous.len(), venus_plan::START_FILE_OFFSET);
         }
         "verify" | "verify-joined" => {
             let ref_image = fs::read(file)?;

@@ -83,6 +83,22 @@ pub fn contiguous_boot_and_bridge() -> Result<ImagePlan, String> {
 mod tests {
     use super::*;
     #[test]
+    fn full_bridge_reaches_service_start_without_holes() {
+        assert_eq!(START, 0x8490);
+        assert_eq!(END, 0xaa0c);
+        assert_eq!(BRIDGE_LENGTH, 9596);
+        assert_eq!(FILE_OFFSET, 0xc490);
+        assert_eq!(venus_runtime_bridge_service_link::FILE_OFFSET +
+                   (venus_runtime_bridge_service_link::END -
+                    venus_runtime_bridge_service_link::START), 0xea0c);
+        let rebuilt = fragment().unwrap();
+        assert_eq!(rebuilt.len(), 9596);
+        let plan = contiguous_boot_and_bridge().unwrap();
+        assert!(plan.holes().is_empty());
+        assert_eq!(plan.filled_bytes(), 43532);
+        assert_eq!(plan.build_complete().unwrap().len(), 43532);
+    }
+    #[test]
     fn boot_and_bridge_are_adjacent() {
         let plan = contiguous_boot_and_bridge().unwrap();
         assert_eq!(plan.total_bytes(), END);

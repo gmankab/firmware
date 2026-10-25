@@ -246,3 +246,57 @@ python3 tools/agent-02-a32-roundtrip.py /private/venus.mbn \
   --data-range 0xa914:0xa918 --data-range 0xa990:0xa99c \
   --data-range 0xa9d0:0xa9d4 --data-range 0xaa08:0xaa0c
 ```
+
+## Checkpoint 10 — independent full-gap validation and integration handoff
+
+The Agent 02 target is **complete**. Source-generated contiguous Venus bridge
+runtime `[0x8490,0xaa0c)` is **9,596 exact bytes**, consisting of **2,245**
+encoded ARM32 instructions plus **154** distinguished non-instruction words.
+It joins the existing **33,936-byte** early boot/runtime prefix into **43,532
+contiguous independently emitted bytes**, MBN file `[0x4000,0xea0c)`.
+
+The new one-command independent verifier cross-checks the **entire gap in one
+Clang/LLVM reconstruction**, with the full ordered list of literal regions:
+
+```sh
+PATH=/path/to/offline-rust/bin:$PATH \
+  bash tools/agent-02-verify-full-gap.sh /private/venus.mbn
+```
+
+To generate the complete boot-and-bridge output without OEM bytes:
+
+```sh
+cargo run --offline --locked -p firmware-tools --bin venus_bridge -- \
+  emit-joined /tmp/venus-boot-bridge.bin
+```
+
+To also verify a separately generated **Agent 01/Checkpoint 50 service**
+fragment, provide its emitted binary as the optional second argument:
+
+```sh
+bash tools/agent-02-verify-full-gap.sh /private/venus.mbn \
+  /tmp/venus-service-region.bin
+```
+
+This verifies that the supplied service bytes follow the bridge without gaps
+and match the reference. It does not infer the provenance of supplied service
+bytes, does not create missing authentication, and does not make the firmware
+flashable.
+
+**Integration onto checkpoint 50:** This branch is based on the available
+older boot-prefix commit `69ebf0d`, **not** on the requested checkpoint 50
+commit `b7ed4b5`. Fetch this agent bundle, then cherry-pick the Agent 02
+commits in their original order, rather than merging unrelated default main
+histories. Preserve the separate ARM32 helper commits (`TEQ` and the
+register-indexed halfword transfer). If checkpoint 50 already implements one
+of these helpers, resolve the overlap by retaining a single consistent checked
+implementation and rerun all tests. Do not apply this agent's `docs/STATUS.md`
+from an older tree; it was not modified. The only shared module registration
+change is `xiaomi_nabu/mod.rs`; the agent does not alter the forward service
+planner.
+
+**Final acceptance:** zero remaining bytes in the exclusive Agent 02 gap;
+whole-bridge byte comparison, whole-bridge independent assembler comparison,
+joined prefix byte comparison, offline Rust and Python tests, and release
+build pass. A new integration verification is required on the checkpoint-50-
+based branch before claiming continuous coverage through its service area.
