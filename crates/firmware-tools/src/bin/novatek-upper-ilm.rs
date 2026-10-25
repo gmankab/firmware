@@ -5,6 +5,14 @@
 mod novatek_upper_isa;
 #[path = "../devices/xiaomi_nabu/novatek_upper_ilm.rs"]
 mod novatek_upper_ilm;
+#[path = "../devices/xiaomi_nabu/novatek_upper_ex9.rs"]
+mod novatek_upper_ex9;
+#[path = "../devices/xiaomi_nabu/novatek_upper_log_data.rs"]
+mod novatek_upper_log_data;
+#[path = "../devices/xiaomi_nabu/novatek_upper_math_data.rs"]
+mod novatek_upper_math_data;
+#[path = "../devices/xiaomi_nabu/novatek_upper_catalog.rs"]
+mod novatek_upper_catalog;
 
 use std::{env, fs, process};
 
@@ -14,23 +22,33 @@ fn run() -> Result<(), String> {
         [command, output] if command == "emit" => {
             let bytes = novatek_upper_ilm::emit()?;
             fs::write(output, &bytes).map_err(|e| format!("write {output}: {e}"))?;
-            println!("Emitted {} typed NDS32 bytes at file [{:#x},{:#x}), runtime [{:#x},{:#x})",
+            println!("Emitted {} upper-ILM bytes at file [{:#x},{:#x}), runtime [{:#x},{:#x})",
                 bytes.len(), novatek_upper_ilm::SOURCE_START, novatek_upper_ilm::SOURCE_END,
                 novatek_upper_ilm::SOURCE_START - novatek_upper_ilm::ILM_FILE_BIAS,
                 novatek_upper_ilm::SOURCE_END - novatek_upper_ilm::ILM_FILE_BIAS);
             Ok(())
         }
-        [command] if command == "inspect" => {
-            let _ = novatek_upper_ilm::emit()?;
-            println!("reserved_file=[{:#x},{:#x}) source_file=[{:#x},{:#x}) instructions={} bytes={} seam_bytes={}",
-                novatek_upper_ilm::RESERVED_START, novatek_upper_ilm::RESERVED_END,
-                novatek_upper_ilm::SOURCE_START, novatek_upper_ilm::SOURCE_END,
-                novatek_upper_ilm::CODE.len(),
-                novatek_upper_ilm::SOURCE_END - novatek_upper_ilm::SOURCE_START,
-                novatek_upper_ilm::SOURCE_START - novatek_upper_ilm::RESERVED_START);
+        [command, directory] if command == "export" => {
+            let fragments = novatek_upper_catalog::fragments()?;
+            let output = std::path::Path::new(directory);
+            fs::create_dir_all(output).map_err(|e| format!("create {directory}: {e}"))?;
+            for fragment in &fragments {
+                fs::write(output.join(fragment.filename()), &fragment.bytes)
+                    .map_err(|e| format!("write fragment: {e}"))?;
+            }
+            let manifest = novatek_upper_catalog::manifest(&fragments)?;
+            fs::write(output.join("manifest.json"), manifest)
+                .map_err(|e| format!("write manifest: {e}"))?;
+            println!("Exported {} source fragments; {} covered bytes; {} unresolved bytes",
+                fragments.len(), novatek_upper_catalog::GENERATED_BYTES,
+                novatek_upper_catalog::UNRESOLVED_BYTES);
             Ok(())
         }
-        _ => Err("usage: novatek-upper-ilm emit OUTPUT | inspect\nVerification: tools/devices/xiaomi-nabu/verify-agent20-18.py".into()),
+        [command] if command == "inspect" => {
+            println!("{}", novatek_upper_catalog::manifest(&novatek_upper_catalog::fragments()?)?);
+            Ok(())
+        }
+        _ => Err("usage: novatek-upper-ilm emit MAIN_OUTPUT | export DIRECTORY | inspect\nVerification: tools/devices/xiaomi-nabu/verify-agent20-18.py".into()),
     }
 }
 

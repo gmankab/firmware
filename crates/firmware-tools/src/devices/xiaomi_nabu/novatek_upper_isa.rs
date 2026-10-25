@@ -38,6 +38,11 @@ impl Gpr {
     }
 }
 
+
+/// GNU `SRIDX(1, 8, 1)` and `SRIDX(1, 9, 1)` system-register selectors.
+pub const SYS_INT_MASK2: u16 = 0xc1;
+pub const SYS_INT_PEND2: u16 = 0xc9;
+
 /// Width-preserving instructions; no pseudo-instruction relaxation is done.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Instruction {
@@ -83,6 +88,131 @@ pub enum Instruction {
     Slti45(Gpr, u8),
     Slt45(Gpr, Gpr),
     Ret5(Gpr),
+    // Additional physical instructions observed in the upper ILM and EX9 table.
+    Add(Gpr, Gpr, Gpr),
+    Sub(Gpr, Gpr, Gpr),
+    And(Gpr, Gpr, Gpr),
+    Xor(Gpr, Gpr, Gpr),
+    Or(Gpr, Gpr, Gpr),
+    Slt(Gpr, Gpr, Gpr),
+    Sll(Gpr, Gpr, Gpr),
+    Srl(Gpr, Gpr, Gpr),
+    Cmovz(Gpr, Gpr, Gpr),
+    Cmovn(Gpr, Gpr, Gpr),
+    Max(Gpr, Gpr, Gpr),
+    Min(Gpr, Gpr, Gpr),
+    Mul(Gpr, Gpr, Gpr),
+    Mulr64(Gpr, Gpr, Gpr),
+    Maddr32(Gpr, Gpr, Gpr),
+    Msubr32(Gpr, Gpr, Gpr),
+    AddSlli(Gpr, Gpr, Gpr, u8),
+    SubSlli(Gpr, Gpr, Gpr, u8),
+    OrSlli(Gpr, Gpr, Gpr, u8),
+    OrSrli(Gpr, Gpr, Gpr, u8),
+    AddSrli(Gpr, Gpr, Gpr, u8),
+    AndSrli(Gpr, Gpr, Gpr, u8),
+    Lh(Gpr, Gpr, Gpr, u8),
+    Lw(Gpr, Gpr, Gpr, u8),
+    Lhs(Gpr, Gpr, Gpr, u8),
+    Sh(Gpr, Gpr, Gpr, u8),
+    Sw(Gpr, Gpr, Gpr, u8),
+    LbBi(Gpr, Gpr, Gpr, u8),
+    SbBi(Gpr, Gpr, Gpr, u8),
+    Slli(Gpr, Gpr, u8),
+    Srli(Gpr, Gpr, u8),
+    Srai(Gpr, Gpr, u8),
+    Bset(Gpr, Gpr, u8),
+    Btgl(Gpr, Gpr, u8),
+    Btst(Gpr, Gpr, u8),
+    Slli333(Gpr, Gpr, u8),
+    Addi333(Gpr, Gpr, u8),
+    Subi333(Gpr, Gpr, u8),
+    Lwi333(Gpr, Gpr, u8),
+    Lhi333(Gpr, Gpr, u8),
+    Swi333(Gpr, Gpr, u8),
+    Shi333(Gpr, Gpr, u8),
+    Seh(Gpr, Gpr),
+    Zeh(Gpr, Gpr),
+    Abs(Gpr, Gpr),
+    Clz(Gpr, Gpr),
+    Add45(Gpr, Gpr),
+    Sub45(Gpr, Gpr),
+    Swi450(Gpr, Gpr),
+    Movd44(Gpr, Gpr),
+    Zeh33(Gpr, Gpr),
+    Seb33(Gpr, Gpr),
+    Seh33(Gpr, Gpr),
+    Xlsb33(Gpr, Gpr),
+    X11b33(Gpr, Gpr),
+    Neg33(Gpr, Gpr),
+    Not33(Gpr, Gpr),
+    Mul33(Gpr, Gpr),
+    Xor33(Gpr, Gpr),
+    And33(Gpr, Gpr),
+    Or33(Gpr, Gpr),
+    Divsr(Gpr, Gpr, Gpr, Gpr),
+    Divr(Gpr, Gpr, Gpr, Gpr),
+    Subri(Gpr, Gpr, i32),
+    Andi(Gpr, Gpr, i32),
+    Xori(Gpr, Gpr, i32),
+    Ori(Gpr, Gpr, i32),
+    Slti(Gpr, Gpr, i32),
+    Sltsi(Gpr, Gpr, i32),
+    Bitci(Gpr, Gpr, i32),
+    Lbi(Gpr, Gpr, i32),
+    Lhi(Gpr, Gpr, i32),
+    Shi(Gpr, Gpr, i32),
+    Swi(Gpr, Gpr, i32),
+    LbiBi(Gpr, Gpr, i32),
+    LhiBi(Gpr, Gpr, i32),
+    LwiBi(Gpr, Gpr, i32),
+    SbiBi(Gpr, Gpr, i32),
+    ShiBi(Gpr, Gpr, i32),
+    SwiBi(Gpr, Gpr, i32),
+    Lbsi(Gpr, Gpr, i32),
+    Lhsi(Gpr, Gpr, i32),
+    LhsiBi(Gpr, Gpr, i32),
+    Sethi(Gpr, i32),
+    LhiGp(Gpr, i32),
+    LhsiGp(Gpr, i32),
+    ShiGp(Gpr, i32),
+    SwiGp(Gpr, i32),
+    LbsiGp(Gpr, i32),
+    Mfsr(Gpr, u16),
+    Mtsr(Gpr, u16),
+    Lwi37(Gpr, u16),
+    Lwi37Sp(Gpr, u16),
+    LmwBi(Gpr, Gpr, Gpr, u8),
+    LmwBim(Gpr, Gpr, Gpr, u8),
+    SmwBi(Gpr, Gpr, Gpr, u8),
+    SmwBim(Gpr, Gpr, Gpr, u8),
+    SmwAdm(Gpr, Gpr, Gpr, u8),
+    Beqz(Gpr, u32),
+    Bnez(Gpr, u32),
+    Bgez(Gpr, u32),
+    Bltz(Gpr, u32),
+    Bgtz(Gpr, u32),
+    Blez(Gpr, u32),
+    Beqs38(Gpr, u32),
+    Bnes38(Gpr, u32),
+    J(u32),
+    Ifcall(u32),
+    Ifcall9(u32),
+    Ex9J(u32),
+    Ex9Jal(u32),
+    Jr(Gpr),
+    Jr5(Gpr),
+    Subi45(Gpr, u8),
+    Srai45(Gpr, u8),
+    Sltsi45(Gpr, u8),
+    Movpi45(Gpr, u8),
+    Bmski33(Gpr, u8),
+    Sub333(Gpr, Gpr, Gpr),
+    Addi10Sp(i32),
+    Nop,
+    Nop16,
+    Ifret16,
+
 }
 
 fn small_register(reg: Gpr) -> Result<u32, String> {
@@ -144,14 +274,53 @@ fn push_register(last: Gpr) -> Result<u32, String> {
     }
 }
 
+fn unsigned_i32(value: i32, bits: u32, name: &str) -> Result<u32, String> {
+    let value = u32::try_from(value).map_err(|_| format!("{name}: negative unsigned operand"))?;
+    unsigned_field(value, bits, name)
+}
+
+fn even_register(reg: Gpr) -> Result<u32, String> {
+    if reg.number() & 1 != 0 {
+        return Err(format!("register-pair base {reg:?} must be even"));
+    }
+    Ok(reg.number() / 2)
+}
+
+fn multiple_register_fields(first: Gpr, base: Gpr, last: Gpr, mask: u8) -> Result<u32, String> {
+    if first.number() > last.number() {
+        return Err("LMW/SMW first register must not exceed last register".into());
+    }
+    Ok(first.number() << 20 | base.number() << 15 | last.number() << 10
+        | unsigned_field(u32::from(mask), 4, "LMW/SMW special-register mask")? << 6)
+}
+
+fn instruction_table_jump(target_runtime: u32) -> Result<u32, String> {
+    if target_runtime & 1 != 0 {
+        return Err("EX9 table jump target must be halfword aligned".into());
+    }
+    // EX9 J/JAL joins these low 25 address bits with the calling PC's high
+    // seven bits. It does not branch relative to the table-slot address.
+    unsigned_field(target_runtime >> 1, 24, "EX9 absolute target low 25 bits")
+}
+
 impl Instruction {
     pub const fn width(self) -> usize {
         use Instruction::*;
         match self {
-            Movi(..) | LwiGp(..) | SbiGp(..) | LbiGp(..) | Beq(..) | Bne(..)
-            | Bnec(..) | Beqc(..) | Sbi(..) | Jal(..) | Lb(..) | Sb(..)
-            | Addi(..) | Lwi(..) => 4,
-            _ => 2,
+            Push25(..) | Pop25(..) | Mov55(..) | Movi55(..) | Swi37Sp(..)
+            | Ex9It(..) | Beqz38(..) | Bnez38(..) | Sbi333(..) | Lbi333(..)
+            | J8(..) | Addri36Sp(..) | Addi45(..) | Lwi450(..) | Srli45(..)
+            | Zeb33(..) | Fexti33(..) | Slts45(..) | Beqzs8(..) | Bnezs8(..)
+            | Add333(..) | Slti45(..) | Slt45(..) | Ret5(..) | Slli333(..)
+            | Addi333(..) | Subi333(..) | Lwi333(..) | Lhi333(..) | Swi333(..)
+            | Shi333(..) | Add45(..) | Sub45(..) | Swi450(..) | Movd44(..)
+            | Zeh33(..) | Seb33(..) | Seh33(..) | Xlsb33(..) | X11b33(..)
+            | Neg33(..) | Not33(..) | Mul33(..) | Xor33(..) | And33(..)
+            | Or33(..) | Lwi37(..) | Lwi37Sp(..) | Beqs38(..) | Bnes38(..)
+            | Ifcall9(..) | Jr5(..) | Subi45(..) | Srai45(..) | Sltsi45(..)
+            | Movpi45(..) | Bmski33(..) | Sub333(..) | Addi10Sp(..)
+            | Nop16 | Ifret16 => 2,
+            _ => 4,
         }
     }
 
@@ -241,6 +410,273 @@ impl Instruction {
             Add333(rt, ra, rb) => 0x9800 | small_register(rt)? << 6
                 | small_register(ra)? << 3 | small_register(rb)?,
             Ret5(ra) => 0xdd80 | ra.number(),
+            Add(rt, ra, rb) | Sub(rt, ra, rb) | And(rt, ra, rb) | Xor(rt, ra, rb) | Or(rt, ra, rb) | Slt(rt, ra, rb) | Sll(rt, ra, rb) | Srl(rt, ra, rb) | Cmovz(rt, ra, rb) | Cmovn(rt, ra, rb) => {
+                let sub = match self {
+                    Add(..) => 0x0,
+                    Sub(..) => 0x1,
+                    And(..) => 0x2,
+                    Xor(..) => 0x3,
+                    Or(..) => 0x4,
+                    Slt(..) => 0x6,
+                    Sll(..) => 0xc,
+                    Srl(..) => 0xd,
+                    Cmovz(..) => 0x1a,
+                    Cmovn(..) => 0x1b,
+                    _ => unreachable!(),
+                };
+                (0x20 << 25) | rt.number() << 20 | ra.number() << 15 | rb.number() << 10 | sub
+            }
+            AddSlli(rt, ra, rb, shift) | SubSlli(rt, ra, rb, shift) | OrSlli(rt, ra, rb, shift) | OrSrli(rt, ra, rb, shift) | AddSrli(rt, ra, rb, shift) | AndSrli(rt, ra, rb, shift) => {
+                let sub = match self {
+                    AddSlli(..) => 0x0,
+                    SubSlli(..) => 0x1,
+                    OrSlli(..) => 0x4,
+                    OrSrli(..) => 0x15,
+                    AddSrli(..) => 0x1c,
+                    AndSrli(..) => 0x1e,
+                    _ => unreachable!(),
+                };
+                (0x20 << 25) | rt.number() << 20 | ra.number() << 15 | rb.number() << 10
+                    | unsigned_field(u32::from(shift), 5, "ALU shift")? << 5 | sub
+            }
+            Slli(rt, ra, shift) | Srli(rt, ra, shift) | Srai(rt, ra, shift) => {
+                let sub = match self {
+                    Slli(..) => 0x8,
+                    Srli(..) => 0x9,
+                    Srai(..) => 0xa,
+                    _ => unreachable!(),
+                };
+                (0x20 << 25) | rt.number() << 20 | ra.number() << 15
+                    | unsigned_field(u32::from(shift), 5, "shift immediate")? << 10 | sub
+            }
+            Seh(rt, ra) | Zeh(rt, ra) => {
+                let sub = if matches!(self, Seh(..)) { 0x11 } else { 0x13 };
+                (0x20 << 25) | rt.number() << 20 | ra.number() << 15 | sub
+            }
+            Divsr(rt, rd, ra, rb) | Divr(rt, rd, ra, rb) => {
+                let sub = if matches!(self, Divsr(..)) { 0x16 } else { 0x17 };
+                (0x20 << 25) | rt.number() << 20 | rd.number() << 5
+                    | ra.number() << 15 | rb.number() << 10 | sub
+            }
+            Max(rt, ra, rb) | Min(rt, ra, rb) | Mul(rt, ra, rb) | Mulr64(rt, ra, rb) | Maddr32(rt, ra, rb) | Msubr32(rt, ra, rb) => {
+                let sub = match self {
+                    Max(..) => 0x0,
+                    Min(..) => 0x1,
+                    Mul(..) => 0x24,
+                    Mulr64(..) => 0x69,
+                    Maddr32(..) => 0x73,
+                    Msubr32(..) => 0x75,
+                    _ => unreachable!(),
+                };
+                (0x21 << 25) | rt.number() << 20 | ra.number() << 15 | rb.number() << 10 | sub
+            }
+            Abs(rt, ra) | Clz(rt, ra) => {
+                let sub = if matches!(self, Abs(..)) { 3 } else { 7 };
+                (0x21 << 25) | rt.number() << 20 | ra.number() << 15 | sub
+            }
+            Bset(rt, ra, bit) | Btgl(rt, ra, bit) | Btst(rt, ra, bit) => {
+                let sub = match self {
+                    Bset(..) => 0x8,
+                    Btgl(..) => 0xa,
+                    Btst(..) => 0xb,
+                    _ => unreachable!(),
+                };
+                (0x21 << 25) | rt.number() << 20 | ra.number() << 15
+                    | unsigned_field(u32::from(bit), 5, "bit number")? << 10 | sub
+            }
+            Subri(rt, ra, immediate) | Slti(rt, ra, immediate) | Sltsi(rt, ra, immediate) => {
+                let opcode = match self {
+                    Subri(..) => 0x29,
+                    Slti(..) => 0x2e,
+                    Sltsi(..) => 0x2f,
+                    _ => unreachable!(),
+                };
+                (opcode << 25) | rt.number() << 20 | ra.number() << 15
+                    | signed_field(i64::from(immediate), 15, "arithmetic immediate")?
+            }
+            Andi(rt, ra, immediate) | Xori(rt, ra, immediate) | Ori(rt, ra, immediate) | Bitci(rt, ra, immediate) => {
+                let opcode = match self {
+                    Andi(..) => 0x2a,
+                    Xori(..) => 0x2b,
+                    Ori(..) => 0x2c,
+                    Bitci(..) => 0x33,
+                    _ => unreachable!(),
+                };
+                (opcode << 25) | rt.number() << 20 | ra.number() << 15
+                    | unsigned_i32(immediate, 15, "logical immediate")?
+            }
+            Sethi(rt, immediate) => (0x23 << 25) | rt.number() << 20
+                | unsigned_i32(immediate, 20, "SETHI immediate")?,
+            LhiGp(rt, displacement) | LhsiGp(rt, displacement) | ShiGp(rt, displacement) | SwiGp(rt, displacement) => {
+                let sub = match self {
+                    LhiGp(..) => 0x0,
+                    LhsiGp(..) => 0x2,
+                    ShiGp(..) => 0x4,
+                    SwiGp(..) => 0x7,
+                    _ => unreachable!(),
+                };
+                let (bits, shift) = if matches!(self, SwiGp(..)) { (17, 2) } else { (18, 1) };
+                (0x1e << 25) | sub << 17 | rt.number() << 20
+                    | signed_scaled(displacement, bits, shift, "GP displacement")?
+            }
+            LbsiGp(rt, displacement) => (0x17 << 25) | (1 << 19) | rt.number() << 20
+                | signed_field(i64::from(displacement), 19, "LBSI.GP displacement")?,
+            Lbi(rt, ra, displacement) | Lhi(rt, ra, displacement) | Shi(rt, ra, displacement) | Swi(rt, ra, displacement) | LbiBi(rt, ra, displacement) | LhiBi(rt, ra, displacement) | LwiBi(rt, ra, displacement) | SbiBi(rt, ra, displacement) | ShiBi(rt, ra, displacement) | SwiBi(rt, ra, displacement) | Lbsi(rt, ra, displacement) | Lhsi(rt, ra, displacement) | LhsiBi(rt, ra, displacement) => {
+                let (opcode, shift) = match self {
+                    Lbi(..) => (0x0, 0),
+                    Lhi(..) => (0x1, 1),
+                    Shi(..) => (0x9, 1),
+                    Swi(..) => (0xa, 2),
+                    LbiBi(..) => (0x4, 0),
+                    LhiBi(..) => (0x5, 1),
+                    LwiBi(..) => (0x6, 2),
+                    SbiBi(..) => (0xc, 0),
+                    ShiBi(..) => (0xd, 1),
+                    SwiBi(..) => (0xe, 2),
+                    Lbsi(..) => (0x10, 0),
+                    Lhsi(..) => (0x11, 1),
+                    LhsiBi(..) => (0x15, 1),
+                    _ => unreachable!(),
+                };
+                (opcode << 25) | rt.number() << 20 | ra.number() << 15
+                    | signed_scaled(displacement, 15, shift, "memory displacement")?
+            }
+            Lh(rt, ra, rb, shift) | Lw(rt, ra, rb, shift) | Lhs(rt, ra, rb, shift) | Sh(rt, ra, rb, shift) | Sw(rt, ra, rb, shift) | LbBi(rt, ra, rb, shift) | SbBi(rt, ra, rb, shift) => {
+                let sub = match self {
+                    Lh(..) => 0x1,
+                    Lw(..) => 0x2,
+                    Lhs(..) => 0x11,
+                    Sh(..) => 0x9,
+                    Sw(..) => 0xa,
+                    LbBi(..) => 0x4,
+                    SbBi(..) => 0xc,
+                    _ => unreachable!(),
+                };
+                (0x1c << 25) | rt.number() << 20 | ra.number() << 15 | rb.number() << 10
+                    | unsigned_field(u32::from(shift), 2, "memory index shift")? << 8 | sub
+            }
+            Mfsr(rt, index) | Mtsr(rt, index) => {
+                let sub = if matches!(self, Mfsr(..)) { 2 } else { 3 };
+                (0x32 << 25) | rt.number() << 20
+                    | unsigned_field(u32::from(index), 10, "system-register index")? << 10 | sub
+            }
+            LmwBi(first, base, last, mask) | LmwBim(first, base, last, mask) | SmwBi(first, base, last, mask) | SmwBim(first, base, last, mask) | SmwAdm(first, base, last, mask) => {
+                let sub = match self {
+                    LmwBi(..) => 0x0,
+                    LmwBim(..) => 0x4,
+                    SmwBi(..) => 0x20,
+                    SmwBim(..) => 0x24,
+                    SmwAdm(..) => 0x3c,
+                    _ => unreachable!(),
+                };
+                (0x1d << 25) | multiple_register_fields(first, base, last, mask)? | sub
+            }
+            Beqz(rt, target) | Bnez(rt, target) | Bgez(rt, target) | Bltz(rt, target) | Bgtz(rt, target) | Blez(rt, target) => {
+                let sub = match self {
+                    Beqz(..) => 0x2,
+                    Bnez(..) => 0x3,
+                    Bgez(..) => 0x4,
+                    Bltz(..) => 0x5,
+                    Bgtz(..) => 0x6,
+                    Blez(..) => 0x7,
+                    _ => unreachable!(),
+                };
+                (0x27 << 25) | rt.number() << 20 | sub << 16 | branch_field(at_file, target, 16)?
+            }
+            Beqs38(rt, target) | Bnes38(rt, target) => {
+                if rt == Gpr::R5 {
+                    return Err("BEQS38/BNES38 r5 encodings are reserved for other compact instructions".into());
+                }
+                let base = if matches!(self, Beqs38(..)) { 0xd000 } else { 0xd800 };
+                base | small_register(rt)? << 8 | branch_field(at_file, target, 8)?
+            }
+            J(target) => (0x24 << 25) | branch_field(at_file, target, 24)?,
+            Ifcall(target) => (0x27 << 25) | branch_field(at_file, target, 16)?,
+            Ifcall9(target) => {
+                if target < at_file || target & 1 != 0 {
+                    return Err("IFCALL9 needs a forward, halfword-aligned target".into());
+                }
+                0xf800 | unsigned_field((target - at_file) / 2, 9, "IFCALL9 forward displacement")?
+            }
+            Ex9J(target_runtime) | Ex9Jal(target_runtime) => {
+                let link = if matches!(self, Ex9Jal(..)) { 1 << 24 } else { 0 };
+                (0x24 << 25) | link | instruction_table_jump(target_runtime)?
+            }
+            Jr(rb) => (0x25 << 25) | rb.number() << 10,
+            Jr5(ra) => 0xdd00 | ra.number(),
+            Nop => (0x20 << 25) | 9,
+            Nop16 => 0x9200,
+            Ifret16 => 0x83ff,
+            Add45(rt, ra) | Sub45(rt, ra) | Swi450(rt, ra) => {
+                let base = match self {
+                    Add45(..) => 0x8800,
+                    Sub45(..) => 0x8a00,
+                    Swi450(..) => 0xb600,
+                    _ => unreachable!(),
+                };
+                base | compact_register(rt)? << 5 | ra.number()
+            }
+            Subi45(rt, immediate) | Srai45(rt, immediate) | Sltsi45(rt, immediate) => {
+                let base = match self {
+                    Subi45(..) => 0x8e00,
+                    Srai45(..) => 0x9000,
+                    Sltsi45(..) => 0xe400,
+                    _ => unreachable!(),
+                };
+                base | compact_register(rt)? << 5
+                    | unsigned_field(u32::from(immediate), 5, "compact immediate")?
+            }
+            Movpi45(rt, immediate) => {
+                let field = immediate.checked_sub(16).ok_or("MOVPI45 immediate must be 16..47")?;
+                0xfa00 | compact_register(rt)? << 5 | unsigned_field(u32::from(field), 5, "MOVPI45 immediate")?
+            }
+            Movd44(rt, ra) => 0xfd00 | even_register(rt)? << 4 | even_register(ra)?,
+            Addi10Sp(immediate) => 0xec00 | signed_field(i64::from(immediate), 10, "ADDI10.SP immediate")?,
+            Lwi333(rt, ra, displacement) | Lhi333(rt, ra, displacement) | Swi333(rt, ra, displacement) | Shi333(rt, ra, displacement) => {
+                let (base, shift) = match self {
+                    Lwi333(..) => (0xa000, 2),
+                    Lhi333(..) => (0xa400, 1),
+                    Swi333(..) => (0xa800, 2),
+                    Shi333(..) => (0xac00, 1),
+                    _ => unreachable!(),
+                };
+                base | small_register(rt)? << 6 | small_register(ra)? << 3
+                    | unsigned_scaled(u16::from(displacement), 3, shift, "compact memory displacement")?
+            }
+            Lwi37(rt, displacement) | Lwi37Sp(rt, displacement) => {
+                let base = if matches!(self, Lwi37(..)) { 0xb800 } else { 0xf000 };
+                base | small_register(rt)? << 8 | unsigned_scaled(displacement, 7, 2, "LWI37 displacement")?
+            }
+            Slli333(rt, ra, immediate) | Addi333(rt, ra, immediate) | Subi333(rt, ra, immediate) => {
+                let base = match self {
+                    Slli333(..) => 0x9400,
+                    Addi333(..) => 0x9c00,
+                    Subi333(..) => 0x9e00,
+                    _ => unreachable!(),
+                };
+                base | small_register(rt)? << 6 | small_register(ra)? << 3
+                    | unsigned_field(u32::from(immediate), 3, "compact arithmetic immediate")?
+            }
+            Zeh33(rt, ra) | Seb33(rt, ra) | Seh33(rt, ra) | Xlsb33(rt, ra) | X11b33(rt, ra) | Neg33(rt, ra) | Not33(rt, ra) | Mul33(rt, ra) | Xor33(rt, ra) | And33(rt, ra) | Or33(rt, ra) => {
+                let base = match self {
+                    Zeh33(..) => 0x9601,
+                    Seb33(..) => 0x9602,
+                    Seh33(..) => 0x9603,
+                    Xlsb33(..) => 0x9604,
+                    X11b33(..) => 0x9605,
+                    Neg33(..) => 0xfe02,
+                    Not33(..) => 0xfe03,
+                    Mul33(..) => 0xfe04,
+                    Xor33(..) => 0xfe05,
+                    And33(..) => 0xfe06,
+                    Or33(..) => 0xfe07,
+                    _ => unreachable!(),
+                };
+                base | small_register(rt)? << 6 | small_register(ra)? << 3
+            }
+            Bmski33(rt, last_bit) => 0x9606 | small_register(rt)? << 6
+                | unsigned_field(u32::from(last_bit), 3, "BMSKI33 last bit")? << 3,
+            Sub333(rt, ra, rb) => 0x9a00 | small_register(rt)? << 6 | small_register(ra)? << 3 | small_register(rb)?,
         };
         Ok(if self.width() == 2 { (word as u16).to_be_bytes().to_vec() }
             else { word.to_be_bytes().to_vec() })
@@ -374,4 +810,122 @@ mod tests {
             }
         }
     }
+
+    #[test]
+    fn ifcall_forms_have_distinct_signed_and_forward_ranges_without_pc_bias() {
+        assert_eq!(Ifcall9(0x102dc).encode(0x102c0).unwrap(), [0xf8, 0x0e]);
+        assert_eq!(Ifcall(0x10378).encode(0x10410).unwrap(), [0x4e, 0x00, 0xff, 0xb4]);
+        assert_eq!(Ifcall9(0x1000).encode(0x1000).unwrap(), [0xf8, 0x00]);
+        assert_eq!(Ifcall9(0x13fe).encode(0x1000).unwrap(), [0xf9, 0xff]);
+        for target in [0x0ffe, 0x1001, 0x1400] {
+            assert!(Ifcall9(target).encode(0x1000).is_err());
+        }
+        assert!(Ifcall(0).encode(0x10000).is_ok());
+        assert!(Ifcall(0x1fffe).encode(0x10000).is_ok());
+        assert!(Ifcall(0x20000).encode(0x10000).is_err());
+    }
+
+    #[test]
+    fn ex9_table_jumps_store_absolute_low_address_bits_independent_of_slot() {
+        let call = Ex9Jal(0x84aa);
+        assert_eq!(call.encode(0).unwrap(), [0x49, 0x00, 0x42, 0x55]);
+        assert_eq!(call.encode(0).unwrap(), call.encode(0x17dc0).unwrap());
+        assert_eq!(Ex9J(0x2aa).encode(0x17dc0).unwrap(), [0x48, 0x00, 0x01, 0x55]);
+        assert!(Ex9J(0x1fffffe).encode(0).is_ok());
+        assert!(Ex9J(0x2000000).encode(0).is_err());
+        assert!(Ex9Jal(0x84ab).encode(0).is_err());
+        // A normal relative JAL remains placement-dependent.
+        assert_ne!(Jal(0x84aa).encode(0).unwrap(), Jal(0x84aa).encode(0x1000).unwrap());
+    }
+
+    #[test]
+    fn multiword_and_register_pair_forms_reject_invalid_ranges() {
+        assert!(LmwBi(R16, R0, R15, 0).encode(0).is_err());
+        assert!(LmwBim(R0, R1, R2, 16).encode(0).is_err());
+        assert!(SmwBi(R0, R1, R2, 255).encode(0).is_err());
+        assert!(SmwBim(R3, R0, R2, 0).encode(0).is_err());
+        assert!(SmwAdm(R31, R31, R31, 10).encode(0).is_ok());
+        assert!(Movd44(R0, R30).encode(0).is_ok());
+        assert!(Movd44(R1, R0).encode(0).is_err());
+        assert!(Movd44(R0, R31).encode(0).is_err());
+        assert_eq!(Movd44(R6, R10).encode(0).unwrap(), [0xfd, 0x35]);
+    }
+
+    #[test]
+    fn new_memory_families_keep_byte_displacements_and_checked_scales() {
+        for instruction in [LhiGp(R31, -262144), LhsiGp(R31, 262142),
+            ShiGp(R31, -262144), SwiGp(R31, 262140), LbsiGp(R31, -262144),
+            Lbi(R31, R31, -16384), Lbsi(R31, R31, 16383),
+            LhiBi(R31, R31, 32766), SwiBi(R31, R31, -65536)] {
+            assert!(instruction.encode(0).is_ok(), "rejected {instruction:?}");
+        }
+        for instruction in [LhiGp(R0, 1), LhsiGp(R0, 262144), ShiGp(R0, -262146),
+            SwiGp(R0, 2), LbsiGp(R0, 262144), LbiBi(R0, R0, 16384),
+            LhsiBi(R0, R0, -3), SwiBi(R0, R0, -65540),
+            Lhi333(R0, R1, 1), Lhi333(R0, R1, 16),
+            Swi333(R0, R1, 30), Shi333(R0, R1, 16),
+            Lwi37(R0, 3), Lwi37Sp(R0, 512), Sw(R0, R1, R2, 4)] {
+            assert!(instruction.encode(0).is_err(), "accepted {instruction:?}");
+        }
+    }
+
+    #[test]
+    fn arithmetic_and_logical_immediates_have_different_signedness() {
+        // SLTI uses an unsigned comparison with a sign-extended immediate.
+        assert!(Slti(R1, R2, -1).encode(0).is_ok());
+        assert!(Sltsi(R1, R2, -16384).encode(0).is_ok());
+        assert!(Subri(R1, R2, 16383).encode(0).is_ok());
+        for instruction in [Andi(R1, R2, -1), Ori(R1, R2, 32768),
+            Xori(R1, R2, -1), Bitci(R1, R2, 32768),
+            Subri(R1, R2, -16385), Slti(R1, R2, 16384),
+            Sethi(R0, -1), Sethi(R0, 0x100000),
+            Slli(R0, R1, 32), AddSlli(R0, R1, R2, 32),
+            Bset(R0, R1, 32), Btgl(R0, R1, 32), Btst(R0, R1, 32)] {
+            assert!(instruction.encode(0).is_err(), "accepted {instruction:?}");
+        }
+        assert!(Sethi(R0, 0xfffff).encode(0).is_ok());
+    }
+
+    #[test]
+    fn new_compact_operands_cannot_alias_reserved_or_unrepresentable_fields() {
+        for instruction in [Add45(R12, R0), Sub45(R15, R0), Swi450(R20, R0),
+            Sltsi45(R31, 0), Movpi45(R0, 15), Movpi45(R0, 48),
+            Slli333(R0, R1, 8), Addi333(R0, R1, 8), Subi333(R0, R1, 8),
+            Zeh33(R8, R0), Or33(R0, R8), Bmski33(R0, 8),
+            Lwi37(R8, 0), Beqs38(R5, 0), Bnes38(R5, 0),
+            Addi10Sp(-513), Addi10Sp(512)] {
+            assert!(instruction.encode(0).is_err(), "accepted {instruction:?}");
+        }
+        assert_eq!(Movpi45(R16, 16).encode(0).unwrap(), [0xfb, 0x80]);
+        assert_eq!(Movpi45(R19, 47).encode(0).unwrap(), [0xfb, 0xff]);
+        assert!(Addi10Sp(-512).encode(0).is_ok());
+        assert!(Addi10Sp(511).encode(0).is_ok());
+    }
+
+    #[test]
+    fn system_register_selectors_are_checked_ten_bit_operands() {
+        assert_eq!(Mfsr(R1, super::SYS_INT_MASK2).encode(0).unwrap(), [0x64, 0x13, 0x04, 0x02]);
+        assert_eq!(Mtsr(R0, super::SYS_INT_PEND2).encode(0).unwrap(), [0x64, 0x03, 0x24, 0x03]);
+        assert!(Mfsr(R31, 1023).encode(0).is_ok());
+        assert!(Mfsr(R0, 1024).encode(0).is_err());
+        assert!(Mtsr(R0, u16::MAX).encode(0).is_err());
+    }
+
+    #[test]
+    fn explicit_fixed_instructions_and_new_widths_are_preserved() {
+        assert_eq!(Nop.encode(0).unwrap(), [0x40, 0x00, 0x00, 0x09]);
+        assert_eq!(Nop16.encode(0).unwrap(), [0x92, 0x00]);
+        assert_eq!(Ifret16.encode(0).unwrap(), [0x83, 0xff]);
+        for instruction in [Ifcall9(0), Nop16, Ifret16, Movd44(R0, R2),
+            Movpi45(R0, 16), Addi10Sp(0), Lwi37(R0, 0), Jr5(R15)] {
+            assert_eq!(instruction.width(), 2);
+            assert_eq!(instruction.encode(0).unwrap().len(), 2);
+        }
+        for instruction in [Ifcall(0), Ex9J(0), Ex9Jal(0), Nop, Jr(R15),
+            Mfsr(R1, 0), LmwBim(R0, R1, R2, 0), Divsr(R0, R1, R2, R3)] {
+            assert_eq!(instruction.width(), 4);
+            assert_eq!(instruction.encode(0).unwrap().len(), 4);
+        }
+    }
+
 }

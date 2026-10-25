@@ -1,0 +1,242 @@
+{
+  "schema": "agent18.upper-math-data.v1",
+  "module": "crates/firmware-tools/src/devices/xiaomi_nabu/novatek_upper_math_data.rs",
+  "reference_sha256": "8b845514621ebfd95759a0919f3aa3d825314abb478a7cad1c3fb4c6872b70b5",
+  "source_data_bytes": 1056,
+  "alignment_bytes": 8,
+  "generated_bytes": 1064,
+  "scope_note": "Only the eight explicitly listed tables and their four alignment slots are generated. Intervening irregular arrays remain uncovered.",
+  "interpretation_limit": "The formulas give byte-identical independent mathematical constructions. The original vendor generation procedure and physical meaning of the tables have not been established.",
+  "tables": [
+    {
+      "name": "coordinate_centers_50",
+      "file_start": "0x195b0",
+      "file_end_exclusive": "0x19614",
+      "runtime_start": "0x193b0",
+      "runtime_end_exclusive": "0x19414",
+      "bytes": 100,
+      "entry_count": 50,
+      "entry_width": 2,
+      "byte_order": "little",
+      "recipe": "center[i] = floor((256*i + 130)/5), i=0..49; equivalent nearest integer to (i+0.5)*2560/50.",
+      "sha256": "3cdee06ec254a6f173f97a5a70cfa394db8d65b677a8e7b53eb6e903d430e497",
+      "reference_mismatched_bytes": 0,
+      "classification": "verified_mathematical_construction",
+      "caveat": "Formula regenerates every pinned sample; original vendor generation procedure and hardware purpose are unproven."
+    },
+    {
+      "name": "coordinate_widths_50",
+      "file_start": "0x19614",
+      "file_end_exclusive": "0x19678",
+      "runtime_start": "0x19414",
+      "runtime_end_exclusive": "0x19478",
+      "bytes": 100,
+      "entry_count": 50,
+      "entry_width": 2,
+      "byte_order": "little",
+      "recipe": "width[i] = 2*(center[i] - sum(width[j] for j < i)); i=0..49; total width2560.",
+      "sha256": "842f27102e31bc49ad3c4aebdbdaf2cd18c523298726832a4ec39ddafa683b02",
+      "reference_mismatched_bytes": 0,
+      "classification": "verified_mathematical_construction",
+      "caveat": "Formula regenerates every pinned sample; original vendor generation procedure and hardware purpose are unproven."
+    },
+    {
+      "name": "coordinate_centers_32",
+      "file_start": "0x19678",
+      "file_end_exclusive": "0x196b8",
+      "runtime_start": "0x19478",
+      "runtime_end_exclusive": "0x194b8",
+      "bytes": 64,
+      "entry_count": 32,
+      "entry_width": 2,
+      "byte_order": "little",
+      "recipe": "center[i]=25+50*i, i=0..31.",
+      "sha256": "fa6b8f447b9551d59e380e59334b1c927d03cf20261e3f42e876e72c01dd271c",
+      "reference_mismatched_bytes": 0,
+      "classification": "verified_mathematical_construction",
+      "caveat": "Formula regenerates every pinned sample; original vendor generation procedure and hardware purpose are unproven."
+    },
+    {
+      "name": "coordinate_widths_32",
+      "file_start": "0x196b8",
+      "file_end_exclusive": "0x196f8",
+      "runtime_start": "0x194b8",
+      "runtime_end_exclusive": "0x194f8",
+      "bytes": 64,
+      "entry_count": 32,
+      "entry_width": 2,
+      "byte_order": "little",
+      "recipe": "width[i]=50, i=0..31; total width1600.",
+      "sha256": "ff948665735fc3c049522ee3101a4b0539dd28944b13c6352e03f5ae9da53456",
+      "reference_mismatched_bytes": 0,
+      "classification": "verified_mathematical_construction",
+      "caveat": "Formula regenerates every pinned sample; original vendor generation procedure and hardware purpose are unproven."
+    },
+    {
+      "name": "sine_degrees_scaled_100",
+      "file_start": "0x198dc",
+      "file_end_exclusive": "0x19992",
+      "runtime_start": "0x196dc",
+      "runtime_end_exclusive": "0x19792",
+      "bytes": 182,
+      "entry_count": 91,
+      "entry_width": 2,
+      "byte_order": "little",
+      "recipe": "round_half_up(100*sin(pi*i/180)), i=0..90.",
+      "sha256": "6f88db20780823e00a1de314d945ce171c3ef885259a234ff451a919a4987a61",
+      "reference_mismatched_bytes": 0,
+      "classification": "verified_mathematical_construction",
+      "caveat": "Formula regenerates every pinned sample; original vendor generation procedure and hardware purpose are unproven."
+    },
+    {
+      "name": "cosine_degrees_scaled_100",
+      "file_start": "0x19994",
+      "file_end_exclusive": "0x19a4a",
+      "runtime_start": "0x19794",
+      "runtime_end_exclusive": "0x1984a",
+      "bytes": 182,
+      "entry_count": 91,
+      "entry_width": 2,
+      "byte_order": "little",
+      "recipe": "round_half_up(100*cos(pi*i/180)), i=0..90.",
+      "sha256": "d8cbcde3d2c67b5d31e78a61a42b2f4d05618abb8d92eb29bf74245b842b34b0",
+      "reference_mismatched_bytes": 0,
+      "classification": "verified_mathematical_construction",
+      "caveat": "Formula regenerates every pinned sample; original vendor generation procedure and hardware purpose are unproven."
+    },
+    {
+      "name": "tangent_degrees_scaled_100_capped",
+      "file_start": "0x19a4c",
+      "file_end_exclusive": "0x19b02",
+      "runtime_start": "0x1984c",
+      "runtime_end_exclusive": "0x19902",
+      "bytes": 182,
+      "entry_count": 91,
+      "entry_width": 2,
+      "byte_order": "little",
+      "recipe": "round_half_up(100*tan(pi*i/180)), i=0..89; endpoint i=90 is10000.",
+      "sha256": "acaff458bd92ff5cead476b20c9b172ed90f57622d6a1623e96277eab47ee072",
+      "reference_mismatched_bytes": 0,
+      "classification": "verified_mathematical_construction",
+      "caveat": "Formula regenerates every pinned sample; original vendor generation procedure and hardware purpose are unproven."
+    },
+    {
+      "name": "squares_0_through_90",
+      "file_start": "0x19b04",
+      "file_end_exclusive": "0x19bba",
+      "runtime_start": "0x19904",
+      "runtime_end_exclusive": "0x199ba",
+      "bytes": 182,
+      "entry_count": 91,
+      "entry_width": 2,
+      "byte_order": "little",
+      "recipe": "i*i, i=0..90.",
+      "sha256": "e578484c7a46f01c3c4d54c095dfcc9aaaca3b7984c5309fabeca03d1bffb144",
+      "reference_mismatched_bytes": 0,
+      "classification": "verified_mathematical_construction",
+      "caveat": "Formula regenerates every pinned sample; original vendor generation procedure and hardware purpose are unproven."
+    }
+  ],
+  "alignment": [
+    {
+      "file_start": "0x19992",
+      "file_end_exclusive": "0x19994",
+      "bytes": 2,
+      "value": 0
+    },
+    {
+      "file_start": "0x19a4a",
+      "file_end_exclusive": "0x19a4c",
+      "bytes": 2,
+      "value": 0
+    },
+    {
+      "file_start": "0x19b02",
+      "file_end_exclusive": "0x19b04",
+      "bytes": 2,
+      "value": 0
+    },
+    {
+      "file_start": "0x19bba",
+      "file_end_exclusive": "0x19bbc",
+      "bytes": 2,
+      "value": 0
+    }
+  ],
+  "rounding_verification": {
+    "independent_method": "High-precision Decimal(85) Taylor sin/cos with90terms; independent of host libm. All samples exactly match the firmware after half-up rounding.",
+    "minimum_distance_to_half_integer_scaled_sample": {
+      "sine": "0.00380749100542100816319363981382834160828337463194738612202762005044363709292318804",
+      "cosine": "0.00380749100542100816319363981382834160828337463194738612202762005044363709292318798",
+      "tangent": "0.007923050825226949959737422627468412082570221538474949502991680964746581294100128449"
+    },
+    "rust_evaluation": "Binary64 Taylor recurrence, twenty correction terms, exact 0/90 degree endpoints; no host trigonometric libm calls."
+  },
+  "rust_verification": {
+    "reference_sha256": "8b845514621ebfd95759a0919f3aa3d825314abb478a7cad1c3fb4c6872b70b5",
+    "rustc": "rustc 1.99.1 (58cf8f9c3 2026-10-13)",
+    "module_unit_tests_passed": 4,
+    "source_data_bytes": 1056,
+    "alignment_bytes": 8,
+    "generated_bytes": 1064,
+    "sha256_concatenated_spans": "630a509aabb6517cb970505e1619f28099cb8bcfa48c11f65570e57fd17ccaec",
+    "fragments": [
+      {
+        "file_start": "0x195b0",
+        "file_end_exclusive": "0x19614",
+        "bytes": 100,
+        "mismatched_bytes": 0,
+        "sha256": "3cdee06ec254a6f173f97a5a70cfa394db8d65b677a8e7b53eb6e903d430e497"
+      },
+      {
+        "file_start": "0x19614",
+        "file_end_exclusive": "0x19678",
+        "bytes": 100,
+        "mismatched_bytes": 0,
+        "sha256": "842f27102e31bc49ad3c4aebdbdaf2cd18c523298726832a4ec39ddafa683b02"
+      },
+      {
+        "file_start": "0x19678",
+        "file_end_exclusive": "0x196b8",
+        "bytes": 64,
+        "mismatched_bytes": 0,
+        "sha256": "fa6b8f447b9551d59e380e59334b1c927d03cf20261e3f42e876e72c01dd271c"
+      },
+      {
+        "file_start": "0x196b8",
+        "file_end_exclusive": "0x196f8",
+        "bytes": 64,
+        "mismatched_bytes": 0,
+        "sha256": "ff948665735fc3c049522ee3101a4b0539dd28944b13c6352e03f5ae9da53456"
+      },
+      {
+        "file_start": "0x198dc",
+        "file_end_exclusive": "0x19994",
+        "bytes": 184,
+        "mismatched_bytes": 0,
+        "sha256": "f337b24fa79ee840e8aeccbc54612020c752f9d413bd93d13f70579e4e2d77af"
+      },
+      {
+        "file_start": "0x19994",
+        "file_end_exclusive": "0x19a4c",
+        "bytes": 184,
+        "mismatched_bytes": 0,
+        "sha256": "a0d2ba4689500f80d103fe23205290a43fd377be0487ab2ed0290c1538224290"
+      },
+      {
+        "file_start": "0x19a4c",
+        "file_end_exclusive": "0x19b04",
+        "bytes": 184,
+        "mismatched_bytes": 0,
+        "sha256": "e9d8dca41fb507bc3aeb028e5b7565061f2841cea43b794b402479a12215f0ef"
+      },
+      {
+        "file_start": "0x19b04",
+        "file_end_exclusive": "0x19bbc",
+        "bytes": 184,
+        "mismatched_bytes": 0,
+        "sha256": "70cee0878647c90d51b8fcc5c476162b1fdef81fbc40807fcc0cb3b38d16de3f"
+      }
+    ]
+  }
+}

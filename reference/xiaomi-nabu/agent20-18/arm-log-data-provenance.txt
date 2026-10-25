@@ -1,0 +1,128 @@
+Agent 20-18: independently sourced double-precision logarithm data
+================================================================
+
+Classification: identified mathematical data; not executable instruction bytes.
+Firmware file interval: [0x19bf0, 0x1ac80), 4,240 bytes.
+Runtime interval: [0x199f0, 0x1aa80).
+
+Public source
+-------------
+Project: ARM-software/optimized-routines
+Source file: math/log_data.c
+Pinned commit: 189dfefe37d54c5b9d2a8bb2039091a638c691e1
+URL:
+https://raw.githubusercontent.com/ARM-software/optimized-routines/189dfefe37d54c5b9d2a8bb2039091a638c691e1/math/log_data.c
+Source SHA-256:
+327cf1819870930486eecb5491c68d5887a712b954e5ec82f3f70bfd9e46fdd3
+
+The complete unchanged source is preserved alongside this file as arm-log_data.c.
+Its original copyright/license header is preserved verbatim, and the same header
+is preserved in the Rust transcription:
+
+/*
+ * Data for log.
+ *
+ * Copyright (c) 2018, Arm Limited.
+ * SPDX-License-Identifier: MIT OR Apache-2.0 WITH LLVM-exception
+ */
+
+The layout and selected parameters come from math/math_config.h at the same
+commit, not from guessing how the constants were arranged in the binary:
+https://raw.githubusercontent.com/ARM-software/optimized-routines/189dfefe37d54c5b9d2a8bb2039091a638c691e1/math/math_config.h
+Header SHA-256:
+8fcde1b1c5f64f7a624b398639b33215f5e76c1ab5be55e3d26b011e51c3bfb1
+
+Selected configuration:
+LOG_TABLE_BITS=7 (N=128), LOG_POLY_ORDER=6, LOG_POLY1_ORDER=12, HAVE_FAST_FMA=0.
+
+The struct field order is ln2hi, ln2lo, poly, poly1, tab, tab2. In contrast,
+log_data.c writes its designated initializer for poly1 before poly. The Rust
+emitter deliberately follows the declared struct order.
+
+Typed content and layout
+------------------------
+Field       Count (f64)   File interval          Meaning
+ln2hi         1          [0x19bf0,0x19bf8)       High part of ln(2)
+ln2lo         1          [0x19bf8,0x19c00)       Low part of ln(2)
+poly          5          [0x19c00,0x19c28)       Residual log polynomial
+poly1        11          [0x19c28,0x19c80)       Near-one polynomial
+tab         256         [0x19c80,0x1a480)       128 reciprocal/log(c) pairs
+tab2        256         [0x1a480,0x1ac80)       128 high/low center pairs
+Total       530          [0x19bf0,0x1ac80)       4,240 bytes
+
+For x = 2^k z, the algorithm uses log(x) = k*ln(2) + log(c) + log(z/c).
+The reciprocal/logarithm table selects a reduction center c for z. The split
+center table supports r=(z-chi-clo)*invc without a fast fused multiply-add.
+The near-one polynomial handles the interval for which cancellation requires
+the alternate approximation. These meanings are documented in the public C
+source; no numerical values were transcribed from the OEM byte stream.
+
+Implementation
+--------------
+crates/firmware-tools/src/devices/xiaomi_nabu/novatek_upper_log_data.rs
+
+All constants are typed f64 decimal literals, each accompanied by the original
+hexadecimal float from the public C source. Python float.fromhex plus shortest
+round-tripping decimal serialization was used to transcribe the literals.
+Every Rust scalar was then independently emitted and compared with the selected
+public C constants as IEEE-754 binary64 little-endian values. Rust emits fields
+explicitly, so native struct padding and host endianness are irrelevant.
+
+Public API: emit() -> Vec<u8>, SOURCE_START=0x19bf0, SOURCE_END=0x1ac80.
+The emitter accepts no firmware, source-image slice, or other external input.
+
+Verification (2026-10-25)
+-------------------------
+Pinned postmarketOS Novatek reference full-file SHA-256:
+8b845514621ebfd95759a0919f3aa3d825314abb478a7cad1c3fb4c6872b70b5
+
+Public C selected constants == emitted Rust bytes == reference range:
+4,240 bytes equal; 0 mismatched bytes.
+Emitted SHA-256:
+c26af2ad9c57bf0b64d2d1b93b1e911170e63c39d7bf69bfe423b9e8770a8f4c
+
+Three isolated Rust tests pass:
+- Configuration, field dimensions, scalar count, and emitted range length.
+- IEEE-754 rounding samples and declared struct-field order.
+- Reciprocal/center/logarithm relationships and monotonic table geometry.
+
+Reproducible isolated test command from repository root:
+rustc --edition=2021 --test \
+  crates/firmware-tools/src/devices/xiaomi_nabu/novatek_upper_log_data.rs \
+  -o /tmp/novatek-upper-log-data-tests
+/tmp/novatek-upper-log-data-tests
+
+This exact public-source match identifies the table content and makes it
+independently reproducible. It does not identify the OEM's complete library
+version, reconstruct the adjacent log implementation, or establish execution
+behavior on the touchscreen controller. Count it as independently sourced
+mathematical data in provenance totals, separately from reconstructed code.
+
+
+Preserved upstream MIT license option
+-------------------------------------
+From LICENSE at the same pinned upstream commit; original file notices above
+remain intact. The upstream source also offers Apache-2.0 WITH LLVM-exception.
+
+MIT License
+-----------
+
+Copyright (c) 1999-2022, Arm Limited.
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
