@@ -1,7 +1,9 @@
 // SPDX-License-Identifier: GPL-3.0-only
-//! Strict, reversible *metadata* representation of the Nabu NT36xxx-style
-//! touchscreen firmware. It does not infer the unconfirmed MCU instruction set
-//! and never copies an executable payload into generated source.
+//! Strict, reversible metadata plus independently generated NDS32 ISR prefix
+//! for Nabu NT36xxx-style
+//! touchscreen firmware. The NDS32 instruction set is corroborated by public
+//! ISA rules and exact instruction encodings; other executable payload bytes
+//! remain unimplemented and are never copied into generated source.
 //!
 //! Nabu's 0x200-byte prefix contains two 0x100-byte descriptor banks. They
 //! share the ILM/DLM descriptors, while their variant-specific info entries
@@ -15,9 +17,11 @@ pub const IMAGE_LENGTH: usize = 0x30000;
 pub const HEADER_BYTES: usize = 0x200;
 pub const BANK_BYTES: usize = 0x100;
 /// The Nabu ILM starts with 128 opaque 32-bit vector/descriptors, then 80
-/// reserved zeros before the first probable executable words.
+/// reserved zeros before an independently reconstructed NDS32 handler.
 pub const CANDIDATE_VECTORS_END: usize = 0x400;
 pub const ILM_CODE_START: usize = 0x450;
+/// First 90 bytes are independently reconstructed NDS32 exception code.
+pub const ILM_SOURCE_PREFIX_END: usize = super::novatek_nds32::FIRST_HANDLER_END;
 /// Nabu's observed all-zero reserved tail; this is specific to the pinned
 /// 196,608-byte firmware layout, not a general Novatek-family assumption.
 pub const ILM_SPACER_START: usize = 0x1ac80;
@@ -89,12 +93,15 @@ pub struct NabuNovatekLayout {
 
 
 /// Classify provenance, not only whether bytes happen to match a reference.
-/// Metadata is serializable; its CRC-32/MPEG-2 fields are computable from
+/// NDS32 handler bytes are source-generated; metadata is serializable and
+/// its CRC-32/MPEG-2 fields are computable from
 /// independently authored payloads. Zero ranges and `NVT` are independent.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum RegionKind {
     StructuredMetadataRecomputableCrc,
     StructuredVectorsWithOpaqueTargets,
+    /// Source-generated NDS32 interrupt entry/return instructions.
+    IndependentlyGeneratedNds32,
     UnimplementedIlm,
     IndependentlyGeneratedZero,
     UnimplementedDlm,
@@ -116,7 +123,8 @@ impl CoverageRegion {
     pub fn length(&self) -> usize { self.end - self.start }
     pub fn source_independent(&self) -> bool {
         matches!(self.kind, RegionKind::IndependentlyGeneratedZero
-                  | RegionKind::IndependentlyGeneratedMarker)
+                  | RegionKind::IndependentlyGeneratedMarker
+                  | RegionKind::IndependentlyGeneratedNds32)
     }
     pub fn is_unimplemented(&self) -> bool {
         matches!(self.kind, RegionKind::StructuredVectorsWithOpaqueTargets |
@@ -325,7 +333,7 @@ impl NabuNovatekLayout {
         // Only the exact known Nabu partition geometry is supported. Without
         // this guard a synthetic/foreign revision might silently lose data
         // from the newly identified post-DLM zero-padded region.
-        if ilm_end > ILM_SPACER_START || ilm_end <= ILM_CODE_START ||
+        if ilm_end > ILM_SPACER_START || ilm_end <= ILM_SOURCE_PREFIX_END ||
            dlm_begin != DLM_FILE_START ||
            dlm_end > DLM_FILE_END || dlm_end <= DLM_FILE_START ||
            self.image_len != IMAGE_LENGTH {
@@ -341,8 +349,12 @@ impl NabuNovatekLayout {
             CoverageRegion { name: "ILM candidate-vector reserved zeros",
                 start: CANDIDATE_VECTORS_END, end: ILM_CODE_START,
                 kind: RegionKind::IndependentlyGeneratedZero },
-            CoverageRegion { name: "ILM instruction/data", start: ILM_CODE_START,
-                end: ilm_end, kind: RegionKind::UnimplementedIlm },
+            CoverageRegion { name: "NDS32 authored exception entry path",
+                start: ILM_CODE_START, end: ILM_SOURCE_PREFIX_END,
+                kind: RegionKind::IndependentlyGeneratedNds32 },
+            CoverageRegion { name: "ILM instruction/data after authored ISR",
+                start: ILM_SOURCE_PREFIX_END, end: ilm_end,
+                kind: RegionKind::UnimplementedIlm },
             CoverageRegion { name: "ILM–DLM gap", start: ilm_end,
                 end: dlm_begin, kind: RegionKind::IndependentlyGeneratedZero },
             CoverageRegion { name: "DLM instruction/data", start: dlm_begin,
@@ -361,14 +373,16 @@ impl NabuNovatekLayout {
         Ok(regions)
     }
 
-    /// Verify *only* independently reconstructible ranges plus metadata
-    /// serialization. This says nothing about unknown executable bytes.
+    /// Verify independently reconstructible ranges, NDS32 entry-path bytes,
+    /// and metadata serialization. This says nothing about the unknown ILM
+    /// remainder, DLM instructions or the physical MCU model.
     pub fn verify_envelope(&self, reference: &[u8]) -> Result<(), String> {
         if reference.len() != self.image_len { return Err("different image length".into()); }
         if self.write_header().as_slice() != &reference[..HEADER_BYTES] {
             return Err("metadata does not match fields".into());
         }
         require_zero(reference,CANDIDATE_VECTORS_END,ILM_CODE_START)?;
+        super::novatek_nds32::verify_first_handler(reference)?;
         let (start, end) = self.padding_range()?;
         if self.write_padding(reference)? != reference[start..end] {
             return Err("ILM–DLM padding mismatch".into());
@@ -407,6 +421,8 @@ mod tests {
         };
         let mut bytes = vec![0; IMAGE_LENGTH];
         bytes[..HEADER_BYTES].copy_from_slice(&image.write_header());
+        bytes[ILM_CODE_START..ILM_SOURCE_PREFIX_END]
+            .copy_from_slice(&super::super::novatek_nds32::initial_interrupt_handler().unwrap());
         bytes[IMAGE_LENGTH - 3..].copy_from_slice(TRAILER_MARKER);
         bytes
     }
@@ -437,7 +453,7 @@ mod tests {
         let raw = synthetic();
         let layout = NabuNovatekLayout::parse(&raw).unwrap();
         let regions = layout.coverage().unwrap();
-        assert_eq!(regions.len(), 10);
+        assert_eq!(regions.len(), 11);
         assert_eq!(regions.first().unwrap().start, 0);
         assert_eq!(regions.last().unwrap().end, IMAGE_LENGTH);
         assert_eq!(regions.iter().map(CoverageRegion::length).sum::<usize>(), IMAGE_LENGTH);
@@ -445,6 +461,7 @@ mod tests {
         let independents: usize = regions.iter().filter(|r| r.source_independent())
             .map(CoverageRegion::length).sum();
         assert_eq!(independents, (ILM_CODE_START-CANDIDATE_VECTORS_END)
+            + (ILM_SOURCE_PREFIX_END-ILM_CODE_START)
             + (DLM_FILE_START-ILM_SPACER_START) + (POST_DLM_PADDING_END-DLM_FILE_END)
             + (END_MARKER_OFFSET-RESERVED_TAIL_START) + 3);
     }
@@ -480,8 +497,34 @@ mod tests {
         let layout = NabuNovatekLayout::parse(&raw).unwrap();
         assert_eq!(layout.write_padding(&raw).unwrap().len(),0x7f70);
         assert_eq!(layout.write_post_dlm_padding(&raw).unwrap().len(),0xe88);
-        assert_eq!(layout.coverage().unwrap().len(),10);
+        assert_eq!(layout.coverage().unwrap().len(),11);
         layout.verify_envelope(&raw).unwrap();
+    }
+    #[test]
+    fn generated_nds32_isr_has_distinct_nonopaque_coverage() {
+        let raw=synthetic();
+        let layout=NabuNovatekLayout::parse(&raw).unwrap();
+        let coverage=layout.coverage().unwrap();
+        let code=coverage.iter().find(|r|r.kind==RegionKind::IndependentlyGeneratedNds32).unwrap();
+        assert_eq!((code.start,code.end,code.length()),(0x450,0x4aa,90));
+        assert!(code.source_independent());
+        let remaining=coverage.iter().find(|r|r.kind==RegionKind::UnimplementedIlm).unwrap();
+        assert_eq!(remaining.start,0x4aa);
+        assert_eq!(remaining.length(),108502);
+        let total_independent=coverage.iter().filter(|r|r.source_independent())
+            .map(CoverageRegion::length).sum::<usize>();
+        assert_eq!(total_independent,35226);
+    }
+    #[test]
+    fn mutated_encoded_isr_is_rejected_without_mutating_other_regions() {
+        let mut raw=synthetic();
+        let layout=NabuNovatekLayout::parse(&raw).unwrap();
+        assert!(layout.verify_envelope(&raw).is_ok());
+        raw[0x46d]^=1;
+        let e=layout.verify_envelope(&raw).unwrap_err();
+        assert!(e.contains("0x46d"),"{e}");
+        // Parsing metadata is intentionally still possible after an ISR mutation.
+        assert!(NabuNovatekLayout::parse(&raw).is_ok());
     }
     #[test]
     fn suffix_and_reserved_padding_can_be_rebuilt_independently() {
