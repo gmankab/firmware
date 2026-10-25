@@ -285,3 +285,8 @@ Original reference: private `map220v-nabu-firmware/venus.mbn`, SHA-256 `9d4af65d
 
 - Full byte-matched interval `[0x21c78,0x2b774)` = **39,676 typed bytes** (original MBN `[0x25c78,0x2f774)`). New `[0x2b474,0x2b774)` = **768 bytes**, **167 ARM32 instructions**, **25 handler-target data words**.
 - A larger event processing function begins at `0x2b474`; this checkpoint covers its register/status setup, callback routing and branch destinations, including two tables `[0x2b6e4,0x2b720)` (15 entries) and `[0x2b74c,0x2b774)` (10 entries). Remaining case bodies are still missing beyond `0x2b774`; this fragment is incomplete as an independently callable function.
+
+## Checkpoint 41 — frame routing and three codec jump tables
+
+- Continuous A32 runtime `[0x21c78,0x2ba68)` = **40,432 bytes** exact against `venus.mbn`; additional `[0x2b774,0x2ba68)` = **756 bytes**, **169 instructions and 20 switch-table address words**.
+- Buffer-class and format-level checks select dedicated handlers from three tables: `[0x2b944,0x2b968)` (9 entries), `[0x2b988,0x2b9a4)` (7), and `[0x2ba58,0x2ba68)` (4). Function continues after `0x2ba68` into payload handlers and eventual return; current checkpoint should not be considered standalone callable code.
