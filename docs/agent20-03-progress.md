@@ -418,3 +418,9 @@ Original reference: private `map220v-nabu-firmware/venus.mbn`, SHA-256 `9d4af65d
 - Contiguous typed A32 reconstruction `[0x21c78,0x31b80)` = **65,288 exact bytes**; newly added `[0x3192c,0x31b80)` = **596 bytes**, **143 ARM32 instructions** and **6 register-address data words**.
 - Includes two controller bank synchronization loops and a descriptor-to-MMIO register-array transfer. Pointer literals reside in three explicit data pools; no OEM opcode sequences or implicit padding.
 - Next function begins at `0x31b80`. This is exact instruction encoding, not a semantic or signed firmware reconstruction.
+
+## Checkpoint 64 — Codec input capability flags and per-channel modes
+
+- Contiguous typed A32 reconstruction `[0x21c78,0x31d80)` = **65,800 exact bytes**; new `[0x31b80,0x31d80)` = **512 bytes** containing **119 ARM32 instructions** and **9 data words**.
+- Updates per-channel byte-mode flags using ARM32 writeback addressing and optionally sends controller diagnostic callbacks. `[0x31d40,0x31d64)` is MMIO/diagnostic data.
+- Next routine begins at `0x31d80`; no reconstruction is claimed past this boundary or of OEM signature bytes.
