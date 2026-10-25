@@ -283,11 +283,11 @@ fn modified_immediate(value: u32) -> Result<u32, String> {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum DataOp { And = 0, Eor = 1, Sub = 2, Rsb = 3, Add = 4, Sbc = 6, Rsc = 7, Tst = 8, Cmp = 10, Cmn = 11, Orr = 12, Mov = 13, Bic = 14, Mvn = 15 }
+pub enum DataOp { And = 0, Eor = 1, Sub = 2, Rsb = 3, Add = 4, Sbc = 6, Rsc = 7, Tst = 8, Teq = 9, Cmp = 10, Cmn = 11, Orr = 12, Mov = 13, Bic = 14, Mvn = 15 }
 
 pub fn data_immediate(condition: Condition, op: DataOp, rd: Register, rn: Register,
                       value: u32) -> Result<u32, String> {
-    let test = matches!(op, DataOp::Cmp | DataOp::Tst | DataOp::Cmn);
+    let test = matches!(op, DataOp::Cmp | DataOp::Tst | DataOp::Teq | DataOp::Cmn);
     let rd_field = if test { 0 } else { rd.number() };
     Ok(cond(condition) | (1 << 25) | ((op as u32) << 21)
        | if test { 1 << 20 } else { 0 }
@@ -312,8 +312,8 @@ pub fn mov_shifted_register(condition: Condition, rd: Register, rm: Register,
 
 pub fn data_immediate_with_flags(condition: Condition, op: DataOp, rd: Register,
                                  rn: Register, value: u32, flags: bool) -> Result<u32, String> {
-    if matches!(op, DataOp::Cmp | DataOp::Tst | DataOp::Cmn) {
-        return Err("CMP and TST always update flags; use data_immediate".into());
+    if matches!(op, DataOp::Cmp | DataOp::Tst | DataOp::Teq | DataOp::Cmn) {
+        return Err("CMP, TST and TEQ always update flags; use data_immediate".into());
     }
     Ok(data_immediate(condition, op, rd, rn, value)? | if flags { 1 << 20 } else { 0 })
 }
@@ -321,8 +321,8 @@ pub fn data_immediate_with_flags(condition: Condition, op: DataOp, rd: Register,
 pub fn data_register(condition: Condition, op: DataOp, rd: Register, rn: Register,
                      rm: Register, shift: Shift, amount: u8,
                      flags: bool) -> Result<u32, String> {
-    let test = matches!(op, DataOp::Cmp | DataOp::Tst | DataOp::Cmn);
-    if flags && test { return Err("CMP and TST set flags automatically".into()); }
+    let test = matches!(op, DataOp::Cmp | DataOp::Tst | DataOp::Teq | DataOp::Cmn);
+    if flags && test { return Err("CMP, TST and TEQ set flags automatically".into()); }
     Ok(cond(condition) | ((op as u32) << 21) | ((rn.number()) << 16)
        | if flags || test { 1 << 20 } else { 0 }
        | (if test { 0 } else { rd.number() } << 12)
@@ -339,7 +339,7 @@ pub fn data_register_shifted_by_register(condition: Condition, op: DataOp,
     if rs == Register::PC || rm == Register::PC {
         return Err("PC is not a valid ARM32 shift operand".into());
     }
-    let test = matches!(op, DataOp::Cmp | DataOp::Tst | DataOp::Cmn);
+    let test = matches!(op, DataOp::Cmp | DataOp::Tst | DataOp::Teq | DataOp::Cmn);
     if test && flags { return Err("test opcodes always set flags".into()); }
     Ok(cond(condition) | ((op as u32) << 21) | (rn.number() << 16)
        | (if flags || test { 1 << 20 } else { 0 })
@@ -446,6 +446,18 @@ pub fn push_registers(condition: Condition, registers: u16) -> Result<u32, Strin
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn teq_always_updates_flags_and_has_no_destination() {
+        // Independently disassembled A32 `teq r1, r2` = e1310002.
+        assert_eq!(data_register(Condition::Al, DataOp::Teq, Register::R0,
+            Register::R1, Register::R2, Shift::Lsl, 0, false).unwrap(), 0xe131_0002);
+        assert!(data_register(Condition::Al, DataOp::Teq, Register::R0,
+            Register::R1, Register::R2, Shift::Lsl, 0, true).is_err());
+        assert_eq!(data_immediate(Condition::Al, DataOp::Teq, Register::R0,
+            Register::R1, 1).unwrap(), 0xe331_0001);
+        assert!(data_immediate_with_flags(Condition::Al, DataOp::Teq,
+            Register::R0, Register::R1, 1, true).is_err());
+    }
     #[test]
     fn thumb_interworking_blx_encoding_and_range_checks() {
         // ARM BLX immediate follows a signed PC+8 displacement. Bit H
