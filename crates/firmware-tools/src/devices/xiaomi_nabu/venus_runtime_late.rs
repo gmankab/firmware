@@ -14,7 +14,7 @@ use arm32::{branch, transfer_word, BlockMode, Condition as C,
 /// jump table includes entries at 0x18010–0x1802b and must not be split.
 pub const FILE_BASE: usize = 0x4000;
 pub const START: usize = 0x183e0;
-pub const END: usize = 0x1c614;
+pub const END: usize = 0x1c7e8;
 pub const MAX_RESERVED_END: usize = 0x24000;
 
 // Isolated builder: unlike the boot-prefix helper, the A32 address is tracked
@@ -75,6 +75,8 @@ mod work;
 mod format;
 #[path = "venus_runtime_late_geometry.rs"]
 mod geometry;
+#[path = "venus_runtime_late_session_start.rs"]
+mod session_start;
 
 /// Normalize stride/crop dimensions to hardware layout constraints, clamp
 /// bounds exposed by firmware state, and report four alignment invariants.
@@ -404,6 +406,7 @@ pub fn fragment() -> Result<Vec<u8>, String> {
     work::extend(&mut c)?;
     format::extend(&mut c)?;
     geometry::extend(&mut c)?;
+    session_start::extend(&mut c)?;
     c.check(END)?;
     Ok(c.bytes)
 }
@@ -427,11 +430,11 @@ pub fn verify_reference(reference: &[u8]) -> Result<usize, String> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    #[test] fn thirty_one_late_functions_have_no_gaps() {
+    #[test] fn thirty_two_late_functions_have_no_gaps() {
         let buf = fragment().unwrap();
         assert_eq!(buf.len(), END - START);
         assert_eq!(START, 0x183e0);
-        assert_eq!(END, 0x1c614);
+        assert_eq!(END, 0x1c7e8);
         assert_eq!(&buf[0x18574 - START..0x18578 - START], &CODEC_RUNTIME_DIAGNOSTIC.to_le_bytes());
         assert_eq!(&buf[0x19690 - START..0x19694 - START], &CODEC_RUNTIME_DIAGNOSTIC.to_le_bytes());
         assert_eq!(&buf[0x196a0 - START..0x196a4 - START], &0xffff_fb80u32.to_le_bytes());
