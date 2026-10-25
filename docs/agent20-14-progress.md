@@ -1,10 +1,10 @@
 # Agent 20-14 — WLAN late Hexagon reconstruction
 
-Latest checkpoint: **10**, with **9,820 contiguous executable bytes**
-and **496 independent dispatch-table data bytes**, for **10,316**
-source-derived bytes in disjoint intervals. This checkpoint adds **356**
-Hexagon instruction bytes in three adjacent complete functions at
-`[0x1026bc,0x102820)`. The next function begins at `0x102820`. The
+Latest checkpoint: **11**, with **10,468 contiguous executable bytes**
+and **496 independently generated dispatch-table data bytes**, for **10,964**
+source-derived bytes in disjoint intervals. Checkpoint 11 adds **648**
+Hexagon instruction bytes across two adjacent complete functions at
+`[0x102820,0x102aa8)`. The next function begins at `0x102aa8`. The
 Agent 13 leading seam `[0x100000,0x1001c4)` remains unimplemented here.
 
 ## Assignment and provenance
@@ -660,3 +660,33 @@ target directory: 160 Rust tests, 103 Python test cases (98 executed and
 passed, five skipped for optional dependencies), and workspace release build
 completed. `git diff --check` passed. These results do not establish high-level
 source-level equivalence, on-device execution or signed firmware support.
+
+
+## Checkpoint 11 — normalized record status parser and packed reply
+
+Two complete V66 Hexagon routines reconstruct `[0x102820,0x102aa8)`,
+adding **648 executable instruction bytes**. `[0x102820,0x1029c4)`
+(420 bytes) validates record type and width fields, conditions the controller
+callback path, and updates the active record after bounded checks.
+`[0x1029c4,0x102aa8)` (228 bytes) normalizes 6-byte status fields into
+packed reply memory and chooses between normal and failure callbacks.
+The two memory packets in the second routine require `:mem_noshuf` and
+its two far jumps have explicit constant extenders; a third far jump in
+the first routine is also explicitly extended. These are source-authored
+Hexagon mnemonics and VLIW packets; there are no proprietary opcode-word
+arrays, `.incbin` directives or copied OEM bytes in the assembler sources.
+
+An independent LLVM 22.1.8 Hexagon V66 assembler and LLVM 6.0.1 V65
+assembler produce identical fragments. The full 10,468-byte contiguous
+code interval matches the pinned `wlanmdsp.mbn` exactly; separately generated
+496-byte dispatch tables remain unchanged and byte-identical. Current total
+**10,964 independently authored bytes**, with zero mismatches, zero generated
+layout fill, and no external reference bytes used in the emitted artifacts.
+
+Full checkpoint tests: **160 Rust** passed; **105 Python test cases**
+(83 passed, 22 skipped because optional external validation capabilities
+were absent in this process environment). Workspace release build passed.
+These checks establish Hexagon instruction *encoding* equivalence, not
+source-level semantic identity or device execution. The leading Agent 13
+452-byte seam `[0x100000,0x1001c4)` remains unimplemented. The next function
+starts at file `0x102aa8`; the remaining exclusive allocation remains large.

@@ -453,6 +453,26 @@
       "sha256": "2ac73d029990a26e974337f060959e2b2390015ade636efe712891430a494dab",
       "checkpoint": 10,
       "classification": "executable"
+    },
+    {
+      "name": "frame-status-parse",
+      "file_start": 1058848,
+      "file_end": 1059268,
+      "source": "sources/xiaomi-nabu/wlanmdsp/agent14-late-frame-status-parse.S",
+      "symbol": "agent14_late_frame_status_parse",
+      "sha256": "8b639103cc6bddbab854a5abd20ea2fb57bcb3e33b60597d886efc6058f0ebbe",
+      "checkpoint": 11,
+      "classification": "executable"
+    },
+    {
+      "name": "packed-record-reply",
+      "file_start": 1059268,
+      "file_end": 1059496,
+      "source": "sources/xiaomi-nabu/wlanmdsp/agent14-late-packed-record-reply.S",
+      "symbol": "agent14_late_packed_record_reply",
+      "sha256": "f4666cffb7b9d87a8891a7573c3a173ab65793056ae177d0b70d09a18be351de",
+      "checkpoint": 11,
+      "classification": "executable"
     }
   ]
 }
