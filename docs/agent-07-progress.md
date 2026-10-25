@@ -302,3 +302,38 @@ unimplemented `[0xb0001dac,0xb0001fa8)` gap remains 508 bytes. The adjacent
 import-alias/comparator group is independently covered for 400 code bytes,
 raising the separately reconstructed executable total to **4,220 bytes**.
 Next function begins at `0xb0002138`. No complete signed WLAN MBN exists.
+
+### Checkpoint J: record wrapper, interrupt-state guard and runtime table setup
+
+The independent interval `[0xb0001fa8,0xb0002208)` / firmware file
+`[0x41fa8,0x42208)` now contains **608 independently assembled and
+reference-verified executable bytes**. The 208-byte extension includes a
+76-byte comparison wrapper (`0x2138–0x2184`), a 28-byte conditional
+interrupt-state guard (`0x2184–0x21a0`) and a 104-byte runtime-table setup
+routine (`0x21a0–0x2208`). The comparison wrapper calls the earlier two
+record comparators and forwards the result; the guard checks an interrupt
+flag in QuRT state; the initialization routine installs global addresses,
+performs setup calls, and preserves/restores a stack-saved register pair.
+
+Rebuilding the runtime table requires Hexagon `:mem_noshuf` on a packet
+containing a word load and a doubleword store. Without that annotation,
+LLVM6 produces a different but legal instruction order. LLVM6 `hexagonv65`
+assembles the correct original bytes; its `hexagonv62` target **rejects**
+`mem_noshuf`, and the test explicitly records this architectural constraint
+rather than implying v62 equivalence for all later code. The comparison
+wrapper and IRQ-state guard still round-trip identically on v62/v65.
+
+```sh
+python3 tools/build-wlanmdsp-startup.py /tmp/imports-through-runtime-helpers.bin \
+  --import-aliases-with-runtime-helpers \
+  --llvm-mc /private/llvm6/bin/llvm-mc \
+  --reference /private/wlanmdsp.mbn --manifest /tmp/wlan-runtime-helpers.json
+```
+
+The contiguous startup region remains **7,596 bytes**, comprising 3,820
+independently encoded executable code bytes plus 3,776 linker fill/alignment.
+This disconnected region comprises 608 independently encoded executable bytes,
+for a **total of 4,428 independently reconstructed code bytes** without
+counting unresolved gaps. The 508-byte `[0x1dac,0x1fa8)` gap remains open.
+The next independent function begins at runtime `0xb0002208`. No complete
+signed WLAN MBN is available from these fragments.

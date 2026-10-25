@@ -237,6 +237,36 @@ class WlanHexagonAssemblyTests(unittest.TestCase):
             fw.check_reference(joined, Path(ref).read_bytes(),
                                runtime_offset=fw.IMPORT_ALIASES_OFFSET)
 
+    def test_postalias_record_wrapper_and_runtime_guards(self):
+        pieces = [
+            (fw.RECORD_WRAPPER_SOURCE, fw.RECORD_WRAPPER_LENGTH),
+            (fw.IRQ_STATE_GUARD_SOURCE, fw.IRQ_STATE_GUARD_LENGTH),
+            (fw.RUNTIME_TABLE_INIT_SOURCE, fw.RUNTIME_TABLE_INIT_LENGTH),
+        ]
+        for src, length in pieces:
+            body = src.read_text()
+            for forbidden in (".incbin", ".byte", ".word", ".long", ".quad"):
+                self.assertNotIn(forbidden, body)
+            encoded = fw.assemble(src, self.mc, "hexagonv65", length)
+            self.assertEqual(len(encoded), length)
+        self.assertIn(":mem_noshuf", fw.RUNTIME_TABLE_INIT_SOURCE.read_text())
+        # LLVM6 only accepts this no-memory-shuffle flag on Hexagon v65.
+        with self.assertRaises(fw.FragmentError):
+            fw.assemble(fw.RUNTIME_TABLE_INIT_SOURCE, self.mc,
+                        "hexagonv62", fw.RUNTIME_TABLE_INIT_LENGTH)
+        for src, length in pieces[:2]:
+            self.assertEqual(fw.assemble(src, self.mc, "hexagonv65", length),
+                             fw.assemble(src, self.mc, "hexagonv62", length))
+        joined = fw.assemble_import_aliases_through_runtime_helpers(self.mc,
+                                                                      "hexagonv65")
+        self.assertEqual(len(joined), fw.THROUGH_RUNTIME_HELPERS_LENGTH)
+        self.assertEqual(joined[fw.THROUGH_ARRAY_COMPARE_LENGTH:fw.THROUGH_ARRAY_COMPARE_LENGTH + 8],
+                         bytes.fromhex("185b545a03c09da0"))
+        ref = os.environ.get("WLANMDSP_REFERENCE")
+        if ref:
+            fw.check_reference(joined, Path(ref).read_bytes(),
+                               runtime_offset=fw.IMPORT_ALIASES_OFFSET)
+
     def test_unresolved_reference_is_rejected(self):
         with tempfile.TemporaryDirectory() as d:
             bad = Path(d) / "unresolved.S"

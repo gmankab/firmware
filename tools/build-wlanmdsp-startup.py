@@ -24,6 +24,9 @@ RECORD_PREFIX_SOURCE = ROOT / "sources/xiaomi-nabu/wlanmdsp/wlan-record-consumer
 IMPORT_ALIASES_SOURCE = ROOT / "sources/xiaomi-nabu/wlanmdsp/wlan-import-aliases.S"
 POSTALIASES_COMPARE_SOURCE = ROOT / "sources/xiaomi-nabu/wlanmdsp/wlan-postaliases-compare.S"
 ARRAY_COMPARE_SOURCE = ROOT / "sources/xiaomi-nabu/wlanmdsp/wlan-record-array-compare.S"
+RECORD_WRAPPER_SOURCE = ROOT / "sources/xiaomi-nabu/wlanmdsp/wlan-record-wrapper.S"
+IRQ_STATE_GUARD_SOURCE = ROOT / "sources/xiaomi-nabu/wlanmdsp/wlan-irq-state-guard.S"
+RUNTIME_TABLE_INIT_SOURCE = ROOT / "sources/xiaomi-nabu/wlanmdsp/wlan-runtime-table-init.S"
 FILE_OFFSET = 0x40000
 VADDR = 0xB0000000
 TEXT_LENGTH = 0x154
@@ -46,6 +49,11 @@ POSTALIASES_COMPARE_LENGTH = 0x50
 THROUGH_POSTALIASES_COMPARE_LENGTH = IMPORT_ALIASES_LENGTH + POSTALIASES_COMPARE_LENGTH
 ARRAY_COMPARE_LENGTH = 0x128
 THROUGH_ARRAY_COMPARE_LENGTH = THROUGH_POSTALIASES_COMPARE_LENGTH + ARRAY_COMPARE_LENGTH
+RECORD_WRAPPER_LENGTH = 0x4c
+IRQ_STATE_GUARD_LENGTH = 0x1c
+RUNTIME_TABLE_INIT_LENGTH = 0x68
+THROUGH_RUNTIME_HELPERS_LENGTH = (THROUGH_ARRAY_COMPARE_LENGTH + RECORD_WRAPPER_LENGTH
+                                  + IRQ_STATE_GUARD_LENGTH + RUNTIME_TABLE_INIT_LENGTH)
 # Identified uniform gap immediately following _init up to the linker PLT.
 # Treat this as layout fill, NEVER as independently reconstructed code.
 LINKER_GAP_WORD = 0x00c0007f
@@ -225,6 +233,22 @@ def emit_with_record_prefix(prefix: bytes, llvm_mc: str, cpu: str) -> bytes:
     return prefix + packetized
 
 
+def assemble_import_aliases_through_runtime_helpers(llvm_mc: str, cpu: str) -> bytes:
+    """Reconstruct a disconnected group through record-wrapper/runtime setup.
+
+    The final packet has a mandatory `mem_noshuf` directive, which LLVM6
+    rejects on Hexagon v62. LLVM6 v65 is used for this newer assembly source.
+    """
+    prefix = assemble_import_aliases_through_array_compare(llvm_mc, cpu)
+    wrapper = assemble(RECORD_WRAPPER_SOURCE, llvm_mc, cpu,
+                       expected_length=RECORD_WRAPPER_LENGTH)
+    guard = assemble(IRQ_STATE_GUARD_SOURCE, llvm_mc, cpu,
+                     expected_length=IRQ_STATE_GUARD_LENGTH)
+    init = assemble(RUNTIME_TABLE_INIT_SOURCE, llvm_mc, cpu,
+                    expected_length=RUNTIME_TABLE_INIT_LENGTH)
+    return prefix + wrapper + guard + init
+
+
 def assemble_import_aliases_through_array_compare(llvm_mc: str, cpu: str) -> bytes:
     """Append a standalone fieldwise-array comparison function to the aliases.
 
@@ -272,19 +296,23 @@ def main() -> None:
                     help="emit import aliases and 80-byte record comparison at runtime 0x1fa8")
     ap.add_argument("--import-aliases-with-array-compare", action="store_true",
                     help="emit aliases, the 80-byte comparator, and 296-byte array comparator")
+    ap.add_argument("--import-aliases-with-runtime-helpers", action="store_true",
+                    help="emit all post-import record comparators and runtime helpers to offset 0x2208")
     ap.add_argument("--emit-plt-assembly", type=Path,
                     help="write independently generated PLT source for inspection")
     args = ap.parse_args()
     disjoint_aliases = (args.import_aliases_only or args.import_aliases_with_compare
-                        or args.import_aliases_with_array_compare)
+                        or args.import_aliases_with_array_compare or args.import_aliases_with_runtime_helpers)
     if sum(int(x) for x in (args.import_aliases_only, args.import_aliases_with_compare,
-                            args.import_aliases_with_array_compare)) > 1:
+                            args.import_aliases_with_array_compare, args.import_aliases_with_runtime_helpers)) > 1:
         raise FragmentError("choose exactly one disjoint import region mode")
     if disjoint_aliases and (args.with_plt or args.with_loader_hooks
                              or args.with_config_lookup or args.with_record_prefix):
         raise FragmentError("disjoint import region cannot be combined with contiguous prefix")
     runtime_offset = IMPORT_ALIASES_OFFSET if disjoint_aliases else 0
-    if args.import_aliases_with_array_compare:
+    if args.import_aliases_with_runtime_helpers:
+        fragment = assemble_import_aliases_through_runtime_helpers(args.llvm_mc, args.cpu)
+    elif args.import_aliases_with_array_compare:
         fragment = assemble_import_aliases_through_array_compare(args.llvm_mc, args.cpu)
     elif args.import_aliases_with_compare:
         fragment = assemble_import_aliases_through_compare(args.llvm_mc, args.cpu)
@@ -320,8 +348,11 @@ def main() -> None:
               "independently_encoded_config_lookup_bytes": CONFIG_LOOKUP_LENGTH if (args.with_config_lookup or args.with_record_prefix) else 0,
               "independently_encoded_record_prefix_bytes": RECORD_CONSUMER_PREFIX_LENGTH if args.with_record_prefix else 0,
               "independently_encoded_import_alias_bytes": IMPORT_ALIASES_LENGTH if disjoint_aliases else 0,
-              "independently_encoded_record_comparison_bytes": POSTALIASES_COMPARE_LENGTH if (args.import_aliases_with_compare or args.import_aliases_with_array_compare) else 0,
-              "independently_encoded_array_comparison_bytes": ARRAY_COMPARE_LENGTH if args.import_aliases_with_array_compare else 0,
+              "independently_encoded_record_comparison_bytes": POSTALIASES_COMPARE_LENGTH if (args.import_aliases_with_compare or (args.import_aliases_with_array_compare or args.import_aliases_with_runtime_helpers)) else 0,
+              "independently_encoded_array_comparison_bytes": ARRAY_COMPARE_LENGTH if (args.import_aliases_with_array_compare or args.import_aliases_with_runtime_helpers) else 0,
+              "independently_encoded_runtime_wrapper_bytes": RECORD_WRAPPER_LENGTH if args.import_aliases_with_runtime_helpers else 0,
+              "independently_encoded_irq_guard_bytes": IRQ_STATE_GUARD_LENGTH if args.import_aliases_with_runtime_helpers else 0,
+              "independently_encoded_runtime_init_bytes": RUNTIME_TABLE_INIT_LENGTH if args.import_aliases_with_runtime_helpers else 0,
               "separate_disconnected_executable_region": disjoint_aliases,
               "provenance": "independently assembled Hexagon source; no OEM instruction bytes embedded"}
     if args.manifest is not None:
