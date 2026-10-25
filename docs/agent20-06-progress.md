@@ -124,3 +124,11 @@ python3 tools/agent20_06_a32_roundtrip.py /private/venus.mbn 0xa8ea0 0xa92c8 \
 - Newly added `[0xab784,0xaba80)` = **764 bytes**: three ARM32 helpers with 189 typed instructions (756 bytes) and two global data-address words (8 bytes) at `[0xab8e4,0xab8ec)`. The helpers remap controller slot pointers, link a selected codec slot by tag and publish mode/parameter defaults. The original returns at `0xab8dc`, `0xab960`, and `0xaba7c`; no synthetic epilogues or filler.
 - Independent Clang/LLVM reconstructed all 756 code and 8 explicitly typed data bytes with zero differences. Full 191 Rust tests, 13 Python tests and release build passed.
 - Next uncovered runtime `0xaba80` (private MBN offset `0xafa80`). Work is still provisional, not based on inaccessible checkpoint 50 and not independently reverse engineered to high-level functional semantics.
+
+## Checkpoint 13 — codec event forwarding and per-mode register packets
+
+- The byte-identical source-generated Venus fragment is now `[0xa8000,0xac750)` = **18,256 contiguous bytes**, original MBN `[0xac000,0xb0750)`; SHA-256 `f67d0842a6efb6dcc843b02d2060b168917a0e35a5a674bd3293b1dee91f6479`.
+- New `[0xaba80,0xac750)` = **3,280 bytes**, containing **806 typed A32 instructions** (3,224 bytes), plus 14 separately identified data words (56 bytes) in two pools: `[0xabbe4,0xabbf8)` five words and `[0xac72c,0xac750)` nine words. No raw OEM instructions in Rust generator.
+- First routine dispatches codec events via a logger tail-branch; second programs multiple codec register streams and handles mode-specific diagnostics and fallback branches. The original main return is `pop {...,pc}` at `0xac5ec`; extended alternative paths occupy `0xac5f0–0xac72c`.
+- Added checked `arm32::load_signed_halfword_register` (A32 LDRSH unshifted register offset), with opcode and PC-rejection tests. Independent Clang/LLVM ARM assembler matched 3,224 instruction bytes plus 56 classified data bytes exactly.
+- 192 offline Rust tests, 13 Python tests, and full release build all passed. Next uncovered VMA `0xac750` (original file `0xb0750`), a new ARM32 function. Checkpoint remains provisional relative to inaccessible checkpoint-50 integration branch.
