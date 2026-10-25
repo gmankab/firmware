@@ -1,0 +1,48 @@
+{
+  "schema_version": 1,
+  "reference_sha256": "87c2c7bb1fe97eaf007a947832feba0898644b4d6626ac8ef49d8b94dd82604b",
+  "owned_file_start": 1048576,
+  "owned_file_end": 3489080,
+  "regions": [
+    {
+      "name": "state-apply",
+      "file_start": 1049028,
+      "file_end": 1049152,
+      "source": "sources/xiaomi-nabu/wlanmdsp/agent14-late-state-apply.S",
+      "symbol": "wlan_late_state_apply",
+      "sha256": "efd11b08610533a7f96e6e0eb61868b9e61563a13510d70fb200a34978904cbb",
+      "checkpoint": 1,
+      "classification": "executable"
+    },
+    {
+      "name": "descriptor-submit",
+      "file_start": 1049152,
+      "file_end": 1049616,
+      "source": "sources/xiaomi-nabu/wlanmdsp/agent14-late-descriptor-submit.S",
+      "symbol": "wlan_late_descriptor_submit",
+      "sha256": "9a3149d216f9e73e2f61a4d44e29f5b309e7d8b08c8f064e6db79ebc80bb873d",
+      "checkpoint": 1,
+      "classification": "executable"
+    },
+    {
+      "name": "record-gate",
+      "file_start": 1049616,
+      "file_end": 1049832,
+      "source": "sources/xiaomi-nabu/wlanmdsp/agent14-late-record-gate.S",
+      "symbol": "wlan_late_record_gate",
+      "sha256": "3feb4a0800468a55afacf92f0f9c78c065fef1fa22b9a1cf0870a3c66771d8ac",
+      "checkpoint": 1,
+      "classification": "executable"
+    },
+    {
+      "name": "rate-code-set",
+      "file_start": 1049832,
+      "file_end": 1049896,
+      "source": "sources/xiaomi-nabu/wlanmdsp/agent14-late-rate-code-set.S",
+      "symbol": "wlan_late_rate_code_set",
+      "sha256": "9abd11959ebf542b45eeb4e5f413724f849b7f335903aaaccf8f6f562285fd31",
+      "checkpoint": 1,
+      "classification": "executable"
+    }
+  ]
+}
