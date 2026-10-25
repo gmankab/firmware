@@ -70,3 +70,12 @@
 - Added controller status addresses, new-value packetized `MEMW(R0)=R24.new` stores, bit-29 flag update, and two reference-based relative pointer calculations. Verified all **26** V66 words through Rizin, four regular forms and three branch packet words through LLVM6.
 - Current coverage is **568 contiguous executable bytes** `[0x41e0,0x4418)` plus **104 separate executable bytes** `[0x4500,0x4568)` = **672 source-generated code bytes**. The intervening **232 byte** file `[0x4418,0x4500)` is original ELF zero alignment, not reconstructed instructions. Next missing original executable instruction is `0x4568`.
 - Continue classifying executable instruction source independently; an exact re-encoding alone is not full source-level decompilation, nor a newly OEM-authenticated MBN.
+
+## Checkpoint 09 — interrupt-debug gate and physical-word probes
+
+- Rebuilt another **88 executable bytes**, CDSP file `[0x4568,0x45c0)`, physical `[0x96c01568,0x96c015c0)` and ELF vaddr `[0xfe001568,0xfe0015c0)`.
+- Controller gate reads the **ISDBEN** special register, tests bit 2, branches relative to its **packet start** to the break path, reads CFGBASE, forms two physical-memory selectors and compares `memw_phys` probes with a GP-relative controller word. On the fast path it enables ISDBEN, synchronizes, and executes a documented Hexagon `BRKPT`.
+- Source code reconstructs register operands, extended signed offsets, typed insert/ASL/predicate and `.new` branch semantics; no original instruction-word arrays or proprietary code were imported. Rizin V66 decodes all **22** instructions, and six ordinary scalar encodings independently match LLVM6 after masking packet parse bits. Privileged physical accesses and debug special registers remain **Rizin-correlated only**, not LLVM assembler verified.
+- The disjoint supervisor fragment grows to **192 executable bytes** `[0x4500,0x45c0)`; together with the earlier **568** `[0x41e0,0x4418)` this gives **760 independently encoded executable bytes**, plus **232 separately verified zero alignment bytes** `[0x4418,0x4500)` **not** counted as code.
+- CLI `emit-interrupt-debug` writes only this 88-byte source-generated fragment; `verify` compares all earlier ranges, structural padding and the added debug bytes with the pinned private original CDSP MBN.
+- First unimplemented byte for the next controller routine: file `0x45c0`; physical `0x96c015c0`. Checkpoint-50 ancestry remains unavailable: this branch descends from Agent 05 `a02618f…`.
