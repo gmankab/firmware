@@ -101,8 +101,9 @@ class ADSPBootstrapTests(unittest.TestCase):
                      adsp.assemble_tlb_reconcile(LLVM_MC) +
                      adsp.assemble(LLVM_MC, adsp.CONTROLLER_BOOTSTRAP_SOURCE, 0x2c) +
                      adsp.assemble(LLVM_MC, adsp.CONTROLLER_CACHE_COPY_SOURCE, 0x5c) +
-                     adsp.assemble_physical_copy(LLVM_MC))
-        self.assertEqual(len(generated), 0x874)
+                     adsp.assemble_physical_copy(LLVM_MC) +
+                     adsp.assemble_physical_compare(LLVM_MC))
+        self.assertEqual(len(generated), 0x904)
         original = Path(REFERENCE).read_bytes()
         adsp.verify_reference(generated, original, 0x41e0)
         mutated = bytearray(generated)
@@ -164,6 +165,28 @@ class ADSPBootstrapTests(unittest.TestCase):
                 "{ nop } // V66", "{ isync } // V66",1))
             with self.assertRaisesRegex(adsp.AdspError,"physical-load sentinel"):
                 adsp.assemble_physical_copy(LLVM_MC,bad)
+
+    def test_physical_comparison_uses_bounded_diff_table_and_loop(self) -> None:
+        src=adsp.CONTROLLER_PHYSICAL_COMPARE_SOURCE.read_text()
+        self.assertIn("memw_phys(r3,r4)",src)
+        self.assertIn("cmp.gt(r7,#3)",src)
+        self.assertIn("loop0(compare_loop,r2)",src)
+        self.assertIn("memw(r6++#4)",src)
+        self.assertIn(":endloop0",src)
+        self.assertNotIn(".word",src)
+        self.assertNotIn(".incbin",src)
+
+    @unittest.skipUnless(LLVM_MC and REFERENCE,"Assembler and reference required")
+    def test_physical_comparison_assembles_with_only_one_special_opcode(self) -> None:
+        output=adsp.assemble_physical_compare(LLVM_MC)
+        self.assertEqual(len(output),0x90)
+        adsp.verify_reference(output,Path(REFERENCE).read_bytes(),0x4a54)
+        with tempfile.TemporaryDirectory() as td:
+            changed=Path(td)/"bad-physical-compare.S"
+            changed.write_text(adsp.CONTROLLER_PHYSICAL_COMPARE_SOURCE.read_text().replace(
+                "{ nop } // V66", "{ isync } // V66",1))
+            with self.assertRaisesRegex(adsp.AdspError,"physical compare load sentinel"):
+                adsp.assemble_physical_compare(LLVM_MC,changed)
 
     @unittest.skipUnless(LLVM_MC, "Hexagon-capable llvm-mc unavailable")
     def test_syscfg_handoff_uses_typed_and_source_assembly(self) -> None:

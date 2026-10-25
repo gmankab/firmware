@@ -33,13 +33,15 @@ TLB_RECONCILE_SOURCE = pathlib.Path(__file__).with_name("adsp-tlb-reconcile.S")
 CONTROLLER_BOOTSTRAP_SOURCE = pathlib.Path(__file__).with_name("adsp-controller-bootstrap.S")
 CONTROLLER_CACHE_COPY_SOURCE = pathlib.Path(__file__).with_name("adsp-controller-cache-copy.S")
 CONTROLLER_PHYSICAL_COPY_SOURCE = pathlib.Path(__file__).with_name("adsp-controller-physical-copy.S")
+CONTROLLER_PHYSICAL_COMPARE_SOURCE = pathlib.Path(__file__).with_name("adsp-controller-physical-compare.S")
 FRAGMENTS = {
     "vectors": (ASM_SOURCE, OEM_FILE_OFFSET, GENERATED_LENGTH),
     "boot-prefix": (ASM_SOURCE, OEM_FILE_OFFSET, 0x44),
-    "counter-controller": (CONTROLLER_SOURCE, 0x41e0, 0x874),
+    "counter-controller": (CONTROLLER_SOURCE, 0x41e0, 0x904),
     "controller-bootstrap": (CONTROLLER_BOOTSTRAP_SOURCE, 0x4980, 0x2c),
     "controller-cache-copy": (CONTROLLER_CACHE_COPY_SOURCE, 0x49ac, 0x5c),
     "controller-physical-copy": (CONTROLLER_PHYSICAL_COPY_SOURCE, 0x4a08, 0x4c),
+    "controller-physical-compare": (CONTROLLER_PHYSICAL_COMPARE_SOURCE, 0x4a54, 0x90),
     "tlb-reconcile": (TLB_RECONCILE_SOURCE, 0x48d0, 0xb0),
     "cacheline-copy": (CACHELINE_COPY_SOURCE, 0x4818, 0x78),
     "tlb-flush": (TLB_FLUSH_SOURCE, 0x4788, 0x90),
@@ -340,6 +342,32 @@ def assemble_physical_copy(
     return bytes(compiled)
 
 
+def assemble_physical_compare(
+    llvm_mc: str, source: pathlib.Path = CONTROLLER_PHYSICAL_COMPARE_SOURCE
+) -> bytes:
+    """Assemble physical word comparison and its packetized endloop.
+
+    LLVM6 assembles all source-level branches, register ops, extender values
+    and hardware-loop packet boundaries. The single v66 privileged physical
+    load is encoded by a 3-register checked ISA constructor after the exact
+    one-word NOP sentinel is confirmed. A genuine *middle-of-packet* NOP at
+    0x4ad8 remains LLVM-assembled and is never substituted.
+    """
+    from adsp_hexagon_v66 import physical_word_load
+
+    code = bytearray(assemble(llvm_mc, source, 0x90))
+    offset = 0x4ac0 - 0x4a54
+    placeholder = struct.pack("<I", 0x7F00C000)
+    if code[offset:offset + 4] != placeholder:
+        raise AdspError("Expected privileged physical compare load sentinel at 0x4ac0")
+    if code[0x4ad8 - 0x4a54:0x4adc - 0x4a54] != struct.pack("<I", 0x7F008000):
+        raise AdspError("Physical comparison loop NOP parse flags are wrong")
+    code[offset:offset + 4] = struct.pack("<I", physical_word_load(5, 3, 4))
+    if any(code[i:i + 4] == placeholder for i in range(0, len(code), 4)):
+        raise AdspError("Unresolved physical comparison instruction")
+    return bytes(code)
+
+
 def run(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--llvm-mc", required=True,
@@ -372,13 +400,15 @@ def run(argv: list[str] | None = None) -> int:
             out = assemble_tlb_map(args.llvm_mc, args.source or source)
         elif args.segment == "tlb-flush":
             out = assemble_tlb_flush(args.llvm_mc, args.source or source)
+        elif args.segment == "controller-physical-compare":
+            out = assemble_physical_compare(args.llvm_mc, args.source or source)
         elif args.segment == "controller-physical-copy":
             out = assemble_physical_copy(args.llvm_mc, args.source or source)
         elif args.segment == "tlb-reconcile":
             out = assemble_tlb_reconcile(args.llvm_mc, args.source or source)
         elif args.segment == "counter-controller":
             # Compile the ISA-common controller and its V66-only tails
-            # independently, then emit a strictly adjacent 0x874-byte span.
+            # independently, then emit a strictly adjacent 0x904-byte span.
             if args.source is not None:
                 raise AdspError("--source override is not supported for the combined controller")
             out = (assemble(args.llvm_mc, CONTROLLER_SOURCE, 0x4c0) +
@@ -390,7 +420,8 @@ def run(argv: list[str] | None = None) -> int:
                    assemble_tlb_reconcile(args.llvm_mc) +
                    assemble(args.llvm_mc, CONTROLLER_BOOTSTRAP_SOURCE, 0x2c) +
                    assemble(args.llvm_mc, CONTROLLER_CACHE_COPY_SOURCE, 0x5c) +
-                   assemble_physical_copy(args.llvm_mc))
+                   assemble_physical_copy(args.llvm_mc) +
+                   assemble_physical_compare(args.llvm_mc))
         else:
             out = assemble(args.llvm_mc, args.source or source, expected_length)
         if len(out) != expected_length:
