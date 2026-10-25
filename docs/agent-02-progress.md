@@ -186,3 +186,31 @@ python3 tools/agent-02-a32-roundtrip.py /private/venus.mbn \
   --data-range 0x9ec4:0x9ec8 --data-range 0x9ed8:0x9edc \
   --data-range 0x9f9c:0x9fc8
 ```
+
+## Checkpoint 08 — controller IRQ queues and priority lists (`0x9fc8–0xa44c`)
+
+- Adds **1,156 exact bytes**, containing 267 typed A32 instructions and 22
+  separate controller-pointer, error and list-head literal words in thirteen
+  identified non-instruction data regions.
+- Implements controller queue/head operations, priority list insertion,
+  resource removal, current-service selection, interrupt-state checks and
+  guarded retry loops. Calls to out-of-range routines are not complete
+  standalone firmware implementations.
+- **Cumulative bridge:** 8,124 byte-identical bytes `[0x8490,0xa44c)` /
+  file `[0xc490,0xe44c)`. Early boot + bridge: **42,060** consecutive
+  reference-identical bytes from MBN file offset `0x4000` through `0xe44c`.
+- **Remaining gap:** `[0xa44c,0xaa0c)` = **1,472 bytes**.
+- Independent Clang/LLVM reassembly precisely distinguishes all thirteen
+  non-executable data ranges:
+
+```sh
+python3 tools/agent-02-a32-roundtrip.py /private/venus.mbn \
+  --file-offset 0xdfc8 --vma 0x9fc8 --length 0x484 \
+  --data-range 0x9fd8:0x9fdc --data-range 0xa01c:0xa024 \
+  --data-range 0xa034:0xa038 --data-range 0xa040:0xa044 \
+  --data-range 0xa098:0xa0a0 --data-range 0xa0e0:0xa0e8 \
+  --data-range 0xa0f4:0xa0f8 --data-range 0xa1ac:0xa1b4 \
+  --data-range 0xa1c0:0xa1c4 --data-range 0xa228:0xa230 \
+  --data-range 0xa27c:0xa288 --data-range 0xa32c:0xa334 \
+  --data-range 0xa398:0xa3a0
+```
