@@ -896,3 +896,74 @@ HEX_ABS_MEMUB_LOAD 1,0xc0b36524
 HEX_SYSTEM_WRITE 18,15
 { isync }
 { jumpr r31 }
+// Publish control handshake words and clean their cache lines. These helpers
+// return a value loaded from the same protected control address.
+{
+ r1 = add(r25,##-1065353148)
+ memw(r25+##-1065353148) = r0
+}
+{ dccleaninva(r1) }
+{ r0 = memw(r1+#0); jumpr lr }
+{ memw(r1=##-1065353148) = r0 }
+{ dccleaninva(r1) }
+{ r0 = memw(r1+#0); jumpr lr }
+// Poll two device memory windows and enable protected storage before
+// copying paired controller records through two Hexagon loop0 iterations.
+.set finish_aux_memory_copy, modem_boot_dispatch+(0x4054-0x3644)
+.set skip_aux_poll_window, modem_boot_dispatch+(0x3fe8-0x3644)
+{
+ r5 = memw(r25+##-1033525112)
+ if (cmp.eq(r5.new,#0)) jump:t skip_aux_poll_window
+}
+{
+ r6 = memw(r25+##-1064851688)
+ if (cmp.eq(r6.new,#0)) jump:t skip_aux_poll_window
+}
+{ memw(r5+#0) = setbit(#2) }
+.set wait_slot0_ready, modem_boot_dispatch+(0x3fd4-0x3644)
+wait_slot0_ready:
+{ r6 = memw(r5+#0); if (!tstbit(r6.new,#0)) jump:nt wait_slot0_ready }
+{ memw(r5+#12) = setbit(#2) }
+.set wait_slot1_ready, modem_boot_dispatch+(0x3fe0-0x3644)
+wait_slot1_ready:
+{ r6 = memw(r5+#12); if (!tstbit(r6.new,#0)) jump:nt wait_slot1_ready }
+skip_aux_poll_window:
+{
+ r5 = memw(r25+##-1064879412)
+ if (cmp.eq(r5.new,#0)) jump:t finish_aux_memory_copy
+}
+{
+ r2 = add(r25,##-1064879312)
+ r6 = memw(r25+##-1064935424)
+}
+{
+ r5 = add(r2,#4)
+ r4 = add(r6,#4)
+ r7 = memw(r2++#16)
+ memw(r6++#16) = r7.new
+}
+.set copy_buffer_words_first, modem_boot_dispatch+(0x4018-0x3644)
+{ loop0(copy_buffer_words_first,#37) }
+copy_buffer_words_first:
+{
+ r7 = memw(r2++#4)
+ memw(r6++#4) = r7.new
+}:endloop0
+{
+ r6 = add(r6,#8)
+ r2 = add(r2,#8)
+ r7 = memw(r2+#4)
+ memw(r6+#4) = r7.new
+}
+{ r7 = memw(r2++#12); memw(r6++#12) = r7.new }
+.set copy_buffer_words_second, modem_boot_dispatch+(0x403c-0x3644)
+{ loop0(copy_buffer_words_second,#6) }
+copy_buffer_words_second:
+{
+ r7 = memw(r2++#4)
+ memw(r6++#4) = r7.new
+}:endloop0
+{ r7 = memw(r2+#4); memw(r6+#4) = r7.new }
+{ r7 = memw(r5+#0); memw(r4+#0) = r7.new }
+finish_aux_memory_copy:
+{ jumpr lr }
