@@ -82,6 +82,41 @@ def restore_original_legal_hexagon_packet_order(code: bytes) -> bytes:
         increment=(increment&~marker)|(1<<14)
         branch3=(branch3&~marker)|(3<<14)
         struct.pack_into('<II',out,rel3,increment,branch3)
+    # At modem 0x4674 the independent assembler swaps the .new comparison
+    # and branch within one legal two-instruction packet. Restore the OEM
+    # source packet order, with checked classes and parse bit transitions.
+    rel4=0x4674-FILE_START
+    if len(out)>=rel4+8:
+        branch4,compare4=struct.unpack_from('<II',out,rel4)
+        if ((branch4&0xff000000)!=0x5c000000 or
+            (branch4&marker)!=(1<<14) or
+            (compare4&0xff000000)!=0x75000000 or
+            ((compare4>>16)&0x1f)!=2 or
+            (compare4&marker)!=(3<<14)):
+            raise ValueError('unexpected Hexagon comparator/branch packet at 0x4674')
+        compare4=(compare4&~marker)|(1<<14)
+        branch4=(branch4&~marker)|(3<<14)
+        struct.pack_into('<II',out,rel4,compare4,branch4)
+    # LLVM6 similarly schedules a four-word absolute-pointer / new-predicate
+    # packet as branch/extender/address/comparison. The original legal packet
+    # orders extender/address/comparison/branch. Preserve only ISA fields.
+    rel5=0x46f4-FILE_START
+    if len(out)>=rel5+16:
+        branch5,extender5,address5,compare5=struct.unpack_from('<IIII',out,rel5)
+        if ((branch5&0xff000000)!=0x5c000000 or
+            (branch5&marker)!=(1<<14) or
+            (extender5&0xf0000000)!=0 or
+            (extender5&marker)!=(1<<14) or
+            (address5&0xff000000)!=0xb0000000 or
+            ((address5>>16)&31)!=25 or
+            (address5&marker)!=(1<<14) or
+            (compare5&0xff000000)!=0x75000000 or
+            ((compare5>>16)&31)!=3 or
+            (compare5&marker)!=(3<<14)):
+            raise ValueError('unexpected Hexagon 4-word branch packet at 0x46f4')
+        compare5=(compare5&~marker)|(1<<14)
+        branch5=(branch5&~marker)|(3<<14)
+        struct.pack_into('<IIII',out,rel5,extender5,address5,compare5,branch5)
     return bytes(out)
 
 

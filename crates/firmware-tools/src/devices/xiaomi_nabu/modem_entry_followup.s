@@ -626,3 +626,91 @@ MODEM_TLB_WRITE 2,0
 { jump modem_reload_tlb_b_next }
 modem_reload_tlb_b_complete:
 { jumpr lr }
+
+// Verified V6 controller copy using two nested hardware loops, L2 fetch and
+// paired 64-bit copies. The source cache command buffer is length-checked;
+// the two hardware loops both terminate in the same packet.
+.globl agent11_modem_copy_cache_buffers
+agent11_modem_copy_cache_buffers:
+{
+    p0 = cmp.eq(r2,#0)
+    if (p0.new) jump:nt modem_copy_cache_exit
+    r0 = memw(##3249373896)
+}
+{
+    p0 = cmp.gt(r2,#32)
+    if (!p0.new) jump:nt modem_copy_cache_exit
+}
+{
+    p0 = cmp.eq(r0,#0)
+    if (p0.new) jump:nt modem_copy_cache_exit
+    r3 = ##128
+}
+{
+    r6 = lsr(r2,#12)
+    r4 = add(r0,#8)
+    r5 = add(r1,#8)
+}
+{
+    loop1(modem_cache_outer,r6)
+    r7 = ##8421408
+}
+modem_cache_outer:
+{ l2fetch(r1,r7) }
+{ loop0(modem_cache_inner,r3) }
+modem_cache_inner:
+{ dczeroa(r1) }
+{
+    r7:6 = memd(r0++#16)
+    r9:8 = memd(r4++#16)
+}
+{
+    memd(r1++#16) = r7:6
+    memd(r5++#16) = r9:8
+}
+{
+    r7:6 = memd(r0++#16)
+    r9:8 = memd(r4++#16)
+}
+{
+    nop
+    memd(r1++#16) = r7:6
+    memd(r5++#16) = r9:8
+}:endloop0:endloop1
+modem_copy_cache_exit:
+{ jumpr lr }
+{ brkpt }
+{ brkpt }
+{ brkpt }
+
+// Copy a protected 64-bit descriptor array from a GP-relative source to a
+// mapped destination, bounded by the controller-provided word count.
+.globl agent11_modem_copy_protected_descriptors
+agent11_modem_copy_protected_descriptors:
+{
+    r3 = memw(r25+##-1045650720)
+    r0 = memw(r25+##-1064885436)
+}
+{
+    p0 = cmp.eq(r3,#0)
+    if (p0.new) jump:nt modem_protected_copy_exit
+}
+{
+    r1 = add(r25,##-1045593400)
+    p0 = cmp.gt(r3,#32)
+    if (!p0.new) jump:nt modem_protected_copy_exit
+}
+{
+    p0 = cmp.eq(r1,#0)
+    if (p0.new) jump:nt modem_protected_copy_exit
+}
+{ r2 = lsr(r3,#3) }
+{ loop0(modem_copy_protected_next,r2) }
+modem_copy_protected_next:
+{ r5:4 = memd(r1++#8) }
+{
+    nop
+    memd(r0++#8) = r5:4
+}:endloop0
+modem_protected_copy_exit:
+{ jumpr lr }
