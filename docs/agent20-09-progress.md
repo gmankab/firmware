@@ -107,3 +107,12 @@
 - Cumulative verified source-authored executable: `[0x41e0,0x4418)` = **568** bytes, `[0x4500,0x481c)` = **796** bytes, total **1,364 disjoint executable bytes**. `[0x4418,0x4500)` is **232 bytes of separately verified linker alignment**, excluded from executable-code counts.
 - First unknown instruction is file `0x481c` (physical `0x96c0181c`); the exception handler continues there. `emit-context` emits just this range, `emit-supervisor` emits all 796-byte supervisor source and `verify` checks the complete prior authored ranges against CDSP revision `febeae7b…17e06ea`.
 - No actual checkpoint-50 merged tree or OEM re-signature was supplied; this remains an Agent 05-parented portable history.
+
+## Checkpoint 13 — exception controller setup through CDSP file `0x4860`
+
+- Reconstructed **68 additional byte-identical executable bytes**, file `[0x481c,0x4860)`, physical `[0x96c0181c,0x96c01860)`, virtual `[0xfe00181c,0xfe001860)`.
+- Instruction-level semantics: `ICKILL`, privileged `S54` read, extended relative controller pointers, **duplex** `R0=##imm; R1=MEMW(R1+#0)` with independently verified immediate/register operand fields, controller callback call, memory word store, and later callback call.
+- All **17 source-generated 32-bit words** match original revision `febeae7b…17e06ea`. Rizin V66 independently decodes all 17, and **11 LLVM6 independently assembled opcode/operand fields** match after normalizing packet markers. Privileged `ICKILL`/`S54` are decoder-corroborated only; callback offsets are source-calculated but not independently assembled at original addresses.
+- New module `cdsp_early_exception_setup.rs`, standalone validator `tools/verify-agent20-09-exception-setup.py`, and `emit-controller-setup` and cumulative `emit-supervisor` CLI actions.
+- Cumulative source-generated executable coverage: first region `[0x41e0,0x4418)` **568** bytes; second `[0x4500,0x4860)` **864** bytes = **1,432 total executable bytes**. Interstitial `[0x4418,0x4500)` is **232 original linker zeros** and is *not* counted as source-authored code.
+- Next unimplemented original executable byte: file `0x4860` (physical `0x96c01860`). No whole MBN rebuild, emulator/real-hardware validation or OEM re-signing is claimed. Branch still descends from Agent 05, not missing checkpoint 50.
