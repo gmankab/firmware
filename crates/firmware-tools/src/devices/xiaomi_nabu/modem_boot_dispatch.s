@@ -7,6 +7,12 @@
     .endif
     .word (0x6e800000 | (\system << 16) | (\marker << 14) | \general)
 .endm
+.macro HEX_SYSTEM_WRITE system, general, marker=3
+    .if (\general < 0) || (\general > 31) || (\system < 0) || (\system > 127)
+        .error "invalid Hexagon system register write"
+    .endif
+    .word (0x67000000 | (\general << 16) | (\marker << 14) | \system)
+.endm
 .globl modem_boot_dispatch
 modem_boot_dispatch:
 .set modem_ready_handler, modem_boot_dispatch+0x5c4
@@ -175,3 +181,52 @@ fourth_stage_iter:
 { p1 = cmp.eq(r3,#0); if (!p1.new) jump:t fourth_stage_iter }
 fourth_stage_match:
 { memw(r25+##-1064821888) = r4 }
+// Controller status publication after the resource-map lookups: record the
+// selected table format in one byte and install four MMU page metadata words.
+{
+ r6 = add(r25,##-1061984988)
+ r4 = memub(r25+##-1061984988)
+}
+.set table_version_done, modem_boot_dispatch+0x1e4
+.set table_version_store, modem_boot_dispatch+0x1e0
+{
+ r3 = extract(r2,#4,#12)
+ p0 = cmp.eq(r4,#100)
+ if (!p0.new) jump:nt table_version_done
+}
+{ p0 = cmp.gt(r3,#3); if (p0.new) jump:nt table_version_store }
+{ r3 = add(r3,#1) }
+table_version_store:
+{ memb(r6+#0) = r3 }
+table_version_done:
+{ r0 = memw(r25+##-1064821872) }
+HEX_SYSTEM_WRITE 60,0
+{ r0 = memw(r25+##-1064821888) }
+{ r0 = clrbit(r0,#21) }
+HEX_SYSTEM_WRITE 63,0
+{ r0 = memw(r25+##-1064821876) }
+HEX_SYSTEM_WRITE 62,0
+{ r0 = memw(r25+##-1064821860) }
+HEX_SYSTEM_WRITE 61,0
+.set skip_s59_write, modem_boot_dispatch+0x228
+{
+ r0 = memw(r25+##-1064821868)
+ if (cmp.eq(r0.new,#0)) jump:t skip_s59_write
+}
+HEX_SYSTEM_WRITE 59,0
+skip_s59_write:
+{ r0 = memw(r25+##-1061984980) }
+.set finish_cache_options, modem_boot_dispatch+0x254
+{ p0 = cmp.eq(r0,#0); if (p0.new) jump:nt finish_cache_options }
+{ r0 = or(r0,##-2147483648) }
+{ r2 = memw(r25+##-1061985028) }
+.set skip_large_cache, modem_boot_dispatch+0x250
+{ p0 = cmp.eq(r2,#0); if (p0.new) jump:nt skip_large_cache }
+{ r0 = or(r0,##1073741824) }
+skip_large_cache:
+HEX_SYSTEM_WRITE 35,0
+finish_cache_options:
+HEX_SYSTEM_READ 0,18
+{ r0 = setbit(r0,#1) }
+HEX_SYSTEM_WRITE 18,0
+{ isync }

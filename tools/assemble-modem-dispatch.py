@@ -11,7 +11,7 @@ import sys
 import tempfile
 
 FILE_START = 0x3644
-FILE_END = 0x3800
+FILE_END = 0x38a8
 CONTIGUOUS_START = 0x3000
 LENGTH = FILE_END - FILE_START
 PREFIX_LENGTH = FILE_START - CONTIGUOUS_START
@@ -24,6 +24,7 @@ text_from_object = runpy.run_path(str(Path(__file__).with_name('assemble-modem-t
 # packets in the inverse ordering. Restore semantic producer-first order,
 # refusing to handle any unexpected instruction class or packet marker.
 PREDICATE_LOOKUP_PACKETS = (0x3710, 0x3758, 0x37a0, 0x37e8)
+PREDICATE_BRANCH_PACKETS = (0x3814,)
 MARKER_MASK = 3 << 14
 CONTINUE = 1 << 14
 END_PACKET = 3 << 14
@@ -41,6 +42,15 @@ def restore_predicate_order(data: bytes) -> bytes:
         if [w & MARKER_MASK for w in (jump, comparison, conditional_move)] != [CONTINUE, CONTINUE, END_PACKET]:
             raise ValueError(f'unexpected predicated packet markers at 0x{addr:x}')
         words[at:at+3] = [comparison, jump, conditional_move]
+    for addr in PREDICATE_BRANCH_PACKETS:
+        at=(addr-FILE_START)//4
+        branch, comparison = words[at:at+2]
+        if (branch >> 24) != 0x5c or (comparison >> 24) != 0x75:
+            raise ValueError(f'unexpected conditional branch packet class at {addr:#x}')
+        if [branch & MARKER_MASK,comparison & MARKER_MASK] != [CONTINUE,END_PACKET]:
+            raise ValueError(f'unexpected conditional branch packet markers at {addr:#x}')
+        words[at:at+2] = [(comparison & ~MARKER_MASK)|CONTINUE,
+                          (branch & ~MARKER_MASK)|END_PACKET]
     return struct.pack('<'+'I'*len(words),*words)
 
 def assemble(llvm_mc: Path) -> bytes:
