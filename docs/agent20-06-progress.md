@@ -38,3 +38,11 @@ The fragment is **instruction-level, byte-identical re-encoding**, not proof of 
 - Three separate tables/data pools: `[0xa8bc4,0xa8c24)` 24 controller constants; `[0xa8c24,0xa8c90)` 27 callback/global-binding values; `[0xa8c90,0xa8cbc)` 11 diagnostic pointers. **Never count these 62 words as independently reconstructed ARM instructions.**
 - Independent Clang assembly reconstructed mnemonic instructions and explicitly identified data tables; **zero differences** on all 2,244 bytes. The full 3,260-byte Rust fragment also compares equal to original Venus reference.
 - Next uncovered runtime `0xa8cbc` (`venus.mbn` offset `0xaccbc`), exactly a new `push` function prologue.
+
+## Checkpoint 03 — codec record-slot initialization
+
+- Cumulative contiguous byte-verified interval `[0xa8000,0xa8ea0)` = **3,744 bytes**; MBN file `[0xac000,0xacea0)`.
+- Newly reconstructed `[0xa8cbc,0xa8ea0)` = 484 bytes: **117 typed A32 instructions** and 4 non-instruction diagnostic addresses at `[0xa8e90,0xa8ea0)`.
+- Function boundaries at `0xa8cbc`, `0xa8d50`, `0xa8db4` and `0xa8de4`; the last function returns through `bx lr` at `0xa8e8c` and preserves its diagnostic literal pool.
+- Independent Clang/LLVM mnemonic reassembly and direct Rust byte comparison both match the entire newly added 484-byte interval exactly.
+- The next uncovered ARM32 runtime address is `0xa8ea0` (file offset `0xacea0`), a new codec-buffer helper.
