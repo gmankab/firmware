@@ -205,3 +205,75 @@ poll_other_controller:
   if (!p0.new) jump:t poll_other_controller
 }
 .set counter_helper, config_device - 0x270
+// Reenable codec MMIO control after controller-specific register setup.
+{ r0 = ##0x1730020c }
+{
+  r7 = r0
+  r5.h = #0
+}
+{
+  r5.l = #1
+  dcinva(r7)
+}
+{
+  r6 = sub(#-1,r5)
+  r4 = memw(r0+#0)
+}
+{ r4 = and(r4,r6) }
+{ r4 = or(r4,r5) }
+{ memw(r0+#0) = r4 }
+{ barrier }
+
+{ r0 = ##0x17300200 }
+{
+  r7 = r0
+  r5.h = #0
+}
+{
+  r5.l = #1
+  dcinva(r7)
+}
+{
+  r6 = sub(#-1,r5)
+  r4 = memw(r0+#0)
+}
+{ r4 = and(r4,r6) }
+{ r4 = or(r4,r5) }
+{ memw(r0+#0) = r4 }
+{ barrier }
+
+// Publish IRQ-class flags to the controller's masked status register.
+{ r0 = ##0x1730002c }
+{ r1 = memw(r0+#0) }
+{
+  r2 = ##0x700
+  r3 = ##0x1f
+}
+{ r2 = or(r2,r3) }
+{ r2 = sub(#-1,r2) }
+{ r1 = and(r1,r2) }
+{
+  r3 = asl(r16,#0)
+  r2 = ##0x200
+}
+{ r2 = or(r2,r3) }
+{ r1 = or(r1,r2) }
+{ memw(r0+#0) = r1 }
+{ barrier }
+
+{ r0 = ##0x17300028 }
+{ r1 = memw(r0+#0) }
+{ r2 = ##1 }
+{ r1 = or(r1,r2) }
+{ memw(r0+#0) = r1 }
+{ barrier }
+poll_legacy_controller:
+{ r1 = memw(r0+#0) }
+{ r3 = and(r1,r2) }
+{
+  p0 = cmp.eq(r3,r2)
+  if (p0.new) jump:t poll_legacy_controller
+}
+// Disabling the earlier exception vectors allows startup to proceed.
+{ r0 = ##0x173a0040 }
+{ memw(r0+#0) = ##0 }
