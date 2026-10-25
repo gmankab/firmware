@@ -237,3 +237,9 @@ Original reference: private `map220v-nabu-firmware/venus.mbn`, SHA-256 `9d4af65d
 - Contiguous `[0x21c78,0x29850)` = **31,704 reference-exact bytes** (MBN `[0x25c78,0x2d850)`). The new `[0x296f0,0x29850)` contains **86 typed A32 instructions** and **2 MMIO controller data words** `[0x29848,0x29850)`.
 - Handles prioritized interrupt pending bits, conditional command-register writes and host interrupt-counter synchronization before a callback. The final return branches to previously reconstructed queue notify at `0x292c` (external target).
 - Strict full-fragment reference comparison and independent Clang/LLD assembler comparison are required. Subsequent pending helper begins at `0x29850`.
+
+## Checkpoint 33 — DMA completion, encoder error masks and capture metadata
+
+- Byte-exact typed ARM32 coverage `[0x21c78,0x29ae4)` = **32,364 consecutive bytes** (MBN file `[0x25c78,0x2dae4)`). New `[0x29850,0x29ae4)` = **660 bytes**, comprising **156 instructions and nine separate host-address/diagnostic words** in three constant pools.
+- Source models DMA completion threshold callbacks, warning-mask readback and capture resource initialization with allocation/error-log paths. Pools are `[0x298d8,0x298e0)`, `[0x29940,0x29944)`, and `[0x29acc,0x29ae4)`. No OEM opcode words are embedded as instructions.
+- Independent mnemonic reassembly and complete fragment comparison must pass before release; next missing routine begins at `0x29ae4`.
