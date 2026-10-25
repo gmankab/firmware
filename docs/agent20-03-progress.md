@@ -172,3 +172,11 @@ Original reference: private `map220v-nabu-firmware/venus.mbn`, SHA-256 `9d4af65d
 - Writes codec controller command registers, handles host resource assignments, configures callbacks and mode-sensitive DMA/status paths, and selects input/output queue state. The pool contains hardware addresses, branch targets, diagnostic pointers and two IEEE float calibration words, not executable A32 instructions.
 - Independent Clang/LLVM full-region mnemonic reassembly matches **5,708 instructions and 447 data words in 104 pools** with zero byte differences. The three absolute external BLX targets result in non-STT_FUNC ARM interworking link warnings, but linked bytes match the vendor reference; this is not device execution proof.
 - Full Rust/Python suites and release build pass. Next missing runtime instruction at `0x27ca4`.
+
+## Checkpoint 24 — codec frame policy and controller-state reporting
+
+- Contiguous, byte-identical typed Venus interval `[0x21c78,0x280f0)` = **25,720 bytes**, MBN file `[0x25c78,0x2c0f0)`.
+- New `[0x27ca4,0x280f0)` = **1,100 bytes** comprising **259 A32 instructions and 16 separate literal words**. Controller frame configuration uses seven MMIO/callback words at `[0x27ea4,0x27ec0)`; the subsequent multichannel state reporter uses nine words `[0x280cc,0x280f0)`.
+- Reconstructed typed A32 covers frame and codec IRQ queue allocation, hardware MMIO transactions, record count and timeout reporting, and conditional callback registration. Data literals remain separated from executable code.
+- Independent Clang/LLD linked mnemonic reassembly matches the complete fragment: **5,967 instructions and 463 data words in 106 literal pools**, zero byte differences. Three external BLX relocations raise linker symbol-type interworking warnings but do not affect exact output.
+- Rust 194 tests, Python 13 tests and release build pass. Next uncovered function begins at `0x280f0`.
