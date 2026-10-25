@@ -1,0 +1,14 @@
+# Agent 20-09 — CDSP early executable continuation
+
+**Assigned scope:** `cdsp.mbn` first `PT_LOAD` file `[0x41e0,0x3ab34)`, ELF virtual address mapped from `0xfe000000` and physical from `0x96c00000`, not interchangeable. This branch is based on verified Agent 05 `a02618fce8dec9c5e0dcb88c47d0fc6044624b9d`, because the requested checkpoint-50 or integrated base was not mounted. Treat it as a **portable, separately rooted branch**, not a checkpoint-50 descendant. Every commit uses `Codex <codex@openai.com>` as author and committer.
+
+**Pinned reference:** SHA-256 `febeae7b8e47bad4eeabc159a3c24b74cda26dfa12b384c31de5de30817e06ea`; firmware ELF `e_machine=164`, `e_flags=0x66`, physical entry `0x96c00000`. Pinned OEM firmware is private and not included in Git. Agent 05's previous joined cluster ends precisely at file offset `0x41e0`; nothing overlaps.
+
+## Checkpoint 01 — start TLB controller sweep
+
+- Source-only typed Hexagon packet encodings at `[file 0x41e0,0x4210)` = **48 independently generated executable bytes**, physical `[0x96c011e0,0x96c01210)`, ELF vaddr `[0xfe0011e0,0xfe001210)`.
+- Logic: two checked `GP`-relative extended `memw` loads, `P0.new` guarded skip, logical shifts by 12 bits, 0x3fffff mask setup, `loop0` iteration count 127 and pointer/length addition. Byte comparison exact to the original `cdsp.mbn` with no raw reference opcode arrays.
+- Packet markers are explicitly preserved, including a multi-operation hardware-loop packet. Rizin V66 decoded 12 instructions; LLVM 6 supports many ordinary instructions but not every privileged operation, and a decoder alone is not source recovery.
+- Function incomplete: next original executable instruction is `0x4210` (`tlbr(R3)`), which is part of the same TLB sweep. No unknown body is represented as zeros or copied OEM bytes.
+- Emitter: `cargo run --offline --locked --bin agent20-09-cdsp -- emit /tmp/cdsp-early.bin`; reference optional: `... -- verify /private/cdsp.mbn`.
+- Shared module registration in `devices/xiaomi_nabu/mod.rs` is confined to its own integration commit. Agent 09 owns no preexisting CDSP modules or ELF/image finalizers.
