@@ -170,9 +170,9 @@ class ADSPExternalsAndCodeTests(unittest.TestCase):
     @unittest.skipUnless(LLVM_MC,'Hexagon LLVM6 assembler required')
     def test_complete_fragment_inventory_rejects_overlaps(self):
         manifest,regions=adsp.assembled_inventory(LLVM_MC,None)
-        self.assertEqual(len(manifest['fragments']),23)
-        self.assertEqual(manifest['total_independently_assembled_executable_bytes'],1640)
-        self.assertEqual(sum(map(len,regions.values())),1640)
+        self.assertEqual(len(manifest['fragments']),25)
+        self.assertEqual(manifest['total_independently_assembled_executable_bytes'],1904)
+        self.assertEqual(sum(map(len,regions.values())),1904)
         self.assertEqual(manifest['gap_bytes_included_in_generated_executables'],0)
         self.assertFalse(manifest['complete_adsp_image'])
         self.assertEqual(manifest['external_original_code_bytes_in_output'],0)
@@ -302,12 +302,44 @@ class ADSPExternalsAndCodeTests(unittest.TestCase):
                 self.assertEqual(result.returncode,0,result.stderr)
                 self.assertIn(expected,result.stdout.lower())
 
+    @unittest.skipUnless(LLVM_MC, 'Hexagon LLVM6 assembler required')
+    def test_configure_session_uses_correct_nonshuffled_memory_packet(self):
+        source,start,size=adsp.FRAGMENTS['configure-session']
+        self.assertEqual((start,size),(0x3aa80,128))
+        text=source.read_text()
+        self.assertIn('{ r2 = #32; r1 = r17; r16 = r0 }',text)
+        self.assertIn('call platform_allocate',text)
+        self.assertIn('retry_fallback:',text)
+        for forbidden in ('.word ', '.long ', '.byte ', '.incbin ', '.fill '):
+            self.assertNotIn(forbidden,text)
+        original=adsp.compile_source(LLVM_MC,source,size)
+        self.assertEqual(len(original),128)
+        cluster=[adsp.FRAGMENTS[n] for n in ('configure-session','activate-context',
+                  'return-mode-two','guarded-counter','probe-callbacks')]
+        self.assertEqual(sum(x[2] for x in cluster),308)
+        self.assertEqual(cluster[-1][1]+cluster[-1][2],0x3abb4)
+
+    @unittest.skipUnless(LLVM_MC,'Hexagon LLVM6 assembler required')
+    def test_release_session_nonshuffled_dual_memory_packet_and_cleanup(self):
+        source,start,length=adsp.FRAGMENTS['release-session']
+        self.assertEqual((start,length),(0x3a18c,136))
+        body=source.read_text()
+        self.assertIn('memd(r29+#0) = r19:18; r2 = memw(r16+#24) }:mem_noshuf',body)
+        self.assertIn('if (!p0) call optional_release',body)
+        self.assertIn('dealloc_return',body)
+        for forbidden in ('.word ','.long ','.byte ','.fill ','.incbin '):
+            self.assertNotIn(forbidden,body)
+        compiled=adsp.compile_source(LLVM_MC,source,length)
+        self.assertEqual(len(compiled),136)
+        # Signed conditional call is an LLVM6-verified long call with immext.
+        self.assertIn(bytes.fromhex('f9410000'),compiled)
+
     @unittest.skipUnless(LLVM_MC and REFERENCE,
                          'Hexagon LLVM6 and exact pinned ADSP reference required')
     def test_inventory_every_fragment_uses_correct_original(self):
         inventory,_outputs=adsp.assembled_inventory(LLVM_MC,Path(REFERENCE).read_bytes())
         self.assertTrue(all(x['reference_byte_identical'] for x in inventory['fragments']))
-        self.assertEqual(inventory['total_independently_assembled_executable_bytes'],1640)
+        self.assertEqual(inventory['total_independently_assembled_executable_bytes'],1904)
 
     @unittest.skipUnless(LLVM_MC and REFERENCE,
                          'Hexagon LLVM6 and exact pinned ADSP reference required')
@@ -321,7 +353,7 @@ class ADSPExternalsAndCodeTests(unittest.TestCase):
                 adsp.verify_slice(built,original,off)
                 total+=len(built)
                 ranges.append((off,off+size))
-        self.assertEqual(total,1640)
+        self.assertEqual(total,1904)
         ranges.sort()
         self.assertEqual(ranges[0],(0x39000,0x39054))
         self.assertEqual(ranges[-1],(0x3640a8,0x3640f8))

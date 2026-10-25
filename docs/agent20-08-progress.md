@@ -150,3 +150,27 @@ list their original instructions. Next high-priority candidates are the
 independent helper(s) around file `0x3abb4` and the controller manager at
 `0x39600`. No executable bytes from the second RX region's large data/zero
 areas have been counted.
+
+
+**Checkpoint 13 — controller context selection, reuse and release:**
+Rebuilt the **128-byte** session-configuration routine at
+`[file 0x3aa80,0x3ab00)` with packet-accurate three-register scheduling and a bounded existing-resource
+scan. The register assignments must be ordered `(r2, r1, r16)` to preserve
+Hexagon's two-operation encoded word rather than its alternative duplex.
+Also rebuilt the **136-byte** session-release routine at
+`[file 0x3a18c,0x3a214)` with optional notification, platform teardown
+and a conditional call. The latter has a `:mem_noshuf` packet containing
+both a saved register-pair and a memory read: without this explicit modifier,
+LLVM6 chooses a one-word duplex encoding and exact byte identity fails.
+The source-assembled outputs for **both routines** now agree with all original
+reference instruction bytes. Source file names and modifiers are asserted by
+focused regression tests.
+
+It joins checkpoint 12's four adjacent helpers into a **308-byte continuous
+independently assembled executable interval `[0x3aa80,0x3abb4)`**. Checkpoint
+13 adds 264 executable bytes, for **1,904 total independent executable bytes
+across 25 functions**. The neighboring `0x3abb4–0x3abc0` is three four-byte
+NOP alignment words; it is **not** counted as decompiled function code. Most
+other ADSP program bytes, notably the larger controller buffer manager at
+`0x39600`, remain unimplemented; no OEM-authenticated complete firmware is
+produced.
