@@ -43,7 +43,7 @@ fn compare_predicate_eq_imm(predicate:u8,register:Gpr,immediate:u8)->Result<u32,
 }
 /// A short ordinary `call <target>` whose packet-relative signed field is
 /// stored in halfword units. Extended calls have a separate typed encoder.
-fn short_call(packet_start:u32,target:u32)->Result<u32,String>{
+pub(crate) fn short_call(packet_start:u32,target:u32)->Result<u32,String>{
     if packet_start%4!=0 || target%4!=0 {return Err("Hexagon CALL addresses must be 4-byte aligned".into());}
     let diff=i64::from(target)-i64::from(packet_start);
     if !(-0x100_000..=0xff_ffc).contains(&diff) || diff%2!=0 {
