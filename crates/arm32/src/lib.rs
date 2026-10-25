@@ -256,6 +256,18 @@ pub fn transfer_byte_register(condition: Condition, load: bool, rd: Register,
     Ok(transfer_word_register(condition, load, rd, rn, rm, shift, amount)? | (1 << 22))
 }
 
+/// A32 DSP SMLABB: signed 16-bit bottom-half multiply and accumulate.
+/// Computes `Rd = (i16)Rm[15:0] * (i16)Rs[15:0] + Rn`.
+/// Reject PC in any operand; no vendor instruction bytes are embedded.
+pub fn signed_multiply_accumulate_bottom_halves(condition: Condition,
+    rd: Register, rm: Register, rs: Register, rn: Register) -> Result<u32,String> {
+    if [rd,rm,rs,rn].contains(&Register::PC) {
+        return Err("SMLABB cannot use PC as an operand".into());
+    }
+    Ok(cond(condition) | 0x0100_0080 | (rd.number()<<16)
+       | (rn.number()<<12) | (rs.number()<<8) | rm.number())
+}
+
 /// A32 MLA: multiply two registers and add a third, without flag updates.
 /// The destination may alias an input, but PC is forbidden in each operand.
 /// A32 register-offset byte load/store supporting addition and subtraction
@@ -561,6 +573,18 @@ mod tests {
         assert!(store_halfword(Condition::Al, Register::R1,
             Register::R0, -256).is_err());
     }
+    #[test]
+    fn smlabb_signed_halfword_multiply_accumulate_encoding() {
+        let r3=Register::new(3).unwrap();
+        let r7=Register::new(7).unwrap();
+        assert_eq!(signed_multiply_accumulate_bottom_halves(Condition::Al,
+            r7,r3,Register::R1,r7).unwrap(),0xe107_7183);
+        assert_eq!(signed_multiply_accumulate_bottom_halves(Condition::Al,
+            Register::R2,r3,Register::R1,Register::R2).unwrap(),0xe102_2183);
+        assert!(signed_multiply_accumulate_bottom_halves(Condition::Al,
+            Register::PC,r3,Register::R1,r7).is_err());
+    }
+
     #[test]
     fn byte_postindexed_register_uses_checked_addressing() {
         let r3 = Register::new(3).unwrap();
