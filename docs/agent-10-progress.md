@@ -63,3 +63,10 @@ All validation results and next missing work should be added below in later chec
 - Added a synthetic race test: a competing process creates the output before `os.link`; the operation fails closed and preserves the competitor's bytes. No OEM signing material is needed for this test.
 - Added a mandatory structured unsigned-header/policy comparison for each of the six original Nabu MBNs to `verify-xiaomi-nabu.sh`, before the segment hash and optional cryptographic checks.
 - Verified this exact original A640 using an externally supplied, off-repository 6,400-byte OEM authentication field: 14,256 identical bytes, pinned SHA-256 and embedded three-certificate chain/RSA-PSS check pass. This is **not** a new Qualcomm signature or hardware trust assertion.
+
+## Checkpoint 09 — strict signed hash segment geometry
+
+- Shared `qcom_mbn_validation::check_hash_input_geometry` (used before **both** source-only SHA-384 generation and reference hash verification) refuses ELF file-backed segments overlapping the MBNv6 hash/authentication segment. This keeps independently hashed executable/data bytes disjoint from OEM signature and certificate bytes.
+- Rejects `PT_LOAD` records with `p_filesz > p_memsz`, including malformed fixtures whose stored SHA-384 table would otherwise mask invalid ELF geometry.
+- Keeps valid Nabu zero-file-size BSS entries with out-of-file `p_offset` legal: they contribute **no** file bytes or hashes beyond zero placeholders. Synthetic tests cover overlap, malformed `PT_LOAD`, and BSS exceptions.
+- Revalidated **all six** exact Nabu MBNv6 SHA-384 tables (2/13/8/20/4/6 actual hashed segments; un-hashed placeholders 1/2/4/4/1/1). All Rust and Python tests and release build pass. This validates hash agreement and structure, *not* new Qualcomm signatures or Qualcomm hardware trust.
