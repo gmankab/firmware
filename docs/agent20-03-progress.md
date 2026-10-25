@@ -300,3 +300,8 @@ Original reference: private `map220v-nabu-firmware/venus.mbn`, SHA-256 `9d4af65d
 
 - Generated A32 `[0x21c78,0x2c024)` = **41,900 contiguous byte-identical bytes**, with new `[0x2be44,0x2c024)` **480 bytes** comprising **111 instructions and 9 literal handler addresses**.
 - Clears and releases two reference-counted buffer sets using an indirect ARM `BLX`, constructs diagnostics and introduces a nine-entry stream-type dispatch table `[0x2bfd0,0x2bff4)`; completion handlers beyond `0x2c024` remain unimplemented.
+
+## Checkpoint 44 — codec event-class handlers and fourteen-way routing
+
+- Continuous byte-identical A32 `[0x21c78,0x2c5ac)` = **43,316 bytes**. New `[0x2c024,0x2c5ac)` is **1,416 bytes**: **336 instructions and 18 data words**.
+- Includes fourteen-entry handler table `[0x2c13c,0x2c174)` plus codec capability/error diagnostic pools `[0x2c568,0x2c574)` and `[0x2c5a8,0x2c5ac)`. Controller message processing remains a larger continuing function after `0x2c5ac`.
