@@ -78,3 +78,12 @@ agent requires independently validated HALO ISA semantics and original
 algorithm code (or a complete legitimate source build chain) before counting
 these missing bytes as recompiled source. Byte-identical external repacking is
 already available as a distinct, accurately labeled workflow.
+
+## Checkpoint 08-12 — extraction changes
+
+External-payload extraction now requires a **non-existing** destination folder
+and commits only after writing and syncing all seven SHA-pinned inputs to a
+private staging directory. Existing folders (including empty ones) and
+symlinks are rejected. Failed extraction does not leave a partially populated
+OEM payload directory. This is a protective behavior change to the external
+repack workflow, not a reconstruction of proprietary HALO source.

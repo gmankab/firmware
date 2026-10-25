@@ -8,8 +8,10 @@
 //! 57 algorithm-control records always come from independently authored Rust.
 
 use crate::{wmfw_plan,wmfw_sha256};
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::fs;
+use std::sync::atomic::{AtomicU64, Ordering};
+use std::io::Write;
 
 pub const REFERENCE_SHA256:&str="d1bea27e41001024eb3878276292b5bcc0cda4484ffced0880e12c03ec9bac2c";
 
@@ -75,28 +77,96 @@ pub fn assemble_directory(input_dir:&Path)->Result<Vec<u8>,String>{
         .map_err(|e|format!("reading externally supplied {}: {e}",item.filename())))
 }
 
-/// Opt-in extraction of reference payloads to private files for exact
-/// reference packaging. Extraction is NOT independent reverse engineering.
-/// This refuses to overwrite any existing file in the destination directory.
+/// Temporary directory used for an all-or-nothing extraction. If any write,
+/// sync, or final directory rename fails, the staging directory and its
+/// original DSP input bytes are removed. A *new* output folder is required so
+/// existing user files can never be overwritten.
+struct StagedDirectory {
+    path:PathBuf,
+    committed:bool,
+}
+impl Drop for StagedDirectory {
+    fn drop(&mut self) {
+        if !self.committed { let _=fs::remove_dir_all(&self.path); }
+    }
+}
+static STAGING_SEQUENCE:AtomicU64=AtomicU64::new(0);
+
+fn stage_new_private_directory(output_dir:&Path)->Result<StagedDirectory,String> {
+    if fs::symlink_metadata(output_dir).is_ok() {
+        return Err(format!("WMFW output directory already exists: {}",output_dir.display()));
+    }
+    let parent=output_dir.parent().filter(|p|!p.as_os_str().is_empty()).unwrap_or(Path::new("."));
+    fs::create_dir_all(parent).map_err(|e|format!("creating private payload parent: {e}"))?;
+    let folder=output_dir.file_name().ok_or("WMFW payload path must name a new folder")?
+        .to_string_lossy();
+    for _ in 0..128 {
+        let unique=STAGING_SEQUENCE.fetch_add(1,Ordering::Relaxed);
+        let staged=parent.join(format!(".{folder}.wmfw-staging-{}-{unique}",std::process::id()));
+        let mut builder=fs::DirBuilder::new();
+        #[cfg(unix)] {
+            use std::os::unix::fs::DirBuilderExt;
+            builder.mode(0o700);
+        }
+        match builder.create(&staged) {
+            Ok(())=>return Ok(StagedDirectory{path:staged,committed:false}),
+            Err(e) if e.kind()==std::io::ErrorKind::AlreadyExists=>continue,
+            Err(e)=>return Err(format!("creating private WMFW staging directory: {e}")),
+        }
+    }
+    Err("could not allocate a unique private WMFW staging directory".into())
+}
+
+fn write_private_region_directory(output_dir:&Path,entries:&[(String,Vec<u8>)])->Result<(),String>{
+    let mut stage=stage_new_private_directory(output_dir)?;
+    for (filename,data) in entries {
+        if filename.is_empty() || filename=="." || filename==".." ||
+           filename.contains('/') || filename.contains('\\') {
+            return Err(format!("invalid WMFW region filename: {filename}"));
+        }
+        let path=stage.path.join(filename);
+        let mut opts=fs::OpenOptions::new();
+        opts.write(true).create_new(true);
+        #[cfg(unix)] {
+            use std::os::unix::fs::OpenOptionsExt;
+            opts.mode(0o600);
+        }
+        let mut file=opts.open(&path).map_err(|e|format!("creating private WMFW region {filename}: {e}"))?;
+        file.write_all(data).map_err(|e|format!("writing private WMFW region {filename}: {e}"))?;
+        file.sync_all().map_err(|e|format!("syncing private WMFW region {filename}: {e}"))?;
+    }
+    // Refuse an existing destination before the commit. The staged folder is
+    // in the same parent filesystem, making the normal rename atomic. As with
+    // any pathname-based operation, callers must protect untrusted parents
+    // from concurrent modification by other users.
+    if fs::symlink_metadata(output_dir).is_ok() {
+        return Err(format!("WMFW output directory appeared during extraction: {}",output_dir.display()));
+    }
+    fs::rename(&stage.path,output_dir)
+        .map_err(|e|format!("committing private WMFW payload directory: {e}"))?;
+    stage.committed=true;
+    Ok(())
+}
+
+/// Opt-in extraction of reference payloads into a newly created private
+/// directory. All seven SHA-pinned payloads are verified before touching the
+/// destination; failed extractions leave no partial proprietary blob files.
+/// The folder must not exist, and it is committed only after all files sync.
 pub fn extract_from_private_reference(reference:&[u8],output_dir:&Path)->Result<(),String>{
     if wmfw_sha256::hex_digest(reference)!=REFERENCE_SHA256 {
         return Err("reference WMFW does not match this exact revision".into());
     }
     wmfw_plan::verify_container(reference)?;
-    fs::create_dir_all(output_dir).map_err(|e|format!("creating external payload directory: {e}"))?;
+    let mut inputs=Vec::with_capacity(OPAQUE_REGIONS.len());
     for item in OPAQUE_REGIONS {
         let section=reference.get(item.file_offset..item.file_offset+item.size)
             .ok_or("opaque reference section exceeds bounds")?;
         if wmfw_sha256::hex_digest(section)!=item.expected_sha256 {
             return Err(format!("reference region {} checksum does not match manifest",item.filename()));
         }
-        let path=output_dir.join(item.filename());
-        let mut out=fs::OpenOptions::new().write(true).create_new(true).open(&path)
-            .map_err(|e|format!("creating private WMFW payload {}: {e}",path.display()))?;
-        use std::io::Write;
-        out.write_all(section).map_err(|e|format!("writing private WMFW payload: {e}"))?;
+        inputs.push((item.filename(),section.to_vec()));
     }
-    Ok(())
+    write_private_region_directory(output_dir,&inputs)
 }
 
 #[cfg(test)] mod tests {
@@ -122,4 +192,47 @@ pub fn extract_from_private_reference(reference:&[u8],output_dir:&Path)->Result<
         let err=build_with_external_payloads(|item|Ok(vec![0;item.size-1])).unwrap_err();
         assert!(err.contains("length"));
     }
+    #[test]
+    fn staged_extraction_commits_atomically_and_preserves_existing_files() {
+        let mut base=std::env::temp_dir();
+        let unique=STAGING_SEQUENCE.fetch_add(1,Ordering::Relaxed);
+        base.push(format!("agent08-extract-test-{}-{unique}",std::process::id()));
+        fs::create_dir(&base).unwrap();
+        let target=base.join("private-payloads");
+        let entries=[("first.bin".to_owned(),vec![1,2,3]),
+                     ("second.bin".to_owned(),vec![4,5,6])];
+        write_private_region_directory(&target,&entries).unwrap();
+        assert_eq!(fs::read(target.join("first.bin")).unwrap(),[1,2,3]);
+        assert_eq!(fs::read(target.join("second.bin")).unwrap(),[4,5,6]);
+        assert!(write_private_region_directory(&target,&entries).unwrap_err().contains("already exists"));
+        assert_eq!(fs::read(target.join("second.bin")).unwrap(),[4,5,6]);
+        #[cfg(unix)] {
+            use std::os::unix::fs::PermissionsExt;
+            assert_eq!(fs::metadata(&target).unwrap().permissions().mode() & 0o777,0o700);
+            assert_eq!(fs::metadata(target.join("first.bin")).unwrap().permissions().mode() & 0o777,0o600);
+        }
+        fs::remove_dir_all(base).unwrap();
+    }
+
+    #[test]
+    fn failed_extraction_leaves_no_partial_private_files() {
+        let unique=STAGING_SEQUENCE.fetch_add(1,Ordering::Relaxed);
+        let base=std::env::temp_dir().join(format!("agent08-extract-rollback-{}-{unique}",std::process::id()));
+        fs::create_dir(&base).unwrap();
+        let target=base.join("private-payloads");
+        let entries=[("first.bin".to_owned(),vec![1,2,3]),
+                     ("invalid/nested.bin".to_owned(),vec![4,5,6])];
+        assert!(write_private_region_directory(&target,&entries).is_err());
+        assert!(!target.exists());
+        assert_eq!(fs::read_dir(&base).unwrap().count(),0);
+        #[cfg(unix)] {
+            use std::os::unix::fs::symlink;
+            let symlink_path=base.join("destination-link");
+            symlink(&base,&symlink_path).unwrap();
+            assert!(write_private_region_directory(&symlink_path,&entries[..1]).unwrap_err().contains("already exists"));
+            assert!(symlink_path.is_symlink());
+        }
+        fs::remove_dir_all(base).unwrap();
+    }
+
 }

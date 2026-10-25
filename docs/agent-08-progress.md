@@ -169,3 +169,17 @@ OEM payloads are removed upon exit. The dedicated integration runbook explains
 how to apply only the agent's Codex commits to checkpoint 50 without merging
 the unrelated older main-branch ref, and documents the HALO ISA/source blocker.
 Independent firmware-byte coverage is unchanged: **3,984 / 34,236**.
+
+## Checkpoint 08-12 — private, all-or-nothing external WMFW payload extraction
+
+Hardened the **external-only** repackaging workflow: all seven reference-region
+hashes and the WMFW layout are checked before any output is created. The
+extractor now requires a previously nonexistent destination directory, writes
+all payloads into an adjacent private staging directory (`0700` on Unix,
+`0600` per file), synchronizes each file, and commits the directory by rename.
+A failed write/invalid name removes the staging directory and leaves no
+partially extracted proprietary payloads. An existing destination or symlink
+is rejected, preserving user files and preventing inadvertent overwrite.
+Synthetic unit tests cover rollback, overwrite refusal and private modes.
+This affects only safe handling of **externally supplied OEM bytes**; source-
+independent WMFW coverage remains **3,984 / 34,236 bytes**.
