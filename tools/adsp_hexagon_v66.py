@@ -27,6 +27,7 @@ class SystemRegister(IntEnum):
     PMUCFG = 53
     S54 = 54
     ISDBEN = 42
+    EVB = 16
 
 
 class CacheCommand(IntEnum):

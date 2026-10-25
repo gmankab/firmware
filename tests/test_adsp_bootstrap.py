@@ -106,8 +106,9 @@ class ADSPBootstrapTests(unittest.TestCase):
                      adsp.assemble_cfgbase_helper(LLVM_MC) +
                      adsp.assemble(LLVM_MC, adsp.CONTROLLER_ALIGNMENT_SOURCE, 0xf8) +
                      adsp.assemble_controller_startup(LLVM_MC) +
-                     adsp.assemble_controller_debug_check(LLVM_MC))
-        self.assertEqual(len(generated), 0xae0)
+                     adsp.assemble_controller_debug_check(LLVM_MC) +
+                     adsp.assemble_vector_handoff(LLVM_MC))
+        self.assertEqual(len(generated), 0xb08)
         original = Path(REFERENCE).read_bytes()
         adsp.verify_reference(generated, original, 0x41e0)
         mutated = bytearray(generated)
@@ -255,6 +256,27 @@ class ADSPBootstrapTests(unittest.TestCase):
                 "{ nop } // V66 brkpt", "{ isync } // V66 brkpt",1))
             with self.assertRaisesRegex(adsp.AdspError,"debug control sentinel"):
                 adsp.assemble_controller_debug_check(LLVM_MC,fake)
+
+    def test_vector_handoff_uses_symbolic_forward_branches(self) -> None:
+        src=adsp.CONTROLLER_VECTOR_HANDOFF_SOURCE.read_text()
+        self.assertIn("controller_vector_reset",src)
+        self.assertIn("controller_resume",src)
+        self.assertIn("controller_fault",src)
+        self.assertIn("V66 EVB = r1",src)
+        self.assertNotIn(".word",src)
+        self.assertNotIn(".incbin",src)
+
+    @unittest.skipUnless(LLVM_MC and REFERENCE,"Assembler and reference required")
+    def test_vector_handoff_emits_exact_original_branches(self) -> None:
+        result=adsp.assemble_vector_handoff(LLVM_MC)
+        self.assertEqual(len(result),0x28)
+        adsp.verify_reference(result,Path(REFERENCE).read_bytes(),0x4cc0)
+        with tempfile.TemporaryDirectory() as td:
+            invalid=Path(td)/"wrong-vector-handoff.S"
+            invalid.write_text(adsp.CONTROLLER_VECTOR_HANDOFF_SOURCE.read_text().replace(
+                "{ nop } // V66 EVB = r1", "{ isync } // V66 EVB = r1",1))
+            with self.assertRaisesRegex(adsp.AdspError,"EVB write sentinel"):
+                adsp.assemble_vector_handoff(LLVM_MC,invalid)
 
     @unittest.skipUnless(LLVM_MC, "Hexagon-capable llvm-mc unavailable")
     def test_syscfg_handoff_uses_typed_and_source_assembly(self) -> None:

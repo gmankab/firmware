@@ -153,6 +153,18 @@ class V66BootstrapTests(unittest.TestCase):
             with self.subTest(offset=hex(off)):
                 self.assertEqual(struct.unpack_from("<I",b,off)[0],expected)
 
+    def test_event_vector_base_system_register_fields(self) -> None:
+        self.assertEqual(v66.write_system_register(v66.SystemRegister.EVB,1),0x6701c010)
+        self.assertEqual(v66.write_system_register(v66.SystemRegister.EVB,0),0x6700c010)
+
+    @unittest.skipUnless(REFERENCE,"Exact reference required")
+    def test_evb_assignments_at_two_assembler_independent_sites(self) -> None:
+        b=Path(REFERENCE).read_bytes()
+        for offset,reg in ((0x3c4c,0),(0x4cc8,1)):
+            with self.subTest(offset=hex(offset)):
+                self.assertEqual(struct.unpack_from("<I",b,offset)[0],
+                    v66.write_system_register(v66.SystemRegister.EVB,reg))
+
     def test_fixed_operand_hexagon_tlb_write_encoding(self) -> None:
         self.assertEqual(v66.tlb_write_pair_r3_r2_index_r0(), 0x6c02c000)
         self.assertEqual((v66.tlb_write_pair_r3_r2_index_r0() >> 14) & 3, 3)

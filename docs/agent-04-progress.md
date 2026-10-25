@@ -478,3 +478,35 @@ python3 -S tools/emit-adsp-entry.py \
   --segment counter-controller --llvm-mc "$HEXAGON_LLVM_MC" \
   --reference "$NABU_ADSP_REFERENCE" --output /tmp/adsp-controller-2784.bin
 ```
+
+## Checkpoint 22: exception-vector base handoff
+
+Added **40 exact executable bytes** at file offsets `[0x4cc0,0x4ce8)`,
+physical `[0x8be01cc0,0x8be01ce8)` in
+`tools/adsp-controller-vector-handoff.S`. It calculates an exception-vector
+address, writes the privileged `EVB` register from `R1`, invokes the earlier
+`0x4690` controller helper, loads a controller state word, and dispatches
+two predicates to the later routines at `0x51b0` and `0x51c0`. The source
+uses symbolic `.set` target identities for the out-of-fragment branches;
+LLVM6 independently determines their signed displacements and packet bits.
+
+A single temporary NOP at file `0x4cc8` is checked before replacement with
+`write_system_register(SystemRegister.EVB,1)`. The EVB register code (16)
+is also corroborated at independently located `EVB=R0` at file `0x3c4c`.
+The source contains no verbatim instruction words. Both the standalone
+40-byte routine and the fully contiguous controller bytes match the exact
+ADSP firmware image.
+
+The controller region is now **2,824 bytes** `[0x41e0,0x4ce8)`; combined
+with 68 boot-prefix bytes, cumulative independently generated output is
+**2,892 bytes**, including 248 bytes of explicit NOP alignment. All **74
+Python regression tests pass**. Next missing controller file byte `0x4ce8`.
+
+```sh
+python3 -S tools/emit-adsp-entry.py \
+  --segment controller-vector-handoff --llvm-mc "$HEXAGON_LLVM_MC" \
+  --reference "$NABU_ADSP_REFERENCE" --output /tmp/adsp-vector-handoff-40.bin
+python3 -S tools/emit-adsp-entry.py \
+  --segment counter-controller --llvm-mc "$HEXAGON_LLVM_MC" \
+  --reference "$NABU_ADSP_REFERENCE" --output /tmp/adsp-controller-2824.bin
+```

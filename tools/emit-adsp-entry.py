@@ -45,10 +45,11 @@ CONTROLLER_CFGBASE_SOURCE = pathlib.Path(__file__).with_name("adsp-controller-cf
 CONTROLLER_ALIGNMENT_SOURCE = pathlib.Path(__file__).with_name("adsp-controller-nop-padding.S")
 CONTROLLER_STARTUP_SOURCE = pathlib.Path(__file__).with_name("adsp-controller-startup.S")
 CONTROLLER_DEBUG_CHECK_SOURCE = pathlib.Path(__file__).with_name("adsp-controller-debug-check.S")
+CONTROLLER_VECTOR_HANDOFF_SOURCE = pathlib.Path(__file__).with_name("adsp-controller-vector-handoff.S")
 FRAGMENTS = {
     "vectors": (ASM_SOURCE, OEM_FILE_OFFSET, GENERATED_LENGTH),
     "boot-prefix": (ASM_SOURCE, OEM_FILE_OFFSET, 0x44),
-    "counter-controller": (CONTROLLER_SOURCE, 0x41e0, 0xae0),
+    "counter-controller": (CONTROLLER_SOURCE, 0x41e0, 0xb08),
     "controller-bootstrap": (CONTROLLER_BOOTSTRAP_SOURCE, 0x4980, 0x2c),
     "controller-cache-copy": (CONTROLLER_CACHE_COPY_SOURCE, 0x49ac, 0x5c),
     "controller-physical-copy": (CONTROLLER_PHYSICAL_COPY_SOURCE, 0x4a08, 0x4c),
@@ -57,6 +58,7 @@ FRAGMENTS = {
     "controller-nop-padding": (CONTROLLER_ALIGNMENT_SOURCE, 0x4b08, 0xf8),
     "controller-startup": (CONTROLLER_STARTUP_SOURCE, 0x4c00, 0x68),
     "controller-debug-check": (CONTROLLER_DEBUG_CHECK_SOURCE, 0x4c68, 0x58),
+    "controller-vector-handoff": (CONTROLLER_VECTOR_HANDOFF_SOURCE, 0x4cc0, 0x28),
     "tlb-reconcile": (TLB_RECONCILE_SOURCE, 0x48d0, 0xb0),
     "cacheline-copy": (CACHELINE_COPY_SOURCE, 0x4818, 0x78),
     "tlb-flush": (TLB_FLUSH_SOURCE, 0x4788, 0x90),
@@ -472,6 +474,27 @@ def assemble_controller_debug_check(
     return bytes(result)
 
 
+def assemble_vector_handoff(
+    llvm_mc: str, source: pathlib.Path = CONTROLLER_VECTOR_HANDOFF_SOURCE
+) -> bytes:
+    """Reassemble the EVB handoff with source-defined out-of-range targets.
+
+    Only the privileged `EVB = R1` instruction is patched from a checked
+    typed system register encoding. LLVM6 emits all branch displacements
+    directly from `.set` symbols, with zero relocations.
+    """
+    from adsp_hexagon_v66 import SystemRegister, write_system_register
+
+    b = bytearray(assemble(llvm_mc, source, 0x28))
+    offset = 0x4cc8 - 0x4cc0
+    if b[offset:offset+4] != struct.pack("<I", 0x7F00C000):
+        raise AdspError("Expected EVB write sentinel at 0x4cc8")
+    b[offset:offset+4] = struct.pack("<I", write_system_register(SystemRegister.EVB, 1))
+    if b.count(struct.pack("<I",0x7F00C000)):
+        raise AdspError("Unresolved EVB placeholder")
+    return bytes(b)
+
+
 def run(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--llvm-mc", required=True,
@@ -504,6 +527,8 @@ def run(argv: list[str] | None = None) -> int:
             out = assemble_tlb_map(args.llvm_mc, args.source or source)
         elif args.segment == "tlb-flush":
             out = assemble_tlb_flush(args.llvm_mc, args.source or source)
+        elif args.segment == "controller-vector-handoff":
+            out = assemble_vector_handoff(args.llvm_mc, args.source or source)
         elif args.segment == "controller-debug-check":
             out = assemble_controller_debug_check(args.llvm_mc, args.source or source)
         elif args.segment == "controller-startup":
@@ -518,7 +543,7 @@ def run(argv: list[str] | None = None) -> int:
             out = assemble_tlb_reconcile(args.llvm_mc, args.source or source)
         elif args.segment == "counter-controller":
             # Compile the ISA-common controller and its V66-only tails
-            # independently, then emit a strictly adjacent 0xae0-byte span (including explicit NOP alignment).
+            # independently, then emit a strictly adjacent 0xb08-byte span (including explicit NOP alignment).
             if args.source is not None:
                 raise AdspError("--source override is not supported for the combined controller")
             out = (assemble(args.llvm_mc, CONTROLLER_SOURCE, 0x4c0) +
@@ -535,7 +560,8 @@ def run(argv: list[str] | None = None) -> int:
                    assemble_cfgbase_helper(args.llvm_mc) +
                    assemble(args.llvm_mc, CONTROLLER_ALIGNMENT_SOURCE, 0xf8) +
                    assemble_controller_startup(args.llvm_mc) +
-                   assemble_controller_debug_check(args.llvm_mc))
+                   assemble_controller_debug_check(args.llvm_mc) +
+                   assemble_vector_handoff(args.llvm_mc))
         else:
             out = assemble(args.llvm_mc, args.source or source, expected_length)
         if len(out) != expected_length:
