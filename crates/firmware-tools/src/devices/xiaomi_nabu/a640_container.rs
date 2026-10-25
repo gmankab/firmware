@@ -138,7 +138,7 @@ pub fn assemble_with_external_authentication(external_auth: &[u8]) -> Result<Vec
             EXTERNAL_AUTH_SIZE, external_auth.len()
         ));
     }
-    plan.place("externally supplied OEM signature and certificate field",
+    plan.place_external_authentication("externally supplied OEM signature and certificate field",
         expected.start, external_auth)?;
     let image = plan.build_complete()?;
     crate::qcom_mbn_validation::verify_elf32_mbnv6_hashes(&image)?;
@@ -175,6 +175,12 @@ mod tests {
         assert_eq!(completed.len(), 0x37b0);
         original.compare_known(&completed).unwrap();
         assert_eq!(&completed[0x1138..0x2a38], &vec![0x55; EXTERNAL_AUTH_SIZE]);
+        let mut derived = partial_container().unwrap();
+        derived.place_external_authentication("OEM test-only bytes", 0x1138,
+            &vec![0x55; EXTERNAL_AUTH_SIZE]).unwrap();
+        assert_eq!(derived.coverage().generated_bytes, 7856);
+        assert_eq!(derived.coverage().externally_supplied_bytes, 6400);
+        assert!(derived.build_independently_generated().is_err());
     }
 
     #[test]

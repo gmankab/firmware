@@ -7,11 +7,41 @@
 
 use std::ops::Range;
 
+/// Tracks where bytes came from, *not* whether a signature or device accepts
+/// them. It is never safe to count externally imported bytes as decompiled
+/// or independently generated implementation coverage.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum RegionOrigin {
+    Generated,
+    ExternalAuthentication,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Region {
     pub name: String,
     pub offset: usize,
     pub len: usize,
+    pub origin: RegionOrigin,
+}
+
+/// Disjoint byte counts; `covered_bytes` may include external authentication
+/// but `generated_bytes` never does. Unknown bytes are always reported.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CoverageReport {
+    pub total_bytes: usize,
+    pub generated_bytes: usize,
+    pub externally_supplied_bytes: usize,
+    pub missing_bytes: usize,
+    pub holes: Vec<Range<usize>>,
+}
+
+impl CoverageReport {
+    pub fn covered_bytes(&self) -> usize {
+        self.generated_bytes + self.externally_supplied_bytes
+    }
+    pub fn is_independently_complete(&self) -> bool {
+        self.missing_bytes == 0 && self.externally_supplied_bytes == 0
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -31,7 +61,23 @@ impl ImagePlan {
     pub fn regions(&self) -> &[Region] { &self.regions }
 
     /// Place independently authored bytes into a nonoverlapping region.
+    /// This is a claim by the caller; it must be substantiated with tests.
     pub fn place(&mut self, name: &str, offset: usize, generated: &[u8]) -> Result<(), String> {
+        self.place_with_origin(name, offset, generated, RegionOrigin::Generated)
+    }
+
+    /// Place *externally supplied* signature/certificate field bytes in a
+    /// checked range, retaining their provenance in coverage and finalization.
+    /// Does not perform cryptographic validation of the supplied bytes.
+    pub fn place_external_authentication(
+        &mut self, name: &str, offset: usize, supplied: &[u8],
+    ) -> Result<(), String> {
+        self.place_with_origin(name, offset, supplied, RegionOrigin::ExternalAuthentication)
+    }
+
+    fn place_with_origin(
+        &mut self, name: &str, offset: usize, generated: &[u8], origin: RegionOrigin,
+    ) -> Result<(), String> {
         if name.trim().is_empty() { return Err("image region name cannot be empty".into()); }
         if generated.is_empty() { return Err(format!("empty image region: {name}")); }
         let end = offset.checked_add(generated.len()).ok_or("image offset overflow")?;
@@ -44,12 +90,29 @@ impl ImagePlan {
         for (cell, byte) in self.contents[offset..end].iter_mut().zip(generated) {
             *cell = Some(*byte);
         }
-        self.regions.push(Region { name: name.into(), offset, len: generated.len() });
+        self.regions.push(Region { name: name.into(), offset, len: generated.len(), origin });
         Ok(())
     }
 
     pub fn filled_bytes(&self) -> usize {
         self.regions.iter().map(|r| r.len).sum()
+    }
+
+    /// Reporting is independent of insertion order. BSS is not file-backed
+    /// content and must not be silently counted as reconstructed file bytes.
+    pub fn coverage(&self) -> CoverageReport {
+        let holes = self.holes();
+        let missing_bytes = holes.iter().map(|r| r.end - r.start).sum();
+        CoverageReport {
+            total_bytes: self.total_bytes(),
+            generated_bytes: self.regions.iter().filter(|r| r.origin == RegionOrigin::Generated)
+                .map(|r| r.len).sum(),
+            externally_supplied_bytes: self.regions.iter()
+                .filter(|r| r.origin == RegionOrigin::ExternalAuthentication)
+                .map(|r| r.len).sum(),
+            missing_bytes,
+            holes,
+        }
     }
 
     /// Every maximal missing-byte range, including a final trailing hole.
@@ -89,8 +152,20 @@ impl ImagePlan {
         Ok(())
     }
 
-    /// Only a completely covered image can be emitted. Avoid constructing a
-    /// visually convincing but incomplete binary padded with placeholder data.
+    /// Refuse to call an externally authenticated image independently rebuilt.
+    /// This stricter method is intended for complete original-source builds.
+    pub fn build_independently_generated(&self) -> Result<Vec<u8>, String> {
+        let result = self.build_complete()?;
+        if self.coverage().externally_supplied_bytes != 0 {
+            return Err(format!("image contains {} externally supplied authentication bytes; independent build forbidden",
+                self.coverage().externally_supplied_bytes));
+        }
+        Ok(result)
+    }
+
+    /// Only a completely covered image can be emitted. Externally supplied
+    /// authentication bytes are permitted but remain classified as external.
+    /// Emission is NOT evidence of a newly signed or hardware-trusted image.
     pub fn build_complete(&self) -> Result<Vec<u8>, String> {
         if let Some(first) = self.holes().first() {
             return Err(format!("image incomplete: {} / {} bytes generated; first gap 0x{:x}..0x{:x}",
@@ -118,6 +193,33 @@ mod tests {
         plan.place("middle", 3, &[4, 5, 6, 7, 8]).unwrap();
         assert_eq!(plan.holes(), Vec::<Range<usize>>::new());
         assert_eq!(plan.build_complete().unwrap(), (1..=12).collect::<Vec<_>>());
+    }
+    #[test]
+    fn coverage_distinguishes_external_authentication_and_holes() {
+        let mut plan = ImagePlan::new(13).unwrap();
+        plan.place("source metadata", 0, &[0xa1, 0xa2, 0xa3]).unwrap();
+        plan.place_external_authentication("OEM cert from owner", 6, &[7, 8, 9, 10]).unwrap();
+        assert_eq!(plan.coverage(), CoverageReport {
+            total_bytes: 13, generated_bytes: 3, externally_supplied_bytes: 4,
+            missing_bytes: 6, holes: vec![3..6, 10..13],
+        });
+        assert!(!plan.coverage().is_independently_complete());
+        assert!(plan.build_complete().is_err());
+        plan.place("rest", 3, &[4, 5, 6]).unwrap();
+        plan.place("tail", 10, &[11, 12, 13]).unwrap();
+        assert_eq!(plan.coverage().covered_bytes(), 13);
+        assert_eq!(plan.coverage().generated_bytes, 9);
+        assert_eq!(plan.coverage().externally_supplied_bytes, 4);
+        assert!(plan.build_complete().is_ok());
+        assert!(plan.build_independently_generated().unwrap_err().contains("externally supplied"));
+        assert!(plan.place_external_authentication("bad overlap", 6, &[0x99]).is_err());
+    }
+    #[test]
+    fn generated_coverage_can_be_finalized_independently() {
+        let mut plan = ImagePlan::new(2).unwrap();
+        plan.place("generated", 0, &[0xaa, 0xbb]).unwrap();
+        assert_eq!(plan.build_independently_generated().unwrap(), vec![0xaa, 0xbb]);
+        assert!(plan.coverage().is_independently_complete());
     }
     #[test]
     fn rejects_overlaps_bounds_empty_inputs_and_overflow() {
