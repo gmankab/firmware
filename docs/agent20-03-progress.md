@@ -322,3 +322,9 @@ Original reference: private `map220v-nabu-firmware/venus.mbn`, SHA-256 `9d4af65d
 - Contiguous typed A32 match `[0x21c78,0x2d19c)` = **46,372 bytes**. Newly rebuilt `[0x2cc94,0x2d19c)` = **1,288 bytes**: **237 A32 instructions and 85 separate data words**.
 - Controller class dispatch branches to several prior codec allocation handlers and updates state; the long non-instruction diagnostic/map table `[0x2d090,0x2d19c)` contains 67 words.
 - Literal/data pools are explicit; only typed operations emit executable instructions. This is instruction-level equivalence, not fully recovered high-level source or newly authenticated firmware. First missing runtime address `0x2d19c`.
+
+## Checkpoint 48 — resource initialization and descriptor helpers
+
+- Contiguous byte identity `[0x21c78,0x2d3f4)` = **46,972 bytes**, new `[0x2d19c,0x2d3f4)` = **600 bytes**: **140 ARM32 instructions and 10 data words**.
+- Reconstructed a controller initialization routine, bounded resource-descriptor lookup and two small register-condition helpers. Four non-instruction data pools remain identified and tested separately; cross-region calls and branch targets retain original locations.
+- First uncovered address `0x2d3f4`, a new controller-configuration function. This is byte-identical instruction re-encoding, not high-level source recovery or newly signed firmware.
