@@ -274,3 +274,9 @@ Original reference: private `map220v-nabu-firmware/venus.mbn`, SHA-256 `9d4af65d
 - Continuous typed A32 `[0x21c78,0x2b304)` = **38,540 exact bytes** (MBN `[0x25c78,0x2f304)`). The additional `[0x2b13c,0x2b304)` is **456 bytes**, **105 instructions and nine data words**.
 - Three compact routines configure the codec IRQ/MMIO bank and validate service commands with explicit error branches. MMIO constant pools at `[0x2b174,0x2b178)` and `[0x2b1c4,0x2b1cc)` and the six-word diagnostic table at `[0x2b2ec,0x2b304)` are deliberately excluded from executable instruction count.
 - Next routine begins at `0x2b304`. This is instruction-level byte identity, not source-language behavioral proof or a signed firmware.
+
+## Checkpoint 39 — codec startup and CP15 synchronization
+
+- Continuous typed ARM `[0x21c78,0x2b474)` = **38,908 byte-identical bytes**. New `[0x2b304,0x2b474)` = **368 bytes**, **80 A32 instructions** and **12 controller address/data words**.
+- Setup restores saved MMIO registers, resets IRQ state, and executes an explicitly checked ARMv7 CP15 `MCR p15, #0, r4, c7, c0, #4` barrier at `0x2b3e4`. The twelve host/MMIO/diagnostic pointers `[0x2b444,0x2b474)` are data, not executable instructions.
+- The next function begins at runtime `0x2b474`. Source-to-reference equality does not imply independent high-level behavioral equivalence or a signed image.
