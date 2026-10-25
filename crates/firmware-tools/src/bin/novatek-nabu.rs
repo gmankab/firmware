@@ -51,6 +51,39 @@ fn run() -> Result<(), String> {
         println!("Wrote {} structural bytes; hardware CRC verified: {}. WARNING: remaining ILM/DLM provenance and behavior NOT verified; do NOT flash.", built.bytes.len(),built.is_hardware_crc_verified());
         return Ok(());
     }
+    // A third NDS32 exception handler contains GP-relative relocations that
+    // differ between the required postmarketOS and historic upstream images.
+    // Variant must be explicit: a random OEM binary cannot be passed off as
+    // independently rebuilt merely because its metadata parses.
+    if args.first().map(String::as_str)==Some("emit-nds32-third-path") && args.len()==3 {
+        let gp=match args[1].as_str() {
+            "postmarketos"=>novatek_nds32::POSTMARKETOS_GP_BASE,
+            "map220v"=>novatek_nds32::MAP220V_GP_BASE,
+            _=>return Err("third-path variant must be postmarketos or map220v".into()),
+        };
+        let bytes=novatek_nds32::third_interrupt_path(gp)?;
+        fs::write(&args[2],&bytes).map_err(|e|e.to_string())?;
+        println!("Generated {} independently authored NDS32 executable bytes [0x{:x},0x{:x}) for {}",
+            bytes.len(),novatek_nds32::EXTRA_INTERRUPTS_END,
+            novatek_nds32::THIRD_INTERRUPT_END,args[1]);
+        return Ok(());
+    }
+    if args.first().map(String::as_str)==Some("verify-nds32-third-path") && args.len()==3 {
+        let gp=match args[2].as_str() {
+            "postmarketos"=>novatek_nds32::POSTMARKETOS_GP_BASE,
+            "map220v"=>novatek_nds32::MAP220V_GP_BASE,
+            _=>return Err("third-path variant must be postmarketos or map220v".into()),
+        };
+        let firmware=fs::read(&args[1]).map_err(|e|e.to_string())?;
+        let layout=NabuNovatekLayout::parse(&firmware)?;
+        if layout.ilm.end()? < novatek_nds32::THIRD_INTERRUPT_END {
+            return Err("third ISR extends outside ILM".into());
+        }
+        novatek_nds32::verify_third_interrupt_path(&firmware,gp)?;
+        println!("Third NDS32 handler: {} verified source-derived executable bytes, {} profile",
+            novatek_nds32::THIRD_INTERRUPT_END-novatek_nds32::EXTRA_INTERRUPTS_END,args[2]);
+        return Ok(());
+    }
     if args.first().map(String::as_str) == Some("emit-nds32-isr") && args.len()==2 {
         let bytes=novatek_nds32::initial_interrupt_handler()?;
         fs::write(&args[1],&bytes).map_err(|e|e.to_string())?;
@@ -88,7 +121,7 @@ fn run() -> Result<(), String> {
         return Ok(());
     }
     if args.len() < 2 || args.len() > 3 {
-        return Err("usage: novatek-nabu <emit-nds32-isr out.bin|verify-nds32-isr reference.bin|emit-nds32-extra-paths out.bin|verify-nds32-extra-paths reference.bin> | <inspect|verify-dlm-mirror|verify-crcs|emit-recomputed-crc-header|emit-header|emit-padding|emit-vector|emit-vector-padding|emit-post-dlm-padding|emit-tail-padding|emit-marker|verify-header|verify-envelope|verify-vectors> <private-reference.bin> [output] | assemble-structural-unverified <private-meta-reference> <externally-authored-vector-words> <independently-authored-ilm-after-0x544> <independently-authored-dlm> <output> | assemble-crc-validated <private-meta-reference> <authored-vector-words> <authored-ilm> <authored-dlm> <output>".into());
+        return Err("usage: novatek-nabu <emit-nds32-isr out.bin|verify-nds32-isr reference.bin|emit-nds32-extra-paths out.bin|verify-nds32-extra-paths reference.bin|emit-nds32-third-path postmarketos|map220v out.bin|verify-nds32-third-path reference.bin postmarketos|map220v> | <inspect|verify-dlm-mirror|verify-crcs|emit-recomputed-crc-header|emit-header|emit-padding|emit-vector|emit-vector-padding|emit-post-dlm-padding|emit-tail-padding|emit-marker|verify-header|verify-envelope|verify-vectors> <private-reference.bin> [output] | assemble-structural-unverified <private-meta-reference> <externally-authored-vector-words> <independently-authored-ilm-after-0x544> <independently-authored-dlm> <output> | assemble-crc-validated <private-meta-reference> <authored-vector-words> <authored-ilm> <authored-dlm> <output>".into());
     }
     let command = &args[0];
     let reference = fs::read(&args[1]).map_err(|e| e.to_string())?;

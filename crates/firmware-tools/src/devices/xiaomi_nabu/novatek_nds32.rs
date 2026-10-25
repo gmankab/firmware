@@ -15,6 +15,13 @@ pub const FIRST_HANDLER_OFFSET: usize = 0x450;
 pub const FIRST_HANDLER_END: usize = 0x4aa;
 /// Two related full context save/return paths using a narrower GPR range.
 pub const EXTRA_INTERRUPTS_END:usize=0x544;
+/// End of the third NDS32 exception path, including the GP-relative
+/// interrupt status-table lookup and unconditional peripheral dispatch.
+pub const THIRD_INTERRUPT_END:usize=0x588;
+/// Verified link-time GP bases for the two private Nabu image revisions.
+/// These are CPU base-address constants, not vendor opcode words.
+pub const POSTMARKETOS_GP_BASE:i32=0x2d9e0;
+pub const MAP220V_GP_BASE:i32=0x2d7f0;
 
 /// General-purpose NDS32 register number (0–31), using ABI conventional names.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -189,6 +196,105 @@ pub fn branch_not_equal_to_a5(at:usize,rt:Gpr,target:usize)->Result<u16,String>{
         return Err("NDS32 bnes38 displacement exceeds signed 8-bit limit".into());
     }
     Ok(0x8000|(0b1011<<11)|((rt.number() as u16)<<8)|(delta as u16 & 0xff))
+}
+
+/// NDS32 BR2 conditional branch with signed, two-byte displacement from
+/// the current *instruction*, not its successor.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ZeroBranch { Equal, NotEqual }
+pub fn branch_zero(at:usize,rt:Gpr,target:usize,kind:ZeroBranch)->Result<u32,String>{
+    if (at | target) & 1 != 0 {return Err("NDS32 BR2 branch addresses must be halfword aligned".into());}
+    let delta=(target as i64-at as i64)/2;
+    if !(-32768..=32767).contains(&delta){return Err("NDS32 BR2 branch exceeds signed 16-bit range".into());}
+    let cond=match kind {ZeroBranch::Equal=>2,ZeroBranch::NotEqual=>3};
+    Ok((0b100111_u32<<25)|(rt.number()<<20)|(cond<<16)|(delta as u32 & 0xffff))
+}
+
+/// NDS32 PC-relative 32-bit unconditional J, encoded with a signed 24-bit
+/// halfword displacement from the instruction start.
+pub fn jump(at:usize,target:usize)->Result<u32,String>{
+    if (at | target) & 1 != 0{return Err("NDS32 J requires aligned addresses".into());}
+    let delta=(target as i64-at as i64)/2;
+    if !(-8_388_608..=8_388_607).contains(&delta){return Err("NDS32 J exceeds signed 24-bit range".into());}
+    Ok((0b100100_u32<<25)|(delta as u32 & 0xff_ffff))
+}
+
+/// NDS32 GP-relative word read from the SRAM address `target_address`.
+/// An *address difference* is encoded, not an original instruction word.
+pub fn gp_relative_word_load(rt:Gpr,gp_address:i32,target_address:i32)->Result<u32,String>{
+    let delta=target_address.checked_sub(gp_address).ok_or("GP-relative offset overflow")?;
+    if delta & 3 != 0 {return Err("GP-relative word address must be aligned".into());}
+    let words=delta/4;
+    if !(-65536..=65535).contains(&words){return Err("NDS32 LWI.GP signed 17-bit offset overflow".into());}
+    Ok((0b011110_u32<<25)|(rt.number()<<20)|(0b110<<17)|(words as u32 & 0x1_ffff))
+}
+
+/// 16-bit NDS32 branch if small-register value is zero; relative signed
+/// displacement has two-byte units and originates at current instruction.
+pub fn branch_equal_zero_short(at:usize,rt:Gpr,target:usize)->Result<u16,String>{
+    if rt.number()>7 || (at|target)&1 != 0{return Err("BEQZ38 needs a0..s1 and aligned addresses".into());}
+    let delta=(target as i64-at as i64)/2;
+    if !(-128..=127).contains(&delta){return Err("BEQZ38 offset exceeds signed eight-bit range".into());}
+    Ok(0x8000|(0b1000<<11)|((rt.number() as u16)<<8)|(delta as u16 & 0xff))
+}
+
+/// 16-bit NDS32 branch on zero-valued test register TA, independent of GPR.
+pub fn branch_ta_zero_short(at:usize,target:usize)->Result<u16,String>{
+    if (at|target)&1 != 0{return Err("BEQZS8 requires halfword alignment".into());}
+    let delta=(target as i64-at as i64)/2;
+    if !(-128..=127).contains(&delta){return Err("BEQZS8 offset exceeds signed eight-bit range".into());}
+    Ok(0x8000|(0b1101000<<8)|(delta as u16 & 0xff))
+}
+
+/// The complete third exception save/restore path `[0x544,0x588)`. The
+/// firmware revision affects only GP setup and therefore GP-relative SRAM
+/// access displacements. Both target images independently match this source.
+pub fn third_interrupt_path(gp_base:i32)->Result<Vec<u8>,String>{
+    use AddressUpdate::{AfterDecrement as Ad, BeforeIncrement as Bi};
+    use MemoryDirection::{Load as L, Store as S};
+    use Gpr as Reg;
+    let a0=Reg::A0;let a1=Reg::A1;let a2=Reg::A2;
+    let sp=Reg::SP;let ta=Reg::TA;
+    let gp=Reg::new(29)?;
+    let mut v=Vec::with_capacity(THIRD_INTERRUPT_END-EXTRA_INTERRUPTS_END);
+    // A BR2 guard jumps directly to the next init routine if SP is zero.
+    be32(&mut v,branch_zero(0x544,sp,0x588,ZeroBranch::Equal)?);
+    be32(&mut v,multiple_words(S,a0,sp,Reg::P1,SavedSpecials::ALL,Ad,true)?);
+    be32(&mut v,user_register(a1,UserSpecial::IfcLp,false));
+    be32(&mut v,multiple_words(S,a1,sp,a2,SavedSpecials::NONE,Ad,true)?);
+    be32(&mut v,move_immediate(gp,gp_base)?);
+    be16(&mut v,mov55(a0,sp));
+    be32(&mut v,system_register(a1,SystemRegister::Csr099,false));
+    be16(&mut v,extract_low_bits(a1,3)?);
+    be16(&mut v,subtract_small_immediate(a1,a1,1)?);
+    be16(&mut v,branch_equal_zero_short(0x562,a1,0x56c)?);
+    // The GP offset resolves to the SRAM status pair 0x124/0x128.
+    be32(&mut v,gp_relative_word_load(ta,gp_base,0x124)?);
+    be32(&mut v,jump(0x568,0x570)?);
+    be32(&mut v,gp_relative_word_load(ta,gp_base,0x128)?);
+    be16(&mut v,branch_ta_zero_short(0x570,0x588)?);
+    be16(&mut v,branch_not_equal_to_a5(0x572,Reg::A5,0x5d0)?);
+    be32(&mut v,branch_zero(0x574,a0,0x588,ZeroBranch::NotEqual)?);
+    be32(&mut v,multiple_words(L,a1,sp,a2,SavedSpecials::NONE,Bi,true)?);
+    be32(&mut v,user_register(a1,UserSpecial::IfcLp,true));
+    be32(&mut v,multiple_words(L,a0,sp,Reg::P1,SavedSpecials::ALL,Bi,true)?);
+    be32(&mut v,interrupt_return());
+    if v.len()!=THIRD_INTERRUPT_END-EXTRA_INTERRUPTS_END{
+        return Err(format!("third ISR length {} is not expected 68",v.len()));
+    }
+    Ok(v)
+}
+
+/// Audit just the newly implemented executable range against private
+/// reference, while allowing either independently documented GP profile.
+pub fn verify_third_interrupt_path(firmware:&[u8],gp_base:i32)->Result<(),String>{
+    if firmware.len()<THIRD_INTERRUPT_END{return Err("firmware too short for third ISR".into());}
+    let built=third_interrupt_path(gp_base)?;
+    let original=&firmware[EXTRA_INTERRUPTS_END..THIRD_INTERRUPT_END];
+    if let Some(i)=built.iter().zip(original).position(|(a,b)|a!=b){
+        return Err(format!("NDS32 third ISR differs at 0x{:x}",EXTRA_INTERRUPTS_END+i));
+    }
+    Ok(())
 }
 
 fn be32(dst:&mut Vec<u8>,inst:u32){dst.extend_from_slice(&inst.to_be_bytes());}
@@ -379,6 +485,32 @@ pub fn verify_first_handler(firmware:&[u8])->Result<(),String>{
         assert_eq!(disable_global_interrupts(),0x64020043);
         assert_eq!(data_synchronization_barrier(),0x64000008);
         assert_eq!(interrupt_return(),0x64000004);
+    }
+    #[test]fn third_path_correctly_encodes_branches_and_gp_relative_memory(){
+        assert_eq!(branch_zero(0x544,Gpr::SP,0x588,ZeroBranch::Equal).unwrap(),0x4ff20022);
+        assert_eq!(branch_zero(0x574,Gpr::A0,0x588,ZeroBranch::NotEqual).unwrap(),0x4e03000a);
+        assert_eq!(jump(0x568,0x570).unwrap(),0x48000004);
+        assert_eq!(gp_relative_word_load(Gpr::TA,POSTMARKETOS_GP_BASE,0x124).unwrap(),0x3cfd49d1);
+        assert_eq!(gp_relative_word_load(Gpr::TA,MAP220V_GP_BASE,0x124).unwrap(),0x3cfd4a4d);
+        assert_eq!(branch_equal_zero_short(0x562,Gpr::A1,0x56c).unwrap(),0xc105);
+        assert_eq!(branch_ta_zero_short(0x570,0x588).unwrap(),0xe80c);
+        assert!(gp_relative_word_load(Gpr::TA,0x2d9e0,0x125).is_err());
+        assert!(gp_relative_word_load(Gpr::TA,0x2d9e0,0x900000).is_err());
+        assert!(branch_equal_zero_short(0x562,Gpr::SP,0x56c).is_err());
+        assert!(jump(1,0x570).is_err());
+    }
+    #[test]fn generated_third_handler_is_exactly_sixty_eight_bytes(){
+        for gp in [POSTMARKETOS_GP_BASE,MAP220V_GP_BASE]{
+            let code=third_interrupt_path(gp).unwrap();
+            assert_eq!(code.len(),68);
+            assert_eq!(&code[..4],&0x4ff20022u32.to_be_bytes());
+            assert_eq!(&code[64..68],&interrupt_return().to_be_bytes());
+            let mut ref_image=vec![0;THIRD_INTERRUPT_END];
+            ref_image[EXTRA_INTERRUPTS_END..THIRD_INTERRUPT_END].copy_from_slice(&code);
+            verify_third_interrupt_path(&ref_image,gp).unwrap();
+            ref_image[0x565]^=1;
+            assert!(verify_third_interrupt_path(&ref_image,gp).unwrap_err().contains("0x565"));
+        }
     }
     #[test]fn reconstructs_two_more_paths_without_vendor_opcode_arrays() {
         let second=additional_interrupt_paths().unwrap();

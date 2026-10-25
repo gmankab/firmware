@@ -541,3 +541,37 @@ assembler, not independent authorship of those remaining inputs. Source
 completion is still far from a flashable firmware.
 
 Rust tests: 191 passed; Python: 13 passed; offline release build: passed.
+
+## Checkpoint 13 — Third independently encoded NDS32 interrupt handler
+
+The exception handler at file offsets **`[0x544,0x588)`** (68 bytes) is
+independently emitted as typed NDS32 instructions, not reference-code bytes.
+Its conditional `BR2` branches use signed halfword-relative displacements;
+its unconditional `JI` uses a signed 24-bit halfword displacement; its short
+`BEQZ38` and `BEQZS8` compare a GPR and the test register respectively.
+The two GP-relative hardware status-word loads are generated from explicit
+**SRAM addresses `0x124` and `0x128`**, not opaque encoded instructions.
+
+The two verified firmware revisions have different linker GP bases:
+`0x2d9e0` (required postmarketOS) and `0x2d7f0` (older map220v). Their
+GP-relative opcodes therefore differ, although both look up the *same*
+SRAM words and share the surrounding control flow. Each 68-byte generated
+variant matches its own original reference with **zero differences**.
+The routine ends in a checked LMW / MTUSR / LMW / `IRET` return sequence.
+Outgoing branches at `0x572` and the next routine after `0x588` remain
+unimplemented.
+
+```sh
+cargo run --offline --locked -p firmware-tools --bin novatek-nabu -- \
+  emit-nds32-third-path postmarketos /tmp/third-68.bin
+cargo run --offline --locked -p firmware-tools --bin novatek-nabu -- \
+  verify-nds32-third-path /private/postmarketos/novatek_nt36523_fw.bin postmarketos
+```
+
+This is **68 more source-authored executable bytes**, bringing the total
+validated executable coverage to **312 bytes `[0x450,0x588)`**, although the
+strict full-image builder still embeds only its previous 244-byte prefix
+until the next checkpoint. The full 196,608-byte firmware remains incomplete.
+
+Validation: 193 Rust tests, 13 Python tests, offline release build and exact
+byte checks against both private references.
