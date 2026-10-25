@@ -305,3 +305,47 @@ Agent 20-10 owns only new `cdsp_late_*` sources, its verification tool, focused 
 - This branch is still **provisional from Agent05's old CDSP checkpoint 17**,
   not from unavailable checkpoint-50-integrated history; it contains neither
   original OEM signed payload nor a hardware-tested new firmware binary.
+
+## Checkpoint 21 — lock-free CDSP atomic counter, 2,376 executable bytes
+
+- Independently constructed **84 Hexagon V66 executable bytes** at MBN file
+  `[0x56464,0x564b8)`, virtual `[0xc00c8464,0xc00c84b8)` and physical
+  `[0x96cc8464,0x96cc84b8)`, directly matching the pinned original with
+  zero byte differences. The instruction at `0x564b4` is a separate one-word
+  `jumpr LR` helper; it is included in the contiguous source-generated range.
+- Models the shared atomic-counter update through checked instructions:
+  `R3=memw(R2=0xc0363e00)`, zero/new-value forward branch, two
+  `memw_locked` compare-and-swap retry loops (`0x96cc8474`, `0x96cc84a0`),
+  signed bound checks and the indexed `R2=memw(R3<<2+0xc0363e08)` output
+  store. Branches are encoded relative to their **packet starts** rather
+  than an arbitrary instruction address. Reject unsupported registers,
+  addresses, offsets and atomic loop targets.
+- The compiler independently assembles an **88-byte semantic LLVM6 version**
+  instead of the original 84 bytes because it does not choose the compact V66
+  `R2=##addr; R3=memw(R2)` fused instruction and it changes several parse
+  markers and consequent branch displacements. **16 original instruction
+  words are unchanged** in LLVM6's output; these are checked explicitly.
+  Rizin V66 independently decodes all **21 source-generated original-order
+  instruction words** and confirms the conditional retry branch targets.
+- New source-built contiguous CDSP RWE `[0x56000,0x564b8)` = **1,208 file
+  bytes**, of which **1,176 source-reconstructed executable bytes** and
+  **32 structural layout NOP/fill**. Together with the separate complete
+  1,200-byte CDSP controller segment `[0x55000,0x554b0)`, the agent's
+  independently reconstructed executable coverage totals **2,376 bytes**.
+- All tested checks pass: offline Rust workspace tests, Python discovery,
+  workspace release build, direct pinned reference comparison, Rizin V66,
+  and independent LLVM6 fixture. To reproduce:
+
+  ```sh
+  cargo run --offline --locked -p firmware-tools --bin cdsp-late-atomic-counter -- verify /private/cdsp.mbn
+  cargo run --offline --locked -p firmware-tools --bin cdsp-late-atomic-counter -- verify-prefix /private/cdsp.mbn
+  python3 tools/verify-agent20-10-cdsp-atomic-counter.py \
+      --llvm-mc /private/llvm6/bin/llvm-mc --rz-asm /private/rz-asm \
+      --generated /private/atomic-counter-84.bin --prefix /private/cdsp-rwe-1208.bin \
+      --reference /private/cdsp.mbn
+  ```
+
+- **Next unimplemented function starts at CDSP file `0x564b8`**, physical
+  `0x96cc84b8`. This work remains provisional on Agent05's older CDSP base;
+  no original vendor ELF/authentication bytes are embedded or OEM signing
+  asserted.
