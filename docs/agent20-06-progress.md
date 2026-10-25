@@ -177,3 +177,12 @@ python3 tools/agent20_06_a32_roundtrip.py /private/venus.mbn 0xa8ea0 0xa92c8 \
 - Implemented codec channel buffer retirement/clear, mode-specific controller register encoding and per-channel output buffer publishing. At `0xae2f0` the conditional `ANDEQ` is real instruction, not assumed zero data. Original final returns at `0xae104`, `0xae588`, `0xae644`, `0xae740`.
 - Independently verified by Clang/LLVM with `--data-range 0xae58c:0xae590` and `--data-range 0xae744:0xae748`; **zero mismatches**. Literal pool regression tests include the new pools.
 - Rust and Python suites pass. Offline release-build status tracked separately. Next uncovered ARM address `0xae748` (MBN file `0xb2748`). No high-level behavioral equivalence, OEM signing, or checkpoint-50 integration claimed.
+
+## Checkpoint 19 — codec stream-event dispatch with table and diagnostics
+
+- Cumulative exact source-generated runtime `[0xa8000,0xaf290)` = **29,328 byte-identical bytes**, reference MBN `[0xac000,0xb3290)`.
+- New interval `[0xae748,0xaf290)` = 2,888 bytes: **664 ARM32 instructions (2,656 bytes)**, **41 handler-address words (164 bytes)** at `[0xae984,0xaea28)` and **17 diagnostic/control data words (68 bytes)** at `[0xaf24c,0xaf290)`.
+- Implements the codec stream-event scheduling paths, callback validation, command queue, hardware status responses and a 41-target dispatch table containing repeated target addresses that must not be interpreted as executable opcodes.
+- Independent LLVM/Clang reassembly exactly reproduced all instruction/data words; explicit `--data-range 0xae984:0xaea28 --data-range 0xaf24c:0xaf290` flags were required.
+- Added an independent Rust regression checking legal dispatch destinations, frequency of repeated branch targets and selected non-code diagnostic values.
+- Rust/Python test suites pass. Next uncovered runtime address `0xaf290` (file `0xb3290`), a separate short controller helper. This remains provisional old-base instruction-level reconstruction, not independently signed or hardware-validated firmware.
