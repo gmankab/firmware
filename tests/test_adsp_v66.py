@@ -1,0 +1,73 @@
+# SPDX-License-Identifier: GPL-3.0-only
+"""Typed Hexagon V66 control-register encoder regression tests."""
+from __future__ import annotations
+
+import importlib.util
+import os
+from pathlib import Path
+import struct
+import sys
+import unittest
+
+ROOT = Path(__file__).resolve().parents[1]
+ENCODER = ROOT / "tools" / "adsp_hexagon_v66.py"
+spec = importlib.util.spec_from_file_location("adsp_v66", ENCODER)
+assert spec and spec.loader
+v66 = importlib.util.module_from_spec(spec)
+sys.modules[spec.name] = v66
+spec.loader.exec_module(v66)
+REFERENCE = os.environ.get("NABU_ADSP_REFERENCE")
+
+
+class V66BootstrapTests(unittest.TestCase):
+    def test_register_encodings_distinguish_source_and_destination(self) -> None:
+        syscfg = v66.SystemRegister.SYSCFG
+        self.assertEqual(v66.read_system_register(0, syscfg), 0x6E92C000)
+        self.assertEqual(v66.read_system_register(15, syscfg), 0x6E92C00F)
+        self.assertEqual(v66.write_system_register(syscfg, 0), 0x6700C012)
+        self.assertEqual(v66.write_system_register(syscfg, 15), 0x670FC012)
+
+    def test_disallow_bad_reg_and_bit_ranges(self) -> None:
+        for invalid in (-1, 32, 999, "r0"):
+            with self.subTest(register=invalid):
+                with self.assertRaises(v66.HexagonEncodingError):
+                    v66.read_system_register(invalid, v66.SystemRegister.SSR)
+        for invalid in (-1, 32, 2.5):
+            with self.subTest(bit=invalid):
+                with self.assertRaises(v66.HexagonEncodingError):
+                    v66.set_bit(0, 0, invalid)
+
+    def test_near_jump_alignment_and_range(self) -> None:
+        self.assertEqual(v66.jump_near(0x40, 0x63c), 0x5800C2FE)
+        with self.assertRaises(v66.HexagonEncodingError):
+            v66.jump_near(0x40, 0x643)
+        with self.assertRaises(v66.HexagonEncodingError):
+            v66.jump_near(0x800, 0x200)
+        with self.assertRaises(v66.HexagonEncodingError):
+            v66.jump_near(0, 0x2000)
+
+    def test_all_v66_boot_ops_terminate_hexagon_packets(self) -> None:
+        code = v66.boot_special_code()
+        self.assertEqual(len(code), 32)
+        # 0b11 parse bits are a single-instruction terminating packet.
+        for word in struct.unpack("<8I", code):
+            self.assertEqual((word >> 14) & 3, 3)
+
+    @unittest.skipUnless(REFERENCE, "ADSP reference required")
+    def test_instructions_match_two_independent_adsp_call_sites(self) -> None:
+        original = Path(REFERENCE).read_bytes()
+        self.assertEqual(
+            v66.boot_special_code(), original[0x3024:0x3044]
+        )
+        self.assertEqual(
+            v66.read_system_register(15, v66.SystemRegister.SYSCFG),
+            struct.unpack_from("<I", original, 0x46A0)[0]
+        )
+        self.assertEqual(
+            v66.write_system_register(v66.SystemRegister.SYSCFG, 15),
+            struct.unpack_from("<I", original, 0x46A8)[0]
+        )
+
+
+if __name__ == "__main__":
+    unittest.main()

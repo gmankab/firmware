@@ -119,6 +119,20 @@ class ADSPBootstrapTests(unittest.TestCase):
 
     @unittest.skipUnless(LLVM_MC and REFERENCE,
                          "Hexagon assembler and exact Nabu ADSP reference required")
+    def test_combined_v66_boot_prefix(self) -> None:
+        # The first nine instructions are compiled by LLVM; the following
+        # system/cache operations use checked, typed V66 encoders.
+        sys.path.insert(0, str(ROOT / "tools"))
+        try:
+            from adsp_hexagon_v66 import boot_special_code
+            generated = adsp.assemble(LLVM_MC) + boot_special_code()
+        finally:
+            sys.path.pop(0)
+        self.assertEqual(len(generated), 68)
+        adsp.verify_reference(generated, Path(REFERENCE).read_bytes(), 0x3000)
+
+    @unittest.skipUnless(LLVM_MC and REFERENCE,
+                         "Hexagon assembler and exact Nabu ADSP reference required")
     def test_match_original_and_reject_altered_entry(self) -> None:
         expected = adsp.assemble(LLVM_MC)
         original = Path(REFERENCE).read_bytes()

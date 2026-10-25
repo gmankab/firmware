@@ -27,6 +27,7 @@ ASM_SOURCE = pathlib.Path(__file__).with_name("adsp-boot-vectors.S")
 CONTROLLER_SOURCE = pathlib.Path(__file__).with_name("adsp-counter-controller.S")
 FRAGMENTS = {
     "vectors": (ASM_SOURCE, OEM_FILE_OFFSET, GENERATED_LENGTH),
+    "boot-prefix": (ASM_SOURCE, OEM_FILE_OFFSET, 0x44),
     "counter-controller": (CONTROLLER_SOURCE, 0x41e0, 0x4c0),
 }
 
@@ -195,7 +196,17 @@ def run(argv: list[str] | None = None) -> int:
     args = ap.parse_args(argv)
     try:
         source, file_offset, expected_length = FRAGMENTS[args.segment]
-        out = assemble(args.llvm_mc, args.source or source, expected_length)
+        if args.segment == "boot-prefix":
+            # LLVM6 cannot assemble all V66 system instructions. Combine
+            # source-assembled v65/v66 common instructions with checked
+            # field-level V66 encodings, never with reference-derived bytes.
+            from adsp_hexagon_v66 import boot_special_code
+            out = assemble(args.llvm_mc, args.source or source,
+                           GENERATED_LENGTH) + boot_special_code()
+            if len(out) != expected_length:
+                raise AdspError("Invalid combined ADSP boot-prefix size")
+        else:
+            out = assemble(args.llvm_mc, args.source or source, expected_length)
         if args.reference:
             verify_reference(out, args.reference.read_bytes(), file_offset)
         args.output.write_bytes(out)
