@@ -352,3 +352,9 @@ Original reference: private `map220v-nabu-firmware/venus.mbn`, SHA-256 `9d4af65d
 - Contiguous A32 region `[0x21c78,0x2ec94)` = **53,276 exact bytes**, new `[0x2ebbc,0x2ec94)` = **216 bytes** comprised of **50 instructions** and **4 named data words**.
 - Rebuilds a controller message publisher and 64-bit event sequence update with architecturally typed `LDRD`, `ADDS`, checked `ADC #0` and `STRD` instructions. Four literal address words `[0x2ec84,0x2ec94)` remain separate from executable instructions.
 - The next original routine has a nonstandard single `SUB SP,SP,#8` at `0x2ec94` preceding its `PUSH`, and must retain that prologue intact. No borrowed opaque instruction bytes, no OEM-authenticated output claimed.
+
+## Checkpoint 53 — controller stream event monitor
+
+- Source-generated `[0x21c78,0x2efc0)` = **54,088 exact bytes**, newly added `[0x2ec94,0x2efc0)` = **812 bytes**: **187 A32 instructions** and **16 data words**.
+- Original function starts at `0x2ec94` with an 8-byte stack reservation before its saved-register frame, monitors active source classes and emits diagnostic records. The separate 16-word data pool `[0x2ef78,0x2efb8)` is followed by two code words leading into the next function at `0x2efc0`.
+- First missing code after this checkpoint begins at `0x2efc0`; referential equivalence is not device execution or a new OEM signature.
