@@ -175,3 +175,11 @@
 - New standalone `tools/verify-agent20-09-maintenance.py`, CLI `emit-maintenance`, and cumulative supervisor generator/verifier now include `[0x4500,0x4b1c)`.
 - Cumulative independent executable code is **2,132 bytes**, `[0x41e0,0x4418)` = 568 and `[0x4500,0x4b1c)` = 1,564. ELF linker zeros `[0x4418,0x4500)` = **232 bytes excluded** from executable/source count.
 - First uncovered executable instruction begins file `0x4b1c` (physical `0x96c01b1c`), entry of the next variable-width memory-dispatch routine. Branch remains based on verified Agent 05, **not** checkpoint 50.
+
+## Checkpoint 21 — four-width predicated memory dispatch through `0x4b70`
+
+- The first **84 bytes** of a variable-width, table-indirected memory-dispatch function, file `[0x4b1c,0x4b70)` and physical `[0x96c01b1c,0x96c01b70)`, are independently source-encoded and byte-identical to pinned `cdsp.mbn`.
+- Reconstructed `P0=cmp.gtu(R5,#3)` with `.new` forward skip, an absolute indexed jump-table load `R7=memw(R5<<2+##0xfe026dc8)`, `jumpr R7`, the Hexagon duplex `R0=-1;jumpr LR`, and five predicated memory-copy variants (byte, halfword, word, doubleword x8 and doubleword x16). The encoded P0/P1 register, width, postincrement and offset fields are checked and reject unsupported variants.
+- **Independent full comparison:** LLVM6 Hexagon assembler accepts a semantically equivalent packet source and emits exactly the same **21/21 instruction words (84 bytes)**; V66 Rizin independently decodes all 21 words at correct physical addresses. This is stronger evidence than opcode-family-only corroboration, but still not a C-level decompilation or hardware validation.
+- The memory-dispatch function **continues at `0x4b70`** into a cache-line-zeroing loop. This checkpoint does not invent a return or vendor-code padding.
+- Cumulative CDSP source-generated executable `[0x41e0,0x4418)` = **568** and `[0x4500,0x4b70)` = **1,648** = **2,216 bytes**; 232 ELF alignment bytes excluded. Still a portable Agent 05-parented branch, not checkpoint-50 history.
