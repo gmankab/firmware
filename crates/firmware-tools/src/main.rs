@@ -298,6 +298,30 @@ fn run() -> Result<(), Box<dyn Error>> {
         println!("Generated {} bytes of metadata-only ELF header for {} (NOT firmware)", 4096, spec.name);
         return Ok(());
     }
+    if args.len() == 3 && args[0] == "audit-elf-coverage" {
+        let spec = KNOWN_ELFS.iter().find(|x| x.name == args[1])
+            .ok_or("unknown ELF32 firmware filename")?;
+        let original = fs::read(&args[2])?;
+        let report = firmware_tools::elf_file_coverage::compare_known_first_page(spec, &original)?;
+        let sha = firmware_tools::qcom_mbn_validation::verify_elf32_mbnv6_hashes(&original)?;
+        println!("{}: {} file bytes; {} / {} independently generated ELF header bytes; {} unimplemented file bytes.",
+            spec.name, report.file_size, report.coverage.generated_bytes,
+            report.file_size, report.coverage.missing_bytes);
+        println!("ELF: {} program headers, {} unique file-backed segment bytes, {} *memory-only* (BSS) bytes.",
+            report.program_header_count, report.file_segment_bytes,
+            report.zero_fill_memory_bytes);
+        println!("Hash segment 0x{:x}..0x{:x}; {} checked segment hashes; signer material is not generated.",
+            report.authentication_file_range.start, report.authentication_file_range.end,
+            sha.hashed_count);
+        for (i, range) in report.executable_file_ranges.iter().enumerate() {
+            println!("  executable[{i}] file 0x{:x}..0x{:x} ({} bytes; outside this header-only report)",
+                range.start, range.end, range.len());
+        }
+        println!("  FIRST MISSING FILE BYTES: 0x{:x}..0x{:x} (no implicit padding or BSS synthesis).",
+            report.coverage.holes[0].start, report.coverage.holes[0].end);
+        println!("INTEGRITY ONLY; OEM signature, embedded root and hardware trust are independent checks.");
+        return Ok(());
+    }
     if args.len() == 3 && args[0] == "verify-elf-prefix" {
         let spec = KNOWN_ELFS.iter().find(|x| x.name == args[1])
             .ok_or("unknown ELF32 firmware filename")?;
@@ -316,7 +340,7 @@ fn run() -> Result<(), Box<dyn Error>> {
             OR verify-mbnv6-hashes ORIGINAL_MBN \
             OR <rebuild-modemuw|verify-modemuw|inspect-elf32|inspect-image> PATH \
             OR make-ghidra-bootstrap ORIGINAL OUTPUT-ANALYSIS-ONLY \
-            OR rebuild-elf-prefix NAME OUTPUT OR verify-elf-prefix NAME ORIGINAL \
+            OR rebuild-elf-prefix NAME OUTPUT OR verify-elf-prefix NAME ORIGINAL             OR audit-elf-coverage NAME ORIGINAL \
             OR extract-a640-isa ORIGINAL_MBN OUTDIR OR verify-a640-isa-fields ORIGINAL_MBN".into());
     }
     let target = PathBuf::from(&args[1]);
