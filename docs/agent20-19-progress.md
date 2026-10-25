@@ -262,3 +262,52 @@ This portable, older-base branch still requires Integration Agent 01's real
 checkpoint-50-rooted merge and full firmware-wide verification. Original OEM
 payload bytes, certificates and keys are not present in Git or checkpoint
 artifacts, and none of these results establish full device behavior.
+
+## Checkpoint 05 — Narrow-table schedule links with byte-level flag separation
+
+The NDS32 table consumer described in checkpoint 01 resolves the schedule
+runtime pointer from a 32-bit descriptor word at relative record offset
+`+0x50`, masking it with `0x7fff`, multiplying by four and adding DLM SRAM
+base `0x20000`. Four 0x8c-byte records per bank beginning at file
+`0x25230` and `0x29230` point to the narrow packed schedules at `0x25d4c`
+and `0x29d4c` respectively. The derived word indices are `0x0f53` and
+`0x1f53`.
+
+The first two descriptor records per bank store the **unflagged** low 16 bits
+of the pointer. The last two records in each bank store the index with bit 15
+set. No consumer currently proves the meaning or original source of that
+selector flag, so **only the lowest byte** of those four flagged records is
+claimed as independently authored. The original second bytes are `0x8f`
+and `0x9f`, not identical to the semantic index's `0x0f` and `0x1f`;
+copying those unknown bytes or crediting them as derived source would be
+incorrect. The upper 16 bits of each enclosing word remain external too.
+
+| New owned file intervals | Known bytes | Unknown bits/bytes retained |
+|---|---:|---|
+| `[0x25280,0x25282)`, `[0x2530c,0x2530e)` | 4 | upper halfwords |
+| `[0x25398,0x25399)`, `[0x25424,0x25425)` | 2 | selector flag and upper halfwords |
+| `[0x29280,0x29282)`, `[0x2930c,0x2930e)` | 4 | upper halfwords |
+| `[0x29398,0x29399)`, `[0x29424,0x29425)` | 2 | selector flag and upper halfwords |
+| **Total** | **12 independently generated data bytes** | all unresolved bytes remain unknown |
+
+The Rust generator and independent Python construction both produce the
+same eight non-overlapping fragment extents from schedule addresses, without
+reading any original descriptor bytes. The pinned reference matches all 12
+new bytes exactly. The first DLM unknown byte is still `0x22000`.
+
+| Updated provenance category | Bytes |
+|---|---:|
+| Agent 19 source-authored DLM data | **9,340** |
+| Unknown DLM | **40,212** |
+| Unique independently generated image bytes, including prior envelope/ILM | **45,014** |
+| External metadata and vectors | 1,024 |
+| Unreconstructed ILM (Agents 17/18) | 108,054 |
+| Derived DLM mirror (dependent, not new source bytes) | 2,304 |
+| Reference-dependent bank translation (0 new source bytes) | 2,940 verified |
+| Source-authored executable bytes added by Agent 19 | **0** |
+
+Both 12 CRC fields and dependent mirror remain checked. The independent
+verification does not upgrade the unproven flag or any copied descriptor
+payload. This remains a portable older-base contribution from parent
+`941c805f8510c88344133687a77722ace386504e`, not a checkpoint-50
+integrated or flashable firmware.

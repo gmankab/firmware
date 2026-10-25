@@ -176,6 +176,17 @@ def generated_fragments():
         for record in range(17):
             fragments.append((descriptor_start+0x50+record*0x8c,
                              "wide-schedule-word-link",struct.pack("<H",offset//4)))
+    for descriptor_start, schedule_start in ((0x25230,0x25d4c),(0x29230,0x29d4c)):
+        # The NDS32 consumer masks bit 15, so it proves the lower 15-bit
+        # index, not the original selector flag. In records 2 and 3, the
+        # flag occupies the same second byte and MUST remain unclaimed.
+        idx=(schedule_start-DLM_START)//4
+        assert 0<=idx<=0x7fff and schedule_start%4==0
+        encoded=struct.pack("<H",idx)
+        for record in range(4):
+            known=encoded if record<2 else encoded[:1]
+            fragments.append((descriptor_start+0x50+record*0x8c,
+                              "narrow-schedule-word-link", known))
     fragments.sort()
     cursor = DLM_START
     for start, _, data in fragments:
@@ -268,11 +279,11 @@ def fragment_metadata(fragment):
 
 EXPECTED_COUNTS = {
     "source_layout_bytes": 35136, "prior_source_executable_bytes": 538,
-    "new_executable_bytes": 0, "source_dlm_data_bytes": 9328,
+    "new_executable_bytes": 0, "source_dlm_data_bytes": 9340,
     "external_metadata_bytes": 1024, "unknown_ilm_bytes": 108054,
-    "unknown_dlm_bytes": 40224, "derived_mirror_bytes": 2304,
+    "unknown_dlm_bytes": 40212, "derived_mirror_bytes": 2304,
     "mirror_from_source_bytes": 648, "mirror_from_external_bytes": 1656,
-    "independent_unique_bytes": 45002, "total_bytes": 196608,
+    "independent_unique_bytes": 45014, "total_bytes": 196608,
     "first_unknown_dlm": DLM_START, "crc_stored_fields_checked": 0,
 }
 
