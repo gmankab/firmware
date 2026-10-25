@@ -164,6 +164,40 @@ pub struct SourceCoverage {
     pub hashes_generated: bool,
 }
 
+/// State of one ELF program-header SHA-384 hash entry. The MBN hash table
+/// has one fixed-size entry per program header; its own hash/auth segment and
+/// zero-file-size entries are zero placeholders by convention.
+///
+/// A ready entry is hashed only from independently generated plan bytes. A
+/// pending entry reports the first still-unknown span and total missing file
+/// bytes; it never reads reference firmware to fill the gap.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum SegmentHashStatus {
+    ZeroPlaceholder,
+    Ready { sha384: [u8; 48] },
+    Pending { first_missing: Range<usize>, missing_bytes: usize },
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SegmentHashEntry {
+    pub segment_index: usize,
+    pub segment_kind: u32,
+    pub file_range: Range<usize>,
+    pub status: SegmentHashStatus,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PartialSegmentHashReport {
+    pub entries: Vec<SegmentHashEntry>,
+    pub ready_entries: usize,
+    pub ready_hashed_bytes: usize,
+    pub pending_entries: usize,
+    pub zero_placeholders: usize,
+    /// Hashes are complete only when every non-placeholder input is ready.
+    /// This property is distinct from the source-image auth/metadata holes.
+    pub all_input_hashes_ready: bool,
+}
+
 /// A stricter fragment-oriented companion to `MbnSourceBuilder`.
 ///
 /// Metadata uses the six known Nabu policies from the existing builder.
@@ -325,6 +359,55 @@ impl<'a> MbnSourceSlices<'a> {
         self.check_padding_span(&span)?;
         self.check_source_span(segment_index, span.start, span.len(), ProvenanceKind::LayoutFill)?;
         self.place_padding(name, span, Some(segment_index))
+    }
+
+    /// Report which ELF SHA-384 entries can be computed **now** from source,
+    /// without requiring the entire MBN image to be complete. This is useful
+    /// during multi-agent integrations: a complete code/data segment can be
+    /// independently hashed even while other segments contain missing bytes.
+    ///
+    /// Hash readiness is distinct from `generate_hashes`, which correctly
+    /// still refuses to publish the final SHA-384 table while any non-auth
+    /// file byte remains unimplemented. A reference-free digest does not
+    /// establish byte equality with a vendor firmware revision; compare each
+    /// ready digest against a pinned reference independently.
+    pub fn partial_segment_hashes(&self) -> Result<PartialSegmentHashReport, String> {
+        let mut entries = Vec::with_capacity(self.spec.headers.len());
+        let holes = self.plan.holes();
+        let mut ready_entries = 0;
+        let mut ready_hashed_bytes = 0usize;
+        let mut pending_entries = 0;
+        let mut zero_placeholders = 0;
+        for (segment_index, ph) in self.spec.headers.iter().enumerate() {
+            let file_range = checked_file_range(ph.offset, ph.filesz)?;
+            let status = if segment_index == self.hash_segment_index || ph.filesz == 0 {
+                zero_placeholders += 1;
+                SegmentHashStatus::ZeroPlaceholder
+            } else {
+                let missing = intersections(&file_range, &holes);
+                if let Some(first_missing) = missing.first() {
+                    pending_entries += 1;
+                    SegmentHashStatus::Pending {
+                        first_missing: first_missing.clone(),
+                        missing_bytes: missing.iter().map(|range| range.len()).sum(),
+                    }
+                } else {
+                    // Never hash a borrowed authentication byte. The checked
+                    // constructor forbids such overlaps today, but the slice
+                    // accessor is a second guard against future regressions.
+                    let payload = self.plan.generated_slice(file_range.clone())?;
+                    ready_entries += 1;
+                    ready_hashed_bytes += payload.len();
+                    SegmentHashStatus::Ready { sha384: crate::sha384::digest(&payload) }
+                }
+            };
+            entries.push(SegmentHashEntry {
+                segment_index, segment_kind: ph.kind, file_range, status,
+            });
+        }
+        Ok(PartialSegmentHashReport { entries, ready_entries,
+            ready_hashed_bytes, pending_entries, zero_placeholders,
+            all_input_hashes_ready: pending_entries == 0 })
     }
 
     /// Compute the hash table only after every hashed input and every other
@@ -603,6 +686,63 @@ mod tests {
         p.add_alignment_padding("4 KiB executable alignment", 0x2a38, 4096).unwrap();
         p.generate_hashes().unwrap();
         p
+    }
+
+    #[test]
+    fn partial_segment_hashes_respect_source_only_segments_and_placeholders() {
+        let mut p = plan();
+        let report = p.partial_segment_hashes().unwrap();
+        assert_eq!(report.entries.len(), 3);
+        assert_eq!(report.ready_entries, 1); // exact source-only ELF first page
+        assert_eq!(report.ready_hashed_bytes, 148);
+        assert_eq!(report.zero_placeholders, 1); // MBN hashes/auth is excluded
+        assert_eq!(report.pending_entries, 1);
+        assert!(!report.all_input_hashes_ready);
+        assert!(matches!(report.entries[0].status, SegmentHashStatus::Ready { .. }));
+        assert_eq!(report.entries[1].status, SegmentHashStatus::ZeroPlaceholder);
+        assert_eq!(report.entries[2].status, SegmentHashStatus::Pending {
+            first_missing: 0x3000..0x37b0, missing_bytes: 0x7b0,
+        });
+        let code = executable();
+        p.add_source_slice(slice("first fragment", 0x3000, &code[..0x100])).unwrap();
+        p.add_source_slice(slice("last fragment", 0x37ac, &code[0x7ac..])).unwrap();
+        let partial = p.partial_segment_hashes().unwrap();
+        assert_eq!(partial.entries[2].status, SegmentHashStatus::Pending {
+            first_missing: 0x3100..0x37ac, missing_bytes: 0x6ac,
+        });
+        // Hash publication remains fail-closed even when one input is ready.
+        assert!(p.generate_hashes().is_err());
+        p.add_source_slice(slice("middle fragment", 0x3100, &code[0x100..0x7ac])).unwrap();
+        let done = p.partial_segment_hashes().unwrap();
+        assert!(done.all_input_hashes_ready);
+        assert_eq!(done.ready_entries, 2);
+        assert_eq!(done.ready_hashed_bytes, 148 + code.len());
+        assert_eq!(done.entries[2].status, SegmentHashStatus::Ready {
+            sha384: crate::sha384::digest(&code),
+        });
+        // Image still has unsigned layout gaps until padded explicitly.
+        assert!(p.generate_hashes().is_err());
+    }
+
+    #[test]
+    fn partial_segment_hashes_report_all_nabu_elf_program_headers() {
+        for spec in KNOWN_ELFS {
+            let file_size = spec.headers.iter().filter(|p| p.filesz != 0)
+                .map(|p| p.offset as usize + p.filesz as usize).max().unwrap();
+            let p = MbnSourceSlices::new(spec, file_size).unwrap();
+            let report = p.partial_segment_hashes().unwrap();
+            assert_eq!(report.entries.len(), spec.headers.len(), "{}", spec.name);
+            assert_eq!(report.ready_entries, 1, "{}", spec.name);
+            assert_eq!(report.ready_hashed_bytes, spec.headers[0].filesz as usize, "{}", spec.name);
+            assert_eq!(report.entries[0].file_range.start, 0, "{}", spec.name);
+            assert!(report.pending_entries > 0, "{}", spec.name);
+            assert_eq!(report.entries.iter().filter(|entry|
+                matches!(entry.status, SegmentHashStatus::ZeroPlaceholder)).count(),
+                report.zero_placeholders);
+            assert!(report.entries.iter().all(|entry|
+                entry.file_range.is_empty() || entry.file_range.end <= file_size
+                || matches!(entry.status, SegmentHashStatus::ZeroPlaceholder)));
+        }
     }
 
     #[test]
