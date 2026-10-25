@@ -268,3 +268,9 @@ Original reference: private `map220v-nabu-firmware/venus.mbn`, SHA-256 `9d4af65d
 - Dispatcher has a nine-way branch table `[0x2ab50,0x2ab74)` with repeated route targets, plus 33 separate MMIO pointers, diagnostic addresses and controller state words `[0x2b0b8,0x2b13c)`.
 - Handles command messages, controller synchronization, callback/clock state transitions and error reporting. This is typed instruction-level re-encoding only; no claim of independent source-language equivalence, OEM authentication or hardware execution.
 - Next missing code starts `0x2b13c`.
+
+## Checkpoint 38 — MMIO configuration and service message checks
+
+- Continuous typed A32 `[0x21c78,0x2b304)` = **38,540 exact bytes** (MBN `[0x25c78,0x2f304)`). The additional `[0x2b13c,0x2b304)` is **456 bytes**, **105 instructions and nine data words**.
+- Three compact routines configure the codec IRQ/MMIO bank and validate service commands with explicit error branches. MMIO constant pools at `[0x2b174,0x2b178)` and `[0x2b1c4,0x2b1cc)` and the six-word diagnostic table at `[0x2b2ec,0x2b304)` are deliberately excluded from executable instruction count.
+- Next routine begins at `0x2b304`. This is instruction-level byte identity, not source-language behavioral proof or a signed firmware.
