@@ -132,3 +132,13 @@ python3 tools/agent20_06_a32_roundtrip.py /private/venus.mbn 0xa8ea0 0xa92c8 \
 - First routine dispatches codec events via a logger tail-branch; second programs multiple codec register streams and handles mode-specific diagnostics and fallback branches. The original main return is `pop {...,pc}` at `0xac5ec`; extended alternative paths occupy `0xac5f0–0xac72c`.
 - Added checked `arm32::load_signed_halfword_register` (A32 LDRSH unshifted register offset), with opcode and PC-rejection tests. Independent Clang/LLVM ARM assembler matched 3,224 instruction bytes plus 56 classified data bytes exactly.
 - 192 offline Rust tests, 13 Python tests, and full release build all passed. Next uncovered VMA `0xac750` (original file `0xb0750`), a new ARM32 function. Checkpoint remains provisional relative to inaccessible checkpoint-50 integration branch.
+
+## Checkpoint 14 — frame release and scaled codec allocator
+
+- Contiguous byte-identical ARM runtime `[0xa8000,0xace00)` = **19,968 bytes**, MBN file offsets `[0xac000,0xb0e00)`. The prior 18,256 bytes remain unchanged.
+- Newly reconstructed `[0xac750,0xace00)` = 1,712 bytes, comprising **425 ARM32 instructions** (1,700 bytes) and three trailing diagnostic-address words (12 bytes) at `[0xac9e4,0xac9f0)`.
+- First complete function `[0xac750,0xac9f0)` serializes codec session release, input dimensions, callback release, and diagnostic reporting. The second, larger codec allocator begins at `0xac9f0` and remains incomplete at `0xace00`.
+- Added a checked ARM32 `UMULL`/`SMULL` encoder with explicit low/high destinations and PC/alias rejection, unit-tested against the reference instruction encodings.
+- Independent Clang/LLVM round-trip verified `[0xac750,0xace00)` using `tools/agent20_06_a32_roundtrip.py` with `--data-range 0xac9e4:0xac9f0`, **zero byte differences**.
+- No original OEM opcode blobs are embedded; this is byte-identical **instruction-level** re-encoding and not a high-level source reimplementation, hardware test, newly signed MBN, or completed assigned tail.
+- Next uncovered ARM runtime address `0xace00`, original MBN offset `0xb0e00`.
