@@ -73,20 +73,22 @@ class ADSPBootstrapTests(unittest.TestCase):
         self.assertIn("primary_mode:", source)
         self.assertIn("fallback_mode:", source)
         self.assertIn("memw(r0+#0) = ##0x20485699", source)
+        self.assertIn("dcinva(r7)", source)
+        self.assertIn("barrier", source)
         self.assertNotIn(".word", source)
         self.assertNotIn(".incbin", source)
 
     @unittest.skipUnless(LLVM_MC, "Hexagon-capable llvm-mc unavailable")
     def test_controller_compiles_without_unresolved_relocations(self) -> None:
-        generated = adsp.assemble(LLVM_MC, adsp.CONTROLLER_SOURCE, 0x270)
-        self.assertEqual(len(generated), 0x270)
+        generated = adsp.assemble(LLVM_MC, adsp.CONTROLLER_SOURCE, 0x368)
+        self.assertEqual(len(generated), 0x368)
         self.assertEqual(generated[0x34:0x38], bytes.fromhex("00c08d52"))
         self.assertNotEqual(generated[0x74:0x78], generated[0x120:0x124])
 
     @unittest.skipUnless(LLVM_MC and REFERENCE,
                          "Hexagon assembler and exact Nabu ADSP reference required")
     def test_controller_is_byte_identical_to_original(self) -> None:
-        generated = adsp.assemble(LLVM_MC, adsp.CONTROLLER_SOURCE, 0x270)
+        generated = adsp.assemble(LLVM_MC, adsp.CONTROLLER_SOURCE, 0x368)
         original = Path(REFERENCE).read_bytes()
         adsp.verify_reference(generated, original, 0x4218)
         mutated = bytearray(generated)

@@ -126,3 +126,82 @@ fallback_mode:
 { memw(r0+#0) = ##0xd0 }
 
 controller_done:
+
+
+// Device MMIO configuration, mask updates, cache invalidation and
+// post-initialization polling. Continued from controller_done above.
+config_device:
+{ barrier }
+{
+    r0 = ##0x17300204
+    r1 = r14
+}
+{ memw(r0+#0)=r1 }
+{ barrier }
+{ r0 = ##0x17300208 }
+{ r1 = r15 }
+{ memw(r0+#0)=r1 }
+{ barrier }
+{ r0 = ##0x17300200 }
+{
+  r7 = r0
+  r5.h = #0
+}
+{ r5.l = #1 }
+{
+  r5 = sub(#-1,r5)
+  r4 = memw(r0+#0)
+}
+{ r4 = and(r4,r5) }
+{ memw(r0+#0) = r4 }
+{ barrier }
+{ r0 = ##0x17300238 }
+{
+  r7 = r0
+  r5.h = #0
+}
+{ r5.l = #7 }
+{
+  r5 = sub(#-1,r5)
+  r4 = memw(r0+#0)
+}
+{ r4 = and(r4,r5) }
+{ memw(r0+#0) = r4 }
+{ barrier }
+{ r0 = ##0x17300200 }
+{
+  r7 = r0
+  r5.h = #0
+}
+{
+  r5.l = #4
+  dcinva(r7)
+}
+{
+  r6 = sub(#-1,r5)
+  r4 = memw(r0+#0)
+}
+{ r4 = and(r4,r6) }
+{ r4 = or(r4,r5) }
+{ memw(r0+#0) = r4 }
+{ barrier }
+{ r0 = ##0x17300238 }
+{ r1 = memw(r0+#0) }
+{ r2 = ##1 }
+{ r1 = or(r1,r2) }
+{ memw(r0+#0) = r1 }
+{ barrier }
+
+{ r4 = ##0x17300200 }
+{ r2 = ##-0x80000000 }
+poll_other_controller:
+{ r0 = ##0xc0 }
+{ r13 = add(PC,#8) }
+{ jump counter_helper }
+{ r1 = memw(r4+#0) }
+{ r3 = and(r1,r2) }
+{
+  p0 = cmp.eq(r2,r3)
+  if (!p0.new) jump:t poll_other_controller
+}
+.set counter_helper, config_device - 0x270
