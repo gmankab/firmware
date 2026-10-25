@@ -473,6 +473,16 @@
       "sha256": "f4666cffb7b9d87a8891a7573c3a173ab65793056ae177d0b70d09a18be351de",
       "checkpoint": 11,
       "classification": "executable"
+    },
+    {
+      "name": "counted-frame-prepare",
+      "file_start": 1059496,
+      "file_end": 1060048,
+      "source": "sources/xiaomi-nabu/wlanmdsp/agent14-late-counted-frame-prepare.S",
+      "symbol": "agent14_late_counted_frame_prepare",
+      "sha256": "688162ee7314e0dd50ae602d64e281c70b7182fb070ed23c2d6707710a0e4cd1",
+      "checkpoint": 12,
+      "classification": "executable"
     }
   ]
 }

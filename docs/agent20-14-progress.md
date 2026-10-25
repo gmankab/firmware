@@ -1,10 +1,10 @@
 # Agent 20-14 — WLAN late Hexagon reconstruction
 
-Latest checkpoint: **11**, with **10,468 contiguous executable bytes**
-and **496 independently generated dispatch-table data bytes**, for **10,964**
-source-derived bytes in disjoint intervals. Checkpoint 11 adds **648**
-Hexagon instruction bytes across two adjacent complete functions at
-`[0x102820,0x102aa8)`. The next function begins at `0x102aa8`. The
+Latest checkpoint: **12**, with **11,020 contiguous executable bytes**
+and **496 independently generated dispatch-table data bytes**, for **11,516**
+source-derived bytes in disjoint intervals. Checkpoint 12 adds **552**
+Hexagon instruction bytes for one complete function at
+`[0x102aa8,0x102cd0)`. The next function begins at `0x102cd0`. The
 Agent 13 leading seam `[0x100000,0x1001c4)` remains unimplemented here.
 
 ## Assignment and provenance
@@ -690,3 +690,28 @@ These checks establish Hexagon instruction *encoding* equivalence, not
 source-level semantic identity or device execution. The leading Agent 13
 452-byte seam `[0x100000,0x1001c4)` remains unimplemented. The next function
 starts at file `0x102aa8`; the remaining exclusive allocation remains large.
+
+
+## Checkpoint 12 — counted frame preparation
+
+The complete 552-byte routine at `[0x102aa8,0x102cd0)` reads the current
+frame and counted descriptor, validates controller replies and count/type
+fields, copies selected six-byte hardware address fields and dispatches
+request packet completion. Explicit Hexagon packet source is assembled from
+mnemonics and local labels (no OEM opcode arrays). The far `jump ##1977576`
+needs its extension word and the `r21 = #0x6; r2 = #0x6; r1 = r21`
+source order preserves the original two-word packet; changing either
+produces a different reference binary.
+
+LLVM 22.1.8 V66 and independent LLVM 6.0.1 V65 produce **identical 552 bytes**,
+with zero mismatches against pinned `wlanmdsp.mbn`. The complete contiguous
+emitted source is 11,020 executable bytes, plus 496 separately source-generated
+jump-table data bytes = **11,516 distinct source-derived bytes**. No layout
+padding or externally supplied OEM payload was used in these outputs.
+
+All **160 Rust tests** passed, 107 Python tests discovered (85 passed and
+22 skipped for optional external dependencies), and the release build passed.
+Leading Agent 13 seam `[0x100000,0x1001c4)` remains unimplemented.
+Next unimplemented complete function starts at `0x102cd0`. These are
+packet-level encoding equivalences, not verified original C algorithms or
+hardware execution.
