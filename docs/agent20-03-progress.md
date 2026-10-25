@@ -255,3 +255,9 @@ Original reference: private `map220v-nabu-firmware/venus.mbn`, SHA-256 `9d4af65d
 - Contiguous typed A32 region `[0x21c78,0x2a878)` = **35,840 exact bytes** (MBN `[0x25c78,0x2e878)`). New `[0x2a198,0x2a878)` = **1,760 bytes** comprising **335 typed ARM32 instructions** and **105 non-instruction address/data words** in four pools.
 - The three branch-target tables live at `[0x2a2b4,0x2a2f8)` (17 entries), `[0x2a31c,0x2a354)` (14 entries), and `[0x2a378,0x2a390)` (6 entries). Last `[0x2a768,0x2a878)` contains 68 MMIO/diagnostic/capability words. They are modeled as data; arbitrary bit patterns in them may disassemble as ARM instructions but are **not** executable.
 - Performs codec-format dispatch, validates command metadata and routes controller resource/diagnostic statuses. Byte-exact A32 re-encoding is not high-level semantic or hardware behavior verification. Next routine begins at runtime `0x2a878`.
+
+## Checkpoint 36 — frame submission and codec capture release
+
+- Exact A32 region `[0x21c78,0x2aad8)` = **36,448 contiguous bytes** (MBN file `[0x25c78,0x2ead8)`). New `[0x2a878,0x2aad8)` = **608 bytes**, containing **146 typed instructions** and **six non-executable data words**.
+- First routine selects an active frame descriptor, clamps/forwards the stream to the shared codec packet builder, and returns through a tail branch to `0x2a198`. Second group prepares buffers and frees codec capture resources, including host callbacks and explicit diagnostic data.
+- Literal pools `[0x2a98c,0x2a990)` and `[0x2aac4,0x2aad8)` are never decoded as instructions. First missing routine begins at `0x2aad8`. This is instruction-level reconstruction only; no new OEM authentication or hardware behavior has been established.
