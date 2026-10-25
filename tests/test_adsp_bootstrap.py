@@ -98,14 +98,33 @@ class ADSPBootstrapTests(unittest.TestCase):
                      adsp.assemble_tlb_flush(LLVM_MC) +
                      adsp.assemble(LLVM_MC, adsp.CACHELINE_COPY_SOURCE, 0x78) +
                      adsp.assemble(LLVM_MC, adsp.MEMORY_COPY_SOURCE, 0x40) +
-                     adsp.assemble_tlb_reconcile(LLVM_MC))
-        self.assertEqual(len(generated), 0x7a0)
+                     adsp.assemble_tlb_reconcile(LLVM_MC) +
+                     adsp.assemble(LLVM_MC, adsp.CONTROLLER_BOOTSTRAP_SOURCE, 0x2c))
+        self.assertEqual(len(generated), 0x7cc)
         original = Path(REFERENCE).read_bytes()
         adsp.verify_reference(generated, original, 0x41e0)
         mutated = bytearray(generated)
         mutated[15] ^= 0x80
         with self.assertRaisesRegex(adsp.AdspError, "mismatch"):
             adsp.verify_reference(bytes(mutated), original, 0x41e0)
+
+    def test_controller_bootstrap_uses_symbolic_pc_targets_and_gp_load(self) -> None:
+        src = adsp.CONTROLLER_BOOTSTRAP_SOURCE.read_text()
+        self.assertIn("r17 = lr", src)
+        self.assertIn("call tlb_reconcile", src)
+        self.assertIn("memw(gp+#0xf000eaa8)", src)
+        self.assertIn("call controller_init", src)
+        self.assertNotIn(".word", src)
+        self.assertNotIn(".incbin", src)
+
+    @unittest.skipUnless(LLVM_MC and REFERENCE,
+                         "Source assembler and exact Nabu reference required")
+    def test_controller_bootstrap_roundtrips_full_original(self) -> None:
+        source = adsp.CONTROLLER_BOOTSTRAP_SOURCE
+        generated = adsp.assemble(LLVM_MC, source, 0x2c)
+        adsp.verify_reference(generated, Path(REFERENCE).read_bytes(), 0x4980)
+        self.assertEqual(len(generated), 44)
+        self.assertEqual(generated[-4:], adsp.assemble(LLVM_MC, source, 0x2c)[-4:])
 
     @unittest.skipUnless(LLVM_MC, "Hexagon-capable llvm-mc unavailable")
     def test_syscfg_handoff_uses_typed_and_source_assembly(self) -> None:

@@ -30,10 +30,12 @@ TLB_FLUSH_SOURCE = pathlib.Path(__file__).with_name("adsp-tlb-flush.S")
 MEMORY_COPY_SOURCE = pathlib.Path(__file__).with_name("adsp-dsp-memory-copy.S")
 CACHELINE_COPY_SOURCE = pathlib.Path(__file__).with_name("adsp-cacheline-copy.S")
 TLB_RECONCILE_SOURCE = pathlib.Path(__file__).with_name("adsp-tlb-reconcile.S")
+CONTROLLER_BOOTSTRAP_SOURCE = pathlib.Path(__file__).with_name("adsp-controller-bootstrap.S")
 FRAGMENTS = {
     "vectors": (ASM_SOURCE, OEM_FILE_OFFSET, GENERATED_LENGTH),
     "boot-prefix": (ASM_SOURCE, OEM_FILE_OFFSET, 0x44),
-    "counter-controller": (CONTROLLER_SOURCE, 0x41e0, 0x7a0),
+    "counter-controller": (CONTROLLER_SOURCE, 0x41e0, 0x7cc),
+    "controller-bootstrap": (CONTROLLER_BOOTSTRAP_SOURCE, 0x4980, 0x2c),
     "tlb-reconcile": (TLB_RECONCILE_SOURCE, 0x48d0, 0xb0),
     "cacheline-copy": (CACHELINE_COPY_SOURCE, 0x4818, 0x78),
     "tlb-flush": (TLB_FLUSH_SOURCE, 0x4788, 0x90),
@@ -346,7 +348,7 @@ def run(argv: list[str] | None = None) -> int:
             out = assemble_tlb_reconcile(args.llvm_mc, args.source or source)
         elif args.segment == "counter-controller":
             # Compile the ISA-common controller and its V66-only tails
-            # independently, then emit a strictly adjacent 0x7a0-byte span.
+            # independently, then emit a strictly adjacent 0x7cc-byte span.
             if args.source is not None:
                 raise AdspError("--source override is not supported for the combined controller")
             out = (assemble(args.llvm_mc, CONTROLLER_SOURCE, 0x4c0) +
@@ -355,7 +357,8 @@ def run(argv: list[str] | None = None) -> int:
                    assemble_tlb_flush(args.llvm_mc) +
                    assemble(args.llvm_mc, CACHELINE_COPY_SOURCE, 0x78) +
                    assemble(args.llvm_mc, MEMORY_COPY_SOURCE, 0x40) +
-                   assemble_tlb_reconcile(args.llvm_mc))
+                   assemble_tlb_reconcile(args.llvm_mc) +
+                   assemble(args.llvm_mc, CONTROLLER_BOOTSTRAP_SOURCE, 0x2c))
         else:
             out = assemble(args.llvm_mc, args.source or source, expected_length)
         if len(out) != expected_length:

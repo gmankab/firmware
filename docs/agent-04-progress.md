@@ -222,3 +222,46 @@ These changes are confined to:
 `tools/adsp_hexagon_v66.py`, `tools/emit-adsp-entry.py`,
 `tests/test_adsp_bootstrap.py`, `tests/test_adsp_v66.py`,
 and this progress document.
+
+## Checkpoint 15: post-TLB bootstrap call chain
+
+The controller image has grown by **44 contiguous source-authored bytes** at
+file `[0x4980,0x49ac)`, physical `[0x8be01980,0x8be019ac)`:
+
+- Save and restore the return link (`r17`/`lr`).
+- Initialize the bootstrap stack pointer with the extended v66-compatible
+  immediate `0xf0023448`.
+- Call the independently reconstructed TLB reconciliation routine at
+  file `0x48d0`, using an explicitly extended branch offset.
+- Load controller initialization state through a GP-relative extended
+  32-bit address, then call the adjacent routine beginning at `0x49ac`.
+- Restore `lr` and return without importing OEM instruction words.
+
+`tools/adsp-controller-bootstrap.S` assembles with LLVM6 Hexagon v65, which
+is safe for the supported instructions used in this fragment. A forced
+`immext` is required for the GP-relative address; omitting it silently
+shortens the binary and changes the logical address. All 44 bytes match the
+exact reference. The `counter-controller` generator now emits the contiguous
+**1,996-byte** span `[0x41e0,0x49ac)` and still byte-matches the source
+firmware. Including the separate `[0x3000,0x3044)` boot prefix, cumulative
+independently rebuilt executable coverage is **2,064 bytes** (68+1,996).
+
+Reproduce:
+
+```sh
+python3 -S tools/emit-adsp-entry.py \
+  --llvm-mc "$HEXAGON_LLVM_MC" \
+  --segment controller-bootstrap \
+  --output /tmp/adsp-controller-bootstrap-44.bin \
+  --reference "$NABU_ADSP_REFERENCE"
+python3 -S tools/emit-adsp-entry.py \
+  --llvm-mc "$HEXAGON_LLVM_MC" \
+  --segment counter-controller \
+  --output /tmp/adsp-controller-1996.bin \
+  --reference "$NABU_ADSP_REFERENCE"
+```
+
+Both full-reference SHA checks and the Python test suite (50 tests) pass.
+The next uncovered byte on the joined controller path is `0x49ac`.
+The earlier boot-code gap `[0x3044,0x41e0)` remains entirely untouched.
+This is not a complete authenticated ADSP firmware image.
