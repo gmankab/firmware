@@ -185,3 +185,66 @@ pub fn verify_joined_cache_cluster(reference:&[u8])->Result<(),String>{
         assert_eq!(build_joined_cache_cluster().unwrap().len(),652);
     }
 }
+
+/// Zero a contiguous controller table in 64-bit strides, decrementing the
+/// word-count pair until its unsigned count reaches zero. LLVM6 independently
+/// encodes all eight instruction words, including the conditional back edge.
+pub const TABLE_CLEAR_SIZE:usize=32;
+pub fn build_controller_table_clear()->Result<Vec<u8>,String>{
+    let r=|n|Gpr::new(n);
+    let mut out=Vec::with_capacity(TABLE_CLEAR_SIZE);
+    for word in cdsp_boot::encode_extended_word_load(r(21)?,r(25)?,-0x1fe92a0)? {
+        out.extend_from_slice(&word.to_le_bytes());
+    }
+    for word in cdsp_boot::encode_extended_word_load(r(19)?,r(25)?,-0x1fe929c)? {
+        out.extend_from_slice(&word.to_le_bytes());
+    }
+    put(&mut out,H::CombineZeroPair{low:r(22)?},P::Final)?;
+    put(&mut out,H::MemDoubleStorePostIncrement{low:r(22)?,base:r(21)?,increment:8},P::Final)?;
+    put(&mut out,H::AddSignedSmallImmediate{dst:r(19)?,src:r(19)?,value:-8},P::ContinuationA)?;
+    // Back edge from the packet beginning at file 0x3fe4 to 0x3fe0: -4.
+    put(&mut out,H::BranchIfNewGreaterThanZeroBackward{displacement_bytes:-4},P::Final)?;
+    if out.len()!=TABLE_CLEAR_SIZE {return Err("CDSP controller table loop has invalid length".into());}
+    Ok(out)
+}
+
+pub fn build_joined_cache_and_table_clear()->Result<Vec<u8>,String>{
+    let mut out=build_joined_cache_cluster()?;
+    if FILE_OFFSET+PREFIX_SIZE+CACHE_MAINTENANCE_SIZE!=0x3fcc {
+        return Err("gap at CDSP cache-to-table transition".into());
+    }
+    out.extend(build_controller_table_clear()?);
+    if out.len()!=684 {return Err("CDSP cache/controller cluster gap".into());}
+    Ok(out)
+}
+
+pub fn verify_table_clear(reference:&[u8])->Result<(),String>{
+    cdsp_boot::validate_reference(reference)?;
+    let src=reference.get(0x3fcc..0x3fec).ok_or("CDSP reference has no controller table-clear loop")?;
+    if src!=build_controller_table_clear()?.as_slice(){
+        return Err("CDSP controller table-clear loop differs from reference".into());
+    }
+    Ok(())
+}
+
+pub fn verify_joined_table_clear(reference:&[u8])->Result<(),String>{
+    cdsp_boot::validate_reference(reference)?;
+    let out=build_joined_cache_and_table_clear()?;
+    if reference.get(0x3d40..0x3d40+out.len())!=Some(out.as_slice()) {
+        return Err("CDSP 684-byte supervisor/TLB/cache/table-clear region differs".into());
+    }
+    Ok(())
+}
+
+#[cfg(test)]mod controller_table_tests{
+    use super::*;
+    #[test]fn controller_table_uses_aligned_32_bit_offsets(){
+        let r=|n|Gpr::new(n).unwrap();
+        assert_eq!(build_controller_table_clear().unwrap().len(),32);
+        assert_eq!(build_joined_cache_and_table_clear().unwrap().len(),684);
+        assert!(cdsp_boot::encode_extended_word_load(r(21),r(25),-3).is_err());
+        assert!(H::AddSignedSmallImmediate{dst:r(19),src:r(19),value:0}.encode().is_err());
+        assert!(H::BranchIfNewGreaterThanZeroBackward{displacement_bytes:2}.encode().is_err());
+        assert!(H::MemDoubleStorePostIncrement{low:r(21),base:r(21),increment:8}.encode().is_err());
+    }
+}

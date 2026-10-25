@@ -470,3 +470,32 @@ python3 tools/verify-cdsp-cache-maintenance.py \
   --llvm-mc /path/to/llvm-mc --rz-asm /path/to/rz-asm \
   --rust-output /tmp/cdsp-cache-maintenance-88.bin --reference /private/cdsp.mbn
 ```
+
+## Checkpoint 14 — CDSP controller table clear loop
+
+Reconstructed **32 new bytes** at CDSP file `[0x3fcc,0x3fec)`
+(physical `[0x96c00fcc,0x96c00fec)`). Two 32-bit offset-aware
+`memw` operations fetch the base pointer and byte-count; the loop stores
+an explicitly generated zero register pair (`R23:22`) with a +8 post-increment
+and decrements `R19` by eight until an unsigned `.new` count comparison
+terminates its conditional backward branch. The embedded negative address
+constants and their `immext` packet words are independently generated from
+typed Hexagon architectural fields. LLVM6 independently assembles **all
+32 bytes**, and Rizin confirms all eight instructions and their loop edge;
+the typed Rust output matches the exact CDSP reference, with no gaps.
+
+The supervisor/TLB/cache/controller region is now **684 contiguous bytes**
+(`[0x3d40,0x3fec)`), plus the separate 68-byte entry prefix: **752
+independently rebuilt bytes in two disjoint regions**. Work beyond `0x3fec`
+remains. These bytes alone do not reconstruct the complete firmware or OEM
+signature; same ancestry caveat as previous checkpoints (`69ebf0d`, not 50).
+
+```sh
+cargo run --offline --locked -p firmware-tools --bin cdsp-rebuild -- \
+  emit-cluster-with-table-clear /tmp/cdsp-cache-cluster-684.bin
+cargo run --offline --locked -p firmware-tools --bin cdsp-rebuild -- \
+  verify-cluster-with-table-clear /private/cdsp.mbn
+python3 tools/verify-cdsp-controller-table.py \
+  --llvm-mc /path/to/llvm-mc --rz-asm /path/to/rz-asm \
+  --rust-output /tmp/cdsp-table-clear-32.bin --reference /private/cdsp.mbn
+```

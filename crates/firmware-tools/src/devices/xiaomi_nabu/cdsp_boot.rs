@@ -147,6 +147,12 @@ pub enum ScalarPacket {
     /// this privileged operation; register fields were checked with the
     /// Rizin Hexagon decoder by varying each register independently.
     ReadPhysicalWord { dst: GeneralRegister, offset: GeneralRegister, base: GeneralRegister },
+    /// Small negative Hexagon ADD-immediate. Negative bits are sign-split
+    /// across the instruction; LLVM6 independently confirmed -1..-128.
+    AddSignedSmallImmediate { dst: GeneralRegister, src: GeneralRegister, value: i16 },
+    /// New-value unsigned greater-than-zero branch within a shared packet;
+    /// narrowly supports negative packet-relative displacements.
+    BranchIfNewGreaterThanZeroBackward { displacement_bytes:i16 },
     /// One ordinary register copy, independently checked with LLVM6.
     AssignRegister { dst: GeneralRegister, src: GeneralRegister },
     /// Hardware loop with a small constant iteration count and forward body.
@@ -393,8 +399,8 @@ impl ScalarPacket {
                     | (u32::from(displacement_bytes) << 1))
             }
             Self::MemDoubleStorePostIncrement { low, base, increment } => {
-                if low.number()%2!=0 || low.number()>30 || increment!=16 {
-                    return Err("Hexagon MEMD postincrement store requires even pair and verified +16-byte stride".into());
+                if low.number()%2!=0 || low.number()>30 || ![8,16].contains(&increment) {
+                    return Err("Hexagon MEMD postincrement store requires even pair and verified 8/16-byte stride".into());
                 }
                 Ok(0xabc0_c000 | (u32::from(base.number()) << 16)
                     | (u32::from(low.number()) << 8) | u32::from(increment))
@@ -409,6 +415,19 @@ impl ScalarPacket {
                 // mutations were validated by the Rizin Hexagon backend.
                 Ok(0x9200_f000 | (u32::from(offset.number()) << 16)
                     | (u32::from(base.number()) << 8) | u32::from(dst.number()))
+            }
+            Self::AddSignedSmallImmediate { dst, src, value } => {
+                if !(-128..=-1).contains(&value) {
+                    return Err("CDSP signed immediate currently only supports [-128,-1]".into());
+                }
+                Ok(0xbfe0_0000 | (u32::from(src.number())<<16)
+                    | ((((i32::from(value) as u32)&0x7ff)<<5)) |u32::from(dst.number()))
+            }
+            Self::BranchIfNewGreaterThanZeroBackward { displacement_bytes } => {
+                if displacement_bytes>=0 || displacement_bytes < -256 || displacement_bytes%2!=0 {
+                    return Err("CDSP new-value GTU branch requires negative halfword-aligned distance".into());
+                }
+                Ok(0x2532_e000 | (((i32::from(displacement_bytes)/2) as u32)&0xff))
             }
             Self::AssignRegister { dst, src } => {
                 Ok(0x7060_c000 | (u32::from(src.number()) << 16) | u32::from(dst.number()))
@@ -447,6 +466,19 @@ impl ScalarPacket {
             Self::Isync => Ok(0x57c0_c002),
         }
     }
+}
+
+/// Build an indexed word load with a forced 32-bit signed offset. This
+/// two-word load form is independently produced by LLVM6 for all three CDSP
+/// cache-control table pointers. Offset is checked for word alignment.
+pub fn encode_extended_word_load(dst: GeneralRegister,base: GeneralRegister,
+                                 byte_offset:i32)->Result<[u32;2],String>{
+    if byte_offset%4!=0 {return Err("CDSP word load address must be aligned".into());}
+    let bits=byte_offset as u32;
+    let ext=((bits>>20)<<16)|((bits>>6)&0x3fff)|0x4000;
+    let body=0x9180_c000 | (u32::from(base.number())<<16)
+        | ((bits&0x3f)<<5) |u32::from(dst.number());
+    Ok([ext,body])
 }
 
 /// Encode a Hexagon extended signed 32-bit assignment as a TWO-WORD bundle.
@@ -864,7 +896,8 @@ mod tests {
         assert!(HardwareLoop{loop_index:2,counter:r(3),displacement_bytes:4}.encode().is_err());
         assert!(HardwareLoop{loop_index:0,counter:r(3),displacement_bytes:1}.encode().is_err());
         assert!(MemDoubleStorePostIncrement{low:r(7),base:r(1),increment:16}.encode().is_err());
-        assert!(MemDoubleStorePostIncrement{low:r(6),base:r(1),increment:8}.encode().is_err());
+        assert_eq!(MemDoubleStorePostIncrement{low:r(6),base:r(1),increment:8}.encode().unwrap(),0xabc1_c608);
+        assert!(MemDoubleStorePostIncrement{low:r(6),base:r(1),increment:4}.encode().is_err());
     }
 
     #[test]

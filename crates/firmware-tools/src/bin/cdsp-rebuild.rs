@@ -26,6 +26,22 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
                 privileged::FUNCTION_SIZE, privileged::FILE_OFFSET,
                 privileged::FILE_OFFSET + privileged::FUNCTION_SIZE);
         }
+        [action, output] if action == "emit-controller-table-clear" => {
+            fs::write(output,cache_ctl::build_controller_table_clear()?)?;
+            println!("Emitted independently encoded 32-byte CDSP table-zero loop, file 0x3fcc..0x3fec.");
+        }
+        [action, reference] if action == "verify-controller-table-clear" => {
+            cache_ctl::verify_table_clear(&fs::read(reference)?)?;
+            println!("Verified 32 CDSP controller table-clear bytes, file 0x3fcc..0x3fec.");
+        }
+        [action, output] if action == "emit-cluster-with-table-clear" => {
+            fs::write(output,cache_ctl::build_joined_cache_and_table_clear()?)?;
+            println!("Emitted 684 contiguous CDSP supervisor/TLB/cache/table-clear bytes 0x3d40..0x3fec.");
+        }
+        [action, reference] if action == "verify-cluster-with-table-clear" => {
+            cache_ctl::verify_joined_table_clear(&fs::read(reference)?)?;
+            println!("Verified 684 contiguous CDSP bytes 0x3d40..0x3fec.");
+        }
         [action, output] if action == "emit-cache-maintenance" => {
             fs::write(output,cache_ctl::build_cache_maintenance()?)?;
             println!("Emitted 88 source-rebuilt CDSP cache maintenance bytes file 0x3f74..0x3fcc.");
