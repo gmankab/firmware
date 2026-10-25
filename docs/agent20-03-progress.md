@@ -156,3 +156,11 @@ Original reference: private `map220v-nabu-firmware/venus.mbn`, SHA-256 `9d4af65d
 - Contiguous A32 source-generated `[0x21c78,0x27684)` = **23,052 reference-exact bytes**, file `[0x25c78,0x2b684)`.
 - New `[0x273a4,0x27684)` = **736 bytes**, **170 ARM instructions** and **14 named MMIO/diagnostic data words** in five pools. Implements posted-write readback waits, controller queue polling and teardown, and per-codec resource shutdown helpers.
 - Independent Clang/LLD reassembly confirms the complete cumulative **5,344 instructions and 419 data words in 98 pools** with zero differences. Next uncovered codec routine starts at runtime `0x27684`.
+
+## Checkpoint 22 — codec IRQ queue selectors and resynchronization
+
+- Byte-identical typed A32 `[0x21c78,0x278fc)` = **23,684 consecutive bytes** (file `[0x25c78,0x2b8fc)`).
+- New `[0x27684,0x278fc)` = **632 bytes**, **144 A32 instructions and 14 named MMIO/diagnostic address words** across five literal pools at `[0x276a8,0x276ac)`, `[0x276e8,0x276f0)`, `[0x27714,0x27718)`, `[0x27828,0x27840)`, and `[0x278e8,0x278f8)`; final `bx lr` at `0x278f8` is executable code.
+- Handles codec IRQ window assignment, queue source selection, event/callback attachment and synchronization of hardware controller channel state.
+- Cumulative Clang/LLD independent mnemonic reassembly matches **5,488 instructions and 433 data words across 103 literal pools**, zero byte mismatches against pinned reference. Rust 194 tests, Python 13 tests and the release build pass.
+- Next uncovered runtime address is `0x278fc`; fragment is neither complete independent high-level firmware source nor flashable/OEM-signed firmware.
