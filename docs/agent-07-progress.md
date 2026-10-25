@@ -75,3 +75,32 @@ python3 tools/build-wlanmdsp-startup.py /tmp/wlan-through-plt.bin   --with-plt -
 ## Remaining work
 
 Continue with the first non-PLT routine at `0xb0001b80` (MBN offset `0x41b80`). The executable program is over 3.2 MiB; reconstructing the rest of its original functional source remains open. The signature/hash program header and the external DSP loader are also not independently reconstructed. Full image emission must be refused until all executable bytes, relocation/linker data and external authentication are accounted for.
+
+### Checkpoint C: post-PLT runtime relocation hooks
+
+The next exactly adjacent executable interval `[vaddr 0xb0001b80,0xb0001be4)`
+(`wlanmdsp.mbn` file `[0x41b80,0x41be4)`) contains **100 bytes** of
+independently assembled Hexagon instructions: two PC-relative stores of saved
+register values into loader/QuRT runtime slots, extended tail branches to
+pre-existing procedure-linkage stubs, seven real Hexagon `nop` packets, and a
+two-word absolute store packet. `wlan-loader-hooks.S` models their control flow;
+no vendor opcode word array or reference segment is embedded in the repository.
+
+Build `--with-loader-hooks` implies the initial 0x1b80-byte startup, linker
+fill, and PLT, and appends exactly 100 independently assembled executable
+bytes. The emitted combined region is **7,140 bytes** (file
+`[0x40000,0x41be4)`, virtual `[0xb0000000,0xb0001be4)`). Executable code
+coverage is 3,364 bytes; the 3,776 linker fill/alignment bytes continue to
+be accounted for separately. The result is compared against the exact
+manifest-hash-matching private ELF reference with zero differences. Both
+`hexagonv62` and `hexagonv65` LLVM6 assemblers emit identical instructions.
+
+```sh
+python3 tools/build-wlanmdsp-startup.py /tmp/wlan-through-hooks.bin \
+  --with-loader-hooks --llvm-mc /path/to/llvm6/bin/llvm-mc \
+  --reference /private/wlanmdsp.mbn --manifest /tmp/through-hooks.json
+```
+
+The next unimplemented function begins at `0xb0001be4`, file `0x41be4`.
+This remains a disconnected partial executable and is not a valid signed or
+flashable WLAN firmware image.

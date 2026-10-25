@@ -95,6 +95,31 @@ class WlanHexagonAssemblyTests(unittest.TestCase):
         if ref:
             fw.check_reference(all_bytes, Path(ref).read_bytes())
 
+    def test_loader_hooks_independent_source_and_assembler_bytes(self):
+        asm = fw.HOOK_SOURCE.read_text()
+        for forbidden in (".incbin", ".word", ".byte", ".long", ".quad"):
+            self.assertNotIn(forbidden, asm)
+        self.assertIn("memw(##2959748528) = r0", asm)
+        result = fw.assemble(fw.HOOK_SOURCE, self.mc,
+                             expected_length=fw.LOADER_HOOKS_LENGTH)
+        self.assertEqual(len(result), 100)
+        self.assertEqual(result[:8], bytes.fromhex("5257030000d0496a"))
+        self.assertEqual(result[0x24:0x40], bytes.fromhex("00c0007f")*7)
+        self.assertEqual(result[-4:], bytes.fromhex("00c09f52"))
+        for revision in ("hexagonv62",):
+            self.assertEqual(result, fw.assemble(fw.HOOK_SOURCE, self.mc,
+                cpu=revision, expected_length=fw.LOADER_HOOKS_LENGTH))
+
+    def test_combined_loader_hooks_are_bit_identical_when_reference_supplied(self):
+        startup = fw.assemble(fw.SOURCE, self.mc)
+        prefix = fw.emit_with_plt(startup, self.mc, "hexagonv65")
+        complete = fw.emit_with_loader_hooks(prefix, self.mc, "hexagonv65")
+        self.assertEqual(len(complete), fw.THROUGH_LOADER_HOOKS_LENGTH)
+        self.assertEqual(complete[:len(prefix)], prefix)
+        ref = os.environ.get("WLANMDSP_REFERENCE")
+        if ref:
+            fw.check_reference(complete, Path(ref).read_bytes())
+
     def test_unresolved_reference_is_rejected(self):
         with tempfile.TemporaryDirectory() as d:
             bad = Path(d) / "unresolved.S"
