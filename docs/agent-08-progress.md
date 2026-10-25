@@ -99,3 +99,17 @@ A deliberately modified opaque input is rejected before output. This is an
 **externally supplied opaque-payload repack, NOT an independently rebuilt
 HALO program**; source-derived coverage remains **3,984 / 34,236 bytes**.
 The proprietary blob files and generated complete WMFW are excluded from Git.
+
+## Checkpoint 08-07 — sparse packed DSP word address spaces
+
+The independent WMFW v3 header declares exactly 1,452 X-memory words,
+2,044 Y-memory words and 4,056 program-memory words. A checked address-map
+builder now validates that the five XM regions initialize 1,280 words without
+overlap and leave four **uninitialized DSP address ranges** totaling 172
+words (`0x18–0x34`, `0xe4–0x140`, `0x350–0x354`, `0x500–0x530`). YM and PM
+are fully initialized by their respective one packed-file region. The new
+`wmfw-memory-map` CLI prints this map and distinguishes uninitialized DSP
+memory from the seven proprietary missing *file* payloads. Tests reject
+unbounded and overlapping memory ranges. Independent file-byte coverage
+remains **3,984 / 34,236 bytes**; this checkpoint adds architectural
+reconstruction and strict memory-map validation, not HALO machine code.

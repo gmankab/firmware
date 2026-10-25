@@ -301,6 +301,19 @@ fn run() -> Result<(), Box<dyn Error>> {
         println!("Extracted seven PRIVATELY HELD proprietary DSP binary inputs (30252 bytes). NEVER commit or redistribute them as independent source.");
         return Ok(());
     }
+    if args.len() == 1 && args[0] == "wmfw-memory-map" {
+        for layout in firmware_tools::wmfw_memory_map::layouts()? {
+            println!("{:?}: {}/{} DSP words initialized by WMFW sections; {} memory gaps",
+                layout.kind,layout.explicitly_initialized_words,
+                layout.capacity_words,layout.uninitialized_intervals.len());
+            for gap in layout.uninitialized_intervals {
+                println!("  UNINITIALIZED DSP MEMORY 0x{:x}..0x{:x} ({} words, no WMFW file bytes)",
+                    gap.start,gap.end,gap.end-gap.start);
+            }
+        }
+        println!("These holes are DSP memory allocation gaps, not missing bytes that may be auto-filled in a firmware file.");
+        return Ok(());
+    }
     if args.len() == 1 && args[0] == "wmfw-external-manifest" {
         println!("Opaque DSP region inputs for original WMFW revision (NOT independently rebuilt):");
         for r in firmware_tools::wmfw_external_payload::OPAQUE_REGIONS {
