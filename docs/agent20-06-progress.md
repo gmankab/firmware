@@ -69,3 +69,11 @@ python3 tools/agent20_06_a32_roundtrip.py /private/venus.mbn 0xa8ea0 0xa92c8 \
 - Controller mapping calculates bit-packed codec indices and three register fields from 84-byte per-slot structures; short resolver functions publish allocated slot pointers and a hardware fallback.
 - The Rust emitter and independent Clang/LLVM assembly both match the private `venus.mbn` exactly, with no copied instruction opcode words in the source. The verifier was updated to normalize ARM's `BLO` (carry clear) branch alias, ensuring the independently assembled branch at `0xa9504` is checked correctly.
 - Next uncovered ARM runtime address `0xa9578` (MBN file offset `0xad578`), a new `push`-framed function.
+
+## Checkpoint 06 — next controller codec format prefix
+
+- Cumulative verified runtime `[0xa8000,0xa9800)` = **6,144 byte-identical bytes**, original file `[0xac000,0xad800)`.
+- Added `[0xa9578,0xa9800)` = **648 typed A32 instruction bytes**, no literal data in this interval. The next long codec controller routine begins with its original stack prologue at `0xa9578`, copies format metadata to hardware buffer control fields, and checks incoming stream flags.
+- This *function is incomplete*: it continues beyond the checkpoint boundary `0xa9800`. Later branches and literal pools must be reconstructed before claiming the complete routine.
+- Independently verified 162 instructions by Clang/LLVM mnemonic assembly and direct typed Rust emitter reference comparison; zero differing bytes.
+- Exact next missing ARM address: `0xa9800` (original `venus.mbn` file offset `0xad800`).
