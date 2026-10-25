@@ -18,7 +18,7 @@ pub const OWNED_START: usize = 0x68000;
 pub const OWNED_END: usize = 0xa8000;
 pub const FILE_MAPPING_DELTA: usize = 0x4000;
 pub const VERIFIED_START: usize = 0x69b80;
-pub const VERIFIED_END: usize = 0x69cd8;
+pub const VERIFIED_END: usize = 0x69e44;
 pub const INITIAL_UNCOVERED: usize = VERIFIED_START - OWNED_START;
 
 struct A32 {
@@ -217,10 +217,140 @@ fn emit_compare_converted_components(c:&mut A32)->Result<(),String>{
     c.check(0x69cd8)
 }
 
+/// A32 register-offset LDRH with base writeback (`[Rn, Rm]!`).
+/// Base must be writable and distinct from the loaded register.
+fn load_halfword_register_preindexed_writeback(
+    c:&mut A32, dst:R, base:R, offset:R
+) -> Result<(),String> {
+    if [dst,base,offset].contains(&R::PC) || dst == base {
+        return Err("invalid register-offset halfword load with writeback".into());
+    }
+    c.emit(arm32::transfer_halfword_register(C::Al,true,dst,base,offset)? | (1<<21))
+}
+fn halfword(c:&mut A32, dst:R, base:R, offset:i32)->Result<(),String>{
+    c.emit(arm32::load_halfword(C::Al,dst,base,offset)?)
+}
+fn halfword_reg(c:&mut A32, dst:R, base:R, offset:R)->Result<(),String>{
+    c.emit(arm32::transfer_halfword_register(C::Al,true,dst,base,offset)?)
+}
+fn store_halfword(c:&mut A32, src:R, base:R, offset:i32)->Result<(),String>{
+    c.emit(arm32::store_halfword(C::Al,src,base,offset)?)
+}
+/// Read a table's six per-index halfword components and five additional
+/// halfwords at a second channel index, merging them into the fixed record
+/// layout (`dst` offsets 0..10, 24..34). The high two indices select a
+/// device table or one of three codec tables, with literal tables separated
+/// from instruction bytes.
+fn emit_copy_indexed_halfword_planes(c:&mut A32)->Result<(),String>{
+    let r3=r(3)?;let r4=r(4)?;let r5=r(5)?;let r6=r(6)?;let r7=r(7)?;
+    let mask=r4.bit()|r5.bit()|r6.bit()|r7.bit()|R::R11.bit()|R::LR.bit();
+    c.check(0x69cd8)?;
+    c.emit(push_registers(C::Al,mask)?)?;
+    imm(c,C::Al,Op::Add,R::R11,R::SP,16)?;
+    imm(c,C::Al,Op::Sub,R::R12,r3,1)?;
+    imm(c,C::Al,Op::And,r3,R::R12,255)?;
+    imm(c,C::Al,Op::Cmp,R::R0,r3,3)?;
+    c.b(C::Cs,0x69d8c)?;
+    c.lit(r6,0x69e40)?;
+    movshift(c,C::Al,r3,R::R12,Shift::Lsl,24)?;
+    movshift(c,C::Al,r3,r3,Shift::Asr,24)?;
+    c.emit(arm32::transfer_word_register(C::Al,true,r4,r6,r3,Shift::Lsl,2)?)?;
+    movshift(c,C::Al,r3,R::R1,Shift::Lsl,1)?;
+    mov(c,C::Al,r6,r4)?;
+    imm(c,C::Al,Op::Add,R::R12,r4,256)?;
+    imm(c,C::Al,Op::Add,R::LR,r4,768)?;
+    load_halfword_register_preindexed_writeback(c,r3,r6,r3)?;
+    reg(c,C::Al,Op::Add,r5,R::R12,R::R1,Shift::Lsl,1)?;
+    store_halfword(c,r3,R::R0,0)?;
+    halfword(c,r5,r5,0)?;
+    store_halfword(c,r5,R::R0,2)?;
+    imm(c,C::Al,Op::Add,r5,r4,512)?;
+    reg(c,C::Al,Op::Add,r3,r5,R::R1,Shift::Lsl,1)?;
+    halfword(c,r3,r3,0)?;
+    store_halfword(c,r3,R::R0,4)?;
+    reg(c,C::Al,Op::Add,r3,R::LR,R::R1,Shift::Lsl,1)?;
+    halfword(c,r3,r3,0)?;
+    store_halfword(c,r3,R::R0,6)?;
+    imm(c,C::Al,Op::Add,r3,r4,1024)?;
+    reg(c,C::Al,Op::Add,R::R1,r3,R::R1,Shift::Lsl,1)?;
+    halfword(c,R::R1,R::R1,0)?;
+    store_halfword(c,R::R1,R::R0,8)?;
+    imm(c,C::Al,Op::Mov,R::R1,R::R0,1280)?;
+    halfword_reg(c,R::R1,r6,R::R1)?;
+    store_halfword(c,R::R1,R::R0,10)?;
+    reg(c,C::Al,Op::Add,R::R1,r4,R::R2,Shift::Lsl,1)?;
+    halfword(c,R::R1,R::R1,0)?;
+    store_halfword(c,R::R1,R::R0,24)?;
+    reg(c,C::Al,Op::Add,R::R1,R::R12,R::R2,Shift::Lsl,1)?;
+    reg(c,C::Al,Op::Add,R::R12,r3,R::R2,Shift::Lsl,1)?;
+    halfword(c,R::R1,R::R1,0)?;
+    store_halfword(c,R::R1,R::R0,26)?;
+    reg(c,C::Al,Op::Add,R::R1,r5,R::R2,Shift::Lsl,1)?;
+    halfword(c,R::R1,R::R1,0)?;
+    store_halfword(c,R::R1,R::R0,28)?;
+    reg(c,C::Al,Op::Add,R::R1,R::LR,R::R2,Shift::Lsl,1)?;
+    c.b(C::Al,0x69e18)?;
+    c.check(0x69d8c)?;
+    // Alternate static memory table for extended controller class numbers.
+    c.lit(r4,0x69e3c)?;
+    movshift(c,C::Al,R::R12,R::R1,Shift::Lsl,1)?;
+    mov(c,C::Al,R::LR,r4)?;
+    load_halfword_register_preindexed_writeback(c,r3,R::LR,R::R12)?;
+    imm(c,C::Al,Op::Add,R::R12,r4,256)?;
+    store_halfword(c,r3,R::R0,0)?;
+    reg(c,C::Al,Op::Add,r3,R::R12,R::R1,Shift::Lsl,1)?;
+    halfword(c,r3,r3,0)?;
+    store_halfword(c,r3,R::R0,2)?;
+    imm(c,C::Al,Op::Add,r3,r4,512)?;
+    reg(c,C::Al,Op::Add,r5,r3,R::R1,Shift::Lsl,1)?;
+    halfword(c,r5,r5,0)?;
+    store_halfword(c,r5,R::R0,4)?;
+    imm(c,C::Al,Op::Add,r5,r4,768)?;
+    reg(c,C::Al,Op::Add,r6,r5,R::R1,Shift::Lsl,1)?;
+    halfword(c,r6,r6,0)?;
+    store_halfword(c,r6,R::R0,6)?;
+    imm(c,C::Al,Op::Add,r6,r4,1024)?;
+    reg(c,C::Al,Op::Add,R::R1,r6,R::R1,Shift::Lsl,1)?;
+    halfword(c,R::R1,R::R1,0)?;
+    store_halfword(c,R::R1,R::R0,8)?;
+    imm(c,C::Al,Op::Mov,R::R1,R::R0,1280)?;
+    halfword_reg(c,R::R1,R::LR,R::R1)?;
+    store_halfword(c,R::R1,R::R0,10)?;
+    reg(c,C::Al,Op::Add,R::R1,r4,R::R2,Shift::Lsl,1)?;
+    halfword(c,R::R1,R::R1,0)?;
+    store_halfword(c,R::R1,R::R0,24)?;
+    reg(c,C::Al,Op::Add,R::R1,R::R12,R::R2,Shift::Lsl,1)?;
+    reg(c,C::Al,Op::Add,R::R12,r6,R::R2,Shift::Lsl,1)?;
+    halfword(c,R::R1,R::R1,0)?;
+    store_halfword(c,R::R1,R::R0,26)?;
+    reg(c,C::Al,Op::Add,R::R1,r3,R::R2,Shift::Lsl,1)?;
+    halfword(c,R::R1,R::R1,0)?;
+    store_halfword(c,R::R1,R::R0,28)?;
+    reg(c,C::Al,Op::Add,R::R1,r5,R::R2,Shift::Lsl,1)?;
+    c.check(0x69e18)?;
+    halfword(c,R::R1,R::R1,0)?;
+    store_halfword(c,R::R1,R::R0,30)?;
+    halfword(c,R::R1,R::R12,0)?;
+    store_halfword(c,R::R1,R::R0,32)?;
+    reg(c,C::Al,Op::Add,R::R1,r4,R::R2,Shift::Lsl,1)?;
+    imm(c,C::Al,Op::Mov,R::R2,R::R0,1280)?;
+    halfword_reg(c,R::R1,R::R1,R::R2)?;
+    store_halfword(c,R::R1,R::R0,34)?;
+    c.emit(transfer_multiple(C::Al,true,R::SP,
+        (mask&!R::LR.bit())|R::PC.bit(),BlockMode::IncrementAfter,true)?)?;
+    c.check(0x69e3c)?;
+    const EXTENDED_TABLE:u32=0x0010_5f60;
+    const STATIC_CLASS_MAP:u32=0x000f_2e40;
+    c.emit(EXTENDED_TABLE)?;
+    c.emit(STATIC_CLASS_MAP)?;
+    c.check(0x69e44)
+}
+
 pub fn fragment() -> Result<Vec<u8>,String> {
     let mut c=A32::new(VERIFIED_START)?;
     emit_scaled_descriptor_init(&mut c)?;
     emit_compare_converted_components(&mut c)?;
+    emit_copy_indexed_halfword_planes(&mut c)?;
     Ok(c.bytes)
 }
 
@@ -232,7 +362,9 @@ pub fn fragment() -> Result<Vec<u8>,String> {
         assert_eq!(VERIFIED_START,0x69b80);
         assert_eq!(INITIAL_UNCOVERED,0x1b80);
         assert_eq!(&output[0x69c38-VERIFIED_START..0x69c3c-VERIFIED_START], &0x0001_3333u32.to_le_bytes());
-        assert_eq!(&output[output.len()-4..], &0x000f_2e4cu32.to_le_bytes());
+        assert_eq!(&output[0x69cd4-VERIFIED_START..0x69cd8-VERIFIED_START], &0x000f_2e4cu32.to_le_bytes());
+        assert_eq!(&output[output.len()-8..output.len()-4], &0x0010_5f60u32.to_le_bytes());
+        assert_eq!(&output[output.len()-4..], &0x000f_2e40u32.to_le_bytes());
     }
     #[test]fn unsigned_multiply_long_uses_valid_regs(){
         let mut c=A32::new(VERIFIED_START).unwrap();

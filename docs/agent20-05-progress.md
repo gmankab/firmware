@@ -33,6 +33,14 @@
 - Original firmware and LLVM/Clang reassembly agree on all 344 bytes; SHA-256 `d51923e548fe35b58b93094c31b3705d95bb8fd929e9fb5e0dbc5580f0c16d79`.
 - The dedicated ARM32 immediate post-index `LDRH` encoder is locally implemented and checked; no shared architecture crate was modified.
 
+## Checkpoint 03
+
+- Extended the contiguous function-aligned interval to `[0x69b80,0x69e44)` = **708 bytes**, MBN file `[0x6db80,0x6de44)`.
+- Added the descriptor table extraction function (`0x69cd8–0x69e44`): chooses a per-class table, copies indexed halfword plane values into 36-byte output, and uses two separately modeled literal address words.
+- Exact accounting: 173 authored ARM32 instruction words (692 bytes) and four data words (16 bytes); no generated padding or reference-copy data.
+- Original Venus reference comparison and LLVM/Clang independent reassembly both passed with **zero differing bytes**. SHA-256 `75eea199e748155332368542b2a01944fc31077f43dd1a6110140bf602623202`.
+- Local checked ARM32 register-offset halfword-load-with-writeback support was added without modifying the shared `arm32` crate.
+
 ## Remaining
 
-Continue from independent routine at ARM `0x69c3c`, then the next at `0x69cd8`; ensure all literal pools are modeled. There is a distinct uncovered seam `[0x68000, 0x69b80)`. The rest of agent 05's exclusive reservation `[0x69cd8, 0xa8000)` is **unimplemented** as of this checkpoint. Byte-identical emission does not constitute semantic equivalence, a whole firmware image, or hardware validation.
+Continue from independent routine at ARM `0x69c3c`, then the next at `0x69cd8`; ensure all literal pools are modeled. There is a distinct uncovered seam `[0x68000, 0x69b80)`. The rest of agent 05's exclusive reservation `[0x69e44, 0xa8000)` is **unimplemented** as of this checkpoint. Byte-identical emission does not constitute semantic equivalence, a whole firmware image, or hardware validation.
