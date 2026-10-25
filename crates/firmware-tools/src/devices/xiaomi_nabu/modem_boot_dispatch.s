@@ -48,6 +48,39 @@
     // `Rd = memw(gp + #u16:2)`, low address bits stored from bit 5.
     .word (0x49800000 | (3 << 14) | ((\absolute & 63) << 5) | \dst)
 .endm
+// Checked privileged Hexagon cache-maintenance/control instruction fields.
+.macro HEX_CACHE_OP operation, src, marker=3
+    .if (\src < 0) || (\src > 31)
+        .error "invalid Hexagon cache operation source register"
+    .endif
+    .if (\operation != 0x20) && (\operation != 0x60)
+        .error "invalid Hexagon CSWI/CIAD cache operation"
+    .endif
+    .if (\marker != 1) && (\marker != 3)
+        .error "invalid Hexagon packet parse marker"
+    .endif
+    // ISA: 01100100000sssssPP------0oo----- with CSWI oo=01, CIAD oo=11.
+    .word (0x64000000 | (\src << 16) | (\marker << 14) | \operation)
+.endm
+.macro HEX_CONTROL_WRITE control, src, marker=3
+    .if (\control < 0) || (\control > 31) || (\src < 0) || (\src > 31)
+        .error "invalid Hexagon control register assignment"
+    .endif
+    // ISA: 01100010001sssssPP---------ddddd.
+    .word (0x62200000 | (\src << 16) | (\marker << 14) | \control)
+.endm
+// Extended PC-relative call. The original call's relative offset is based on
+// the PC of the extender word, not the call word. LLVM6 collapses a far call
+// into a single instruction when it fits 22 bits; retain the explicit form.
+.macro HEX_EXTENDED_CALL target_file, extender_file
+    .set hex_rel\@, (\target_file - \extender_file)
+    .if ((hex_rel\@ & 3) != 0) || (hex_rel\@ >= 0x80000000) || (hex_rel\@ < -0x80000000)
+        .error "invalid extended Hexagon PC-relative call target"
+    .endif
+    .word ((((hex_rel\@ >> 20) & 0xfff) << 16) | (1 << 14) | ((hex_rel\@ >> 6) & 0x3fff))
+    // J2_call: 0101101iiiiiiiiiPPiiiiiiiiiiiii0, low six bits unscaled.
+    .word (0x5a000000 | (3 << 14) | ((hex_rel\@ & 63) << 1))
+.endm
 .globl modem_boot_dispatch
 modem_boot_dispatch:
 .set modem_ready_handler, modem_boot_dispatch+0x5c4
@@ -521,3 +554,60 @@ page_map_write_done:
 next_page_map_word:
 { memw(r25+##-1064860592) = r3 }
 { jump modem_boot_dispatch+0x480 }
+// Enter the final early-boot hook chain and relocate live load addresses.
+.set vendor_init_callback, modem_boot_dispatch+(0x3f14-0x3644)
+.set secondary_image_handler, modem_boot_dispatch+(0x7b400-0x3644)
+.set boot_resource_callback, modem_boot_dispatch+(0x44fc-0x3644)
+.set debug_reporting_handler, modem_boot_dispatch+(0x1d3a70-0x3644)
+{ call vendor_init_callback }
+{ call secondary_image_handler }
+{ call boot_resource_callback }
+{ r0 = #191 }
+{ call debug_reporting_handler }
+HEX_ABS_MEMW_LOAD 1,0xc08722ac
+{ r1 = lsr(r1,#12) }
+{ r3 = ##-1061984952 }
+.set adjust_ptrs_one, modem_boot_dispatch+(0x3b90-0x3644)
+.set adjust_ptrs_one_done, modem_boot_dispatch+(0x3ba4-0x3644)
+adjust_ptrs_one:
+{ r0 = memw(r3++#4) }
+{ p0 = cmp.eq(r0,#0) }
+{ if (p0) jump:nt adjust_ptrs_one_done }
+{ memw(r0+#0) += r1 }
+{ jump adjust_ptrs_one }
+adjust_ptrs_one_done:
+{ r3 = ##-1061985008 }
+.set adjust_ptrs_two, modem_boot_dispatch+(0x3bac-0x3644)
+.set adjust_ptrs_two_done, modem_boot_dispatch+(0x3bc0-0x3644)
+adjust_ptrs_two:
+{ r1:0 = memd(r3++#8) }
+{ p0 = cmp.eq(r0,#0) }
+{ if (p0) jump:nt adjust_ptrs_two_done }
+{ memw(r0+#0) += r1 }
+{ jump adjust_ptrs_two }
+adjust_ptrs_two_done:
+.set modem_maintain_system, modem_boot_dispatch+(0x3fa8-0x3644)
+{
+ call modem_maintain_system
+ r0 = #20
+}
+{ r0 = #-1 }
+HEX_CACHE_OP 0x20,0
+HEX_CACHE_OP 0x60,0
+{
+ r0 = ##0xc0840000
+ r1 = ##0xc2710000
+}
+HEX_SYSTEM_WRITE 16,0
+HEX_CONTROL_WRITE 11,1
+HEX_SYSTEM_WRITE 0,29
+{
+ call modem_maintain_system
+ r0 = #21
+}
+.set restart_dsp_handler, modem_boot_dispatch+(0x78980-0x3644)
+{ call restart_dsp_handler }
+.set cpu_forward_handler, modem_boot_dispatch+(0x74f20-0x3644)
+HEX_EXTENDED_CALL 0x74f20,0x3bfc
+.set modem_hold_forever, modem_boot_dispatch+(0x3c04-0x3644)
+{ jump modem_hold_forever }
