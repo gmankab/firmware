@@ -116,3 +116,62 @@ MODEM_PHY_WORD_LOAD 6,1,6
     jumpr lr
     memd(r3+r1<<#3) = r5:4
 }
+
+// Save the exception return state and protected mode register pairs before
+// a controller startup probe; this prefix is part of a larger path.
+.macro MODEM_SYS_PAIR_WRITE system, pairlow, marker=3
+    .if (\system < 0) || (\system > 63) || (\pairlow < 0) || (\pairlow > 30) || ((\pairlow & 1) != 0)
+        .error "invalid Hexagon paired-S-register operand"
+    .endif
+    .word (0x6d000000 | (\pairlow << 16) | (\marker << 14) | \system)
+.endm
+
+.globl agent11_modem_protected_state_entry
+agent11_modem_protected_state_entry:
+MODEM_SYS_PAIR_WRITE 50,30
+MODEM_SYS_WRITE 47,29
+MODEM_SYS_PAIR_WRITE 48,0
+MODEM_SYS_PAIR_WRITE 44,24
+{ r25 = p3:0 }
+MODEM_SYS_WRITE 52,25
+MODEM_SYS_READ 0,16,3
+
+// Branch to the existing reset-vector exception at modem file 0x3020.
+.set modem_reset_recovery, agent11_modem_protected_state_entry-0x10fc
+{
+    r0 = add(r0,#0)
+    if (cmp.eq(r0.new,#0)) jump:nt modem_reset_recovery
+}
+{ r24 = pc }
+{ r23 = ##-1065348796 }
+{ r25 = sub(r24,r23) }
+MODEM_SYS_WRITE 54,25
+MODEM_SYS_READ 23,27,1
+{ r24 = #0 }
+{ r23 = insert(r24,#12,#20) }
+{
+    r23 = asl(r23,#5)
+    r22 = #8
+}
+MODEM_PHY_WORD_LOAD 23,22,23
+{ r23 = insert(r24,#12,#20) }
+{
+    r23 = asl(r23,#5)
+    r22 = #68
+}
+{ r23 = add(r23,#-256) }
+MODEM_PHY_WORD_LOAD 23,22,23
+
+// Both error bits transfer control to the protected response at modem file
+// 0x4a00, well outside this source-owned forward interval.
+.set modem_protected_response, agent11_modem_protected_state_entry+0x8e4
+{
+    p0 = tstbit(r23,#2)
+    if (p0.new) jump:t ##modem_protected_response
+}
+{
+    p0 = tstbit(r23,#0)
+    if (p0.new) jump:t ##modem_protected_response
+}
+{ jump modem_reset_recovery }
+{ brkpt }

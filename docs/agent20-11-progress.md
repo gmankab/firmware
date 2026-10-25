@@ -40,3 +40,10 @@ python3 -m unittest discover -s tests -p 'test_*.py'
 - Reads S27 and either of two physical codec-table layouts; updates a 64-bit indexed descriptor via predicated 32-bit physical reads, bit-extract and insert, a **single 4-word packet** containing `p0=cmpb.eq`, shifted index, constant extender and `if (p0.new)` selector, then `jumpr lr` paired with 64-bit indexed memory write.
 - LLVM6 Hexagon MC generated the full `[0x4058,0x411c)` **196-byte** controller prefix. Comparison to the pinned original `modem.mbn` reports zero differing bytes. No OEM executable words appear as literal arrays in source.
 - Contiguous independently rebuilt first-PT_LOAD prefix `[file 0x3000,0x411c)` = **4,380 bytes**, divided into **3,168 executable**, **412 metadata** and **800 deterministic fill**. First uncovered byte file `0x411c` / physical `0x8e00111c`.
+
+## Checkpoint 04 — Protected state and two-step fault routing
+
+- Exact independently generated `[file 0x411c,0x41a0)` = **132 Hexagon instruction bytes**, mapped physical `[0x8e00111c,0x8e0011a0)`.
+- Preserves paired privileged writes S50/S48/S44, scalar S47/S52 and S16/S27 reads, a packet-local `.new` compare against protected status, two protected physical page reads and its two fault-handler branches to modem file `0x4a00`. LLVM6 requires `jump:t ##target` to preserve the original extender even where a shorter equivalent branch might fit.
+- A dead-end fallback jump returns to modem file `0x3020` and the matching break instruction terminates this stage. No proprietary reference opcodes were copied into source; all register-transfer encodings derive from checked ISA macros and LLVM6.
+- Full Agent 11 `[file 0x4058,0x41a0)` = **328 bytes**, matched to pinned `modem.mbn` with zero differences. Combined first PT_LOAD source `[0x3000,0x41a0)` = **4,512 bytes** (3,300 executable + 412 metadata + 800 deterministic fill). Next uncovered file byte `0x41a0`.
