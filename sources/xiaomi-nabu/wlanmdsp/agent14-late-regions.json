@@ -263,6 +263,36 @@
       "sha256": "ea65cecc5cc3c36aabdb2aacfeb3350faebb1e0fdd381e0685f5acd86c03c73a",
       "checkpoint": 3,
       "classification": "executable"
+    },
+    {
+      "name": "status-packet-body",
+      "file_start": 1054500,
+      "file_end": 1054784,
+      "source": "sources/xiaomi-nabu/wlanmdsp/agent14-late-status-packet-body.S",
+      "symbol": "agent14_late_status_packet_write",
+      "sha256": "b34664dcb220fb117152c580cb29bab5115c9fe34ebd3be53cf1a4442d6b7d60",
+      "checkpoint": 5,
+      "classification": "executable"
+    },
+    {
+      "name": "status-packet-far-jump",
+      "file_start": 1054784,
+      "file_end": 1054792,
+      "source": "sources/xiaomi-nabu/wlanmdsp/agent14-late-status-packet-epilogue.S",
+      "symbol": "agent14_late_status_packet_return",
+      "sha256": "e1f5d0262eaa2f57792e80c77eaea650a127a874bec5ca8f164b21c584cd7578",
+      "checkpoint": 5,
+      "classification": "executable"
+    },
+    {
+      "name": "status-word-available",
+      "file_start": 1054792,
+      "file_end": 1054832,
+      "source": "sources/xiaomi-nabu/wlanmdsp/agent14-late-status-word-available.S",
+      "symbol": "agent14_late_status_word_available",
+      "sha256": "f2cfcc0a63d6d7b4cd4df5c19c9b5ab59b197ee825e3ecfa4396c9f6b118e4d5",
+      "checkpoint": 5,
+      "classification": "executable"
     }
   ]
 }

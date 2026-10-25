@@ -1,9 +1,12 @@
 # Agent 20-14 — WLAN late Hexagon reconstruction
 
-Latest checkpoint: **04**, with **5,472 executable bytes** in 26 authored
-routines and **496 separately emitted data bytes** in two symbolic dispatch
-tables. The non-overlapping coverage total is **5,968 bytes**. See checkpoint
-04 below for its exact ranges, tests and remaining gaps.
+Latest checkpoint: **05**, with **5,804 executable bytes** in 28 logical
+routines (29 separately emitted source regions because one long-jump packet
+is built as its own fragment), plus **496 data bytes** in two symbol-derived
+dispatch tables. The current non-overlapping coverage total is **6,300 bytes**.
+The newly verified file region is `[0x101724,0x101870)` and the first
+uncovered forward address is `0x101870`. Checkpoint 04 and all its
+verified source fragments remain unchanged.
 
 ## Assignment and provenance
 
@@ -457,3 +460,51 @@ This remains a portable contribution on `d6104bb`, pending checkpoint-50
 integration. The two reconstructed tables resolve those specific data
 dependencies; external callees, other referenced data, hardware behavior,
 authentication and whole-firmware completion remain unverified.
+
+## Checkpoint 05 — packet-status writer and status availability helper
+
+Two adjacent, independently authored Hexagon V66 routines have been
+reconstructed at file `[0x101724,0x101870)` (332 bytes), mapped to runtime
+`[0xb00c1724,0xb00c1870)`:
+
+- `[0x101724,0x101848)`: build a status/error command from the live interface
+  descriptor. It checks a status bit, computes an available byte count, packs
+  four little-endian payload fields, and submits the command to an external
+  diagnostic/transaction helper. The packet at `[0x101840,0x101848)` is a
+  **forced constant-extended far jump**; its two original A32-sized Hexagon
+  encoded words are generated from `jump ##0x1e3ff0`, not pasted binary data.
+  The source is split into two adjacent fragments strictly to preserve this
+  far-jump packet's encoding.
+- `[0x101848,0x101870)`: check the active status-word flag and calculate a
+  count/offset, restoring the frame with `dealloc_return`.
+
+The body has a required `:mem_noshuf` packet to preserve the original
+two-word load/store encoding; omitting it would silently compress the packet
+and corrupt branch offsets. PC-relative external calls must be adjusted for
+the independent object origin. All three fragment SHA-256 hashes, exact
+locations, and V66 decode counts are in
+`sources/xiaomi-nabu/wlanmdsp/agent14-late-regions.json` and
+`docs/evidence/agent20-14/checkpoint-05.json`.
+
+Build commands (the compiler files and reference remain outside Git):
+
+```sh
+python3 -S tools/build-wlanmdsp-late.py /tmp/agent20-14-code.bin \
+  --llvm-mc "$LLVM18_MC" --cpu hexagonv66 \
+  --independent-llvm-mc "$LLVM6_MC" --independent-cpu hexagonv65 \
+  --llvm-objdump "$LLVM18_OBJDUMP" \
+  --reference /private/wlanmdsp.mbn \
+  --through-checkpoint 5 --manifest /tmp/agent20-14-code.json
+```
+
+With `--reference` omitted, the generated code remains byte-for-byte
+identical, and the manifest correctly indicates that reference comparison
+was not performed. The independent toolchains are separate LLVM versions
+but share LLVM's Hexagon ISA lineage. Exact encoding agreement does not
+prove runtime execution or high-level algorithm identity.
+
+Code coverage `[0x1001c4,0x101870)` = **5,804 bytes**, table coverage
+`[0x2f6cd0,0x2f6ec0)` = **496 bytes**, total **6,300**. These disjoint spans
+must not be concatenated into a fake contiguous MBN. `[0x100000,0x1001c4)`
+remains the unhandled Agent13 seam; `[0x101870,0x2f6cd0)` remains uncovered.
+No original firmware/signature/certificate bytes are committed to Git.

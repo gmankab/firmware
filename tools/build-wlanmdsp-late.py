@@ -253,7 +253,8 @@ def _stats(parsed) -> dict:
 def build(llvm_mc: str, reference: Path | None = None,
           through_checkpoint: int | None = None,
           independent_llvm_mc: str | None = None, independent_cpu: str = "hexagonv65",
-          llvm_objdump: str | None = None, registry_path: Path = REGISTRY) -> tuple[bytes, dict]:
+          llvm_objdump: str | None = None, registry_path: Path = REGISTRY,
+          cpu: str = "hexagonv66") -> tuple[bytes, dict]:
     selected = select_regions(load_registry(registry_path), through_checkpoint)
     encoded = []
     details = []
@@ -266,7 +267,7 @@ def build(llvm_mc: str, reference: Path | None = None,
             snapshot = directory / f"region-{index}.S"
             snapshot.write_bytes(source)
             obj = directory / f"region-{index}.o"
-            fragment = _assemble(region, snapshot, llvm_mc, "hexagonv66", obj)
+            fragment = _assemble(region, snapshot, llvm_mc, cpu, obj)
             digest = hashlib.sha256(fragment).hexdigest()
             if digest != region.sha256:
                 raise BuildError(f"{region.name}: generated SHA-256 differs from the registered digest")
@@ -306,7 +307,8 @@ def build(llvm_mc: str, reference: Path | None = None,
             for a, b in ((OWNED_FILE_START, first), (end, OWNED_FILE_END)) if a < b]
     parsed = packets.parse_packets(data, TEXT_VADDR + first - TEXT_FILE_START)
     manifest = {
-        "schema_version": 1, "architecture": "hexagonv66", "complete_firmware": False,
+        "schema_version": 1, "architecture": "hexagonv66",
+        "assembler_cpu": cpu, "complete_firmware": False,
         "file_start": first, "file_end": end,
         "vaddr_start": TEXT_VADDR + first - TEXT_FILE_START,
         "vaddr_end": TEXT_VADDR + end - TEXT_FILE_START,
@@ -335,6 +337,8 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("output", type=Path)
     parser.add_argument("--llvm-mc", default=os.environ.get("WLAN_LATE_LLVM_MC", "llvm-mc"))
+    parser.add_argument("--cpu", choices=("hexagonv65", "hexagonv66"), default="hexagonv66",
+                        help="Assembler subtarget; the pinned firmware remains V66")
     parser.add_argument("--reference", type=Path)
     parser.add_argument("--manifest", type=Path)
     parser.add_argument("--through-checkpoint", type=int)
@@ -346,7 +350,8 @@ def main() -> None:
         if args.manifest is not None and args.output.resolve() == args.manifest.resolve():
             raise BuildError("output and manifest must be different files")
         data, report = build(args.llvm_mc, args.reference, args.through_checkpoint,
-                             args.independent_llvm_mc, args.independent_cpu, args.llvm_objdump)
+                             args.independent_llvm_mc, args.independent_cpu, args.llvm_objdump,
+                             cpu=args.cpu)
         args.output.parent.mkdir(parents=True, exist_ok=True)
         args.output.write_bytes(data)
         if args.manifest:
