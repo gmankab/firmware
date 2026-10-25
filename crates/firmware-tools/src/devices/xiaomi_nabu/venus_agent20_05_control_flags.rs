@@ -2,13 +2,13 @@
 //! Agent 20-05: three small, standalone Venus descriptor-dirty flag helpers.
 //! Located in the agent's exclusive ARM range but disjoint from the upper
 //! descriptor routines. Each operation is emitted from ARM operands.
-use arm32::{branch, bx, data_immediate, data_register, mov_register,
+use arm32::{branch, branch_exchange_immediate, bx, data_immediate, data_register, mov_register,
             mov_shifted_register, push_registers, transfer_multiple,
             transfer_word, transfer_word_postindexed,
             BlockMode, Condition as C, DataOp as Op, Register as R, Shift};
 
 pub const START:usize=0x6b860;
-pub const END:usize=0x6b8f4;
+pub const END:usize=0x6b990;
 pub const FILE_BASE:usize=0x4000;
 
 struct Code{pc:usize,bytes:Vec<u8>}
@@ -95,6 +95,57 @@ fn update_controller_offsets(c:&mut Code)->Result<(),String>{
     i(c,C::Al,Op::Orr,R::R0,R::R0,4)?;
     mem(c,C::Al,false,R::R0,R::R2,0)?;
     c.emit(bx(C::Al,R::LR))?;
+    c.check(0x6b8f4)
+}
+
+/// Select the controller's effective per-frame sampling count. The value
+/// is bounded by minimum and maximum supported byte fields, with an optional
+/// sampling-rate rescale (using the runtime ARM-to-Thumb division helper).
+fn calculate_effective_sample_size(c:&mut Code)->Result<(),String>{
+    let r4=r(4)?;let r5=r(5)?;let r6=r(6)?;let r7=r(7)?;
+    let saved=r4.bit()|r5.bit()|r6.bit()|r7.bit()|R::R11.bit()|R::LR.bit();
+    c.check(0x6b8f4)?;
+    c.emit(push_registers(C::Al,saved)?)?;
+    i(c,C::Al,Op::Add,R::R11,R::SP,16)?;
+    c.emit(mov_register(C::Al,r5,R::R0))?;
+    c.emit(mov_register(C::Al,r4,R::R1))?;
+    i(c,C::Al,Op::Mov,R::R0,R::R0,1)?;
+    mem(c,C::Al,false,R::R0,r4,0xa4)?;
+    c.emit(arm32::transfer_byte(C::Al,true,R::R0,r5,0x31)?)?;
+    c.emit(arm32::transfer_byte(C::Al,true,r6,r5,0x32)?)?;
+    i(c,C::Al,Op::Cmp,R::R0,R::R0,0)?;
+    c.emit(mov_register(C::Ne,r6,R::R0))?;
+    c.emit(arm32::transfer_byte(C::Al,false,r6,r5,0x2d0)?)?;
+    mem(c,C::Al,true,r7,r4,0x20)?;
+    i(c,C::Al,Op::Cmp,R::R0,r7,0)?;
+    i(c,C::Ne,Op::And,R::R0,r6,255)?;
+    i(c,C::Ne,Op::Add,r6,R::R0,2)?;
+    c.emit(arm32::transfer_byte(C::Ne,false,r6,r5,0x2d0)?)?;
+    i(c,C::Al,Op::And,R::R1,r6,255)?;
+    c.emit(arm32::transfer_byte(C::Al,true,R::R0,r5,0x2a)?)?;
+    g(c,C::Al,Op::Cmp,R::R0,R::R1,R::R0)?;
+    c.emit(arm32::transfer_byte(C::Cc,false,R::R0,r5,0x2d0)?)?;
+    c.emit(mov_register(C::Cc,r6,R::R0))?;
+    c.emit(arm32::transfer_byte(C::Al,true,R::R0,r5,0x2b)?)?;
+    i(c,C::Al,Op::And,R::R1,r6,255)?;
+    g(c,C::Al,Op::Cmp,R::R0,R::R1,R::R0)?;
+    c.emit(arm32::transfer_byte(C::Hi,false,R::R0,r5,0x2d0)?)?;
+    c.emit(mov_register(C::Hi,r6,R::R0))?;
+    i(c,C::Al,Op::Cmp,R::R0,R::R2,0)?;
+    c.b(C::Ne,0x6b988)?;
+    mem(c,C::Al,true,R::R1,r5,0x5c)?;
+    mem(c,C::Al,true,R::R0,r5,0x48)?;
+    c.emit(mov_shifted_register(C::Al,R::R1,R::R1,Shift::Lsr,2)?)?;
+    c.emit(branch_exchange_immediate(c.pc as u32,0x83c4c)?)?;
+    c.emit(mov_shifted_register(C::Al,R::R1,R::R0,Shift::Lsr,1)?)?;
+    i(c,C::Al,Op::Cmp,R::R0,r7,0)?;
+    c.emit(mov_shifted_register(C::Eq,R::R1,R::R0,Shift::Lsl,2)?)?;
+    mem(c,C::Al,false,R::R1,r5,0x2e4)?;
+    mem(c,C::Al,false,R::R1,r4,0x8c)?;
+    c.check(0x6b988)?;
+    c.emit(arm32::transfer_byte(C::Al,false,r6,r4,12)?)?;
+    c.emit(transfer_multiple(C::Al,true,R::SP,
+        (saved&!R::LR.bit())|R::PC.bit(),BlockMode::IncrementAfter,true)?)?;
     c.check(END)
 }
 
@@ -103,6 +154,7 @@ pub fn fragment()->Result<Vec<u8>,String>{
     copy_six_and_mark_dirty(&mut c)?;
     update_allocation_quanta(&mut c)?;
     update_controller_offsets(&mut c)?;
+    calculate_effective_sample_size(&mut c)?;
     Ok(c.bytes)
 }
 

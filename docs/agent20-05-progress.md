@@ -50,6 +50,14 @@
 - Verified with direct private-reference comparison and an independent LLVM/Clang assembly round-trip, both with zero differences.
 - **Combined exclusive contribution:** 856 independently rebuilt bytes (840 ARM32 instruction bytes, 16 named data bytes), in two **disjoint** ranges. Do not mistake it for 856 contiguous bytes.
 
+## Checkpoint 05 — Sampling-size and channel adjustment
+
+- Extended the second independent interval to `[0x6b860,0x6b990)` = 304 bytes, MBN file `[0x6f860,0x6f990)`.
+- Added the complete controller effective-sample-size function `[0x6b8f4,0x6b990)` which clamps the channel count and calls the ARM/Thumb division helper for rescaling.
+- The second interval now contains 76 ARM32 instructions and **no data words**; SHA-256 `cd71beb1bac05e55e8eeaaeef5da5c73fff18af360cd8a6871533714bbeebf14`.
+- Total verified exclusive coverage is **1,012 bytes**: 996 instruction bytes (249 A32 instructions) and 16 literal data bytes (four words), no source-replaced OEM data or fabricated padding. These remain two **disjoint intervals**, not one contiguous range.
+- Independently reconstructed and byte-compared against the supplied Venus image and Clang/LLVM reassembly with zero differences.
+
 ## Remaining
 
-Continue from independent routine at ARM `0x69c3c`, then the next at `0x69cd8`; ensure all literal pools are modeled. There is a distinct uncovered seam `[0x68000, 0x69b80)`. The intervening runtime `[0x69e44, 0x6b860)` (0x1a1c bytes) and runtime `[0x6b8f4, 0xa8000)` remain unimplemented, in addition to the earlier `[0x68000, 0x69b80)` seam. The next conveniently function-aligned entry is `0x6b8f4`. Byte-identical emission does not constitute semantic equivalence, a whole firmware image, or hardware validation.
+Continue from independent routine at ARM `0x69c3c`, then the next at `0x69cd8`; ensure all literal pools are modeled. There is a distinct uncovered seam `[0x68000, 0x69b80)`. The intervening runtime `[0x69e44, 0x6b860)` (0x1a1c bytes) and runtime `[0x6b990, 0xa8000)` remain unimplemented, in addition to the earlier `[0x68000, 0x69b80)` seam. The next conveniently function-aligned entry is `0x6b990`. Byte-identical emission does not constitute semantic equivalence, a whole firmware image, or hardware validation.
