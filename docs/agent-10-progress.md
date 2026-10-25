@@ -84,3 +84,9 @@ All validation results and next missing work should be added below in later chec
 - The optional OpenSSL mode verifies the existing OEM RSA-PSS and certificate chains **against the embedded root only**; Qualcomm device hardware trust has not been established and no new signing material is generated. No firmware, signature, certificate or executable bytes are emitted to JSONL.
 - On all six supplied originals, the pinned revision checks, structurally reconstructed bytes, SHA-384 table checks, and embedded chain/OEM RSA-PSS consistency pass. Source-only coverage remains A640 7,856 and each other MBN 4,264 bytes; other firmware executable bytes remain assigned to separate agents.
 - Added Python fail-closed tests for missing/wrong revisions, digest pinning and no partial output. All 177 Rust and 19 Python tests and offline release build pass.
+
+## Checkpoint 12 — portable integration handoff
+
+- Added `docs/agent-10-integration.md` identifying all shared files and a merge/validation procedure for the requested checkpoint-50 branch, which **was not available** to this agent. Prepare a complete `git format-patch` series (one patch per commit) for the actual checkpoint-50 owner, preserving the exact Codex authorship.
+- Verify patch replay against a clean clone of the *available* older base and compare final tree identity and test outcomes. This does **not** predict conflict-free application onto checkpoint 50, which changed some shared entrypoints after that older base.
+- Signatures, certificates, executable reference code and private firmware binaries remain outside Git; the external A640 original-authentication field is not included in this handoff.
