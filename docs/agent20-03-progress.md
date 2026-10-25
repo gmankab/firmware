@@ -310,3 +310,9 @@ Original reference: private `map220v-nabu-firmware/venus.mbn`, SHA-256 `9d4af65d
 
 - Contiguous A32 byte identity `[0x21c78,0x2c950)` = **44,248 bytes**. New `[0x2c5ac,0x2c950)` = **932 bytes**, **217 A32 instructions and 16 separately identified pointer/diagnostic data words** in ten small pools.
 - A wide array of message-category handlers routes codec buffers into platform callback targets; the interleaved pools carry diagnostic identifiers, hardware masks and invalid-reference offsets rather than executable ARM instructions. The surrounding event routine continues beyond this checkpoint.
+
+## Checkpoint 46 — codec request setup and handler branch table
+
+- Contiguous typed A32 match `[0x21c78,0x2cc94)` = **45,084 bytes**. Newly rebuilt `[0x2c950,0x2cc94)` = **836 bytes**: **189 A32 instructions + 20 separate data words**.
+- Handler lookup table `[0x2cb24,0x2cb48)` holds nine runtime target addresses, with two trailing diagnostic addresses through `0x2cb50`. Six other short data pools remain separately classified and are tested as such.
+- No opaque executable bytes imported; this is instruction-level re-encoding, not high-level functional decompilation or signed firmware. Next instruction address `0x2cc94`.
