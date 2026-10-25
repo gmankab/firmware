@@ -65,6 +65,31 @@ class ADSPBootstrapTests(unittest.TestCase):
         self.assertEqual(generated[4:8], generated[8:12])
         self.assertEqual(generated[4:8], generated[24:28])
 
+    def test_controller_source_uses_packets_and_predicated_branches(self) -> None:
+        source = adsp.CONTROLLER_SOURCE.read_text()
+        self.assertIn("poll_timer:", source)
+        self.assertIn("if (!p0.new) jump:t poll_timer", source)
+        self.assertIn("secondary_mode", source)
+        self.assertNotIn(".word", source)
+        self.assertNotIn(".incbin", source)
+
+    @unittest.skipUnless(LLVM_MC, "Hexagon-capable llvm-mc unavailable")
+    def test_controller_compiles_without_unresolved_relocations(self) -> None:
+        generated = adsp.assemble(LLVM_MC, adsp.CONTROLLER_SOURCE, 0x70)
+        self.assertEqual(len(generated), 0x70)
+        self.assertEqual(generated[0x34:0x38], bytes.fromhex("00c08d52"))
+
+    @unittest.skipUnless(LLVM_MC and REFERENCE,
+                         "Hexagon assembler and exact Nabu ADSP reference required")
+    def test_controller_is_byte_identical_to_original(self) -> None:
+        generated = adsp.assemble(LLVM_MC, adsp.CONTROLLER_SOURCE, 0x70)
+        original = Path(REFERENCE).read_bytes()
+        adsp.verify_reference(generated, original, 0x4218)
+        mutated = bytearray(generated)
+        mutated[15] ^= 0x80
+        with self.assertRaisesRegex(adsp.AdspError, "mismatch"):
+            adsp.verify_reference(bytes(mutated), original, 0x4218)
+
     @unittest.skipUnless(LLVM_MC, "Hexagon-capable llvm-mc unavailable")
     def test_reject_relocations_and_malformed_section_offsets(self) -> None:
         with tempfile.TemporaryDirectory() as t:
