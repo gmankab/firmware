@@ -103,6 +103,166 @@
       "sha256": "9c1a500677386fcbee3665999fc7eed014232ea9bd2ed16ff3c61fbf24474a6a",
       "checkpoint": 2,
       "classification": "executable"
+    },
+    {
+      "name": "attribute-record-apply",
+      "file_start": 1051140,
+      "file_end": 1051336,
+      "source": "sources/xiaomi-nabu/wlanmdsp/agent14-late-attribute-record-apply.S",
+      "symbol": "wlan_late_attribute_record_apply",
+      "sha256": "f5f6f30a9d9c2c9554700bbe974c018c94fda52426a4491aea22c712a83892e3",
+      "checkpoint": 3,
+      "classification": "executable"
+    },
+    {
+      "name": "three-byte-record-parse",
+      "file_start": 1051336,
+      "file_end": 1051484,
+      "source": "sources/xiaomi-nabu/wlanmdsp/agent14-late-three-byte-record-parse.S",
+      "symbol": "wlan_late_three_byte_record_parse",
+      "sha256": "7eac568924cc9fb8f65a75c6ade30cf394e9cf5e686337161c8d9330b4d7d4b2",
+      "checkpoint": 3,
+      "classification": "executable"
+    },
+    {
+      "name": "short-type-dispatch",
+      "file_start": 1051484,
+      "file_end": 1052024,
+      "source": "sources/xiaomi-nabu/wlanmdsp/agent14-late-short-type-dispatch.S",
+      "symbol": "wlan_late_short_type_dispatch",
+      "sha256": "92976e5e33cc2efa0ba8c0f82a309de381758ef8b198cfd32df337d8db4b912e",
+      "checkpoint": 3,
+      "classification": "executable"
+    },
+    {
+      "name": "big-endian-attribute-parse",
+      "file_start": 1052024,
+      "file_end": 1052180,
+      "source": "sources/xiaomi-nabu/wlanmdsp/agent14-late-big-endian-attribute-parse.S",
+      "symbol": "wlan_late_big_endian_attribute_parse",
+      "sha256": "29c5bad92c6e679e609848d3443764fc35f4bb23848bf584720b473b4931350c",
+      "checkpoint": 3,
+      "classification": "executable"
+    },
+    {
+      "name": "eight-byte-pattern-match",
+      "file_start": 1052180,
+      "file_end": 1052276,
+      "source": "sources/xiaomi-nabu/wlanmdsp/agent14-late-eight-byte-pattern-match.S",
+      "symbol": "wlan_late_eight_byte_pattern_match",
+      "sha256": "e099795057bde055cc5f0434cbe3ac7600e0d5751bd882eeb966f3b8014a1131",
+      "checkpoint": 3,
+      "classification": "executable"
+    },
+    {
+      "name": "pattern-pointer-search",
+      "file_start": 1052276,
+      "file_end": 1052336,
+      "source": "sources/xiaomi-nabu/wlanmdsp/agent14-late-pattern-pointer-search.S",
+      "symbol": "wlan_late_pattern_pointer_search",
+      "sha256": "c8304667babfd182ff215b45ec6ea8c6292c95d7991de7d66ce249d6a41b67d4",
+      "checkpoint": 3,
+      "classification": "executable"
+    },
+    {
+      "name": "wide-type-dispatch",
+      "file_start": 1052336,
+      "file_end": 1053344,
+      "source": "sources/xiaomi-nabu/wlanmdsp/agent14-late-wide-type-dispatch.S",
+      "symbol": "wlan_late_wide_type_dispatch",
+      "sha256": "850c9f47ff163129af2b110388752ac281f2fee9dfbbc37a8aefa0cf2e79757b",
+      "checkpoint": 3,
+      "classification": "executable"
+    },
+    {
+      "name": "shared-resource-create",
+      "file_start": 1053344,
+      "file_end": 1053428,
+      "source": "sources/xiaomi-nabu/wlanmdsp/agent14-late-shared-resource-create.S",
+      "symbol": "wlan_late_shared_resource_create",
+      "sha256": "b7e398b5be43baec6a659b0966355a3e32a9f250538e62b8db2256121f492310",
+      "checkpoint": 3,
+      "classification": "executable"
+    },
+    {
+      "name": "failure-forward",
+      "file_start": 1053428,
+      "file_end": 1053444,
+      "source": "sources/xiaomi-nabu/wlanmdsp/agent14-late-failure-forward.S",
+      "symbol": "wlan_late_failure_forward",
+      "sha256": "36369adb56fa0137f719beb3f8753c25b5d04f733123777a373a84fab2cca394",
+      "checkpoint": 3,
+      "classification": "executable"
+    },
+    {
+      "name": "session-resource-setup",
+      "file_start": 1053444,
+      "file_end": 1053588,
+      "source": "sources/xiaomi-nabu/wlanmdsp/agent14-late-session-resource-setup.S",
+      "symbol": "wlan_late_session_resource_setup",
+      "sha256": "7b490f5903741e934b2a6ebfc10888d949a524cfaf23845ca1c8511d82be95b0",
+      "checkpoint": 3,
+      "classification": "executable"
+    },
+    {
+      "name": "session-state-callback",
+      "file_start": 1053588,
+      "file_end": 1053988,
+      "source": "sources/xiaomi-nabu/wlanmdsp/agent14-late-session-state-callback.S",
+      "symbol": "wlan_late_session_state_callback",
+      "sha256": "7ee824cb9dfbf4d3368122d03f99037e24b40d83b3e1c9154363fbeae6d35b04",
+      "checkpoint": 3,
+      "classification": "executable"
+    },
+    {
+      "name": "session-resource-switch",
+      "file_start": 1053988,
+      "file_end": 1054164,
+      "source": "sources/xiaomi-nabu/wlanmdsp/agent14-late-session-resource-switch.S",
+      "symbol": "wlan_late_session_resource_switch",
+      "sha256": "55437e9af6243bead891fbac9ae843ff12065e7fd4fde9fe261ab74785f60af2",
+      "checkpoint": 3,
+      "classification": "executable"
+    },
+    {
+      "name": "session-resource-release",
+      "file_start": 1054164,
+      "file_end": 1054336,
+      "source": "sources/xiaomi-nabu/wlanmdsp/agent14-late-session-resource-release.S",
+      "symbol": "wlan_late_session_resource_release",
+      "sha256": "9ce99a3780d75a67437d61d63dbad21c3fa6c175442a77bea750af27e6dc6282",
+      "checkpoint": 3,
+      "classification": "executable"
+    },
+    {
+      "name": "resource-disable-thunk",
+      "file_start": 1054336,
+      "file_end": 1054344,
+      "source": "sources/xiaomi-nabu/wlanmdsp/agent14-late-resource-disable-thunk.S",
+      "symbol": "wlan_late_resource_disable_thunk",
+      "sha256": "698325d6a0e86c9c7baa85d73d36c00e3186d667e61bb6b685e92aa9058ad8d6",
+      "checkpoint": 3,
+      "classification": "executable"
+    },
+    {
+      "name": "session-mode-reset-thunk",
+      "file_start": 1054344,
+      "file_end": 1054356,
+      "source": "sources/xiaomi-nabu/wlanmdsp/agent14-late-session-mode-reset-thunk.S",
+      "symbol": "wlan_late_session_mode_reset_thunk",
+      "sha256": "5bbceff2f62fa16936c8dc6d32d24edfff48c9e68e4eb6f7a98e951f2a3db1b1",
+      "checkpoint": 3,
+      "classification": "executable"
+    },
+    {
+      "name": "timing-count-adjust",
+      "file_start": 1054356,
+      "file_end": 1054500,
+      "source": "sources/xiaomi-nabu/wlanmdsp/agent14-late-timing-count-adjust.S",
+      "symbol": "wlan_late_timing_count_adjust",
+      "sha256": "ea65cecc5cc3c36aabdb2aacfeb3350faebb1e0fdd381e0685f5acd86c03c73a",
+      "checkpoint": 3,
+      "classification": "executable"
     }
   ]
 }

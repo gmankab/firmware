@@ -1,5 +1,15 @@
 {
   "architecture": "hexagonv66",
+  "clean_clone_reference_free_audit": {
+    "all_registered_sources_present": true,
+    "generated_bytes": 2112,
+    "head": "fb07423c6774a2148b6b08a1f140de5ac5489638",
+    "reference_checked": false,
+    "sha256": "ed80dc6c8682df0636d2c5d65f629dc4b7578c88b2f1816955bccc69aaeb1527",
+    "skip_reason": "exact-reference checks intentionally lack reference input",
+    "targeted_python_passed": 39,
+    "targeted_python_skipped": 2
+  },
   "complete_firmware": false,
   "constant_extender_word_count": 33,
   "data_bytes": 0,
@@ -12,9 +22,10 @@
   "file_start": 1049028,
   "generated_bytes": 2112,
   "git_provenance": {
-    "actual_parent": "d6104bb257ad60aa52f36eb91f338ef3e08586c5",
     "branch": "agents20/14-wlan-late",
-    "checkpoint50_integrated": false
+    "checkpoint50_integrated": false,
+    "commit_parent": "762ff9fe95f49eec4b7a522b7ccc812b98e75b3e",
+    "starting_base": "d6104bb257ad60aa52f36eb91f338ef3e08586c5"
   },
   "independent_assembler_byte_mismatches": 0,
   "independent_assembler_checked": true,

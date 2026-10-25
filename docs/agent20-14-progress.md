@@ -257,3 +257,101 @@ mismatches and `git diff --check`. See
 Forward continuation: file `0x100a04`, runtime `0xb00c0a04`. The 452-byte lower
 seam is still uncovered. Build this snapshot with `--through-checkpoint 2`;
 the original `--through-checkpoint 1` output remains reproducible.
+
+An independent clean clone of the checkpoint-02 bundle rebuilt all 2,112 bytes
+with no reference path or reference environment variable. The resulting hash,
+both assembler outputs and decoder coverage match. Its focused test run passed
+39 tests and intentionally skipped the two reference-only tests; this is
+separate from the fully supplied 83-test checkpoint gate, which skipped none.
+All ten registered sources and their builder/parser/test dependencies were
+present in the bundle. Original firmware and host tools are external inputs.
+
+The evidence keys distinguish `starting_base` from `commit_parent`. A prior
+checkpoint-02 metadata key called the starting base `actual_parent`; that
+ambiguous label is corrected here. The actual Git parent chain was always
+`d6104bb` → `762ff9f` → `fb07423`.
+
+
+## Checkpoint 03 — attribute dispatch, pattern search and session resources
+
+Sixteen complete functions and thunks add **3,360 executable bytes** at file
+`[0x100a04,0x101724)`, runtime `[0xb00c0a04,0xb00c1724)`. The cumulative code
+run is **5,472 bytes** at file `[0x1001c4,0x101724)`, covering 26 routines.
+No data or alignment bytes are added by this checkpoint.
+
+| Source stem | File range | Bytes |
+| --- | --- | ---: |
+| `attribute-record-apply` | `[0x100a04,0x100ac8)` | 196 |
+| `three-byte-record-parse` | `[0x100ac8,0x100b5c)` | 148 |
+| `short-type-dispatch` | `[0x100b5c,0x100d78)` | 540 |
+| `big-endian-attribute-parse` | `[0x100d78,0x100e14)` | 156 |
+| `eight-byte-pattern-match` | `[0x100e14,0x100e74)` | 96 |
+| `pattern-pointer-search` | `[0x100e74,0x100eb0)` | 60 |
+| `wide-type-dispatch` | `[0x100eb0,0x1012a0)` | 1008 |
+| `shared-resource-create` | `[0x1012a0,0x1012f4)` | 84 |
+| `failure-forward` | `[0x1012f4,0x101304)` | 16 |
+| `session-resource-setup` | `[0x101304,0x101394)` | 144 |
+| `session-state-callback` | `[0x101394,0x101524)` | 400 |
+| `session-resource-switch` | `[0x101524,0x1015d4)` | 176 |
+| `session-resource-release` | `[0x1015d4,0x101680)` | 172 |
+| `resource-disable-thunk` | `[0x101680,0x101688)` | 8 |
+| `session-mode-reset-thunk` | `[0x101688,0x101694)` | 12 |
+| `timing-count-adjust` | `[0x101694,0x101724)` | 144 |
+
+Each source stem above is prefixed `agent14-late-` and suffixed `.S` under
+`sources/xiaomi-nabu/wlanmdsp/`. The new group contains 412 packets and 840
+encoded words, including 47 extenders and 57 duplex words, with one loop0
+end marker. All 840 words decode as V66 instructions with zero unknowns.
+
+The three record parsers recover four-byte big-endian type/length headers,
+three-byte records whose length uses only the second byte, bounded optional
+field copying, and output flag handling. Signed nonpositive total lengths
+follow the original empty-success paths. No extra bounds checks are inserted
+into the generated instruction stream.
+
+The short dispatcher handles indices 0 through 18; the wide dispatcher handles
+normalized tags `0x1002` through `0x106a`. At this checkpoint their table data
+at runtime `0xb02b6cd0` and `0xb02b6d1c` remain separately identified external
+inputs. Their bytes are not embedded in or counted as code. Every local case
+handler and the original default/error paths are reconstructed.
+
+The eight-byte pattern predicate first invokes an external comparison-like
+helper. If it does not report equality, the local fallback accepts equal
+first two bytes when the remaining six bytes in the second argument are zero.
+The pointer-array search returns 1 on its first accepted candidate and 0 for
+no match or an empty array. This resolves the local caller-frame dependency
+from checkpoint 02 without asserting the external helper's full contract.
+
+The session routines recover lazy allocation, callback setup, state 2/3
+transitions, resource slot switching, release and two small forwarding thunks.
+The final timing routine preserves an old-value threshold comparison before
+adding the count-scaled interval and input offset. Its ordered stores are kept
+intact even when the count pointer and output-time pointer alias.
+
+Seven scheduling differences were resolved using legal packet source ordering
+and two `:mem_noshuf` directives. All 3,360 new bytes and the entire previous
+2,112-byte prefix match both the pinned reference and the two LLVM versions.
+No raw opcode insertion or post-assembly byte repair is used.
+
+New-span SHA-256:
+
+```text
+cd7a034676ef728179336b34869dc713d49f509c9ac001648677c8d79d553be1
+```
+
+Final regression and source fingerprints are recorded in
+`docs/evidence/agent20-14/checkpoint-03.json`. All 160 Rust and 83 Python tests
+pass with zero skips; the release build and whitespace check pass. The forward
+continuation is file `0x101724`, runtime `0xb00c1724`, at a new function entry.
+The lower 452-byte seam remains unimplemented. The wider allocation, external
+callees, behavior on a running target and authentication remain incomplete.
+
+Cumulative checkpoint-03 code SHA-256:
+
+```text
+4242c17caba9322e7ac687357acffa510839599dc5ebf85b856fc414ffa638e7
+```
+
+Four diagnostic-ending entry boundaries in this group rely on the explicit
+non-return inference for the external diagnostic target; no hardware test of
+that contract has been performed.

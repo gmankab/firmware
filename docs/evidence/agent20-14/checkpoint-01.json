@@ -12,9 +12,10 @@
   "file_start": 1049028,
   "generated_bytes": 868,
   "git_provenance": {
-    "actual_parent": "d6104bb257ad60aa52f36eb91f338ef3e08586c5",
     "branch": "agents20/14-wlan-late",
-    "checkpoint50_integrated": false
+    "checkpoint50_integrated": false,
+    "commit_parent": "d6104bb257ad60aa52f36eb91f338ef3e08586c5",
+    "starting_base": "d6104bb257ad60aa52f36eb91f338ef3e08586c5"
   },
   "independent_assembler_byte_mismatches": 0,
   "independent_assembler_checked": true,
