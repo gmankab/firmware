@@ -133,6 +133,11 @@ pub fn verify_container(reference: &[u8]) -> Result<(), String> {
             }
         }
     }
+    // Secondary checks are architectural constraints, not added independent
+    // data or a substitute for decoding the proprietary HALO program.
+    let _=crate::wmfw_memory_map::layouts()?;
+    let _=crate::wmfw_cs35l41_bus::all_transfers()?;
+    let _=crate::wmfw_control_ranges::cspl_control_slots()?;
     partial_container()?.compare_known(reference)
 }
 

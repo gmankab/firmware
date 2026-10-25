@@ -157,3 +157,15 @@ explicit, SHA-256-pinned external DSP payloads from checkpoint 08-06.
 
 References: `https://codebrowser.dev/linux/linux/include/sound/cs35l41.h.html`,
 `https://github.com/torvalds/linux/blob/master/sound/soc/codecs/cs35l41-lib.c`.
+
+## Checkpoint 08-11 — end-to-end audit and checkpoint-50 integration guide
+
+Added `tools/verify-agent08-wmfw.sh`, a single offline audit that runs Rust,
+Python and release-build checks, verifies all independently encoded metadata,
+reports checked DSP/control/CS35L41 AHB maps, and then **explicitly imports**
+the original seven external DSP payloads only into a temporary directory to
+confirm the complete WMFW exactly matches the reference SHA-256. Temporary
+OEM payloads are removed upon exit. The dedicated integration runbook explains
+how to apply only the agent's Codex commits to checkpoint 50 without merging
+the unrelated older main-branch ref, and documents the HALO ISA/source blocker.
+Independent firmware-byte coverage is unchanged: **3,984 / 34,236**.
