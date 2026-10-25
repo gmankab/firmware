@@ -115,6 +115,7 @@ class TestListingValidation(unittest.TestCase):
         verifier.verify_checkpoint_counts("map220v", 0xB1C, (455, 146, 309, 54, 28))
         verifier.verify_checkpoint_counts("postmarketos", 0xB22, (458, 146, 312, 55, 29))
         verifier.verify_checkpoint_counts("map220v", 0xB24, (458, 147, 311, 54, 28))
+        verifier.verify_checkpoint_counts("postmarketos", 0xE34, (758, 239, 519, 132, 63))
         for profile, end, counts in (("postmarketos", 0xB1C, (455, 146, 309, 54, 28)),
                                      ("map220v", 0xB1A, (455, 145, 310, 55, 29)),
                                      ("map220v", 0xB1C, (455, 145, 310, 55, 29))):
@@ -160,6 +161,37 @@ class TestControlFlow(unittest.TestCase):
         flow = verifier.control_flow(rows, 0x46A, 0x46C)
         self.assertFalse(flow["direct_edges"])
         self.assertEqual(len(flow["ifc_return_sites"]), 1)
+
+
+class TestExtendedControllerOpcodes(unittest.TestCase):
+    def test_new_compact_and_gp_mnemonics_are_strictly_recognized(self):
+        rows=parsed((2,"add45 $r0,$r1"), (2,"slt45 $r1,$r0"),
+                    (2,"fexti33 $r2,1"), (4,"lhi.gp $r0,[-8]"),
+                    (4,"lmw.bi $r16,[$r0],$r17,0"),
+                    (4,"smw.bi $r16,[$r1],$r17,0"))
+        self.assertEqual(len(rows),6)
+        self.assertEqual(sum(r["length"] for r in rows),18)
+
+    def test_ex9_new_semantic_forms_require_exact_registers_and_addresses(self):
+        gp=0x24000
+        # Synthetic opcodes from public NDS32 encodings; never OEM samples.
+        forms=(
+            ((0x1F<<25)|(3<<20)|0x7fffd,
+             {"operation":"sbi.gp","source_register":3,"address":gp-3}),
+            ((0x1E<<25)|(3<<20)|(4<<17)|0x3ffff,
+             {"operation":"shi.gp","source_register":3,"address":gp-2}),
+            ((0x1D<<25)|(6<<20)|(31<<15)|(7<<10)|(0xA<<6)|0x20|0x18|4,
+             {"operation":"smw","first_register":6,"base_register":31,
+              "last_register":7,"special_mask":10,"decrement":True,"writeback":True}),
+        )
+        for instruction,effect in forms:
+            original=instruction.to_bytes(4,"big")
+            with self.subTest(effect=effect):
+                self.assertTrue(verifier.verify_effect(original,effect,gp=gp))
+                altered={**effect}
+                key="address" if "address" in effect else "last_register"
+                altered[key]+=2 if key=="address" else 1
+                self.assertFalse(verifier.verify_effect(original,altered,gp=gp))
 
 
 class TestExternalEffects(unittest.TestCase):

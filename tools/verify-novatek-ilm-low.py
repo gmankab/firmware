@@ -61,6 +61,37 @@ PROFILES = {
             0x2E: {"operation": "swi.gp", "source_register": 0, "address": 0x2C73C},
             0xAB: {"operation": "lwi.gp", "destination_register": 0, "address": 0x2ECA8},
             0x141: {"operation": "swi.gp", "source_register": 0, "address": 0x2C740},
+            0x0: {'operation': 'lwi.gp', 'destination_register': 0, 'address': 181412},
+            0x6: {'operation': 'jal', 'target_low25': 58152},
+            0x12: {'operation': 'lwi.gp', 'destination_register': 1, 'address': 181412},
+            0x14: {'operation': 'jal', 'target_low25': 35844},
+            0x17: {'operation': 'jal', 'target_low25': 34122},
+            0x19: {'operation': 'lwi.gp', 'destination_register': 0, 'address': 181564},
+            0x1b: {'operation': 'lwi.gp', 'destination_register': 0, 'address': 181408},
+            0x1f: {'operation': 'lmw', 'first_register': 6, 'base_register': 31, 'last_register': 6, 'special_mask': 2, 'decrement': False, 'writeback': True},
+            0x28: {'operation': 'jal', 'target_low25': 63084},
+            0x30: {'operation': 'movi', 'destination_register': 0, 'immediate': 85},
+            0x39: {'operation': 'jal', 'target_low25': 48484},
+            0x3d: {'operation': 'movi', 'destination_register': 0, 'immediate': -86},
+            0x59: {'operation': 'jal', 'target_low25': 60480},
+            0x7e: {'operation': 'smw', 'first_register': 16, 'base_register': 1, 'last_register': 25, 'special_mask': 0, 'decrement': False, 'writeback': True},
+            0x84: {'operation': 'movi', 'destination_register': 0, 'immediate': 196176},
+            0x95: {'operation': 'sbi.gp', 'source_register': 0, 'address': 181176},
+            0x9a: {'operation': 'jal', 'target_low25': 58690},
+            0xa3: {'operation': 'lmw', 'first_register': 16, 'base_register': 0, 'last_register': 25, 'special_mask': 0, 'decrement': False, 'writeback': True},
+            0xa9: {'operation': 'movi', 'destination_register': 0, 'immediate': 105},
+            0xd0: {'operation': 'jal', 'target_low25': 59674},
+            0xe0: {'operation': 'movi', 'destination_register': 2, 'immediate': 181576},
+            0x122: {'operation': 'movi', 'destination_register': 1, 'immediate': 191656},
+            0x132: {'operation': 'sbi.gp', 'source_register': 0, 'address': 191774},
+            0x154: {'operation': 'jal', 'target_low25': 60664},
+            0x15c: {'operation': 'movi', 'destination_register': 1, 'immediate': 181249},
+            0x17d: {'operation': 'jal', 'target_low25': 60676},
+            0x19f: {'operation': 'jal', 'target_low25': 57964},
+            0x1ad: {'operation': 'jal', 'target_low25': 60626},
+            0x1c6: {'operation': 'jal', 'target_low25': 60736},
+            0x1f8: {'operation': 'lwi.gp', 'destination_register': 3, 'address': 181460},
+            0x1f9: {'operation': 'shi.gp', 'source_register': 0, 'address': 181300},
         },
     },
     "map220v": {
@@ -119,17 +150,18 @@ CHECKPOINT_COUNTS["map220v"][0xB1C] = (455, 146, 309, 54, 28)
 CHECKPOINT_COUNTS["postmarketos"][0xB22] = (458, 146, 312, 55, 29)
 CHECKPOINT_COUNTS["map220v"][0xB24] = (458, 147, 311, 54, 28)
 CHECKPOINT_COUNTS["postmarketos"][0xB42] = (471, 149, 322, 58, 32)
+CHECKPOINT_COUNTS["postmarketos"][0xE34] = (758, 239, 519, 132, 63)
 SUPPORTED_MNEMONICS = {
     2: frozenset({
         "addi45", "beqs38", "bnes38", "beqz38", "bnez38", "beqzs8", "bnezs8",
-        "bmski33", "ex9.it", "ifcall9", "ifret16", "j8", "jr5", "jral5",
+        "add45", "bmski33", "fexti33", "slt45", "ex9.it", "ifcall9", "ifret16", "j8", "jr5", "jral5",
         "lbi333", "lhi333", "lwi333", "lwi37", "lwi450", "mov55", "movi55", "movpi45", "or33",
         "pop25", "push25", "ret5", "sbi333", "seb33", "shi333", "slti45", "srli45", "subi333", "subi45",
         "swi450", "xlsb33", "zeb33", "zeh33",
     }),
     4: frozenset({
         "add_slli", "addi", "andi", "beqc", "beqz", "bitci", "bnec", "bset", "dsb",
-        "ifcall", "j", "jal", "jr", "jral", "lb", "lbi.gp", "lmw.bim", "lwi", "lwi.gp", "mfsr", "movi",
+        "ifcall", "lhi.gp", "lmw.bi", "smw.bi", "j", "jal", "jr", "jral", "lb", "lbi.gp", "lmw.bim", "lwi", "lwi.gp", "mfsr", "movi",
         "mtsr", "or_slli", "ori", "sb", "sbi", "sbi.gp", "sethi", "sll", "smw.adm", "srli", "swi.gp",
     }),
 }
@@ -319,6 +351,26 @@ def verify_effect(table_bytes, effect, gp=None):
     if operation in {"j", "jal"}:
         return ((word >> 25) == 0x24 and (word >> 24 & 1) == (operation == "jal")
                 and (word & 0xFFFFFF) << 1 == effect["target_low25"])
+    if operation in {"lhi.gp", "lhsi.gp", "shi.gp"}:
+        require(gp is not None, "GP-relative halfword operation requires pinned GP")
+        t = {"lhi.gp": 0, "lhsi.gp": 2, "shi.gp": 4}[operation]
+        reg = effect["source_register" if t == 4 else "destination_register"]
+        address = (gp + signed_field(word, 18) * 2) & 0xFFFFFFFF
+        return ((word >> 25) == 0x1E and (word >> 20 & 31) == reg
+                and (word >> 18 & 3) == t // 2 and address == effect["address"])
+    if operation == "sbi.gp":
+        require(gp is not None, "GP-relative byte operation requires pinned GP")
+        address = (gp + signed_field(word, 19)) & 0xFFFFFFFF
+        return ((word >> 25) == 0x1F and (word >> 20 & 31) == effect["source_register"]
+                and address == effect["address"])
+    if operation in {"smw", "lmw"}:
+        return ((word >> 25) == 0x1D and bool(word & 0x20) == (operation == "smw")
+                and (word >> 20 & 31) == effect["first_register"]
+                and (word >> 15 & 31) == effect["base_register"]
+                and (word >> 10 & 31) == effect["last_register"]
+                and (word >> 6 & 15) == effect["special_mask"]
+                and bool(word & 0x18) == effect["decrement"]
+                and bool(word & 4) == effect["writeback"])
     if operation in {"lwi.gp", "swi.gp"}:
         require(gp is not None and 0 <= gp <= 0xFFFFFFFF,
                 "GP-relative EX9 effect requires the pinned profile GP")
