@@ -97,3 +97,10 @@ Original reference: private `map220v-nabu-firmware/venus.mbn`, SHA-256 `9d4af65d
 - Full region contains **3,729 checked typed ARM A32 instructions and 280 non-instruction words**, identified across 57 literal pools; Clang/LLD reassembly independently matches every byte.
 - New `[0x25700,0x25b1c)` contributes 224 ARM32 instructions and 39 literal words in 28 pools, covering controller-register getters/setters, hardware-vendor table lookups, stream logging, and platform initialization/teardown callback wrappers.
 - Next uncovered function begins at runtime `0x25b1c`; prior `[0x21c78,0x25b1c)` code is complete as A32 encoding, not a full high-level firmware source decompilation or signed firmware image.
+
+## Checkpoint 13 — controller interrupt slots and MMIO initialization
+
+- Contiguous, directly byte-verified VMA **`[0x21c78,0x25d14)` = 16,540 bytes**, MBN file **`[0x25c78,0x29d14)`**. All bytes match pinned SHA-256 Venus reference (`9d4af65d7ede845e900f1b29ff425b7a8e2947056e695e246e58a2091445a085`).
+- New `[0x25b1c,0x25d14)` = **504 bytes**: 111 typed ARM32 instructions and **15 non-instruction literal words**. Implements assigning/removing indexed callback slots, controller mask/acknowledge/reset and hardware startup fields. Named literal pools at `[0x25b58,0x25b5c)`, `[0x25c0c,0x25c24)`, `[0x25c5c,0x25c60)`, `[0x25c88,0x25c8c)`, `[0x25cfc,0x25d14)`.
+- Entire emitter now comprises **3,840 A32 instructions and 295 typed data words in 62 pools**. Independent Clang/LLD reconstruction (using separately classified mnemonic/data intervals) reproduces all 16,540 bytes exactly; no executable reference bytes are copied into the Rust generator. `tools/agent20-03-venus-mid-ranges.json` includes all new pools.
+- Next missing runtime instruction is `0x25d14`, within Agent 20-03's exclusive `[0x21c78,0x40000)` reservation.
