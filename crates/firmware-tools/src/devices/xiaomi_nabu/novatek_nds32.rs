@@ -316,6 +316,23 @@ pub fn verify_additional_interrupt_paths(firmware:&[u8])->Result<(),String>{
     Ok(())
 }
 
+/// All source-authored NDS32 exception paths currently reconstructed at the
+/// beginning of ILM. The real firmware may branch out to later handlers;
+/// those targets must not be claimed reconstructed by this function.
+pub fn authored_interrupt_prefix()->Result<Vec<u8>,String>{
+    let mut result=initial_interrupt_handler()?;
+    result.extend_from_slice(&additional_interrupt_paths()?);
+    if result.len()!=EXTRA_INTERRUPTS_END-FIRST_HANDLER_OFFSET {
+        return Err("NDS32 authored-prefix concatenation failed".into());
+    }
+    Ok(result)
+}
+
+pub fn verify_authored_interrupt_prefix(firmware:&[u8])->Result<(),String>{
+    verify_first_handler(firmware)?;
+    verify_additional_interrupt_paths(firmware)
+}
+
 /// Confirm the independently built ISR *path* matches the provided *private*
 /// reference, and that it is physically inside the pinned ILM partition.
 pub fn verify_first_handler(firmware:&[u8])->Result<(),String>{
@@ -377,6 +394,15 @@ pub fn verify_first_handler(firmware:&[u8])->Result<(),String>{
         candidate[0x4d8]^=1;
         assert!(verify_additional_interrupt_paths(&candidate)
             .unwrap_err().contains("0x4d8"));
+    }
+    #[test]fn generated_isr_prefix_is_contiguous_and_typed() {
+        let prefix=authored_interrupt_prefix().unwrap();
+        assert_eq!(prefix.len(),244);
+        assert_eq!(&prefix[..90],&initial_interrupt_handler().unwrap());
+        assert_eq!(&prefix[90..],&additional_interrupt_paths().unwrap());
+        let mut b=vec![0;EXTRA_INTERRUPTS_END];
+        b[FIRST_HANDLER_OFFSET..EXTRA_INTERRUPTS_END].copy_from_slice(&prefix);
+        verify_authored_interrupt_prefix(&b).unwrap();
     }
     #[test]fn reconstructs_full_isr_without_raw_firmware_bytes(){
         let built=initial_interrupt_handler().unwrap();

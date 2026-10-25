@@ -508,3 +508,36 @@ previous 90-byte path this proves **244 byte-identical, source-generated
 executable bytes** at `[0x450,0x544)`. These extra 154 bytes are not yet
 inserted into the structural assembler's generated prefix; they will be
 integrated next so callers need supply ILM only after `0x544`.
+
+## Checkpoint 12 — NDS32 interrupt-prefix coverage expanded to 244 bytes
+
+The strict `coverage()` and `projected_regions()` map now mark the entire
+`[0x450,0x544)` interval as `IndependentlyGeneratedNds32`. The emitter
+concatenates the first 90-byte exception path and its next 154 bytes of
+related interrupt entry/return paths, **244 independently encoded executable
+bytes** in total. The remaining caller-authored ILM begins at **`0x544`**;
+legacy ILM inputs starting at `0x450` or `0x4aa` are rejected because their
+sizes are now too long. `verify-envelope` regenerates the source-derived
+prefix and rejects a changed instruction byte at its exact file offset.
+
+PostmarketOS Nabu (`8b845514…72b70b5`) provenance accounting:
+
+| Region provenance | Bytes |
+| --- | ---: |
+| Independently generated zeros and `NVT` magic | 35,136 |
+| **Independently encoded NDS32 executable** | **244** |
+| DLM configuration mirror derived from **authored** DLM | 2,304 |
+| Metadata and candidate vectors requiring external values | 1,024 |
+| Unimplemented ILM `[0x544,0x1ac80)` | 108,348 |
+| Unimplemented DLM `[0x22000,0x2e190)` | 49,552 |
+| **Total** | **196,608** |
+
+**35,380 source-independent bytes** are now generated (including 244
+executable bytes), while **157,900 ILM/DLM bytes** still need independent
+reconstruction. The two structurally complete test rebuilds, made with
+reference-derived *opaque remainder input kept outside Git*, match both
+reference images byte-for-byte including recomputed CRCs. This tests the
+assembler, not independent authorship of those remaining inputs. Source
+completion is still far from a flashable firmware.
+
+Rust tests: 191 passed; Python: 13 passed; offline release build: passed.
