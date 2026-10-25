@@ -42,15 +42,19 @@ CONTROLLER_CACHE_COPY_SOURCE = pathlib.Path(__file__).with_name("adsp-controller
 CONTROLLER_PHYSICAL_COPY_SOURCE = pathlib.Path(__file__).with_name("adsp-controller-physical-copy.S")
 CONTROLLER_PHYSICAL_COMPARE_SOURCE = pathlib.Path(__file__).with_name("adsp-controller-physical-compare.S")
 CONTROLLER_CFGBASE_SOURCE = pathlib.Path(__file__).with_name("adsp-controller-cfgbase.S")
+CONTROLLER_ALIGNMENT_SOURCE = pathlib.Path(__file__).with_name("adsp-controller-nop-padding.S")
+CONTROLLER_STARTUP_SOURCE = pathlib.Path(__file__).with_name("adsp-controller-startup.S")
 FRAGMENTS = {
     "vectors": (ASM_SOURCE, OEM_FILE_OFFSET, GENERATED_LENGTH),
     "boot-prefix": (ASM_SOURCE, OEM_FILE_OFFSET, 0x44),
-    "counter-controller": (CONTROLLER_SOURCE, 0x41e0, 0x928),
+    "counter-controller": (CONTROLLER_SOURCE, 0x41e0, 0xa88),
     "controller-bootstrap": (CONTROLLER_BOOTSTRAP_SOURCE, 0x4980, 0x2c),
     "controller-cache-copy": (CONTROLLER_CACHE_COPY_SOURCE, 0x49ac, 0x5c),
     "controller-physical-copy": (CONTROLLER_PHYSICAL_COPY_SOURCE, 0x4a08, 0x4c),
     "controller-physical-compare": (CONTROLLER_PHYSICAL_COMPARE_SOURCE, 0x4a54, 0x90),
     "controller-cfgbase": (CONTROLLER_CFGBASE_SOURCE, 0x4ae4, 0x24),
+    "controller-nop-padding": (CONTROLLER_ALIGNMENT_SOURCE, 0x4b08, 0xf8),
+    "controller-startup": (CONTROLLER_STARTUP_SOURCE, 0x4c00, 0x68),
     "tlb-reconcile": (TLB_RECONCILE_SOURCE, 0x48d0, 0xb0),
     "cacheline-copy": (CACHELINE_COPY_SOURCE, 0x4818, 0x78),
     "tlb-flush": (TLB_FLUSH_SOURCE, 0x4788, 0x90),
@@ -403,6 +407,35 @@ def assemble_cfgbase_helper(
     return bytes(result)
 
 
+def assemble_controller_startup(
+    llvm_mc: str, source: pathlib.Path = CONTROLLER_STARTUP_SOURCE
+) -> bytes:
+    """Assemble control-register save and GP-relative initialization.
+
+    Four privileged register access instructions are encoded from their
+    register identifiers and operands, with exact ELF packet size/positions
+    verified. The remaining 22 instruction words are assembled from Hexagon
+    labels and operations, including a branch beyond the generated fragment.
+    """
+    from adsp_hexagon_v66 import SystemRegister, read_system_register, write_system_register
+
+    output = bytearray(assemble(llvm_mc, source, 0x68))
+    nop = struct.pack("<I", 0x7F00C000)
+    replacements = (
+        (0x00, read_system_register(23, SystemRegister.SYSCFG)),
+        (0x04, write_system_register(SystemRegister.PMUCFG, 23)),
+        (0x0C, write_system_register(SystemRegister.SYSCFG, 0)),
+        (0x14, read_system_register(23, SystemRegister.S54)),
+    )
+    for position, operand in replacements:
+        if output[position:position + 4] != nop:
+            raise AdspError(f"Missing controller startup sentinel at 0x{position:x}")
+        output[position:position + 4] = struct.pack("<I", operand)
+    if any(output[i:i+4] == nop for i in range(0,len(output),4)):
+        raise AdspError("Unresolved control register placeholder in startup")
+    return bytes(output)
+
+
 def run(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--llvm-mc", required=True,
@@ -435,6 +468,8 @@ def run(argv: list[str] | None = None) -> int:
             out = assemble_tlb_map(args.llvm_mc, args.source or source)
         elif args.segment == "tlb-flush":
             out = assemble_tlb_flush(args.llvm_mc, args.source or source)
+        elif args.segment == "controller-startup":
+            out = assemble_controller_startup(args.llvm_mc, args.source or source)
         elif args.segment == "controller-cfgbase":
             out = assemble_cfgbase_helper(args.llvm_mc, args.source or source)
         elif args.segment == "controller-physical-compare":
@@ -445,7 +480,7 @@ def run(argv: list[str] | None = None) -> int:
             out = assemble_tlb_reconcile(args.llvm_mc, args.source or source)
         elif args.segment == "counter-controller":
             # Compile the ISA-common controller and its V66-only tails
-            # independently, then emit a strictly adjacent 0x928-byte span.
+            # independently, then emit a strictly adjacent 0xa88-byte span (including explicit NOP alignment).
             if args.source is not None:
                 raise AdspError("--source override is not supported for the combined controller")
             out = (assemble(args.llvm_mc, CONTROLLER_SOURCE, 0x4c0) +
@@ -459,7 +494,9 @@ def run(argv: list[str] | None = None) -> int:
                    assemble(args.llvm_mc, CONTROLLER_CACHE_COPY_SOURCE, 0x5c) +
                    assemble_physical_copy(args.llvm_mc) +
                    assemble_physical_compare(args.llvm_mc) +
-                   assemble_cfgbase_helper(args.llvm_mc))
+                   assemble_cfgbase_helper(args.llvm_mc) +
+                   assemble(args.llvm_mc, CONTROLLER_ALIGNMENT_SOURCE, 0xf8) +
+                   assemble_controller_startup(args.llvm_mc))
         else:
             out = assemble(args.llvm_mc, args.source or source, expected_length)
         if len(out) != expected_length:

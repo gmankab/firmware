@@ -110,6 +110,24 @@ class V66BootstrapTests(unittest.TestCase):
                 self.assertEqual(struct.unpack_from("<I",data,offset)[0],
                                  v66.read_system_register(reg,v66.SystemRegister.CFGBASE))
 
+    def test_pmu_and_controller_s54_register_fields(self) -> None:
+        self.assertEqual(v66.read_system_register(23,v66.SystemRegister.SYSCFG),0x6e92c017)
+        self.assertEqual(v66.write_system_register(v66.SystemRegister.PMUCFG,23),0x6717c035)
+        self.assertEqual(v66.read_system_register(23,v66.SystemRegister.S54),0x6eb6c017)
+
+    @unittest.skipUnless(REFERENCE,"Original ADSP required")
+    def test_v66_privileged_controller_registers_match_reference(self) -> None:
+        data=Path(REFERENCE).read_bytes()
+        checks={
+            0x4c00: v66.read_system_register(23,v66.SystemRegister.SYSCFG),
+            0x4c04: v66.write_system_register(v66.SystemRegister.PMUCFG,23),
+            0x4c0c: v66.write_system_register(v66.SystemRegister.SYSCFG,0),
+            0x4c14: v66.read_system_register(23,v66.SystemRegister.S54),
+        }
+        for off,word in checks.items():
+            with self.subTest(offset=hex(off)):
+                self.assertEqual(struct.unpack_from("<I",data,off)[0],word)
+
     def test_fixed_operand_hexagon_tlb_write_encoding(self) -> None:
         self.assertEqual(v66.tlb_write_pair_r3_r2_index_r0(), 0x6c02c000)
         self.assertEqual((v66.tlb_write_pair_r3_r2_index_r0() >> 14) & 3, 3)

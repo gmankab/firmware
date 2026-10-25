@@ -401,3 +401,43 @@ python3 -S tools/emit-adsp-entry.py \
 The first missing controller byte is now at `0x4b08`. In addition, the
 original boot gap `[0x3044,0x41e0)` remains unimplemented. The output is not
 an authenticated or flashable image.
+
+## Checkpoint 20: NOP alignment and privileged controller startup
+
+Added a **352-byte contiguous generated interval** at file offsets
+`[0x4b08,0x4c68)` (physical `[0x8be01b08,0x8be01c68)`), expressly
+separating **248 bytes of executable NOP padding** (`[0x4b08,0x4c00)`, 62
+standalone source-level NOP packets) from **104 bytes of reconstructed
+startup logic** (`[0x4c00,0x4c68)`). The padding is not counted as newly
+understood functional code. Neither subsection copies OEM instruction words.
+
+The startup block reads `SYSCFG`, saves `PMUCFG`, configures system registers,
+reads a selected system register (`S54`), writes GP-relative controller state,
+checks a sentinel, and sets bit 29 of its ready flag. LLVM6 independently
+assembles its ordinary instruction packets, 32-bit extender pairs, branching,
+and `.set` external branch destination. Four privileged register accesses
+are modeled using their checked five-bit architectural source/destination
+and register-identification fields (`SYSCFG=18`, `PMUCFG=53`, `S54=54`), and
+are substituted only after verifying the exact four temporary NOP slots.
+All 352 bytes match the SHA-verified ADSP original.
+
+The controller span is now **2,696 contiguous bytes** `[0x41e0,0x4c68)`.
+Together with the separate 68-byte boot prefix, there are **2,764 generated
+bytes in independently reproduced output**, of which **248 newly covered
+bytes are NOP alignment** rather than substantive firmware logic. All 66
+Python regression tests pass.
+
+```sh
+python3 -S tools/emit-adsp-entry.py \
+  --segment controller-nop-padding --llvm-mc "$HEXAGON_LLVM_MC" \
+  --reference "$NABU_ADSP_REFERENCE" --output /tmp/adsp-padding-248.bin
+python3 -S tools/emit-adsp-entry.py \
+  --segment controller-startup --llvm-mc "$HEXAGON_LLVM_MC" \
+  --reference "$NABU_ADSP_REFERENCE" --output /tmp/adsp-startup-104.bin
+python3 -S tools/emit-adsp-entry.py \
+  --segment counter-controller --llvm-mc "$HEXAGON_LLVM_MC" \
+  --reference "$NABU_ADSP_REFERENCE" --output /tmp/adsp-controller-2696.bin
+```
+
+Uncovered `[0x3044,0x41e0)` remains, and the next unmapped controller code
+begins at `0x4c68`. No complete, authenticated, flashable image exists.

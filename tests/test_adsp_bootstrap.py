@@ -103,8 +103,10 @@ class ADSPBootstrapTests(unittest.TestCase):
                      adsp.assemble(LLVM_MC, adsp.CONTROLLER_CACHE_COPY_SOURCE, 0x5c) +
                      adsp.assemble_physical_copy(LLVM_MC) +
                      adsp.assemble_physical_compare(LLVM_MC) +
-                     adsp.assemble_cfgbase_helper(LLVM_MC))
-        self.assertEqual(len(generated), 0x928)
+                     adsp.assemble_cfgbase_helper(LLVM_MC) +
+                     adsp.assemble(LLVM_MC, adsp.CONTROLLER_ALIGNMENT_SOURCE, 0xf8) +
+                     adsp.assemble_controller_startup(LLVM_MC))
+        self.assertEqual(len(generated), 0xa88)
         original = Path(REFERENCE).read_bytes()
         adsp.verify_reference(generated, original, 0x41e0)
         mutated = bytearray(generated)
@@ -208,6 +210,29 @@ class ADSPBootstrapTests(unittest.TestCase):
                 "{ nop } // V66 r1=cfgbase", "{ isync } // V66 r1=cfgbase",1))
             with self.assertRaisesRegex(adsp.AdspError,"CFGBASE helper slot"):
                 adsp.assemble_cfgbase_helper(LLVM_MC,fake)
+
+    def test_alignment_padding_explicitly_has_62_hexagon_nop_packets(self) -> None:
+        src=adsp.CONTROLLER_ALIGNMENT_SOURCE.read_text()
+        self.assertIn(".rept 62",src)
+        self.assertIn("{ nop }",src)
+        self.assertNotIn(".word",src)
+        self.assertNotIn(".incbin",src)
+
+    @unittest.skipUnless(LLVM_MC and REFERENCE,"Assembler and reference required")
+    def test_alignment_and_startup_match_reference(self) -> None:
+        ref=Path(REFERENCE).read_bytes()
+        alignment=adsp.assemble(LLVM_MC,adsp.CONTROLLER_ALIGNMENT_SOURCE,0xf8)
+        adsp.verify_reference(alignment,ref,0x4b08)
+        self.assertEqual(alignment,struct.pack("<I",0x7f00c000)*62)
+        startup=adsp.assemble_controller_startup(LLVM_MC)
+        adsp.verify_reference(startup,ref,0x4c00)
+        self.assertEqual(len(startup),0x68)
+        with tempfile.TemporaryDirectory() as td:
+            invalid=Path(td)/"bad-startup.S"
+            invalid.write_text(adsp.CONTROLLER_STARTUP_SOURCE.read_text().replace(
+                "{ nop } // V66 r23 = SYSCFG", "{ isync } // V66 r23 = SYSCFG",1))
+            with self.assertRaisesRegex(adsp.AdspError,"startup sentinel"):
+                adsp.assemble_controller_startup(LLVM_MC,invalid)
 
     @unittest.skipUnless(LLVM_MC, "Hexagon-capable llvm-mc unavailable")
     def test_syscfg_handoff_uses_typed_and_source_assembly(self) -> None:

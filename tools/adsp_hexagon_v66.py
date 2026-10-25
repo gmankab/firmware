@@ -24,6 +24,8 @@ class SystemRegister(IntEnum):
     SSR = 6
     SYSCFG = 18
     CFGBASE = 27
+    PMUCFG = 53
+    S54 = 54
 
 
 class CacheCommand(IntEnum):
