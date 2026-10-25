@@ -17,6 +17,7 @@ pub mod a640_container;
 pub mod venus_boot;
 
 pub mod venus_runtime;
+pub mod venus_agent01_forward;
 mod venus_runtime_tail;
 mod venus_runtime_init;
 mod venus_runtime_services;
