@@ -20,6 +20,12 @@ pub const CANDIDATE_VECTORS_END: usize = 0x400;
 pub const ILM_CODE_START: usize = 0x450;
 /// Nabu's observed all-zero reserved tail; this is specific to the pinned
 /// 196,608-byte firmware layout, not a general Novatek-family assumption.
+pub const ILM_SPACER_START: usize = 0x1ac80;
+pub const DLM_FILE_START: usize = 0x22000;
+pub const DLM_FILE_END: usize = 0x2e190;
+/// Exact two-revision Nabu format: reserved zero bytes after DLM and before
+/// the nonzero configuration bank. These aren't a generic Novatek rule.
+pub const POST_DLM_PADDING_END: usize = 0x2f000;
 pub const RESERVED_TAIL_START: usize = 0x2f900;
 pub const END_MARKER_OFFSET: usize = IMAGE_LENGTH - 3;
 pub const TRAILER_MARKER: &[u8; 3] = b"NVT";
@@ -251,6 +257,19 @@ impl NabuNovatekLayout {
         Ok((self.ilm.end()?, self.dlm.file_offset as usize))
     }
 
+    /// DLM-end..0x2f000: fully zero in both verified Nabu revisions.
+    /// This method reconstructs from the layout, using the reference *only*
+    /// to reject a revision with nonzero bytes in the reserved gap.
+    pub fn write_post_dlm_padding(&self, reference: &[u8]) -> Result<Vec<u8>, String> {
+        if reference.len() != self.image_len {return Err("different image length".into());}
+        let start = self.dlm.end()?;
+        if start > DLM_FILE_END || start < DLM_FILE_START {
+            return Err("unexpected Nabu DLM end".into());
+        }
+        require_zero(reference, start, POST_DLM_PADDING_END)?;
+        Ok(vec![0; POST_DLM_PADDING_END - start])
+    }
+
     /// Observed reserved gap after the trailer-bearing area, independently
     /// generated as zeros. Refuse nonzero bytes rather than quietly deleting
     /// undocumented controller data from a different firmware revision.
@@ -269,6 +288,15 @@ impl NabuNovatekLayout {
         let ilm_end = self.ilm.end()?;
         let dlm_begin = self.dlm.file_offset as usize;
         let dlm_end = self.dlm.end()?;
+        // Only the exact known Nabu partition geometry is supported. Without
+        // this guard a synthetic/foreign revision might silently lose data
+        // from the newly identified post-DLM zero-padded region.
+        if ilm_end > ILM_SPACER_START || ilm_end <= ILM_CODE_START ||
+           dlm_begin != DLM_FILE_START ||
+           dlm_end > DLM_FILE_END || dlm_end <= DLM_FILE_START ||
+           self.image_len != IMAGE_LENGTH {
+            return Err("unsupported Novatek partition geometry".into());
+        }
         let regions = vec![
             CoverageRegion { name: "dual-bank metadata (opaque CRCs)",
                 start: 0, end: HEADER_BYTES,
@@ -285,7 +313,9 @@ impl NabuNovatekLayout {
                 end: dlm_begin, kind: RegionKind::IndependentlyGeneratedZero },
             CoverageRegion { name: "DLM instruction/data", start: dlm_begin,
                 end: dlm_end, kind: RegionKind::UnimplementedDlm },
-            CoverageRegion { name: "auxiliary calibration/trailer", start: dlm_end,
+            CoverageRegion { name: "post-DLM reserved zero gap", start: dlm_end,
+                end: POST_DLM_PADDING_END, kind: RegionKind::IndependentlyGeneratedZero },
+            CoverageRegion { name: "auxiliary calibration/configuration", start: POST_DLM_PADDING_END,
                 end: RESERVED_TAIL_START, kind: RegionKind::UnimplementedAuxiliary },
             CoverageRegion { name: "reserved end padding", start: RESERVED_TAIL_START,
                 end: END_MARKER_OFFSET, kind: RegionKind::IndependentlyGeneratedZero },
@@ -308,6 +338,9 @@ impl NabuNovatekLayout {
         if self.write_padding(reference)? != reference[start..end] {
             return Err("ILM–DLM padding mismatch".into());
         }
+        if self.write_post_dlm_padding(reference)? != reference[self.dlm.end()?..POST_DLM_PADDING_END] {
+            return Err("post-DLM padding mismatch".into());
+        }
         if self.write_reserved_tail(reference)? != reference[RESERVED_TAIL_START..END_MARKER_OFFSET] {
             return Err("reserved-tail padding mismatch".into());
         }
@@ -324,11 +357,11 @@ mod tests {
     use super::*;
     fn synthetic() -> Vec<u8> {
         let ilm = CorePartition { file_offset: 0x200, sram_address: 0,
-            size_minus_one: 0x3ff, stored_crc: 0x0123_4567 };
-        let dlm = CorePartition { file_offset: 0x1000, sram_address: 0x20000,
-            size_minus_one: 7, stored_crc: 0x7654_3210 };
+            size_minus_one: 0x1aa7f, stored_crc: 0x0123_4567 };
+        let dlm = CorePartition { file_offset: 0x22000, sram_address: 0x20000,
+            size_minus_one: 0xc18f, stored_crc: 0x7654_3210 };
         let info = InfoDescriptor { sram_address: 0x20200, size_minus_one: 0,
-            file_offset: 0x1100, stored_crc: 0x1212_3434 };
+            file_offset: 0x22000, stored_crc: 0x1212_3434 };
         let image = NabuNovatekLayout {
             ilm, dlm, image_len: IMAGE_LENGTH,
             banks: [DescriptorBank { mode: 3, options: 0x5381_10e0,
@@ -346,8 +379,9 @@ mod tests {
         let raw = synthetic();
         let parsed = NabuNovatekLayout::parse(&raw).unwrap();
         assert_eq!(&parsed.write_header(), &raw[..HEADER_BYTES]);
-        assert_eq!(parsed.padding_range().unwrap(), (0x600,0x1000));
-        assert_eq!(parsed.write_padding(&raw).unwrap().len(), 0xa00);
+        assert_eq!(parsed.padding_range().unwrap(), (0x1ac80,0x22000));
+        assert_eq!(parsed.write_padding(&raw).unwrap().len(), 0x7380);
+        assert_eq!(parsed.write_post_dlm_padding(&raw).unwrap().len(), 0xe70);
     }
     #[test]
     fn rejects_wrong_variant_and_modified_padding() {
@@ -358,7 +392,7 @@ mod tests {
         raw[0x80] = 1;
         assert!(NabuNovatekLayout::parse(&raw).is_err());
         let mut raw = synthetic();
-        raw[0x600] = 1;
+        raw[0x1ac80] = 1;
         let parsed = NabuNovatekLayout::parse(&raw).unwrap();
         assert!(parsed.write_padding(&raw).is_err());
     }
@@ -367,7 +401,7 @@ mod tests {
         let raw = synthetic();
         let layout = NabuNovatekLayout::parse(&raw).unwrap();
         let regions = layout.coverage().unwrap();
-        assert_eq!(regions.len(), 9);
+        assert_eq!(regions.len(), 10);
         assert_eq!(regions.first().unwrap().start, 0);
         assert_eq!(regions.last().unwrap().end, IMAGE_LENGTH);
         assert_eq!(regions.iter().map(CoverageRegion::length).sum::<usize>(), IMAGE_LENGTH);
@@ -375,7 +409,32 @@ mod tests {
         let independents: usize = regions.iter().filter(|r| r.source_independent())
             .map(CoverageRegion::length).sum();
         assert_eq!(independents, (ILM_CODE_START-CANDIDATE_VECTORS_END)
-            + 0xa00 + (END_MARKER_OFFSET-RESERVED_TAIL_START) + 3);
+            + (DLM_FILE_START-ILM_SPACER_START) + (POST_DLM_PADDING_END-DLM_FILE_END)
+            + (END_MARKER_OFFSET-RESERVED_TAIL_START) + 3);
+    }
+    #[test]
+    fn detects_modified_post_dlm_zero_gap() {
+        let mut raw = synthetic();
+        let layout = NabuNovatekLayout::parse(&raw).unwrap();
+        let generated = layout.write_post_dlm_padding(&raw).unwrap();
+        assert_eq!(generated.len(), 3696);
+        assert!(generated.iter().all(|b|*b==0));
+        raw[0x2e195] = 0xa5;
+        assert!(layout.write_post_dlm_padding(&raw).unwrap_err().contains("0x2e195"));
+        assert!(layout.verify_envelope(&raw).is_err());
+    }
+    #[test]
+    fn alternate_revision_shorter_dlm_can_have_larger_padding() {
+        let mut raw = synthetic();
+        let mut expected = NabuNovatekLayout::parse(&raw).unwrap();
+        expected.ilm.size_minus_one = 0x19e8f; // upstream ILM ends 0x1a090
+        expected.dlm.size_minus_one = 0xc177; // upstream DLM ends 0x2e178
+        raw[..HEADER_BYTES].copy_from_slice(&expected.write_header());
+        let layout = NabuNovatekLayout::parse(&raw).unwrap();
+        assert_eq!(layout.write_padding(&raw).unwrap().len(),0x7f70);
+        assert_eq!(layout.write_post_dlm_padding(&raw).unwrap().len(),0xe88);
+        assert_eq!(layout.coverage().unwrap().len(),10);
+        layout.verify_envelope(&raw).unwrap();
     }
     #[test]
     fn suffix_and_reserved_padding_can_be_rebuilt_independently() {
@@ -393,8 +452,7 @@ mod tests {
         let mut raw = synthetic();
         let mut layout = NabuNovatekLayout::parse(&raw).unwrap();
         layout.dlm.file_offset = 0x1ffff; // ILM gap no longer aligned with actual bytes
-        let regions = layout.coverage().unwrap();
-        assert_eq!(regions[4].end, 0x1ffff);
+        assert!(layout.coverage().is_err());
         layout.dlm.file_offset = 0x30001;
         assert!(layout.coverage().is_err());
         raw[END_MARKER_OFFSET] = 0;

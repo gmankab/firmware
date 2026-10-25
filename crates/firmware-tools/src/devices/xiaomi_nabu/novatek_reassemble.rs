@@ -117,9 +117,9 @@ mod tests {
     use super::super::novatek_layout::{CorePartition,InfoDescriptor,DescriptorBank,IMAGE_LENGTH,HEADER_BYTES};
 
     fn sample_layout() -> NabuNovatekLayout {
-        let ilm=CorePartition{file_offset:0x200,sram_address:0,size_minus_one:0x3ff,stored_crc:0x12345678};
-        let dlm=CorePartition{file_offset:0x1000,sram_address:0x20000,size_minus_one:7,stored_crc:0xabcd4321};
-        let info=InfoDescriptor{sram_address:0x20000,size_minus_one:0,file_offset:0x1000,stored_crc:0};
+        let ilm=CorePartition{file_offset:0x200,sram_address:0,size_minus_one:0x1aa7f,stored_crc:0x12345678};
+        let dlm=CorePartition{file_offset:0x22000,sram_address:0x20000,size_minus_one:0xc18f,stored_crc:0xabcd4321};
+        let info=InfoDescriptor{sram_address:0x20000,size_minus_one:0,file_offset:0x22000,stored_crc:0};
         NabuNovatekLayout{ilm,dlm,image_len:IMAGE_LENGTH,
             banks:[DescriptorBank{mode:3,options:0,info:[info;3],auxiliary:info},
                    DescriptorBank{mode:1,options:0,info:[info;3],auxiliary:info}]}
@@ -128,13 +128,14 @@ mod tests {
     fn initial_projection_exposes_all_holes_without_filling_them() {
         let layout=sample_layout();
         let projection=projected_regions(&layout).unwrap();
-        assert_eq!(projection.len(),9);
+        assert_eq!(projection.len(),10);
         assert_eq!(projection.iter().filter(|x|x.bytes.is_none()).count(),4);
         assert_eq!(projection[0].bytes.as_ref().unwrap().len(),HEADER_BYTES);
         assert_eq!(projection[2].bytes.as_ref().unwrap().len(),0x50);
-        assert_eq!(projection[4].bytes.as_ref().unwrap().len(),0xa00);
-        assert_eq!(projection[7].bytes.as_ref().unwrap().len(),1789);
-        assert_eq!(projection[8].bytes.as_ref().unwrap(),b"NVT");
+        assert_eq!(projection[4].bytes.as_ref().unwrap().len(),0x7380);
+        assert_eq!(projection[6].bytes.as_ref().unwrap().len(),0xe70);
+        assert_eq!(projection[8].bytes.as_ref().unwrap().len(),1789);
+        assert_eq!(projection[9].bytes.as_ref().unwrap(),b"NVT");
         let e=assemble_structural_unverified(&layout,AuthoredPayloads::default()).unwrap_err();
         assert!(e.contains("missing externally authored candidate vector table"),"{e}");
     }
@@ -143,7 +144,7 @@ mod tests {
         let layout=sample_layout();
         let vectors=CandidateVectorTable{initial_control_word:0,
             opaque_slots:[0;127]};
-        let ilm=vec![3;0x600-0x450]; let dlm=vec![2;8];
+        let ilm=vec![3;0x1ac80-0x450]; let dlm=vec![2;0xc190];
         let e=assemble_structural_unverified(&layout,AuthoredPayloads{
             vector_table:Some(&vectors),ilm:Some(&ilm),..Default::default()}).unwrap_err();
         assert!(e.contains("DLM"));
@@ -158,25 +159,26 @@ mod tests {
         let incorrect=vec![0;17];
         let e=assemble_structural_unverified(&layout,AuthoredPayloads{
             vector_table:Some(&vectors),ilm:Some(&incorrect),..Default::default()}).unwrap_err();
-        assert!(e.contains("length 17 != required 432"),"{e}");
+        assert!(e.contains("length 17 != required 108592"),"{e}");
     }
     #[test]
     fn assembles_synthetic_complete_image_but_crc_remains_unverified() {
         let layout=sample_layout();
-        let ilm=vec![0xa5;0x600-0x450]; let dlm=vec![0x55;8];
+        let ilm=vec![0xa5;0x1ac80-0x450]; let dlm=vec![0x55;0xc190];
         let vectors=CandidateVectorTable{initial_control_word:0x41020304,
             opaque_slots:[0x0480;127]};
-        let auxiliary=vec![0x35; 0x2f900-0x1008];
+        let auxiliary=vec![0x35; 0x2f900-0x2f000];
         let img=assemble_structural_unverified(&layout,AuthoredPayloads{
             vector_table:Some(&vectors),ilm:Some(&ilm),dlm:Some(&dlm),auxiliary:Some(&auxiliary)}).unwrap();
         assert_eq!(img.bytes.len(),IMAGE_LENGTH);
         assert_eq!(&img.bytes[0..HEADER_BYTES],&layout.write_header());
         assert_eq!(&img.bytes[0x200..0x400],&vectors.write());
         assert!(img.bytes[0x400..0x450].iter().all(|&x|x==0));
-        assert_eq!(&img.bytes[0x450..0x600],&ilm);
-        assert!(img.bytes[0x600..0x1000].iter().all(|&x|x==0));
-        assert_eq!(&img.bytes[0x1000..0x1008],&dlm);
-        assert_eq!(&img.bytes[0x1008..0x2f900],&auxiliary);
+        assert_eq!(&img.bytes[0x450..0x1ac80],&ilm);
+        assert!(img.bytes[0x1ac80..0x22000].iter().all(|&x|x==0));
+        assert_eq!(&img.bytes[0x22000..0x2e190],&dlm);
+        assert!(img.bytes[0x2e190..0x2f000].iter().all(|&x|x==0));
+        assert_eq!(&img.bytes[0x2f000..0x2f900],&auxiliary);
         assert!(img.bytes[0x2f900..0x2fffd].iter().all(|&x|x==0));
         assert_eq!(&img.bytes[0x2fffd..],b"NVT");
         assert!(!img.is_hardware_crc_verified());

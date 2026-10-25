@@ -9,7 +9,7 @@ mod novatek_reassemble;
 #[path = "../devices/xiaomi_nabu/novatek_vector.rs"]
 mod novatek_vector;
 
-use novatek_layout::{NabuNovatekLayout, HEADER_BYTES, IMAGE_LENGTH, RESERVED_TAIL_START, END_MARKER_OFFSET};
+use novatek_layout::{NabuNovatekLayout, HEADER_BYTES, IMAGE_LENGTH, RESERVED_TAIL_START, END_MARKER_OFFSET, DLM_FILE_END, POST_DLM_PADDING_END};
 use std::{env, fs, process};
 
 fn run() -> Result<(), String> {
@@ -31,7 +31,7 @@ fn run() -> Result<(), String> {
         return Ok(());
     }
     if args.len() < 2 || args.len() > 3 {
-        return Err("usage: novatek-nabu <inspect|emit-header|emit-padding|emit-vector|emit-vector-padding|emit-tail-padding|emit-marker|verify-header|verify-envelope|verify-vectors> <private-reference.bin> [output] | assemble-structural-unverified <private-meta-reference> <externally-authored-vector-words> <independently-authored-ilm-after-0x450> <independently-authored-dlm> <independently-authored-aux> <output>".into());
+        return Err("usage: novatek-nabu <inspect|emit-header|emit-padding|emit-vector|emit-vector-padding|emit-post-dlm-padding|emit-tail-padding|emit-marker|verify-header|verify-envelope|verify-vectors> <private-reference.bin> [output] | assemble-structural-unverified <private-meta-reference> <externally-authored-vector-words> <independently-authored-ilm-after-0x450> <independently-authored-dlm> <independently-authored-aux> <output>".into());
     }
     let command = &args[0];
     let reference = fs::read(&args[1]).map_err(|e| e.to_string())?;
@@ -54,6 +54,8 @@ fn run() -> Result<(), String> {
                 }
             }
             layout.write_padding(&reference)?;
+            layout.write_post_dlm_padding(&reference)?;
+            println!("post-DLM generated zero padding 0x{DLM_FILE_END:x}–0x{POST_DLM_PADDING_END:x} = {} bytes", POST_DLM_PADDING_END-DLM_FILE_END);
             println!("independently constructible zero spacer 0x{gap_start:x}–0x{gap_end:x} = {} bytes",gap_end-gap_start);
             let independent = layout.coverage()?.iter().filter(|r| r.source_independent()).map(|r| r.length()).sum::<usize>();
             let unresolved: usize = layout.coverage()?.iter().filter(|r|r.is_unimplemented())
@@ -89,6 +91,11 @@ fn run() -> Result<(), String> {
             if vectors.write() != reference[0x200..0x400] {return Err("vector words differ".into());}
             novatek_vector::CandidateVectorTable::reserved_padding(&reference)?;
             println!("typed candidate vector metadata and reserved zeros verified; MCU ISA remains unidentified");
+        }
+        "emit-post-dlm-padding" if args.len() == 3 => {
+            let generated=layout.write_post_dlm_padding(&reference)?;
+            fs::write(&args[2],&generated).map_err(|e|e.to_string())?;
+            println!("wrote {} independently generated post-DLM zeros",generated.len());
         }
         "emit-tail-padding" if args.len() == 3 => {
             let padding=layout.write_reserved_tail(&reference)?;

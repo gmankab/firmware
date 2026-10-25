@@ -212,3 +212,47 @@ The complete build route additionally requires an externally authored
 512-byte vector table, separately authored post-`0x450` ILM, DLM and
 auxiliary payloads. It remains explicitly **structural-unverified** until
 controller CRC fields and authenticity can be independently validated.
+
+## Checkpoint 05 — Independently reconstructed post-DLM reserved gap
+
+Verified **both** mounted 196,608-byte Nabu Novatek firmware revisions:
+
+| Revision | SHA-256 | ILM end | DLM end | Generated post-DLM zeros |
+| --- | --- | ---: | ---: | ---: |
+| Required postmarketOS | `8b845514621ebfd95759a0919f3aa3d825314abb478a7cad1c3fb4c6872b70b5` | `0x1ac80` | `0x2e190` | **3,696** (`0x2e190..0x2f000`) |
+| Upstream map220v | `72364eca0a91855d59e043371aca774354e5ad0885df5024edcec8f976543ad2` | `0x1a090` | `0x2e178` | **3,720** (`0x2e178..0x2f000`) |
+
+`novatek_layout.rs` now distinguishes the post-DLM zero gap from the
+nonzero configuration region `[0x2f000,0x2f900)`. Both versions' tail gaps
+are independently emitted as zeros, while a nonzero byte in the gap is
+rejected. The layout permits the known smaller upstream ILM and DLM lengths
+without misclassifying their extra zero padding. The strict image builder
+keeps the **2,304-byte nonzero configuration** area as externally authored
+payload; it does not copy firmware bytes or silently fabricate it.
+
+For the **required** postmarketOS reference, coverage is now:
+
+| Bytes | Classification |
+| ---: | --- |
+| 35,136 | Independently generated zero/marker bytes |
+| 1,024 | Structured metadata and candidate vectors with externally supplied CRC/target scalars |
+| 160,448 | Unimplemented ILM, DLM and nonzero configuration data |
+
+These total 196,608 bytes, with zero overlap and no unclassified holes. **No
+executable ILM instruction bytes have been independently reconstructed**;
+MCU ISA and hardware CRC algorithm remain unproven. The output is **not a
+flashable firmware**. All 3,696 newly generated zeros byte-compare exactly
+to the correct firmware image and also match the independently sourced older
+revision in their overlapping range.
+
+```sh
+cargo run --offline --locked -p firmware-tools --bin novatek-nabu -- \
+  verify-envelope /private/postmarketos-nabu-firmware/novatek_nt36523_fw.bin
+cargo run --offline --locked -p firmware-tools --bin novatek-nabu -- \
+  emit-post-dlm-padding /private/postmarketos-nabu-firmware/novatek_nt36523_fw.bin \
+  /tmp/novatek-post-dlm-padding.bin
+```
+
+Checks: workspace Rust tests (176), Python tests (13), offline release build,
+strict `verify-envelope` for **both revisions**, `git diff --check`, and
+explicit single-byte mutation test for the new zero gap.
