@@ -227,6 +227,15 @@ pub fn transfer_word_postindexed_register(condition: Condition, load: bool,
        | (rn.number() << 16) | (rd.number() << 12) | rm.number())
 }
 
+/// A32 register-offset post-indexed byte transfer (`[Rn], Rm`). The
+/// word variant validates unsafe register combinations before the byte bit
+/// is set, so unsupported modes cannot silently pass through.
+pub fn transfer_byte_postindexed_register(condition: Condition, load: bool,
+                                          rd: Register, rn: Register,
+                                          rm: Register) -> Result<u32,String> {
+    Ok(transfer_word_postindexed_register(condition, load, rd, rn, rm)? | (1<<22))
+}
+
 /// A32 pre-indexed register-offset word transfer with writeback.
 /// The offset is `Rm << amount`. Register fields are validated independently,
 /// and PC cannot be modified as the address base.
@@ -552,6 +561,19 @@ mod tests {
         assert!(store_halfword(Condition::Al, Register::R1,
             Register::R0, -256).is_err());
     }
+    #[test]
+    fn byte_postindexed_register_uses_checked_addressing() {
+        let r3 = Register::new(3).unwrap();
+        assert_eq!(transfer_byte_postindexed_register(Condition::Al,false,
+            r3,Register::R0,Register::R1).unwrap(),0xe6c0_3001);
+        assert_eq!(transfer_byte_postindexed_register(Condition::Eq,false,
+            r3,Register::R0,Register::R1).unwrap(),0x06c0_3001);
+        assert!(transfer_byte_postindexed_register(Condition::Al,true,
+            Register::R0,Register::R0,Register::R1).is_err());
+        assert!(transfer_byte_postindexed_register(Condition::Al,false,
+            Register::R1,Register::PC,Register::R0).is_err());
+    }
+
     #[test]
     fn indexed_transfers_and_multiply_accumulate() {
         let r3 = Register::new(3).unwrap();
