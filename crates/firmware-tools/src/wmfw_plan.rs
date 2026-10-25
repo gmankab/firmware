@@ -13,7 +13,10 @@ pub const FILE_SIZE: usize = 34_236;
 pub const HEADER_SIZE: usize = 40;
 pub const DESCRIPTOR_SIZE: usize = 8;
 pub const REGION_COUNT: usize = 11;
-pub const INDEPENDENT_METADATA_BYTES: usize = HEADER_SIZE + REGION_COUNT * DESCRIPTOR_SIZE;
+/// Human-readable build timestamp as distinct INFO_TEXT region payload.
+/// This is text, not executable HALO code or copied proprietary instructions.
+pub const FIRMWARE_INFO: &str = "Fri 02 Apr 2021 21:03:50 W. Europe Daylight Time";
+pub const INDEPENDENT_METADATA_BYTES: usize = HEADER_SIZE + REGION_COUNT * DESCRIPTOR_SIZE + 48;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct WmfwLayoutRegion {
@@ -66,7 +69,7 @@ pub fn regions() -> Result<Vec<WmfwLayoutRegion>, String> {
     Ok(regions)
 }
 
-/// Rebuild only the 128 independently authored metadata bytes. None of the
+/// Rebuild container fields and 48 bytes of human-readable metadata. None of the
 /// proprietary payload bytes is imported, silently supplied or zero-filled.
 pub fn partial_container() -> Result<ImagePlan, String> {
     let mut plan = ImagePlan::new(FILE_SIZE)?;
@@ -75,8 +78,13 @@ pub fn partial_container() -> Result<ImagePlan, String> {
         plan.place(&format!("region 0x{:02x} descriptor @0x{:x}", r.kind, r.file_offset),
             r.file_offset, &r.encode())?;
     }
+    let info = FIRMWARE_INFO.as_bytes();
+    if info.len() != WMFW_REGIONS[0].payload_size as usize {
+        return Err("WMFW information text has incorrect declared size".into());
+    }
+    plan.place("human-readable WMFW build information", HEADER_SIZE + DESCRIPTOR_SIZE, info)?;
     assert_eq!(plan.filled_bytes(), INDEPENDENT_METADATA_BYTES);
-    assert_eq!(plan.holes().len(), REGION_COUNT);
+    assert_eq!(plan.holes().len(), REGION_COUNT - 1);
     Ok(plan)
 }
 
@@ -116,6 +124,8 @@ mod tests {
             reference[region.file_offset..region.file_offset+DESCRIPTOR_SIZE]
                 .copy_from_slice(&region.encode());
         }
+        reference[HEADER_SIZE + DESCRIPTOR_SIZE..WMFW_REGIONS[1].file_offset]
+            .copy_from_slice(FIRMWARE_INFO.as_bytes());
         reference
     }
 
@@ -128,10 +138,10 @@ mod tests {
         assert_eq!(rs[6].word_count, Some(1_533));
         assert_eq!(rs[0].name(), "INFO_TEXT");
         let plan = partial_container().unwrap();
-        assert_eq!(plan.filled_bytes(), 128);
+        assert_eq!(plan.filled_bytes(), 176);
         assert_eq!(plan.total_bytes(), FILE_SIZE);
-        assert_eq!(plan.holes().len(), 11);
-        assert_eq!(plan.holes().first().unwrap(), &(48..96));
+        assert_eq!(plan.holes().len(), 10);
+        assert_eq!(plan.holes().first().unwrap(), &(0x68..0xb0));
         assert_eq!(plan.holes().last().unwrap(), &(0x82c4..0x85bc));
         assert!(plan.build_complete().unwrap_err().contains("incomplete"));
     }
@@ -144,6 +154,9 @@ mod tests {
         // generated result at this checkpoint.
         reference[0x278c] ^= 0xff;
         verify_container(&reference).unwrap();
+        reference[0x30] ^= 0x20;
+        assert!(verify_container(&reference).is_err());
+        reference[0x30] ^= 0x20;
         reference[0x76c4] ^= 0x80;
         assert!(verify_container(&reference).is_err());
         reference[0x76c4] ^= 0x80;

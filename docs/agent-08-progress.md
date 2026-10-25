@@ -25,3 +25,11 @@ cargo run --offline --locked -p firmware-tools -- verify-wmfw-layout /private/ci
 ```
 
 **Not flashable / not HALO program reconstruction.** The packed DSP program and proprietary algorithm-control values remain unimplemented. A byte comparison only certifies the independently generated fields, not their runtime semantics or rights to redistribute original code.
+
+## Checkpoint 08-02 — text region
+
+The 48-byte `INFO_TEXT` payload at `0x30–0x60` is now produced from an
+independently authored human-readable build timestamp. Cumulative independent
+coverage is **176 / 34,236 bytes**, and the ten remaining opaque DSP/algorithm
+payloads are deliberately absent. All reference fields compare exactly,
+and the partial builder still refuses to finalize a full WMFW.
