@@ -61,7 +61,7 @@ class V66BootstrapTests(unittest.TestCase):
     def test_fixed_tlb_encoding_repeats_at_independent_call_sites(self) -> None:
         data = Path(REFERENCE).read_bytes()
         encoded = struct.pack("<I", v66.tlb_write_pair_r3_r2_index_r0())
-        for location in (0x3ebc, 0x4714, 0x4750, 0x477c, 0x478c):
+        for location in (0x3ebc, 0x4714, 0x4750, 0x477c, 0x478c, 0x47a8, 0x47d0, 0x47ec, 0x4808):
             with self.subTest(location=hex(location)):
                 self.assertEqual(data[location:location + 4], encoded)
 

@@ -94,8 +94,9 @@ class ADSPBootstrapTests(unittest.TestCase):
     def test_controller_is_byte_identical_to_original(self) -> None:
         generated = (adsp.assemble(LLVM_MC, adsp.CONTROLLER_SOURCE, 0x4c0) +
                      adsp.assemble_syscfg_handoff(LLVM_MC) +
-                     adsp.assemble_tlb_map(LLVM_MC))
-        self.assertEqual(len(generated), 0x5a8)
+                     adsp.assemble_tlb_map(LLVM_MC) +
+                     adsp.assemble_tlb_flush(LLVM_MC))
+        self.assertEqual(len(generated), 0x638)
         original = Path(REFERENCE).read_bytes()
         adsp.verify_reference(generated, original, 0x41e0)
         mutated = bytearray(generated)
@@ -156,6 +157,34 @@ class ADSPBootstrapTests(unittest.TestCase):
     def test_complete_tlb_region_matches_reference(self) -> None:
         generated = adsp.assemble_tlb_map(LLVM_MC)
         adsp.verify_reference(generated, Path(REFERENCE).read_bytes(), 0x46f4)
+
+    def test_tlb_flush_source_has_five_source_level_sentinels(self) -> None:
+        source = adsp.TLB_FLUSH_SOURCE.read_text()
+        self.assertEqual(source.count("{ nop }"), 5)
+        self.assertIn("adsp_tlb_clear_one:", source)
+        self.assertIn("walk_table1:", source)
+        self.assertIn("walk_table2:", source)
+        self.assertNotIn(".word", source)
+        self.assertNotIn(".incbin", source)
+
+    @unittest.skipUnless(LLVM_MC, "Hexagon-capable llvm-mc unavailable")
+    def test_tlb_flush_sentinels_are_replaced_and_guarded(self) -> None:
+        generated = adsp.assemble_tlb_flush(LLVM_MC)
+        self.assertEqual(len(generated), 0x90)
+        special = struct.pack("<I", 0x6c02c000)
+        for offset in (0x04, 0x20, 0x48, 0x64, 0x80):
+            self.assertEqual(generated[offset:offset + 4], special)
+        with tempfile.TemporaryDirectory() as td:
+            tampered = Path(td) / "bad-tlb-flush.S"
+            tampered.write_text(adsp.TLB_FLUSH_SOURCE.read_text().replace(
+                "{ nop }", "{ isync }", 1))
+            with self.assertRaisesRegex(adsp.AdspError, "Expected TLB placeholder"):
+                adsp.assemble_tlb_flush(LLVM_MC, tampered)
+
+    @unittest.skipUnless(LLVM_MC and REFERENCE, "Exact ADSP reference required")
+    def test_independently_assembled_tlb_flush_matches_original(self) -> None:
+        out = adsp.assemble_tlb_flush(LLVM_MC)
+        adsp.verify_reference(out, Path(REFERENCE).read_bytes(), 0x4788)
 
     @unittest.skipUnless(LLVM_MC, "Hexagon-capable llvm-mc unavailable")
     def test_reject_relocations_and_malformed_section_offsets(self) -> None:
