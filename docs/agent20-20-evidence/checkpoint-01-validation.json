@@ -1,0 +1,46 @@
+{
+  "a640_complete_reference_bytes": 14256,
+  "a640_complete_reference_mismatches": 0,
+  "base_commit": "78a6ab722ae7d16db6394d50d5cdc0b22c9e1360",
+  "checkpoint50_descendant": false,
+  "delivery_mode": "portable_patch_on_verified_prior_agent10",
+  "device_hardware_trust_verified": false,
+  "firmware_source_outputs_byte_identical": true,
+  "generated_byte_mismatches": 0,
+  "generated_file_bytes_compared_per_build": 29176,
+  "host_tools_byte_identical": true,
+  "independent_clean_release_builds": 2,
+  "independent_isa_assembler_note": "No instruction encodings were changed or newly reconstructed in this packaging checkpoint; existing typed A640 emitters were reused and compared to the pinned reference.",
+  "independent_isa_assembler_reexecuted": false,
+  "log_sha256": {
+    "checkpoint-01-python-tests.txt": "03e63a18184cbf53d591e8f2f6c7cde28721a2294139d0a054a92d5f7aef022d",
+    "checkpoint-01-release-build.txt": "b05df5cbe88296b478a3e7a4c395e14b035c7698db379237cb42e2170699dc8e",
+    "checkpoint-01-rust-tests.txt": "53f45bed4192eaad4d5143e30513b38c3f28ced7a3dd09ec46d3faa9deb4f620"
+  },
+  "manifest_sha256": "0497b1a7a5934df2bc1f65fb16295fcd936981c171ee2c8f5cc09f84ca7c8354",
+  "new_executable_bytes_reconstructed_this_checkpoint": 0,
+  "new_oem_signature_created": false,
+  "original_reference_revisions_verified": 6,
+  "original_segment_hashes_verified": 53,
+  "original_signature_chains_verified": 6,
+  "python_tests": {
+    "failed": 0,
+    "passed": 50,
+    "skipped": 0
+  },
+  "reference_inputs_committed": false,
+  "rust_tests": {
+    "failed": 0,
+    "filtered_out": 0,
+    "ignored": 0,
+    "passed": 190
+  },
+  "schema": "agent20-mbnv6-checkpoint-validation-v1",
+  "tested_source_commit": "164d3fd69d12d312da1578455398c96bcf102b80",
+  "tested_source_tree": "00f9c40ce6f1f199e0d609b8378eb51ca8681aac",
+  "workspace_release_build": {
+    "locked": true,
+    "offline": true,
+    "passed": true
+  }
+}

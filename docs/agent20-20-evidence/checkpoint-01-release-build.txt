@@ -1,0 +1,5 @@
+   Compiling qrisc v0.1.0 (/workspace/scratch/601e67b35461/agent20-mbn/crates/qrisc)
+   Compiling ir3 v0.1.0 (/workspace/scratch/601e67b35461/agent20-mbn/crates/ir3)
+   Compiling arm32 v0.1.0 (/workspace/scratch/601e67b35461/agent20-mbn/crates/arm32)
+   Compiling firmware-tools v0.1.0 (/workspace/scratch/601e67b35461/agent20-mbn/crates/firmware-tools)
+    Finished `release` profile [optimized] target(s) in 5.10s
