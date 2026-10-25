@@ -280,3 +280,8 @@ Original reference: private `map220v-nabu-firmware/venus.mbn`, SHA-256 `9d4af65d
 - Continuous typed ARM `[0x21c78,0x2b474)` = **38,908 byte-identical bytes**. New `[0x2b304,0x2b474)` = **368 bytes**, **80 A32 instructions** and **12 controller address/data words**.
 - Setup restores saved MMIO registers, resets IRQ state, and executes an explicitly checked ARMv7 CP15 `MCR p15, #0, r4, c7, c0, #4` barrier at `0x2b3e4`. The twelve host/MMIO/diagnostic pointers `[0x2b444,0x2b474)` are data, not executable instructions.
 - The next function begins at runtime `0x2b474`. Source-to-reference equality does not imply independent high-level behavioral equivalence or a signed image.
+
+## Checkpoint 40 — codec event routing with two switch tables
+
+- Full byte-matched interval `[0x21c78,0x2b774)` = **39,676 typed bytes** (original MBN `[0x25c78,0x2f774)`). New `[0x2b474,0x2b774)` = **768 bytes**, **167 ARM32 instructions**, **25 handler-target data words**.
+- A larger event processing function begins at `0x2b474`; this checkpoint covers its register/status setup, callback routing and branch destinations, including two tables `[0x2b6e4,0x2b720)` (15 entries) and `[0x2b74c,0x2b774)` (10 entries). Remaining case bodies are still missing beyond `0x2b774`; this fragment is incomplete as an independently callable function.
