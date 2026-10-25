@@ -78,6 +78,9 @@ pub enum ScalarPacket {
     LoopOnNotP0New { src: GeneralRegister, displacement_bytes: i16 },
     /// `Rd=add(Rs,#unsigned_small)` with checked operand/immediate widths.
     AddSmallImmediate { dst: GeneralRegister, src: GeneralRegister, value: u8 },
+    /// `P0=cmp.gt(Rsrc,#32)` for any confirmed GPR source.
+    /// LLVM6 independently assembles r2 and r3 with the same operand field.
+    PredicateP0GreaterThan32 { src:GeneralRegister },
     /// `p0=cmp.eq(Rsrc,#0)`; P0 is the only modeled predicate register.
     PredicateP0EqualsZero { src: GeneralRegister },
     /// Conditional new-predicate branch predicted not taken, relative to
@@ -269,6 +272,9 @@ impl ScalarPacket {
                 if value>127 {return Err("Hexagon add immediate >127".into());}
                 Ok(0xb000_c000 | (u32::from(src.number()) << 16)
                     | (u32::from(value) << 5) | u32::from(dst.number()))
+            }
+            Self::PredicateP0GreaterThan32 { src } => {
+                Ok(0x7540_c400 | (u32::from(src.number())<<16))
             }
             Self::PredicateP0EqualsZero { src } => {
                 Ok(0x7500_c000 | (u32::from(src.number()) << 16))

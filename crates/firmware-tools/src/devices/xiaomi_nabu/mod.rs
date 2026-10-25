@@ -109,3 +109,4 @@ pub mod cdsp_tlb;
 pub mod cdsp_tlb_extension;
 pub mod cdsp_copyfast;
 pub mod cdsp_cache_controller;
+pub mod cdsp_dma_copy;

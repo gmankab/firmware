@@ -573,3 +573,49 @@ python3 tools/verify-cdsp-controller-complete.py \
 
 Integration note remains: this branch descends from `69ebf0d`, not the
 checkpoint-50 commit; do not fast-forward the central checkpoint branch.
+
+## Checkpoint 17 — CDSP doubleword DMA-style hardware loop
+
+The independently encoded 64-byte function at CDSP file `[0x41a0,0x41e0)`
+(physical `[0x96c011a0,0x96c011e0)`) tests the reference global block count,
+computes a doubleword copy source, and loops with `loop0`/`endloop0` and
+post-increment source/destination transfers. A typed ARM-equivalent *is not*
+used: these are Hexagon V66 instructions and explicit packet parse markers.
+
+The preceding twelve bytes `[0x4194,0x41a0)` are zero ELF text alignment
+padding, not executable code. They are represented deliberately as padding
+and checked separately against the reference. Accordingly, the joined
+`0x3d40–0x41e0` span has **1,184 bytes**, of which **1,172 bytes** are
+reconstructed executable instructions and **12 bytes** are alignment padding.
+The additional entry-prefix fragment `[0x3000,0x3044)` has 68 executable
+bytes, so the current *source-rebuilt executable total is 1,240 bytes in two
+non-adjacent spans*. This is not complete firmware or a flashable image.
+
+`tools/verify-cdsp-dma-copy.py` independently assembles the semantic
+sequence using LLVM6, compares all 16 source instruction encodings and checks
+Rizin's original V66 packet interpretations. LLVM independently reorders
+one predicate packet and chooses one differing parse marker; those scheduling
+differences are documented rather than falsely claimed as exact LLVM packet
+matches. The **original typed Rust emitter** generates all 64 exact bytes,
+with zero differences to the reference. The decoder checks the hardware loop,
+predicate branch and postincrement copy. All 194 Rust tests, 23 Python tests,
+and the offline release build pass.
+
+```sh
+cargo run --offline --locked -p firmware-tools --bin cdsp-rebuild -- \
+  emit-dma-copy /tmp/cdsp-copy-64.bin
+cargo run --offline --locked -p firmware-tools --bin cdsp-rebuild -- \
+  verify-dma-copy /private/cdsp.mbn
+cargo run --offline --locked -p firmware-tools --bin cdsp-rebuild -- \
+  emit-cluster-with-dma-copy /tmp/cdsp-cluster-1184.bin
+cargo run --offline --locked -p firmware-tools --bin cdsp-rebuild -- \
+  verify-cluster-with-dma-copy /private/cdsp.mbn
+python3 tools/verify-cdsp-dma-copy.py \
+  --llvm-mc /path/to/llvm-mc --rz-asm /path/to/rz-asm \
+  --rust-output /tmp/cdsp-copy-64.bin --reference /private/cdsp.mbn
+```
+
+Next uncovered executable code starts at file offset `0x41e0`, physical
+`0x96c011e0`. The branch still descends from ancestor `69ebf0d` rather than
+the specified checkpoint-50 SHA; cherry-pick CDSP-specific changes during
+integration rather than falsely reporting a direct checkpoint-50 descendant.

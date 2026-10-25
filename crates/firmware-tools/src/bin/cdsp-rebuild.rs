@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-only
 //! CDSP partial reconstruction command. Reference bytes stay outside Git.
-use firmware_tools::devices::xiaomi_nabu::{cdsp_boot as cdsp, cdsp_privilege as privileged, cdsp_tlb as tlb, cdsp_tlb_extension as extension, cdsp_copyfast as cache_copy, cdsp_cache_controller as cache_ctl};
+use firmware_tools::devices::xiaomi_nabu::{cdsp_boot as cdsp, cdsp_privilege as privileged, cdsp_tlb as tlb, cdsp_tlb_extension as extension, cdsp_copyfast as cache_copy, cdsp_cache_controller as cache_ctl, cdsp_dma_copy as dma_copy};
 use std::{env, fs};
 
 fn run() -> Result<(), Box<dyn std::error::Error>> {
@@ -25,6 +25,22 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
             println!("Verified {} CDSP Hexagon supervisor-reset bytes at file {:#x}..{:#x}, separate from the entry prefix.",
                 privileged::FUNCTION_SIZE, privileged::FILE_OFFSET,
                 privileged::FILE_OFFSET + privileged::FUNCTION_SIZE);
+        }
+        [action, output] if action == "emit-dma-copy" => {
+            fs::write(output,dma_copy::build_copy()?)?;
+            println!("Emitted 64 independently reconstructed CDSP doubleword-copy bytes file 0x41a0..0x41e0.");
+        }
+        [action, reference] if action == "verify-dma-copy" => {
+            dma_copy::verify_copy(&fs::read(reference)?)?;
+            println!("Verified 64 CDSP doubleword-copy bytes file 0x41a0..0x41e0.");
+        }
+        [action, output] if action == "emit-cluster-with-dma-copy" => {
+            fs::write(output,dma_copy::build_cluster_with_dma_copy()?)?;
+            println!("Emitted 1184 contiguous CDSP bytes including 12 ELF alignment bytes; 1172 are reconstructed instructions.");
+        }
+        [action, reference] if action == "verify-cluster-with-dma-copy" => {
+            dma_copy::verify_cluster_with_dma_copy(&fs::read(reference)?)?;
+            println!("Verified CDSP 1184-byte supervisor/TLB/cache/DMA span including 12 alignment bytes.");
         }
         [action, output] if action == "emit-remaining-controller-descriptors" => {
             fs::write(output,cache_ctl::build_remaining_descriptors_and_return()?)?;
