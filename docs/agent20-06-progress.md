@@ -152,3 +152,12 @@ python3 tools/agent20_06_a32_roundtrip.py /private/venus.mbn 0xa8ea0 0xa92c8 \
 - Independent Clang/LLVM A32 mnemonic assembly matches 2,312 instruction bytes and 32 data bytes exactly using `--data-range 0xad6f0:0xad70c --data-range 0xad724:0xad728`.
 - Full Rust/Python suites and offline release build pass. Next uncovered runtime address `0xad728`, original file offset `0xb1728`.
 - This remains instruction-level byte-identity only; behavior, OEM signatures, and checkpoint-50-based integration are not established.
+
+## Checkpoint 16 — codec configuration descriptor and bounded signed-byte field
+
+- Independently emitted `[0xa8000,0xadc14)` = **23,572 contiguous byte-identical bytes**; MBN `[0xac000,0xb1c14)`.
+- Added complete record initialization function `[0xad728,0xadc14)`, 1,260 bytes: **314 ARM32 instructions (1,256 bytes)** and one diagnostic pointer word at `[0xadc10,0xadc14)`.
+- The function configures codec mode fields and input dimensions, copies and normalizes up to five resource words with `LDM/STM`, and populates the conditional auxiliary plane descriptor fields before returning via original `pop {...,pc}` at `0xadb84`. It retains actual later error branches `0xadb88–0xadc0c` rather than inventing sequential control flow.
+- Fixed one ISA distinction: `LDRSB` signed byte register-offset at `0xad920` must sign-extend rather than use unsigned `LDRB`; added checked `arm32::load_signed_byte_register` encoder and unit tests.
+- LLVM/Clang round-trip matches the full interval using `--data-range 0xadc10:0xadc14`, **zero differences**.
+- Full Rust/Python tests pass; release build result is recorded separately. Next uncovered address `0xadc14` (MBN file `0xb1c14`). No OEM signature, complete image or semantic high-level equivalence is asserted.
