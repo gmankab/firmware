@@ -95,8 +95,10 @@ class ADSPBootstrapTests(unittest.TestCase):
         generated = (adsp.assemble(LLVM_MC, adsp.CONTROLLER_SOURCE, 0x4c0) +
                      adsp.assemble_syscfg_handoff(LLVM_MC) +
                      adsp.assemble_tlb_map(LLVM_MC) +
-                     adsp.assemble_tlb_flush(LLVM_MC))
-        self.assertEqual(len(generated), 0x638)
+                     adsp.assemble_tlb_flush(LLVM_MC) +
+                     adsp.assemble(LLVM_MC, adsp.CACHELINE_COPY_SOURCE, 0x78) +
+                     adsp.assemble(LLVM_MC, adsp.MEMORY_COPY_SOURCE, 0x40))
+        self.assertEqual(len(generated), 0x6f0)
         original = Path(REFERENCE).read_bytes()
         adsp.verify_reference(generated, original, 0x41e0)
         mutated = bytearray(generated)
@@ -205,6 +207,26 @@ class ADSPBootstrapTests(unittest.TestCase):
         # endloop0 encoding; instruction packets remain source-generated.
         self.assertEqual(generated[0x34:0x3c], bytes.fromhex("0080007f08c4c0ab"))
         self.assertEqual(generated[-4:], struct.pack("<I", 0x529fc000))
+
+    def test_nested_cacheline_hardware_loop_source(self) -> None:
+        source = adsp.CACHELINE_COPY_SOURCE.read_text()
+        self.assertIn("loop1(outer_loop,r6)", source)
+        self.assertIn("loop0(inner_loop,r3)", source)
+        self.assertIn("dczeroa(r1)", source)
+        self.assertIn("l2fetch(r1,r7)", source)
+        self.assertIn("}:endloop0:endloop1", source)
+        self.assertEqual(source.count("{ nop }"), 3)
+        self.assertNotIn(".incbin", source)
+        self.assertNotIn(".word", source)
+
+    @unittest.skipUnless(LLVM_MC and REFERENCE,
+                         "Exact ADSP reference and Hexagon assembler required")
+    def test_nested_cacheline_copy_assembles_identically(self) -> None:
+        generated = adsp.assemble(LLVM_MC, adsp.CACHELINE_COPY_SOURCE, 0x78)
+        adsp.verify_reference(generated, Path(REFERENCE).read_bytes(), 0x4818)
+        # Both the loop packets and exact aligned NOPs come from source.
+        self.assertEqual(generated[-12:],
+                         struct.pack("<III", 0x7F00C000, 0x7F00C000, 0x7F00C000))
 
     @unittest.skipUnless(LLVM_MC, "Hexagon-capable llvm-mc unavailable")
     def test_reject_relocations_and_malformed_section_offsets(self) -> None:
