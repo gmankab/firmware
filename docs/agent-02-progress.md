@@ -214,3 +214,35 @@ python3 tools/agent-02-a32-roundtrip.py /private/venus.mbn \
   --data-range 0xa27c:0xa288 --data-range 0xa32c:0xa334 \
   --data-range 0xa398:0xa3a0
 ```
+
+## Checkpoint 09 — bridge complete through service boundary (`0xa44c–0xaa0c`)
+
+- Adds the **final 1,472 byte-identical bytes**: 340 typed ARM32
+  instructions and 28 separately modeled literal/global-pointer words.
+- Routines cover queue-balance adjustment, resource changes, creation of
+  codec/video-session descriptors, forwarding calls into the existing Venus
+  service code, and session/controller validation. The code branches into
+  later routines; this independently authored interval is **not flashable**.
+- **Agent 02 bridge target fully reconstructed:** 9,596 consecutive bytes,
+  runtime `[0x8490,0xaa0c)` and MBN file `[0xc490,0xea0c)`.
+- **Verified contiguous boot + bridge:** 43,532 bytes, runtime
+  `[0x1000,0xaa0c)`, MBN file `[0x4000,0xea0c)`.
+- **Remaining Agent 02 gap:** zero bytes. The independently reconstructed
+  *later* service starts at runtime `0xaa0c`, and its attachment to this
+  bridge must be verified in the integrator's checkpoint-50-based branch.
+  This checkout intentionally does not contain that service-source tree.
+- New independent ELF/A32 Clang/LLVM assembler check of 340 instructions,
+  28 data words matches the reference exactly, using:
+
+```sh
+python3 tools/agent-02-a32-roundtrip.py /private/venus.mbn \
+  --file-offset 0xe44c --vma 0xa44c --length 0x5c0 \
+  --data-range 0xa44c:0xa454 --data-range 0xa520:0xa524 \
+  --data-range 0xa5b4:0xa5bc --data-range 0xa638:0xa640 \
+  --data-range 0xa69c:0xa6a4 --data-range 0xa7e8:0xa800 \
+  --data-range 0xa85c:0xa864 --data-range 0xa870:0xa874 \
+  --data-range 0xa888:0xa88c --data-range 0xa89c:0xa8a0 \
+  --data-range 0xa8ac:0xa8b0 --data-range 0xa904:0xa908 \
+  --data-range 0xa914:0xa918 --data-range 0xa990:0xa99c \
+  --data-range 0xa9d0:0xa9d4 --data-range 0xaa08:0xaa0c
+```

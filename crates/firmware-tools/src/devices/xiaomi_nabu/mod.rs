@@ -91,6 +91,7 @@ mod venus_runtime_bridge_irq_ready;
 mod venus_runtime_bridge_resource;
 mod venus_runtime_bridge_queue_release;
 mod venus_runtime_bridge_controller_queues;
+mod venus_runtime_bridge_service_link;
 pub mod venus_runtime_bridge;
 pub mod venus_plan;
 
