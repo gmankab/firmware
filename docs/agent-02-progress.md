@@ -141,3 +141,26 @@ python3 tools/agent-02-a32-roundtrip.py /private/venus.mbn \
   --data-range 0x95e0:0x95e8 --data-range 0x96bc:0x96d0 \
   --data-range 0x9704:0x970c
 ```
+
+## Checkpoint 06 — resource descriptors, aligned and strided copies (`0x970c–0x9b50`)
+
+- Adds **1,092 byte-identical bytes**, 259 independently authored typed A32
+  instructions and 14 explicitly identified literal/data words. One word is
+  the recognizable `0xa5a5a5a5` sentinel; this is non-executable data.
+- Reconstructed platform callback dispatch, descriptor initialization,
+  aligned/strided buffer copy wrappers and resource disabling/queue updates.
+  `arm32::DataOp::Teq` was needed for the flag-only parity test at `0x9b28`
+  and was added in an isolated encoder commit with unit tests.
+- **Cumulative bridge:** 5,824 exact bytes `[0x8490,0x9b50)` /
+  file `[0xc490,0xdb50)`. Joined early boot+bridge **39,760** consecutive
+  byte-identical bytes `[0x4000,0xdb50)`; still not complete firmware.
+- Remaining gap `[0x9b50,0xaa0c)` is **3,772 bytes**.
+- Clang/LLVM round-trip on the additional span (excluding literal pools):
+
+```sh
+python3 tools/agent-02-a32-roundtrip.py /private/venus.mbn \
+  --file-offset 0xd70c --vma 0x970c --length 0x444 \
+  --data-range 0x9734:0x9738 --data-range 0x98a0:0x98bc \
+  --data-range 0x9968:0x996c --data-range 0x9a18:0x9a1c \
+  --data-range 0x9ac8:0x9acc --data-range 0x9b44:0x9b50
+```
