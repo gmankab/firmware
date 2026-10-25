@@ -275,3 +275,12 @@ python3 tools/agent20_06_a32_roundtrip.py /private/venus.mbn 0xa8ea0 0xa92c8 \
 - Added a checked `arm32::load_signed_byte_postindexed` encoder in a separate commit because the real A32 `LDRSB Rt,[Rn],#imm` at `0xb3e0c` requires sign extension *and* post-incremented addressing. Tests compare independent opcode encodings and reject unsafe register aliasing.
 - Full Rust emitter and independently assembled Clang mnemonic source both match pinned `venus.mbn` **exactly**; Rust 201 tests and Python 13 tests pass. No release-build pass is claimed in this checkpoint.
 - Next uncovered runtime `0xb40ac` (reference file `0xb80ac`). The branch remains provisional older-base instruction-level re-encoding, not functional decompilation, re-signed firmware or checkpoint-50 integration.
+
+## Checkpoint 31 — controller slot lifecycle and record ordering
+
+- Cumulative runtime `[0xa8000,0xb46cc)` = **50,892 byte-identical bytes**, original MBN file `[0xac000,0xb86cc)`.
+- Added `[0xb40ac,0xb46cc)` = **1,568 bytes**, including **388 ARM32 instructions (1,552 bytes)** and four separately distinguished data words (16 bytes): one warning pointer at `[0xb41c0,0xb41c4)` and three controller/global references `[0xb46c0,0xb46cc)`.
+- Five controller functions manage frame-slot retirement, sorted record insertion, remaining-record compaction and channel-state notification. The function at `[0xb42dc,0xb43c4)` has a branch-only tail beginning at `0xb43c4`, and the final routine uses its original tail branch at `0xb46bc` prior to the data pool. No synthetic return instructions are inserted.
+- New shared architecture encoder `arm32::transfer_word_postindexed_scaled_register` supports `[Rn], Rm, LSL #amount`, required by the real hardware loop at `0xb40d4` and a later record scan. It has a separate focused ISA commit and tests rejecting unsafe PC/alias/shift arguments.
+- Whole generated fragment and independent Clang/LLVM mnemonic reassembly with two `--data-range` flags match the pinned reference with zero mismatches. **203 Rust tests** and **13 Python tests** passed; the release-build check is not claimed as passed for this checkpoint.
+- Next uncovered runtime is `0xb46cc` (file `0xb86cc`). Source is provisional older-base ARM32 instruction-level encoding and not high-level semantic decompilation, on-device proof, authenticated firmware or checkpoint-50 merge.
