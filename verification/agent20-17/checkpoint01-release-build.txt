@@ -1,0 +1,14 @@
+   Compiling firmware-tools v0.1.0 (/workspace/scratch/c7bf61eee144/nabu-agent17/crates/firmware-tools)
+warning: method `compact` is never used
+  --> crates/firmware-tools/src/bin/../devices/xiaomi_nabu/novatek_ilmlow_isa.rs:16:12
+   |
+ 9 | impl Reg {
+   | -------- method in this implementation
+...
+16 |     pub fn compact(self) -> Result<u16, String> {
+   |            ^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` on by default
+
+warning: `firmware-tools` (bin "novatek-ilm-low") generated 1 warning
+    Finished `release` profile [optimized] target(s) in 0.20s

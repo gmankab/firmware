@@ -1,0 +1,656 @@
+{
+  "actual_parent": "51b1f91f32d32542aa03e114f5a2f4d94b559e2a",
+  "checkpoint": "01",
+  "commands": [
+    {
+      "argv": [
+        "/workspace/scratch/c7bf61eee144/target-agent17/release/novatek-ilm-low",
+        "listing",
+        "map220v"
+      ],
+      "returncode": 0,
+      "stderr": "",
+      "stdout": "# profile=map220v gp=0x2d7f0 itb=0x17010 file_start=0x66a file_end=0x6bc\n46a\t4\tsbi.gp $r0,[-5113]\n46e\t4\tmtsr $r0,$int_mask\n472\t2\tex9.it 122\n474\t2\tex9.it 365\n476\t4\tmfsr $r1,$ivb\n47a\t2\txlsb33 $r1,$r1\n47c\t2\tmov55 $r2,$r0\n47e\t2\tbeqz38 $r1,.+6\n480\t4\tmtsr $r0,$int_mask\n484\t4\tmtsr $r2,$ivb\n488\t4\tmfsr $r0,$psw\n48c\t4\tbitci $r0,$r0,6\n490\t4\tmtsr $r0,$psw\n494\t4\tdsb\n498\t4\tmfsr $r0,$int_mask2\n49c\t4\tsethi $r0,171024\n4a0\t4\taddi $r0,$r0,124\n4a4\t2\tex9.it 122\n4a6\t4\tmfsr $r0,0xc2\n4aa\t4\tmovi $r0,1587\n4ae\t2\tex9.it 365\n4b0\t4\tmfsr $r0,$psw\n4b4\t2\tex9.it 67\n4b6\t4\tmtsr $r0,$psw\n4ba\t2\tpop25 $r6,0\n"
+    },
+    {
+      "argv": [
+        "/workspace/scratch/c7bf61eee144/target-agent17/release/novatek-ilm-low",
+        "emit",
+        "map220v",
+        "/workspace/scratch/c7bf61eee144/audit17-private/verify-first82-map220v/generated.bin"
+      ],
+      "returncode": 0,
+      "stderr": "",
+      "stdout": "map220v: 82 instruction bytes, file [0x66a,0x6bc), runtime [0x46a,0x4bc)\n"
+    },
+    {
+      "argv": [
+        "/workspace/scratch/c7bf61eee144/toolchain17/nds32-225/bin/nds32le-elf-as",
+        "--version"
+      ],
+      "returncode": 0,
+      "stderr": "",
+      "stdout": "GNU assembler (GNU Binutils) 2.25.1\nCopyright (C) 2014 Free Software Foundation, Inc.\nThis program is free software; you may redistribute it under the terms of\nthe GNU General Public License version 3 or later.\nThis program has absolutely no warranty.\nThis assembler was configured for a target of `nds32le-elf'.\n"
+    },
+    {
+      "argv": [
+        "/workspace/scratch/c7bf61eee144/toolchain17/nds32-225/bin/nds32le-elf-objcopy",
+        "--version"
+      ],
+      "returncode": 0,
+      "stderr": "",
+      "stdout": "GNU objcopy (GNU Binutils) 2.25.1\nCopyright (C) 2014 Free Software Foundation, Inc.\nThis program is free software; you may redistribute it under the terms of\nthe GNU General Public License version 3 or (at your option) any later version.\nThis program has absolutely no warranty.\n"
+    },
+    {
+      "argv": [
+        "/workspace/scratch/c7bf61eee144/toolchain17/nds32-225/bin/nds32le-elf-ld",
+        "--version"
+      ],
+      "returncode": 0,
+      "stderr": "",
+      "stdout": "GNU ld (GNU Binutils) 2.25.1\nCopyright (C) 2014 Free Software Foundation, Inc.\nThis program is free software; you may redistribute it under the terms of\nthe GNU General Public License version 3 or (at your option) a later version.\nThis program has absolutely no warranty.\n"
+    },
+    {
+      "argv": [
+        "/workspace/scratch/c7bf61eee144/toolchain17/nds32-225/bin/nds32le-elf-objdump",
+        "--version"
+      ],
+      "returncode": 0,
+      "stderr": "",
+      "stdout": "GNU objdump (GNU Binutils) 2.25.1\nCopyright (C) 2014 Free Software Foundation, Inc.\nThis program is free software; you may redistribute it under the terms of\nthe GNU General Public License version 3 or (at your option) any later version.\nThis program has absolutely no warranty.\n"
+    },
+    {
+      "argv": [
+        "/workspace/scratch/c7bf61eee144/toolchain17/nds32-225/bin/nds32le-elf-as",
+        "-march=v3",
+        "-mno-all-relax",
+        "-EL",
+        "-mall-ext",
+        "-o",
+        "/workspace/scratch/c7bf61eee144/audit17-private/verify-first82-map220v/independent.o",
+        "/workspace/scratch/c7bf61eee144/audit17-private/verify-first82-map220v/independent.s"
+      ],
+      "returncode": 0,
+      "stderr": "",
+      "stdout": ""
+    },
+    {
+      "argv": [
+        "/workspace/scratch/c7bf61eee144/toolchain17/nds32-225/bin/nds32le-elf-ld",
+        "--no-relax",
+        "-T",
+        "/workspace/scratch/c7bf61eee144/audit17-private/verify-first82-map220v/independent.ld",
+        "-o",
+        "/workspace/scratch/c7bf61eee144/audit17-private/verify-first82-map220v/independent.elf",
+        "/workspace/scratch/c7bf61eee144/audit17-private/verify-first82-map220v/independent.o"
+      ],
+      "returncode": 0,
+      "stderr": "",
+      "stdout": ""
+    },
+    {
+      "argv": [
+        "/workspace/scratch/c7bf61eee144/toolchain17/nds32-225/bin/nds32le-elf-objcopy",
+        "-O",
+        "binary",
+        "-j",
+        ".text",
+        "/workspace/scratch/c7bf61eee144/audit17-private/verify-first82-map220v/independent.elf",
+        "/workspace/scratch/c7bf61eee144/audit17-private/verify-first82-map220v/independent.bin"
+      ],
+      "returncode": 0,
+      "stderr": "",
+      "stdout": ""
+    },
+    {
+      "argv": [
+        "/workspace/scratch/c7bf61eee144/toolchain17/nds32-225/bin/nds32le-elf-objdump",
+        "-d",
+        "-z",
+        "/workspace/scratch/c7bf61eee144/audit17-private/verify-first82-map220v/independent.elf"
+      ],
+      "returncode": 0,
+      "stderr": "",
+      "stdout": "\n/workspace/scratch/c7bf61eee144/audit17-private/verify-first82-map220v/independent.elf:     file format elf32-nds32le\n\n\nDisassembly of section .text:\n\n0000046a <agent17_start>:\n 46a:\t3e 07 ec 07 \tsbi.gp $r0,[+#-5113]\n 46e:\t64 03 00 03 \tmtsr $r0,$int_mask\n 472:\tea 7a       \tex9.it #122\n 474:\teb 6d       \tex9.it #365\n 476:\t64 12 24 02 \tmfsr $r1,$ivb\n 47a:\t96 4c       \txlsb33 $r1,$r1\n 47c:\t80 40       \tmov55 $r2,$r0\n 47e:\tc1 03       \tbeqz38 $r1,484 <agent17_start+0x1a>\n 480:\t64 03 00 03 \tmtsr $r0,$int_mask\n 484:\t64 22 24 03 \tmtsr $r2,$ivb\n 488:\t64 02 00 02 \tmfsr $r0,$psw\n 48c:\t66 00 00 06 \tbitci $r0,$r0,#0x6\n 490:\t64 02 00 03 \tmtsr $r0,$psw\n 494:\t64 00 00 08 \tdsb\n 498:\t64 03 04 02 \tmfsr $r0,$int_mask2\n 49c:\t46 02 9c 10 \tsethi $r0,#0x29c10\n 4a0:\t50 00 00 7c \taddi $r0,$r0,#0x7c\n 4a4:\tea 7a       \tex9.it #122\n 4a6:\t64 03 08 02 \tmfsr $r0,194\n 4aa:\t44 00 06 33 \tmovi $r0,#0x633\n 4ae:\teb 6d       \tex9.it #365\n 4b0:\t64 02 00 02 \tmfsr $r0,$psw\n 4b4:\tea 43       \tex9.it #67\n 4b6:\t64 02 00 03 \tmtsr $r0,$psw\n\n000004ba <_SDA_BASE_>:\n 4ba:\tfc 80       \tpop25 $r6,#0    ! {$r6, $fp, $gp, $lp}\n"
+    }
+  ],
+  "control_flow": {
+    "direct_edges": [
+      {
+        "kind": "branch",
+        "outside_agent17_assignment": false,
+        "outside_emitted_interval": false,
+        "source_runtime_address": 1150,
+        "target_file_offset": 1668,
+        "target_runtime_address": 1156
+      }
+    ],
+    "external_targets": [],
+    "indirect_transfers": []
+  },
+  "counts": {
+    "executable_bytes": 82,
+    "external_bytes_in_generated_span": 0,
+    "instruction_count": 25,
+    "instructions_16_bit": 9,
+    "instructions_32_bit": 16,
+    "layout_fill_bytes": 0,
+    "metadata_bytes": 0
+  },
+  "emitter": {
+    "path": "/workspace/scratch/c7bf61eee144/target-agent17/release/novatek-ilm-low",
+    "sha256": "e510743ce71aa856734158a4ec6ecd05a23c50b416f31199f03881ddc19733d0"
+  },
+  "ex9_dependencies": {
+    "counted_as_agent17_reconstructed_bytes": 0,
+    "distinct_entries": 3,
+    "entries": [
+      {
+        "bytes": 4,
+        "expected_effect": {
+          "destination_register": 0,
+          "immediate": 1,
+          "operation": "ori",
+          "source_register": 0
+        },
+        "file_offset": 95004,
+        "index": 67,
+        "runtime_address": 94492,
+        "sha256": "5965ce600a38a02341a567eee8b4d15a4614fcbeaea0cac0d377bd5a862b5a47"
+      },
+      {
+        "bytes": 4,
+        "expected_effect": {
+          "csr": 193,
+          "csr_name": "int_mask2",
+          "operation": "mtsr",
+          "source_register": 0
+        },
+        "file_offset": 95224,
+        "index": 122,
+        "runtime_address": 94712,
+        "sha256": "8a591b8f62b08a76d821ccf1a63c5af69189495aaf33955becf7eb556c515b00"
+      },
+      {
+        "bytes": 4,
+        "expected_effect": {
+          "csr": 194,
+          "csr_name": "int_mask3",
+          "operation": "mtsr",
+          "source_register": 0
+        },
+        "file_offset": 96196,
+        "index": 365,
+        "runtime_address": 95684,
+        "sha256": "4d3b85a119b40fe98e693769fcde50e05bb8c622325729d0174520fcdfccf671"
+      }
+    ],
+    "external_reference_bytes": 12,
+    "source_owner": "Agent 18",
+    "status": "passed",
+    "use_sites": [
+      {
+        "expected_effect": {
+          "csr": 193,
+          "csr_name": "int_mask2",
+          "operation": "mtsr",
+          "source_register": 0
+        },
+        "file_offset": 1650,
+        "index": 122,
+        "runtime_address": 1138
+      },
+      {
+        "expected_effect": {
+          "csr": 194,
+          "csr_name": "int_mask3",
+          "operation": "mtsr",
+          "source_register": 0
+        },
+        "file_offset": 1652,
+        "index": 365,
+        "runtime_address": 1140
+      },
+      {
+        "expected_effect": {
+          "csr": 193,
+          "csr_name": "int_mask2",
+          "operation": "mtsr",
+          "source_register": 0
+        },
+        "file_offset": 1700,
+        "index": 122,
+        "runtime_address": 1188
+      },
+      {
+        "expected_effect": {
+          "csr": 194,
+          "csr_name": "int_mask3",
+          "operation": "mtsr",
+          "source_register": 0
+        },
+        "file_offset": 1710,
+        "index": 365,
+        "runtime_address": 1198
+      },
+      {
+        "expected_effect": {
+          "destination_register": 0,
+          "immediate": 1,
+          "operation": "ori",
+          "source_register": 0
+        },
+        "file_offset": 1716,
+        "index": 67,
+        "runtime_address": 1204
+      }
+    ],
+    "uses": 5
+  },
+  "independent_assembly": {
+    "assembled_instructions": 25,
+    "binary": "/workspace/scratch/c7bf61eee144/audit17-private/verify-first82-map220v/independent.bin",
+    "binary_data_fallback_used": false,
+    "comparison_with_rust": {
+      "actual_bytes": 82,
+      "actual_sha256": "381dba6533ed6367c33d7e65e7cf3a1ed6f2a9cf999da2f0d5169818cd77de48",
+      "expected_bytes": 82,
+      "expected_sha256": "381dba6533ed6367c33d7e65e7cf3a1ed6f2a9cf999da2f0d5169818cd77de48",
+      "first_mismatch_file_offset": null,
+      "mismatched_bytes": 0
+    },
+    "decoded": [
+      {
+        "assembly": "sbi.gp $r0,[+#-5113]",
+        "length": 4,
+        "mnemonic": "sbi.gp",
+        "runtime_address": 1130
+      },
+      {
+        "assembly": "mtsr $r0,$int_mask",
+        "length": 4,
+        "mnemonic": "mtsr",
+        "runtime_address": 1134
+      },
+      {
+        "assembly": "ex9.it #122",
+        "length": 2,
+        "mnemonic": "ex9.it",
+        "runtime_address": 1138
+      },
+      {
+        "assembly": "ex9.it #365",
+        "length": 2,
+        "mnemonic": "ex9.it",
+        "runtime_address": 1140
+      },
+      {
+        "assembly": "mfsr $r1,$ivb",
+        "length": 4,
+        "mnemonic": "mfsr",
+        "runtime_address": 1142
+      },
+      {
+        "assembly": "xlsb33 $r1,$r1",
+        "length": 2,
+        "mnemonic": "xlsb33",
+        "runtime_address": 1146
+      },
+      {
+        "assembly": "mov55 $r2,$r0",
+        "length": 2,
+        "mnemonic": "mov55",
+        "runtime_address": 1148
+      },
+      {
+        "assembly": "beqz38 $r1,484 <agent17_start+0x1a>",
+        "length": 2,
+        "mnemonic": "beqz38",
+        "runtime_address": 1150
+      },
+      {
+        "assembly": "mtsr $r0,$int_mask",
+        "length": 4,
+        "mnemonic": "mtsr",
+        "runtime_address": 1152
+      },
+      {
+        "assembly": "mtsr $r2,$ivb",
+        "length": 4,
+        "mnemonic": "mtsr",
+        "runtime_address": 1156
+      },
+      {
+        "assembly": "mfsr $r0,$psw",
+        "length": 4,
+        "mnemonic": "mfsr",
+        "runtime_address": 1160
+      },
+      {
+        "assembly": "bitci $r0,$r0,#0x6",
+        "length": 4,
+        "mnemonic": "bitci",
+        "runtime_address": 1164
+      },
+      {
+        "assembly": "mtsr $r0,$psw",
+        "length": 4,
+        "mnemonic": "mtsr",
+        "runtime_address": 1168
+      },
+      {
+        "assembly": "dsb",
+        "length": 4,
+        "mnemonic": "dsb",
+        "runtime_address": 1172
+      },
+      {
+        "assembly": "mfsr $r0,$int_mask2",
+        "length": 4,
+        "mnemonic": "mfsr",
+        "runtime_address": 1176
+      },
+      {
+        "assembly": "sethi $r0,#0x29c10",
+        "length": 4,
+        "mnemonic": "sethi",
+        "runtime_address": 1180
+      },
+      {
+        "assembly": "addi $r0,$r0,#0x7c",
+        "length": 4,
+        "mnemonic": "addi",
+        "runtime_address": 1184
+      },
+      {
+        "assembly": "ex9.it #122",
+        "length": 2,
+        "mnemonic": "ex9.it",
+        "runtime_address": 1188
+      },
+      {
+        "assembly": "mfsr $r0,194",
+        "length": 4,
+        "mnemonic": "mfsr",
+        "runtime_address": 1190
+      },
+      {
+        "assembly": "movi $r0,#0x633",
+        "length": 4,
+        "mnemonic": "movi",
+        "runtime_address": 1194
+      },
+      {
+        "assembly": "ex9.it #365",
+        "length": 2,
+        "mnemonic": "ex9.it",
+        "runtime_address": 1198
+      },
+      {
+        "assembly": "mfsr $r0,$psw",
+        "length": 4,
+        "mnemonic": "mfsr",
+        "runtime_address": 1200
+      },
+      {
+        "assembly": "ex9.it #67",
+        "length": 2,
+        "mnemonic": "ex9.it",
+        "runtime_address": 1204
+      },
+      {
+        "assembly": "mtsr $r0,$psw",
+        "length": 4,
+        "mnemonic": "mtsr",
+        "runtime_address": 1206
+      },
+      {
+        "assembly": "pop25 $r6,#0    ! {$r6, $fp, $gp, $lp}",
+        "length": 2,
+        "mnemonic": "pop25",
+        "runtime_address": 1210
+      }
+    ],
+    "decoded_instructions": 25,
+    "elf": "/workspace/scratch/c7bf61eee144/audit17-private/verify-first82-map220v/independent.elf",
+    "source": "/workspace/scratch/c7bf61eee144/audit17-private/verify-first82-map220v/independent.s",
+    "status": "passed",
+    "tool_versions": {
+      "assembler": "GNU assembler (GNU Binutils) 2.25.1",
+      "linker": "GNU ld (GNU Binutils) 2.25.1",
+      "objcopy": "GNU objcopy (GNU Binutils) 2.25.1",
+      "objdump": "GNU objdump (GNU Binutils) 2.25.1"
+    }
+  },
+  "instructions": [
+    {
+      "assembly": "sbi.gp $r0,[-5113]",
+      "file_offset": 1642,
+      "length": 4,
+      "mnemonic": "sbi.gp",
+      "operands": "$r0,[-5113]",
+      "runtime_address": 1130
+    },
+    {
+      "assembly": "mtsr $r0,$int_mask",
+      "file_offset": 1646,
+      "length": 4,
+      "mnemonic": "mtsr",
+      "operands": "$r0,$int_mask",
+      "runtime_address": 1134
+    },
+    {
+      "assembly": "ex9.it 122",
+      "file_offset": 1650,
+      "length": 2,
+      "mnemonic": "ex9.it",
+      "operands": "122",
+      "runtime_address": 1138
+    },
+    {
+      "assembly": "ex9.it 365",
+      "file_offset": 1652,
+      "length": 2,
+      "mnemonic": "ex9.it",
+      "operands": "365",
+      "runtime_address": 1140
+    },
+    {
+      "assembly": "mfsr $r1,$ivb",
+      "file_offset": 1654,
+      "length": 4,
+      "mnemonic": "mfsr",
+      "operands": "$r1,$ivb",
+      "runtime_address": 1142
+    },
+    {
+      "assembly": "xlsb33 $r1,$r1",
+      "file_offset": 1658,
+      "length": 2,
+      "mnemonic": "xlsb33",
+      "operands": "$r1,$r1",
+      "runtime_address": 1146
+    },
+    {
+      "assembly": "mov55 $r2,$r0",
+      "file_offset": 1660,
+      "length": 2,
+      "mnemonic": "mov55",
+      "operands": "$r2,$r0",
+      "runtime_address": 1148
+    },
+    {
+      "assembly": "beqz38 $r1,.+6",
+      "file_offset": 1662,
+      "length": 2,
+      "mnemonic": "beqz38",
+      "operands": "$r1,.+6",
+      "runtime_address": 1150
+    },
+    {
+      "assembly": "mtsr $r0,$int_mask",
+      "file_offset": 1664,
+      "length": 4,
+      "mnemonic": "mtsr",
+      "operands": "$r0,$int_mask",
+      "runtime_address": 1152
+    },
+    {
+      "assembly": "mtsr $r2,$ivb",
+      "file_offset": 1668,
+      "length": 4,
+      "mnemonic": "mtsr",
+      "operands": "$r2,$ivb",
+      "runtime_address": 1156
+    },
+    {
+      "assembly": "mfsr $r0,$psw",
+      "file_offset": 1672,
+      "length": 4,
+      "mnemonic": "mfsr",
+      "operands": "$r0,$psw",
+      "runtime_address": 1160
+    },
+    {
+      "assembly": "bitci $r0,$r0,6",
+      "file_offset": 1676,
+      "length": 4,
+      "mnemonic": "bitci",
+      "operands": "$r0,$r0,6",
+      "runtime_address": 1164
+    },
+    {
+      "assembly": "mtsr $r0,$psw",
+      "file_offset": 1680,
+      "length": 4,
+      "mnemonic": "mtsr",
+      "operands": "$r0,$psw",
+      "runtime_address": 1168
+    },
+    {
+      "assembly": "dsb",
+      "file_offset": 1684,
+      "length": 4,
+      "mnemonic": "dsb",
+      "operands": "",
+      "runtime_address": 1172
+    },
+    {
+      "assembly": "mfsr $r0,$int_mask2",
+      "file_offset": 1688,
+      "length": 4,
+      "mnemonic": "mfsr",
+      "operands": "$r0,$int_mask2",
+      "runtime_address": 1176
+    },
+    {
+      "assembly": "sethi $r0,171024",
+      "file_offset": 1692,
+      "length": 4,
+      "mnemonic": "sethi",
+      "operands": "$r0,171024",
+      "runtime_address": 1180
+    },
+    {
+      "assembly": "addi $r0,$r0,124",
+      "file_offset": 1696,
+      "length": 4,
+      "mnemonic": "addi",
+      "operands": "$r0,$r0,124",
+      "runtime_address": 1184
+    },
+    {
+      "assembly": "ex9.it 122",
+      "file_offset": 1700,
+      "length": 2,
+      "mnemonic": "ex9.it",
+      "operands": "122",
+      "runtime_address": 1188
+    },
+    {
+      "assembly": "mfsr $r0,0xc2",
+      "file_offset": 1702,
+      "length": 4,
+      "mnemonic": "mfsr",
+      "operands": "$r0,0xc2",
+      "runtime_address": 1190
+    },
+    {
+      "assembly": "movi $r0,1587",
+      "file_offset": 1706,
+      "length": 4,
+      "mnemonic": "movi",
+      "operands": "$r0,1587",
+      "runtime_address": 1194
+    },
+    {
+      "assembly": "ex9.it 365",
+      "file_offset": 1710,
+      "length": 2,
+      "mnemonic": "ex9.it",
+      "operands": "365",
+      "runtime_address": 1198
+    },
+    {
+      "assembly": "mfsr $r0,$psw",
+      "file_offset": 1712,
+      "length": 4,
+      "mnemonic": "mfsr",
+      "operands": "$r0,$psw",
+      "runtime_address": 1200
+    },
+    {
+      "assembly": "ex9.it 67",
+      "file_offset": 1716,
+      "length": 2,
+      "mnemonic": "ex9.it",
+      "operands": "67",
+      "runtime_address": 1204
+    },
+    {
+      "assembly": "mtsr $r0,$psw",
+      "file_offset": 1718,
+      "length": 4,
+      "mnemonic": "mtsr",
+      "operands": "$r0,$psw",
+      "runtime_address": 1206
+    },
+    {
+      "assembly": "pop25 $r6,0",
+      "file_offset": 1722,
+      "length": 2,
+      "mnemonic": "pop25",
+      "operands": "$r6,0",
+      "runtime_address": 1210
+    }
+  ],
+  "interval": {
+    "file_end": 1724,
+    "file_start": 1642,
+    "runtime_end": 1212,
+    "runtime_start": 1130
+  },
+  "limitations": [
+    "EX9 instruction-table entries remain external Agent 18 dependencies; their bytes are not generated by this span.",
+    "The interval is a partial firmware reconstruction; byte equality does not establish complete high-level semantics or hardware execution.",
+    "The inherited routine prefix before file 0x66a is not rebuilt by this verifier."
+  ],
+  "overall_status": "passed",
+  "reference": {
+    "expected_sha256": "72364eca0a91855d59e043371aca774354e5ad0885df5024edcec8f976543ad2",
+    "expected_size": 196608,
+    "path": "/workspace/scratch/c7bf61eee144/private-reference/nabu-codex-bootstrap/workspace/sources/map220v-nabu-firmware/novatek_nt36523_fw.bin",
+    "profile": "map220v",
+    "sha256": "72364eca0a91855d59e043371aca774354e5ad0885df5024edcec8f976543ad2",
+    "size": 196608
+  },
+  "schema": "agent20-17-novatek-ilm-low-verification-v1",
+  "source_reference_comparison": {
+    "actual_bytes": 82,
+    "actual_sha256": "381dba6533ed6367c33d7e65e7cf3a1ed6f2a9cf999da2f0d5169818cd77de48",
+    "expected_bytes": 82,
+    "expected_sha256": "381dba6533ed6367c33d7e65e7cf3a1ed6f2a9cf999da2f0d5169818cd77de48",
+    "first_mismatch_file_offset": null,
+    "mismatched_bytes": 0
+  }
+}

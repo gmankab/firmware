@@ -1,0 +1,277 @@
+   Compiling firmware-tools v0.1.0 (/workspace/scratch/c7bf61eee144/nabu-agent17/crates/firmware-tools)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.10s
+     Running unittests src/lib.rs (/workspace/scratch/c7bf61eee144/target-agent17/debug/deps/arm32-b4c24c570ebc423c)
+
+running 13 tests
+test tests::byte_preindexed_writeback_encoding ... ok
+test tests::clang_builtin_trap_uses_arm_mode_trap_encoding ... ok
+test tests::compare_negative_immediate ... ok
+test tests::halfword_and_carry_aware_arithmetic ... ok
+test tests::halfword_load_encoding ... ok
+test tests::independent_arm_multiply_encoding ... ok
+test tests::immediate_and_transfer_encoding_and_rejections ... ok
+test tests::signed_byte_load_encoding_and_rejections ... ok
+test tests::indexed_transfers_and_multiply_accumulate ... ok
+test tests::signed_register_index_byte_transfer ... ok
+test tests::vector_and_exception_instruction_encodings ... ok
+test tests::thumb_interworking_blx_encoding_and_range_checks ... ok
+test tests::signed_halfword_and_doubleword_memory_transfers ... ok
+
+test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/lib.rs (/workspace/scratch/c7bf61eee144/target-agent17/debug/deps/firmware_tools-c58974696e973055)
+
+running 119 tests
+test a640_microcode::tests::nop_is_isa_based_not_zero_byte_test ... ok
+test a640_microcode::tests::discovers_synthetic_shader ... ok
+test a640_microcode::tests::rejects_truncated_executable ... ok
+test a640_microcode::tests::rejects_non_elf ... ok
+test devices::xiaomi_nabu::a640_container::tests::generated_mbn_hashes_track_payload_bytes ... ok
+test analysis_elf_tests::rejects_non_hexagon ... ok
+test analysis_elf_tests::translates_physical_entry_and_restricts_segment_table ... ok
+test devices::xiaomi_nabu::a640_finalize::tests::emitted_routines_have_expected_targets_and_no_implicit_padding ... ok
+test devices::xiaomi_nabu::a640_launch::tests::builds_layout_anchored_fragment_from_typed_instructions ... ok
+test devices::xiaomi_nabu::a640_launch::tests::compute_stream_encodes_a_sequence_of_named_gpu_register_writes ... ok
+test devices::xiaomi_nabu::a640_pipeline::tests::emits_named_shader_address_setup_and_jump_over_ir3 ... ok
+test devices::xiaomi_nabu::a640_shader::tests::fragments_do_not_overlap_and_cover_expected_slots ... ok
+test devices::xiaomi_nabu::modemuw::tests::config_renders_deterministically ... ok
+test devices::xiaomi_nabu::a640_plan::tests::all_executable_regions_are_nonoverlapping_and_complete ... ok
+test devices::xiaomi_nabu::venus_runtime_alloc_aligned::tests::truncated_parent_runtime_is_rejected ... ok
+test devices::xiaomi_nabu::venus_boot::tests::typed_vector_table_and_polling_layout ... ok
+test devices::xiaomi_nabu::venus_runtime_alloc_variable::tests::empty_prior_runtime_fails ... ok
+test devices::xiaomi_nabu::venus_runtime_allocator::tests::truncated_prefix_is_rejected ... ok
+test devices::xiaomi_nabu::venus_runtime_bitmap_controls::tests::rejects_bitmap_control_layout_gaps ... ok
+test devices::xiaomi_nabu::venus_runtime_bitmap_controls::tests::platform_register_accessors_have_exact_layout ... ok
+test devices::xiaomi_nabu::venus_runtime_bits::tests::bit_routines_reject_disconnected_code ... ok
+test devices::xiaomi_nabu::venus_runtime_callbacks::tests::missing_parent_block_fails ... ok
+test devices::xiaomi_nabu::venus_runtime_controller::tests::controller_allocator_and_mode_clear_are_contiguous ... ok
+test devices::xiaomi_nabu::venus_runtime_bits::tests::resource_bit_set_clear_use_checked_a32_fields ... ok
+test devices::xiaomi_nabu::venus_runtime_controller::tests::controller_allocator_cannot_skip_prior_sections ... ok
+test devices::xiaomi_nabu::venus_runtime_controller_io::tests::controller_io_has_no_missing_layout_bytes ... ok
+test devices::xiaomi_nabu::venus_runtime_controller_io::tests::controller_io_rejects_missing_predecessor ... ok
+test devices::xiaomi_nabu::venus_runtime_controller_state::tests::controller_helpers_reject_disconnected_layout ... ok
+test devices::xiaomi_nabu::venus_runtime_ctors::tests::previous_region_is_required ... ok
+test devices::xiaomi_nabu::venus_runtime_controller_state::tests::patterned_controller_state_helpers_have_strict_boundaries ... ok
+test devices::xiaomi_nabu::venus_runtime_descriptors::tests::descriptor_registration_rejects_gap ... ok
+test devices::xiaomi_nabu::venus_runtime_descriptors::tests::descriptor_registration_code_and_service_ids_are_contiguous ... ok
+test devices::xiaomi_nabu::a640_container::tests::unsigned_mbnv6_fields_and_hashes_do_not_make_signed_image_complete ... ok
+test devices::xiaomi_nabu::venus_runtime_device_commands::tests::command_dispatch_rejects_layout_gaps ... ok
+test devices::xiaomi_nabu::venus_runtime_diag_buffer::tests::requires_preceding_code ... ok
+test devices::xiaomi_nabu::venus_runtime_diag_memory::tests::missing_predecessor_is_an_error ... ok
+test devices::xiaomi_nabu::venus_runtime_diag_write::tests::requires_preceding_writer ... ok
+test devices::xiaomi_nabu::venus_runtime::tests::checked_arm32_runtime_entrypoints ... ok
+test devices::xiaomi_nabu::venus_runtime_dispatch::tests::missing_prefix_fails_loudly ... ok
+test devices::xiaomi_nabu::venus_runtime_device_commands::tests::ten_command_targets_have_stable_checked_offsets ... ok
+test devices::xiaomi_nabu::venus_runtime_exit::tests::rejects_unknown_prefix ... ok
+test devices::xiaomi_nabu::venus_runtime_flush::tests::requires_utf8_runtime ... ok
+test devices::xiaomi_nabu::venus_runtime_format_args::tests::requires_previous_helper ... ok
+test devices::xiaomi_nabu::venus_runtime_format_dispatch::tests::requires_prior_arg_scanner ... ok
+test devices::xiaomi_nabu::venus_runtime_eventmask::tests::no_gap_is_silently_accepted ... ok
+test devices::xiaomi_nabu::venus_runtime_errors::tests::requires_previous_memory_copy ... ok
+test devices::xiaomi_nabu::venus_runtime_format_helpers::tests::requires_preceding_formatter ... ok
+test devices::xiaomi_nabu::venus_runtime_format_finish::tests::extension_requires_first_converter_pass ... ok
+test devices::xiaomi_nabu::a640_container::tests::external_authentication_is_exactly_bounded_and_never_guessed ... ok
+test devices::xiaomi_nabu::venus_runtime_format_strings::tests::rejects_missing_runtime_prefix ... ok
+test devices::xiaomi_nabu::venus_runtime_format_small::tests::rejects_missing_previous_formatter ... ok
+test devices::xiaomi_nabu::venus_runtime_formatter::tests::rejects_gaps ... ok
+test devices::xiaomi_nabu::venus_runtime_init::tests::rejects_partial_prefix ... ok
+test devices::xiaomi_nabu::venus_runtime_format_output::tests::reject_noncontiguous_source ... ok
+test devices::xiaomi_nabu::venus_runtime_interface_lookup::tests::interface_lookup_requires_preceding_image ... ok
+test devices::xiaomi_nabu::venus_runtime_format_numbers::tests::missing_preceding_output_is_rejected ... ok
+test devices::xiaomi_nabu::venus_runtime_interface_lookup::tests::lookup_code_has_bounded_dispatch_and_fallbacks ... ok
+test devices::xiaomi_nabu::venus_runtime_keys::tests::reject_noncontiguous_bank_code ... ok
+test devices::xiaomi_nabu::venus_runtime_keys::tests::two_bank_keys_share_a_checked_encoder ... ok
+test devices::xiaomi_nabu::venus_runtime_mask::tests::requires_preceding_runtime ... ok
+test devices::xiaomi_nabu::venus_runtime_memcpy::tests::rejects_missing_memory_scan ... ok
+test devices::xiaomi_nabu::venus_runtime_memscan::tests::rejects_missing_buffered_writer ... ok
+test devices::xiaomi_nabu::venus_runtime_mmio::tests::mmio_register_helpers_are_contiguous_and_typed ... ok
+test devices::xiaomi_nabu::venus_runtime_mmio::tests::mmio_helpers_reject_gaps ... ok
+test devices::xiaomi_nabu::venus_runtime_memcpy_tail::tests::missing_unaligned_copy_is_an_error ... ok
+test devices::xiaomi_nabu::venus_runtime_memcpy_unaligned::tests::rejects_a_gap_before_unaligned_copy ... ok
+test devices::xiaomi_nabu::venus_runtime_memfill::tests::incomplete_image_is_rejected ... ok
+test devices::xiaomi_nabu::venus_runtime_modes::tests::mode_helpers_reject_missing_previous_code ... ok
+test devices::xiaomi_nabu::venus_runtime_modes::tests::conditionally_masked_modes_are_contiguous ... ok
+test devices::xiaomi_nabu::venus_runtime_object::tests::no_incomplete_prefix_accepted ... ok
+test devices::xiaomi_nabu::venus_runtime_platform::tests::checked_platform_controls_follow_mmio_region ... ok
+test devices::xiaomi_nabu::venus_runtime_platform::tests::rejects_noncontiguous_platform_block ... ok
+test devices::xiaomi_nabu::venus_runtime_object_ext::tests::rejects_missing_runtime_prefix ... ok
+test devices::xiaomi_nabu::venus_runtime_registers_secondary::tests::secondary_controller_registers_have_contiguous_encoding ... ok
+test devices::xiaomi_nabu::venus_runtime_registers::tests::controller_register_read_write_helpers_are_anchored ... ok
+test devices::xiaomi_nabu::venus_runtime_registers_secondary::tests::secondary_controller_registration_is_strict ... ok
+test devices::xiaomi_nabu::venus_runtime_resource_ops::tests::reject_disconnected_resource_handlers ... ok
+test devices::xiaomi_nabu::venus_runtime_queue::tests::no_unverified_previous_code_is_accepted ... ok
+test devices::xiaomi_nabu::venus_runtime_registers::tests::controller_register_read_write_helpers_have_no_gaps ... ok
+test devices::xiaomi_nabu::venus_runtime_resource_ops::tests::typed_resource_handlers_cover_first_dispatcher ... ok
+test devices::xiaomi_nabu::venus_runtime_resource_table::tests::linked_resources_have_matching_metadata_slots ... ok
+test devices::xiaomi_nabu::venus_runtime_resource_table::tests::rejects_missing_resource_prefix ... ok
+test devices::xiaomi_nabu::venus_runtime_resource_update::tests::requires_exact_previous_layout ... ok
+test devices::xiaomi_nabu::venus_runtime_service_frontends::tests::frontends_refuse_unanchored_segments ... ok
+test devices::xiaomi_nabu::venus_runtime_service_link::tests::service_registry_layout_and_callback_addresses ... ok
+test devices::xiaomi_nabu::venus_runtime_service_frontends::tests::controller_frontends_are_contiguous ... ok
+test devices::xiaomi_nabu::venus_plan::tests::strict_contiguous_venus_boot_region ... ok
+test devices::xiaomi_nabu::venus_runtime_service_controller::tests::controller_region_and_stubs_are_contiguous ... ok
+test devices::xiaomi_nabu::venus_runtime_service_controller::tests::controller_block_requires_exact_layout ... ok
+test devices::xiaomi_nabu::venus_runtime_service_link::tests::service_registry_rejects_gapped_inputs ... ok
+test devices::xiaomi_nabu::venus_runtime_services::tests::rejects_missing_previous_region ... ok
+test devices::xiaomi_nabu::venus_runtime_services_next::tests::requires_previous_runtime ... ok
+test devices::xiaomi_nabu::venus_runtime_setup::tests::short_contiguous_input_is_rejected ... ok
+test devices::xiaomi_nabu::venus_runtime_stream_state::tests::requires_previous_stream_code ... ok
+test devices::xiaomi_nabu::venus_runtime_strings::tests::requires_complete_preceding_runtime ... ok
+test devices::xiaomi_nabu::venus_runtime_tail::tests::rejects_noncontiguous_extensions ... ok
+test devices::xiaomi_nabu::venus_runtime_utf8::tests::rejects_missing_stream_state ... ok
+test devices::xiaomi_nabu::venus_runtime_tail::tests::second_runtime_extension_is_contiguous ... ok
+test devices::xiaomi_nabu::venus_runtime_wrappers::tests::incomplete_boot_block_is_rejected ... ok
+test firmware_tests::hash_segment_classified_by_flags_not_content ... ok
+test firmware_tests::reject_truncated_wmfw_region ... ok
+test firmware_tests::wmfw_minimal_valid_halo_header ... ok
+test elf32_prefix::known_elf_specs_tests::all_six_generated_prefixes_roundtrip ... ok
+test novatek_tests::parses_bounded_candidate ... ok
+test novatek_tests::rejects_bad_candidate_header ... ok
+test image_plan::tests::gaps_and_finalization_are_strict ... ok
+test qcom_mbn::tests::oem_metadata_v6_named_fields_round_trip_without_payloads ... ok
+test image_plan::tests::rejects_overlaps_bounds_empty_inputs_and_overflow ... ok
+test elf32_prefix::tests::generated_prefix_format ... ok
+test qcom_mbn::tests::header_encode_parse_and_complete_layout ... ok
+test qcom_mbn::tests::rejects_inconsistent_malformed_and_truncated_layouts ... ok
+test sha384::tests::fips_180_sha384_vectors ... ok
+test qcom_mbn_validation::tests::rejects_bad_format_and_truncated_authentication ... ok
+test qcom_mbn_validation::tests::validates_generic_elf32_mbnv6_and_rejects_changed_payload ... ok
+test tests::bytes_and_layout ... ok
+test tests::rejects_truncated_elf ... ok
+test qcom_mbn::tests::sha384_table_preserves_null_entries_and_entry_order ... ok
+test wmfw_metadata::tests::metadata_layout_is_self_consistent ... ok
+test sha384::tests::multiple_block_lengths_and_padding_boundary_are_stable ... ok
+
+test result: ok. 119 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running unittests src/main.rs (/workspace/scratch/c7bf61eee144/target-agent17/debug/deps/firmware_tools-bae069034025cbe1)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/bin/novatek-ilm-low.rs (/workspace/scratch/c7bf61eee144/target-agent17/debug/deps/novatek_ilm_low-979ce778ae35c647)
+
+running 4 tests
+test lower::isa::tests::compact_register_map_rejects_holes ... ok
+test lower::isa::tests::ex9_encoding_boundaries_are_not_software_breaks ... ok
+test lower::isa::tests::branch_and_immediate_limits ... ok
+test lower::tests::source_intervals_and_profile_selection ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/bin/novatek-nabu.rs (/workspace/scratch/c7bf61eee144/target-agent17/debug/deps/novatek_nabu-1017252409970823)
+
+running 39 tests
+test novatek_crc::tests::mpeg2_crc_known_public_vectors ... ok
+test novatek_layout::tests::generated_nds32_isr_has_distinct_nonopaque_coverage ... ok
+test novatek_layout::tests::detects_modified_post_dlm_zero_gap ... ok
+test novatek_layout::tests::dlm_prefix_mirror_is_derived_and_tamper_detected ... ok
+test novatek_layout::tests::rejects_invalid_magic_and_truncated_header ... ok
+test novatek_layout::tests::parses_and_rebuilds_512_byte_metadata ... ok
+test novatek_layout::tests::mutated_encoded_isr_is_rejected_without_mutating_other_regions ... ok
+test novatek_layout::tests::rejects_unrepresentable_coverage_without_copying_unknowns ... ok
+test novatek_layout::tests::rejects_wrong_variant_and_modified_padding ... ok
+test novatek_layout::tests::whole_image_coverage_is_disjoint_and_full ... ok
+test novatek_nds32::tests::complete_source_generated_boot_prefix_has_correct_length ... ok
+test novatek_nds32::tests::generated_isr_prefix_is_contiguous_and_typed ... ok
+test novatek_nds32::tests::generated_third_handler_is_exactly_sixty_eight_bytes ... ok
+test novatek_nds32::tests::gp_reset_writes_are_derived_from_absolute_sram_addresses ... ok
+test novatek_nds32::tests::individual_nds32_isa_words_have_expected_field_layout ... ok
+test novatek_layout::tests::reserved_vector_padding_must_be_zero ... ok
+test novatek_nds32::tests::initial_reset_and_service_control_have_no_hidden_opcodes ... ok
+test novatek_nds32::tests::reconstructs_full_isr_without_raw_firmware_bytes ... ok
+test novatek_nds32::tests::profile_selection_refuses_unverified_ilm_layouts ... ok
+test novatek_nds32::tests::reconstructs_two_more_paths_without_vendor_opcode_arrays ... ok
+test novatek_nds32::tests::rejects_invalid_nds32_operands ... ok
+test novatek_nds32::tests::third_path_correctly_encodes_branches_and_gp_relative_memory ... ok
+test novatek_nds32::tests::reset_actions_extend_boot_prefix_to_538_executable_bytes ... ok
+test novatek_reassemble::tests::cannot_override_source_derived_isr_with_stale_full_ilm_input ... ok
+test novatek_layout::tests::alternate_revision_shorter_dlm_can_have_larger_padding ... ok
+test novatek_reassemble::tests::crc_aware_assembly_rejects_unknown_input_code ... ok
+test novatek_layout::tests::third_handler_mutation_is_detected_with_original_offset ... ok
+test novatek_layout::tests::suffix_and_reserved_padding_can_be_rebuilt_independently ... ok
+test novatek_reassemble::tests::assembles_synthetic_complete_image_but_crc_remains_unverified ... ok
+test novatek_reassemble::tests::initial_projection_exposes_all_holes_without_filling_them ... ok
+test novatek_vector::tests::rejects_unmapped_vector_without_guessing_an_isa ... ok
+test novatek_vector::tests::reserved_vector_zeros_are_independent ... ok
+test novatek_vector::tests::vector_table_roundtrips_typed_words_and_unaligned_targets ... ok
+test novatek_reassemble::tests::refuses_payloads_of_wrong_lengths_before_finalizing ... ok
+test novatek_reassemble::tests::refuses_missing_dlm_and_uses_derived_config_from_authored_dlm ... ok
+test novatek_reassemble::tests::crc_aware_assembler_generates_all_twelve_fields_and_dlm_mirror ... ok
+test novatek_crc::tests::roundtrips_independently_authored_test_payload_and_all_crc_fields ... ok
+test novatek_crc::tests::bank_footer_crc_excludes_its_last_four_bytes ... ok
+test novatek_crc::tests::tampered_payload_or_metadata_is_rejected_and_repaired ... ok
+
+test result: ok. 39 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.14s
+
+     Running unittests src/bin/qrisc-public-demo.rs (/workspace/scratch/c7bf61eee144/target-agent17/debug/deps/qrisc_public_demo-7e16a8f285558919)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/lib.rs (/workspace/scratch/c7bf61eee144/target-agent17/debug/deps/ir3-24ddd7e88e55ad42)
+
+running 10 tests
+test control_tests::cat0_control_fields_follow_public_spec ... ok
+test control_tests::branch_and_jump_use_signed_slot_displacements ... ok
+test scalar::tests::invalid_operands_are_rejected ... ok
+test scalar::tests::local_store_has_type_address_data_and_count_fields ... ok
+test synchronization::tests::category_seven_memory_barriers_have_explicit_versioned_encoding ... ok
+test scalar::tests::scalar_arithmetic_uses_public_categories_and_instruction_forms ... ok
+test synchronization::tests::rejects_unspecified_scope_and_encodes_all_flags_independently ... ok
+test tests::encodes_public_isa_fields ... ok
+test tests::rejects_invalid_registers_components_repeats_and_ranges ... ok
+test tests::generates_distinct_register_operands_without_embedded_opcodes ... ok
+
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/lib.rs (/workspace/scratch/c7bf61eee144/target-agent17/debug/deps/qrisc-31483a534b5920e2)
+
+running 18 tests
+test a640::tests::invalid_firmware_id_is_rejected ... ok
+test a640::tests::assembled_routines_have_expected_lengths_and_family_header ... ok
+test codec::tests::format_roundtrip_for_public_isa_fields ... ok
+test a640::tests::security_setup_is_label_resolved_and_has_guard_prefix ... ok
+test command_stream::tests::emitting_register_ranges_preserves_boundaries_and_wide_values ... ok
+test codec::tests::reject_invalid_operands_and_unsupported_opcodes ... ok
+test command_stream::tests::rejects_empty_and_oversized_ranges_without_mutation ... ok
+test flow::tests::calls_add_a_destination_and_return_site ... ok
+test flow::tests::follows_both_conditional_paths_but_skips_data ... ok
+test flow::tests::rejects_branch_into_shader ... ok
+test flow::tests::unconditional_branch_skips_shader_and_still_returns ... ok
+test flow::tests::rejects_out_of_range_target_and_opaque_instructions ... ok
+test program::tests::forward_and_backward_branches_are_instruction_relative ... ok
+test program::tests::normal_vs_interrupt_return_and_uninterpreted_ret_bit ... ok
+test script::tests::branches_use_absolute_word_addresses_and_check_distance ... ok
+test program::tests::label_positions_skip_empty_and_include_shader_slots ... ok
+test script::tests::stream_operations_are_typed_and_length_checked ... ok
+test program::tests::duplicates_unresolved_and_out_of_range_rejected ... ok
+
+test result: ok. 18 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests arm32
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests firmware_tools
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests ir3
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests qrisc
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
