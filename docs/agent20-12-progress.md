@@ -310,3 +310,29 @@ The new contiguous 340-byte auxiliary fragment has SHA-256
 `ecddf048c671e9bd6748377a5fbc50928f7ab39f071304a82d14eaa005d73165`.
 All five intervals match the pinned original exactly; the entire firmware,
 non-code input data and OEM authentication remain unimplemented.
+
+## Checkpoint 10: auxiliary controller worker and source packet alignment
+
+Added **108 source-assembled Hexagon V60 executable bytes** at file
+`[0x4463b4,0x446420)` (ELF vaddr `[0x1e4003b4,0x1e400420)`, physical
+`[0x900003b4,0x90000420)`). The routine opens an auxiliary controller
+worker, creates/updates its service descriptor, sets an MMIO status flag,
+releases a resource lock and returns the worker handle. The code uses
+symbolic Hexagon call/jump targets and named signed absolute constants.
+
+The original producer merged scalar `r16=-1` and a following `jump`
+into one packet and extended the controller-update call into the following
+parameter packet. LLVM6 produces equivalent instructions with different
+packet positions. `restore_aux_worker_packets` validates opcode classes,
+parse markers, and the original branch's compiler-displacement field before
+reinstating this source packet encoding; no OEM opcode words are substituted.
+Synthetic tests reject wrong opcode classes, invalid immediate/parse markers,
+and unexpected fragment lengths.
+
+The continuous second executable helper fragment is now
+`[0x446260,0x446420)` = **448 bytes**; total source-generated coverage
+is **1,360 bytes across five intervals**: `[0x7c000,0x7c0a0)` 160,
+`[0x7c2ec,0x7c4b0)` 452, `[0x446000,0x4460d8)` 216,
+`[0x446200,0x446254)` 84, and `[0x446260,0x446420)` 448.
+Byte-for-byte comparison passes against pinned original `modem.mbn`.
+Next candidate is the separate list/registry lookup routine `[0x446420,0x446488)`.

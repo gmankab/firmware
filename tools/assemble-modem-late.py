@@ -30,6 +30,7 @@ SERVICE_MMIO_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/mode
 SERVICE_FLAGS_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_service_flags.s"
 SERVICE_ALLOC_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_service_alloc.s"
 AUX_HEAP_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_aux_heap.s"
+AUX_WORKER_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_aux_worker.s"
 ATOMIC_START = 0x7C000
 ATOMIC_END = 0x7C040
 SERVICE_START = 0x7C2EC
@@ -54,6 +55,8 @@ AUX_MMIO_START = 0x4462E0
 AUX_MMIO_END = 0x4462F8
 AUX_HEAP_START = 0x4462F8
 AUX_HEAP_END = 0x4463B4
+AUX_WORKER_START = 0x4463B4
+AUX_WORKER_END = 0x446420
 MARKER_MASK = 3 << 14
 CONTINUE_MARKER = 1 << 14
 END_MARKER = 3 << 14
@@ -296,6 +299,40 @@ def restore_aux_heap_predicate_packet(assembled: bytes) -> bytes:
     return struct.pack("<47I",*words)
 
 
+def restore_aux_worker_packets(assembled: bytes) -> bytes:
+    """Restore original Hexagon packet position and PC-relative jump semantics.
+
+    LLVM6 emits scalar -1 setup as a separate packet even though target
+    Hexagon V60 pairs it with the following unconditional jump. The jump
+    packet-relative displacement differs by one Hexagon branch unit for the
+    target assembler's split packet address convention; retain the named
+    `.Ldone` source target, validate the compiler's original field, and
+    adjust *only* its immediate field by two encoded steps (8 bytes).
+    A subsequent service call is likewise part of the following packet.
+    """
+    if len(assembled) != AUX_WORKER_END-AUX_WORKER_START:
+        raise ValueError("auxiliary worker must assemble into exactly 108 bytes")
+    words=list(struct.unpack("<27I",assembled))
+    init_idx=0x24//4
+    mov,jmp=words[init_idx:init_idx+2]
+    if (mov>>24,jmp>>24)!=(0x78,0x58):
+        raise ValueError("aux worker const/jump ISA classes changed")
+    if (mov & MARKER_MASK,jmp & MARKER_MASK)!=(END_MARKER,END_MARKER):
+        raise ValueError("aux worker const/jump packet markers changed")
+    if jmp&0x3f != 0x1e:
+        raise ValueError("aux worker PC-relative branch immediate no longer matches named target")
+    words[init_idx] = (mov & ~MARKER_MASK) | CONTINUE_MARKER
+    words[init_idx+1] = (jmp&~0x3f) | ((jmp&0x3f) + 2)
+    call_idx=0x3c//4
+    call,next_combine=words[call_idx:call_idx+2]
+    if (call>>24,next_combine>>24)!=(0x5a,0x73):
+        raise ValueError("aux worker controller update/combine instruction classes changed")
+    if (call&MARKER_MASK,next_combine&MARKER_MASK)!=(END_MARKER,CONTINUE_MARKER):
+        raise ValueError("aux worker controller update packet markers changed")
+    words[call_idx] = (call&~MARKER_MASK)|CONTINUE_MARKER
+    return struct.pack("<27I",*words)
+
+
 def assemble(llvm_mc: Path, source: Path) -> bytes:
     with tempfile.TemporaryDirectory(prefix="nabu-modem-late-") as tmp:
         obj = Path(tmp) / "late.o"
@@ -320,10 +357,11 @@ def output_fragments(llvm_mc: Path) -> dict[int, bytes]:
     aux_stage = restore_aux_stage_packets(assemble(llvm_mc,AUX_STAGE_SOURCE))
     aux_mmio = assemble(llvm_mc,AUX_MMIO_SOURCE)
     aux_heap = restore_aux_heap_predicate_packet(assemble(llvm_mc,AUX_HEAP_SOURCE))
+    aux_worker = restore_aux_worker_packets(assemble(llvm_mc,AUX_WORKER_SOURCE))
     if len(aux_mmio) != AUX_MMIO_END-AUX_MMIO_START:
         raise ValueError("auxiliary MMIO initialization source has invalid length")
     assert AUX_GUARD_END == AUX_STAGE_START and AUX_STAGE_END == AUX_MMIO_START
-    assert AUX_MMIO_END == AUX_HEAP_START
+    assert AUX_MMIO_END == AUX_HEAP_START and AUX_HEAP_END == AUX_WORKER_START
     service = restore_service_probe_packets(assemble(llvm_mc,SERVICE_SOURCE))
     service_mmio = restore_service_mmio_packets(assemble(llvm_mc,SERVICE_MMIO_SOURCE))
     service_flags = restore_service_flag_packets(assemble(llvm_mc,SERVICE_FLAGS_SOURCE))
@@ -332,7 +370,7 @@ def output_fragments(llvm_mc: Path) -> dict[int, bytes]:
     assert SERVICE_FLAGS_END == SERVICE_ALLOC_START
     return {ATOMIC_START: atomic + controller, SERVICE_START: service+service_mmio+service_flags+service_alloc,
             AUX_START: auxiliary, AUX_INIT_START: aux_init,
-            AUX_GUARD_START: aux_guard+aux_stage+aux_mmio+aux_heap}
+            AUX_GUARD_START: aux_guard+aux_stage+aux_mmio+aux_heap+aux_worker}
 
 
 def executable_segments(reference: bytes) -> dict[int, tuple[int, int, int, int]]:

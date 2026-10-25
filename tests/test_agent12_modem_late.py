@@ -49,6 +49,9 @@ class ModemLateTests(unittest.TestCase):
         self.assertEqual(agent12.AUX_STAGE_END,agent12.AUX_MMIO_START)
         self.assertEqual((agent12.AUX_HEAP_START,agent12.AUX_HEAP_END),(0x4462F8,0x4463B4))
         self.assertEqual(agent12.AUX_MMIO_END,agent12.AUX_HEAP_START)
+        self.assertEqual(agent12.AUX_HEAP_END,agent12.AUX_WORKER_START)
+        self.assertEqual((agent12.AUX_WORKER_START,agent12.AUX_WORKER_END),
+                         (0x4463B4,0x446420))
 
     def test_atomic_packet_reorder_checks_opcode_class_and_parse_bits(self):
         words = [0x7800C000] * 16  # synthetic A2_tfrsi instruction for surrounding words
@@ -231,6 +234,29 @@ class ModemLateTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError,'188 bytes'):
             agent12.restore_aux_heap_predicate_packet(bytes(184))
 
+    def test_aux_worker_checked_branch_and_packet_adjustments(self):
+        words=[0x7800C000]*27
+        i=0x24//4
+        words[i:i+2]=[0x78dffff0,0x5800c01e]
+        j=0x3c//4
+        words[j:j+2]=[0x5a00c050,0x73306020]
+        rebuilt=struct.unpack('<27I',agent12.restore_aux_worker_packets(
+            struct.pack('<27I',*words)))
+        self.assertEqual(rebuilt[i]&agent12.MARKER_MASK,agent12.CONTINUE_MARKER)
+        self.assertEqual(rebuilt[i+1]&0x3f,0x20)
+        self.assertEqual(rebuilt[j]&agent12.MARKER_MASK,agent12.CONTINUE_MARKER)
+        bad=words.copy();bad[i+1]=0x7800c01e
+        with self.assertRaisesRegex(ValueError,'ISA classes'):
+            agent12.restore_aux_worker_packets(struct.pack('<27I',*bad))
+        bad=words.copy();bad[i+1]=0x5800c022
+        with self.assertRaisesRegex(ValueError,'PC-relative'):
+            agent12.restore_aux_worker_packets(struct.pack('<27I',*bad))
+        bad=words.copy();bad[j+1]=0x7330c020
+        with self.assertRaisesRegex(ValueError,'packet markers'):
+            agent12.restore_aux_worker_packets(struct.pack('<27I',*bad))
+        with self.assertRaisesRegex(ValueError,'108 bytes'):
+            agent12.restore_aux_worker_packets(bytes(104))
+
     def test_sources_use_packets_and_real_control_register_semantics(self):
         a = agent12.ATOMIC_SOURCE.read_text()
         b = agent12.AUX_SOURCE.read_text()
@@ -244,6 +270,7 @@ class ModemLateTests(unittest.TestCase):
         k = agent12.SERVICE_FLAGS_SOURCE.read_text()
         l = agent12.SERVICE_ALLOC_SOURCE.read_text()
         m = agent12.AUX_HEAP_SOURCE.read_text()
+        n = agent12.AUX_WORKER_SOURCE.read_text()
         self.assertIn("memw_locked(r0)", a)
         self.assertIn("if (!p0.new) r3 = add", a)
         self.assertIn("memb(##3249533708) = r2.new", a)
@@ -276,6 +303,7 @@ class ModemLateTests(unittest.TestCase):
         self.assertIn('platform_alloc_probe',l)
         self.assertIn('memw(r16+#32)',l)
         self.assertIn('mpyi(r2,r4)',m)
+        self.assertIn('worker_register',n)
 
     def test_rejects_bad_executable_elf_magic_and_isa(self):
         with self.assertRaisesRegex(ValueError, "ELF32"):
@@ -294,7 +322,7 @@ class ModemLateTests(unittest.TestCase):
     def test_optional_llvm6_exact_source_lengths(self):
         a = agent12.output_fragments(Path(os.environ["NABU_HEXAGON_LLVM_MC"]))
         self.assertEqual({k: len(v) for k, v in a.items()},
-                         {0x7C000:160,0x7C2EC:452,0x446000:216,0x446200:84,0x446260:340})
+                         {0x7C000:160,0x7C2EC:452,0x446000:216,0x446200:84,0x446260:448})
         if os.getenv("NABU_MODEM_REFERENCE"):
             agent12.verify_reference(Path(os.environ["NABU_MODEM_REFERENCE"]).read_bytes(), a)
 
