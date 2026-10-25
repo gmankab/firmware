@@ -315,3 +315,11 @@ python3 tools/agent20_06_a32_roundtrip.py /private/venus.mbn 0xa8ea0 0xa92c8 \
 - New interval `[0xb60ec,0xb62d0)` = **484 bytes**: **118 typed A32 instructions (472 bytes)** plus three distinct data words (12 bytes) `[0xb6258,0xb6264)`. The first function initializes codec controller plane fields and validates frame sizes; the second short function writes default input/descriptor values and returns via the original `BX LR` at `0xb62cc`.
 - Independent Clang/LLVM reassembly and complete typed-Rust emitter match pinned reference with zero differences; a Rust unit test validates the data pool. **207 Rust tests and 13 Python tests passed**. Release build is not claimed as passed for this checkpoint.
 - Next missing runtime address is `0xb62d0` (MBN file `0xba2d0`). Branch remains provisional older-base typed A32 instruction encoding, not high-level behavioral equivalent or signed firmware.
+
+## Checkpoint 36 — codec descriptor allocation and controller wiring
+
+- Cumulative typed A32 tail `[0xa8000,0xb65e4)` = **58,852 reference-identical bytes**, file `[0xac000,0xba5e4)` in the original `venus.mbn`.
+- New `[0xb62d0,0xb65e4)` = **788 bytes**: **185 ARM32 instructions (740 bytes)** and 12 named controller globals/diagnostic constant words (48 bytes) `[0xb65b4,0xb65e4)`.
+- Rebuilds device descriptor allocation, checks allocation and controller state, initializes shared metadata, invokes caller callback hooks, and preserves original cleanup/return flow. The twelve-word literal pool includes the reference function address `0xb60ec` and controller-global pointers, not executable instructions.
+- Direct typed Rust emission and independent Clang/LLVM reassembly match original **with zero differences**; a Rust regression validates all 12 words. **208 Rust tests**, **13 Python tests** pass. Offline release build is not claimed in this checkpoint.
+- Next runtime address `0xb65e4` (`venus.mbn` file `0xba5e4`) begins a small callback thunk; no behavior/hardware/OEM-signing validation has been established. Work is provisional old-base instruction re-encoding only.
