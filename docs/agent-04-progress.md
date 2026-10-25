@@ -1,4 +1,4 @@
-# Agent 04 — Qualcomm ADSP reconstruction (checkpoints 01–06)
+# Agent 04 — Qualcomm ADSP reconstruction (checkpoints 01–07)
 
 ## Starting point and provenance
 
@@ -39,9 +39,9 @@ actually started from checkpoint 50.
 ## Checkpoint 02: independent timer and controller fragment
 
 A second, **disjoint** fragment has now been independently source-assembled
-at file offsets `[0x4218,0x46a0)` (`0x488 = 1,160 bytes`), executable PT_LOAD
-relative `[0x1218,0x16a0)`, physical addresses
-`[0x8be01218,0x8be016a0)`. The initial 112 bytes formed checkpoint 02;
+at file offsets `[0x41e0,0x46a0)` (`0x4c0 = 1,216 bytes`), executable PT_LOAD
+relative `[0x11e0,0x16a0)`, physical addresses
+`[0x8be011e0,0x8be016a0)`. The initial 112 bytes formed checkpoint 02;
 checkpoint 03 adds the adjacent 512 bytes of actual hardware-register
 initialization (three paths, each with nine named configuration writes). Checkpoint 04
 adds another 248 adjacent bytes that configure the MMIO controller, mask
@@ -49,15 +49,18 @@ interrupt bits, invalidate D-cache entries, and invoke the polling helper.
 Checkpoint 05 adds 224 more bytes of controller MMIO mask updates, IRQ
 class flags, status polling, and exception-vector reset. Checkpoint 06
 adds 64 bytes clearing remaining exception slots and implementing two
-small initialization helper returns, stopping before v66-only SYSCFG code. This covers a three-instruction register-save
+small initialization helper returns, stopping before v66-only SYSCFG code.
+Checkpoint 07 extends backward by 56 source-authored bytes from file
+`0x41e0`: it programs three exception-vector MMIO slots, enforces a
+memory barrier, and branches to the now-reconstructed controller code. This covers a three-instruction register-save
 packet, global-timer polling/conditional retry, restoration and a return,
 followed by controller status comparison against `0x100`/`0x200` and
 three conditional branch destinations. The code uses source labels, combined
 predicate/branch packet syntax, `immext` generated from constants and no
-binary code words. The full 1,160-byte region SHA-256 is
-`5e43a0bca4a2bc59fbf132a5d16a030e5f41a08ec93ad8e32f24ee81cecbe3c4`.
+binary code words. The full 1,216-byte region SHA-256 is
+`609b84eb54126390bd039333d18dc5f75fb5496c26be83aa2b6feac6036424c5`.
 
-**Cumulative independently rebuilt executable bytes: 1,196** (`36 + 1,160`).
+**Cumulative independently rebuilt executable bytes: 1,252** (`36 + 1,216`).
 They are **not contiguous**; there is a gap after the first entry fragment.
 The first missing executable byte remains at file `0x3024`; the missing
 interval `[0x3024,0x4218)` must not be hidden or counted as rebuilt.
@@ -74,7 +77,7 @@ python3 -S tools/emit-adsp-entry.py \
 python3 -S tools/emit-adsp-entry.py \
   --segment counter-controller \
   --llvm-mc "$HEXAGON_LLVM_MC" \
-  --output /tmp/adsp-controller-1160.bin \
+  --output /tmp/adsp-controller-1216.bin \
   --reference "$NABU_ADSP_REFERENCE"
 HEXAGON_LLVM_MC="$HEXAGON_LLVM_MC" \
 NABU_ADSP_REFERENCE="$NABU_ADSP_REFERENCE" \

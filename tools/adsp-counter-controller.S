@@ -5,6 +5,20 @@
 //
 // The first block is a single 3-instruction packet; the control loop
 // spins on a controller word until the elapsed time meets the threshold.
+// Interrupt vector MMIO setup, entered before the timer and controller
+// helper routines below. The later branch skips the timer poll helper.
+.text
+.globl adsp_interrupt_vector_init
+adsp_interrupt_vector_init:
+{ r0 = ##0x173a0040 }
+{ memw(r0+#0) = ##7 }
+{ r0 = ##0x173a0044 }
+{ memw(r0+#0) = ##7 }
+{ r0 = ##0x173a0048 }
+{ memw(r0+#0) = ##7 }
+{ barrier }
+{ jump adsp_controller_mode }
+
 .text
 .p2align 2
 .globl adsp_wait_for_tick
