@@ -224,3 +224,10 @@ Original reference: private `map220v-nabu-firmware/venus.mbn`, SHA-256 `9d4af65d
 - Writes per-channel codec status registers, prepares logs, and conditionally captures another controller bank. Functions/ABI were inferred from instruction behavior; output is instruction-byte identity, **not** proof of source-level semantic equivalence or new OEM authentication.
 - Strictly reference-exact from a private `venus.mbn`, including all earlier code; independent Clang/LLD round-trip driven by `agent20-03-venus-mid-ranges.json` is required for release.
 - The previous conversation reported checkpoint 30, but that bundle was **not** mounted in the present session. This is a new explicitly recreated checkpoint on top of the mounted checkpoint 29 branch, not a claim that the missing previous checkpoint archive was retrieved.
+
+## Checkpoint 31 (recreated from available checkpoint 29) — IRQ readback and acknowledgment
+
+- Continuous source-generated `[0x21c78,0x296f0)` = **31,352 bytes**, MBN file `[0x25c78,0x2d6f0)`. New `[0x29474,0x296f0)` = **636 bytes**, consisting of **151 ARM32 typed instructions** and **8 separately identified MMIO/control words** in seven literal pools.
+- Seven compact routines implement codec/status IRQ reads, DMA interrupt acknowledgement, and queue notification. Pool locations: `0x29490`, `0x294ec`, `0x2954c`, `0x295ac`, `0x29604`, `0x29690–0x29698`, and `0x296ec`.
+- Total `[0x21c78,0x296f0)` contains **7,293 instructions and 545 data words**, with no copied OEM instruction encodings. The original function flow, comments and opcode equivalence are not proof of independent high-level semantic decompilation or device execution.
+- Existing checkpoint-31 Git bundle from a previous session was not mounted; this is a byte-identical recreation on top of recovered checkpoint 29. The next missing ARM runtime address is `0x296f0`.
