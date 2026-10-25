@@ -60,6 +60,11 @@ pub enum ScalarPacket {
     WriteSystem { system: SystemRegister, src: GeneralRegister },
     /// Hexagon V66 `Rn = SYSCFG`; only this documented register is supported.
     ReadSyscfg { dst: GeneralRegister },
+    /// `p0=cmp.eq(Rsrc,#0)`; P0 is the only modeled predicate register.
+    PredicateP0EqualsZero { src: GeneralRegister },
+    /// Conditional new-predicate branch predicted not taken, relative to
+    /// its packet's first instruction. Only a verified forward range works.
+    JumpIfNewP0NotTaken { displacement_bytes: u32 },
     /// Hexagon register-width logical shift right with constant amount.
     LogicalShiftRight { dst: GeneralRegister, src: GeneralRegister, amount: u8 },
     /// Hexagon insert register bit-field. Width + offset must fit 32 bits.
@@ -134,6 +139,15 @@ impl ScalarPacket {
                 // destination register in bits 4:0. Rizin V66 confirms it.
                 Ok(0x6e80_c000 | (SystemRegister::Syscfg.opcode_selector() << 16)
                     | u32::from(dst.number()))
+            }
+            Self::PredicateP0EqualsZero { src } => {
+                Ok(0x7500_c000 | (u32::from(src.number()) << 16))
+            }
+            Self::JumpIfNewP0NotTaken { displacement_bytes } => {
+                if displacement_bytes==0 || displacement_bytes>0x7fe || displacement_bytes&1!=0 {
+                    return Err("Hexagon P0.new branch outside verified forward range".into());
+                }
+                Ok(0x5c00_c800 | (displacement_bytes >> 1))
             }
             Self::LogicalShiftRight { dst, src, amount } => {
                 if amount>=32 { return Err("Hexagon LSR immediate amount >=32".into()); }
@@ -479,6 +493,20 @@ mod tests {
         assert!(CombineZeroPair{low:r(3)}.encode().is_err());
         assert!(TlbWriteIndexedR0{low:r(31)}.encode().is_err());
         assert!(AssignUnsignedImmediate{dst:r(5),value:4096}.encode().is_err());
+    }
+
+    #[test]
+    fn predicate_p0_branch_uses_checked_rel_word_fields() {
+        use ScalarPacket::*;
+        let r25=GeneralRegister::new(25).unwrap();
+        let predicate=PredicateP0EqualsZero{src:r25}.encode().unwrap();
+        let branch=JumpIfNewP0NotTaken{displacement_bytes:0x30}.encode().unwrap();
+        assert_eq!(predicate,0x7519_c000);
+        assert_eq!(PacketMarker::ContinuationA.apply(predicate),0x7519_4000);
+        assert_eq!(branch,0x5c00_c818);
+        assert!(JumpIfNewP0NotTaken{displacement_bytes:0}.encode().is_err());
+        assert!(JumpIfNewP0NotTaken{displacement_bytes:31}.encode().is_err());
+        assert!(JumpIfNewP0NotTaken{displacement_bytes:0x800}.encode().is_err());
     }
 
     #[test]

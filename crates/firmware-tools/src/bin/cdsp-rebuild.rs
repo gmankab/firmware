@@ -26,6 +26,20 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
                 privileged::FUNCTION_SIZE, privileged::FILE_OFFSET,
                 privileged::FILE_OFFSET + privileged::FUNCTION_SIZE);
         }
+        [action, output] if action == "emit-tlb-full" => {
+            let code=tlb::build_full_tlb_span()?;
+            fs::write(output,code)?;
+            println!("Generated {} adjacent CDSP TLB supervisor bytes at file {:#x}..{:#x}.",
+                tlb::FULL_TLB_SIZE,tlb::CONDITIONAL_OFFSET,
+                tlb::CONDITIONAL_OFFSET+tlb::FULL_TLB_SIZE);
+        }
+        [action, input] if action == "verify-tlb-full" => {
+            let reference=fs::read(input)?;
+            tlb::verify_full_tlb_span(&reference)?;
+            println!("Verified {} contiguous TLB supervisor bytes at file {:#x}..{:#x}.",
+                tlb::FULL_TLB_SIZE,tlb::CONDITIONAL_OFFSET,
+                tlb::CONDITIONAL_OFFSET+tlb::FULL_TLB_SIZE);
+        }
         [action, output] if action == "emit-tlb-maintenance" => {
             let bytes=tlb::build_tlb_maintenance()?;
             fs::write(output, bytes)?;
@@ -105,7 +119,7 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
                 cdsp::HEXAGON_ELF_MACHINE, cdsp::CDSP_ELF_FLAGS, cdsp::ENTRY_PHYS,
                 cdsp::START_FILE_OFFSET, cdsp::ENTRY_ELF_VADDR, cdsp::ENTRY_PHYS, cdsp::FIRST_EXECUTABLE_SIZE);
         }
-        _ => return Err("Usage: cargo run -p firmware-tools --bin cdsp-rebuild -- [inspect REFERENCE | verify-entry REFERENCE | emit-entry OUTPUT | verify-init-prefix REFERENCE | emit-init-prefix OUTPUT | emit-syscfg-reset OUTPUT | verify-syscfg-reset REFERENCE | emit-syscfg-disable OUTPUT | verify-syscfg-disable REFERENCE | emit-relocator OUTPUT | verify-relocator REFERENCE | emit-supervisor-span OUTPUT | verify-supervisor-span REFERENCE | emit-tlb-maintenance OUTPUT | verify-tlb-maintenance REFERENCE]".into()),
+        _ => return Err("Usage: cargo run -p firmware-tools --bin cdsp-rebuild -- [inspect REFERENCE | verify-entry REFERENCE | emit-entry OUTPUT | verify-init-prefix REFERENCE | emit-init-prefix OUTPUT | emit-syscfg-reset OUTPUT | verify-syscfg-reset REFERENCE | emit-syscfg-disable OUTPUT | verify-syscfg-disable REFERENCE | emit-relocator OUTPUT | verify-relocator REFERENCE | emit-supervisor-span OUTPUT | verify-supervisor-span REFERENCE | emit-tlb-maintenance OUTPUT | verify-tlb-maintenance REFERENCE | emit-tlb-full OUTPUT | verify-tlb-full REFERENCE]".into()),
     }
     Ok(())
 }

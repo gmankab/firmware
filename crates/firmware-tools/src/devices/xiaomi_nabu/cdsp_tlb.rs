@@ -68,8 +68,65 @@ pub fn verify_tlb_maintenance(reference:&[u8])->Result<(),String>{
     Ok(())
 }
 
+/// Guard and program an additional 7-bit TLB slot only when R25 is nonzero.
+/// A two-instruction Hexagon packet first compares R25 and branches via
+/// P0.new; LLVM 6 independently confirms the two operation bit fields,
+/// although LLVM's packet scheduler chooses the opposite instruction order.
+pub const CONDITIONAL_OFFSET:usize=0x3dc8;
+pub const CONDITIONAL_SIZE:usize=13*4;
+pub fn build_conditional_tlb() -> Result<Vec<u8>,String> {
+    let r=|n|Gpr::new(n);
+    let ops=[
+        (Hexagon::PredicateP0EqualsZero{src:r(25)?},Parse::ContinuationA),
+        (Hexagon::JumpIfNewP0NotTaken{displacement_bytes:0x30},Parse::Final),
+        (Hexagon::LogicalShiftRight{dst:r(2)?,src:r(24)?,amount:11},Parse::ContinuationA),
+        (Hexagon::LogicalShiftRight{dst:r(3)?,src:r(24)?,amount:12},Parse::ContinuationA),
+        (Hexagon::AssignUnsignedImmediate{dst:r(4)?,value:0x7c0},Parse::ContinuationA),
+        (Hexagon::AssignUnsignedImmediate{dst:r(5)?,value:0xc00},Parse::Final),
+        (Hexagon::InsertBitField{dst:r(2)?,src:r(4)?,width:11,offset:21},Parse::ContinuationA),
+        (Hexagon::InsertBitField{dst:r(3)?,src:r(5)?,width:12,offset:20},Parse::Final),
+        (Hexagon::SetBit{dst:r(2)?,src:r(2)?,position:1},Parse::ContinuationA),
+        (Hexagon::AssignUnsignedImmediate{dst:r(0)?,value:0x7f},Parse::Final),
+        (Hexagon::TlbWriteIndexedR0{low:r(2)?},Parse::Final),
+        (Hexagon::Isync,Parse::Final),
+        (Hexagon::JumpRegister{source:r(31)?},Parse::Final),
+    ];
+    let mut data=Vec::with_capacity(CONDITIONAL_SIZE);
+    for (inst,parse) in ops {data.extend_from_slice(&parse.apply(inst.encode()?).to_le_bytes());}
+    if data.len()!=CONDITIONAL_SIZE{return Err("CDSP conditional tlb should be 52 bytes".into());}
+    Ok(data)
+}
+
+pub const FULL_TLB_SIZE:usize=CONDITIONAL_SIZE+REGION_SIZE;
+pub fn build_full_tlb_span() -> Result<Vec<u8>,String> {
+    if CONDITIONAL_OFFSET+CONDITIONAL_SIZE!=FILE_OFFSET {
+        return Err("CDSP TLB fragment gap".into());
+    }
+    let mut data=build_conditional_tlb()?;
+    data.extend(build_tlb_maintenance()?);
+    if data.len()!=FULL_TLB_SIZE {return Err("CDSP TLB span length mismatch".into());}
+    Ok(data)
+}
+
+pub fn verify_full_tlb_span(reference:&[u8])->Result<(),String> {
+    cdsp_boot::validate_reference(reference)?;
+    let got=build_full_tlb_span()?;
+    let found=reference.get(CONDITIONAL_OFFSET..CONDITIONAL_OFFSET+FULL_TLB_SIZE)
+        .ok_or("CDSP reference missing conditional tlb span")?;
+    if let Some((i,(a,b)))=found.iter().zip(&got).enumerate().find(|(_,(a,b))|a!=b) {
+        return Err(format!("CDSP conditional TLB mismatch at file {:#x}: {a:02x} != {b:02x}",CONDITIONAL_OFFSET+i));
+    }
+    Ok(())
+}
+
 #[cfg(test)]mod tests{
     use super::*;
+    #[test]fn conditional_tlb_programs_writes_without_holes(){
+        let b=build_conditional_tlb().unwrap();
+        assert_eq!(b.len(),CONDITIONAL_SIZE);
+        assert_eq!(&build_full_tlb_span().unwrap()[..CONDITIONAL_SIZE],b.as_slice());
+        assert_eq!(FULL_TLB_SIZE,112);
+    }
     #[test]fn tlb_maintenance_has_exact_coverage(){
         assert_eq!(build_tlb_setup().unwrap().len(),SETUP_SIZE);
         assert_eq!(build_tlb_clear().unwrap().len(),CLEAR_SIZE);

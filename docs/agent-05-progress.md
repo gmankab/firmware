@@ -192,3 +192,41 @@ python3 tools/verify-cdsp-tlb.py \
   --llvm-mc /path/to/llvm6/bin/llvm-mc --rz-asm /path/to/rz-asm \
   --rust-output /tmp/cdsp-tlb-maintenance.bin --reference /private/cdsp.mbn
 ```
+
+## Checkpoint 07 — conditional supervisor TLB programming
+
+An additional 52 independently encoded bytes at CDSP file
+`[0x3dc8,0x3dfc)` (physical `[0x96c00dc8,0x96c00dfc)`) guard the
+next TLB write with a two-word `P0=cmp.eq(R25,#0)` and `if(P0.new) jump:nt`
+packet, then compute a packed TLB address from register shifts, bitfield
+insertion and immediate fields, and finish with `tlbw`, `isync` and return.
+Combined with checkpoint 06, this forms **112 contiguous exact bytes** at
+`[0x3dc8,0x3e38)` (physical `[0x96c00dc8,0x96c00e38)`).
+
+The new typed predicate/branch encodings preserve the packet's parse markers.
+`tools/verify-cdsp-conditional-tlb.py` independently assembles 40 exact
+non-TLB instruction bytes with LLVM, confirms the 8 re-scheduled predicate
+and branch instruction bitfields independently with LLVM (which reverses
+these two source instructions), and verifies all 13 decoded instruction
+semantics with Rizin including the V66-only TLB write. The Rust output also
+compares **52/52 exact reference bytes**, without importing an OEM code
+array or treating the LLVM-unsupported word as an independently assembled
+instruction.
+
+Cumulative independently rebuilt CDSP **executable** coverage is now
+**264 bytes in three disjoint regions**: entry `[0x3000,0x3044)` (68),
+supervisor `[0x3d40,0x3d94)` (84), TLB `[0x3dc8,0x3e38)` (112).
+The original 52-byte `[0x3d94,0x3dc8)` function remains unimplemented and
+prevents joining the latter two spans. The CDSP image is neither complete
+nor independently signed; branch ancestry still originates at `69ebf0d`,
+not the unavailable checkpoint-50 bundle.
+
+```sh
+cargo run --offline --locked -p firmware-tools --bin cdsp-rebuild -- \
+  emit-tlb-full /tmp/cdsp-tlb-full.bin
+cargo run --offline --locked -p firmware-tools --bin cdsp-rebuild -- \
+  verify-tlb-full /private/cdsp.mbn
+python3 tools/verify-cdsp-conditional-tlb.py --llvm-mc /path/to/llvm6/bin/llvm-mc \
+  --rz-asm /path/to/rz-asm --rust-output /tmp/cdsp-conditional-tlb-52.bin \
+  --reference /private/cdsp.mbn
+```

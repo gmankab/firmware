@@ -77,9 +77,9 @@ def assemble(llvm_mc: Path, source: str) -> bytes:
         return parse_elf(out.read_bytes())
 
 
-def decode_rizin(decoder: Path, data: bytes) -> list[str]:
+def decode_rizin(decoder: Path, data: bytes, physical_address: int=PHYSICAL_ADDRESS) -> list[str]:
     result=subprocess.run([str(decoder),'-a','hexagon','-b','32',
-                           '-o',f'0x{PHYSICAL_ADDRESS:x}','-D',data.hex()],
+                           '-o',f'0x{physical_address:x}','-D',data.hex()],
                           check=True,capture_output=True,text=True)
     found=[]
     for line in result.stdout.splitlines():
