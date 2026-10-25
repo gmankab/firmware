@@ -48,6 +48,7 @@ FRAGMENTS = {
     # Several disjoint small helpers after the large unreconstructed codec
     # buffer manager; no bytes from that manager are included in the output.
     'status-nibbles': (TOOLS / 'adsp-late-hex-prefix.S', 0x3A86C, 0x60),
+    'create-context': (TOOLS / 'adsp-late-create-context.S', 0x3A090, 0xFC),
     'release-session': (TOOLS / 'adsp-late-release-session.S', 0x3A18C, 0x88),
     'configure-session': (TOOLS / 'adsp-late-configure-session.S', 0x3AA80, 0x80),
     'activate-context': (TOOLS / 'adsp-late-activate-context.S', 0x3AB00, 0x28),
