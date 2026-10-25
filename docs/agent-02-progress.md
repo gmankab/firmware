@@ -164,3 +164,25 @@ python3 tools/agent-02-a32-roundtrip.py /private/venus.mbn \
   --data-range 0x9968:0x996c --data-range 0x9a18:0x9a1c \
   --data-range 0x9ac8:0x9acc --data-range 0x9b44:0x9b50
 ```
+
+## Checkpoint 07 — resource release and controller queues (`0x9b50–0x9fc8`)
+
+- Adds **1,144 exact bytes**: 259 original-operation A32 instructions,
+  27 named data words in seven explicit pools.
+- Functions cover resource flag clearing, neighboring-list unlinking,
+  reference-count decrement, controller queue initialization, and queue-head
+  access. Branches to reconstructed or later external routines are preserved.
+- **Cumulative bridge:** 6,968 contiguous bytes, runtime `[0x8490,0x9fc8)` /
+  file `[0xc490,0xdfc8)`. With the 33,936-byte initial boot/runtime prefix:
+  **40,904 consecutive byte-identical bytes**, MBN file `[0x4000,0xdfc8)`.
+- **Remaining missing bridge:** `[0x9fc8,0xaa0c)`, **2,628 bytes**.
+- Independent LLVM/Clang round-trip with separate literal ranges:
+
+```sh
+python3 tools/agent-02-a32-roundtrip.py /private/venus.mbn \
+  --file-offset 0xdb50 --vma 0x9b50 --length 0x478 \
+  --data-range 0x9bc8:0x9bd0 --data-range 0x9d9c:0x9db4 \
+  --data-range 0x9e20:0x9e2c --data-range 0x9ea8:0x9eb4 \
+  --data-range 0x9ec4:0x9ec8 --data-range 0x9ed8:0x9edc \
+  --data-range 0x9f9c:0x9fc8
+```

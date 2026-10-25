@@ -89,6 +89,7 @@ mod venus_runtime_bridge_state;
 mod venus_runtime_bridge_slots;
 mod venus_runtime_bridge_irq_ready;
 mod venus_runtime_bridge_resource;
+mod venus_runtime_bridge_queue_release;
 pub mod venus_runtime_bridge;
 pub mod venus_plan;
 
