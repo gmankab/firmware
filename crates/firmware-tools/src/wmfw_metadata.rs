@@ -25,7 +25,7 @@ pub const WMFW_REGIONS: &[WmfwRegionDescriptor] = &[
 ];
 
 /// The 40-byte WMFW header: magic, format, four DSP memory sizes,
-/// 64-bit build timestamp, 32-bit reserved field.
+/// 64-bit build timestamp, and 32-bit checksum field.
 pub fn build_wmfw_header() -> [u8;40] {
     let mut b = [0u8;40];
     b[..4].copy_from_slice(b"WMFW");
@@ -37,7 +37,8 @@ pub fn build_wmfw_header() -> [u8;40] {
         b[12+i*4..16+i*4].copy_from_slice(&size.to_le_bytes());
     }
     b[28..36].copy_from_slice(&0x60676a96u64.to_le_bytes());
-    // Last 4 bytes are reserved, zero-initialized.
+    // The WMFW footer calls this field `checksum`. It is zero in the pinned
+    // image. No undocumented checksum algorithm is inferred from that value.
     b
 }
 
