@@ -283,6 +283,20 @@ pub fn transfer_word_register_preindexed_writeback(
     Ok(transfer_word_register(condition, load, rd, rn, rm, shift, amount)? | (1 << 21))
 }
 
+/// A32 LDR/STR word with a shifted positive or negative register offset.
+/// This is the pre-indexed no-writeback form; the U bit chooses addition
+/// or subtraction of `Rm << shift`. Reject unsupported PC address fields.
+pub fn transfer_word_register_offset(condition: Condition, load: bool,
+                                     rd: Register, rn: Register, rm: Register,
+                                     shift: Shift, amount: u8,
+                                     subtract: bool) -> Result<u32,String> {
+    if rn == Register::PC || rm == Register::PC || rd == Register::PC {
+        return Err("invalid A32 word transfer register offset operands".into());
+    }
+    let base = transfer_word_register(condition,load,rd,rn,rm,shift,amount)?;
+    Ok(if subtract {base & !(1 << 23)} else {base})
+}
+
 /// ARM A32 register-indexed pre-indexed byte load/store without writeback.
 pub fn transfer_byte_register(condition: Condition, load: bool, rd: Register,
                               rn: Register, rm: Register,
