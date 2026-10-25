@@ -16,6 +16,24 @@ use std::{env, fs, process};
 
 fn run() -> Result<(), String> {
     let args: Vec<String> = env::args().skip(1).collect();
+    if args.first().map(String::as_str) == Some("assemble-crc-validated") && args.len() == 6 {
+        let meta=fs::read(&args[1]).map_err(|e|e.to_string())?;
+        let layout=NabuNovatekLayout::parse(&meta)?;
+        let vector_words=fs::read(&args[2]).map_err(|e|e.to_string())?;
+        let vectors=novatek_vector::CandidateVectorTable::from_bytes(&vector_words,&layout)?;
+        let ilm=fs::read(&args[3]).map_err(|e|e.to_string())?;
+        let dlm=fs::read(&args[4]).map_err(|e|e.to_string())?;
+        let built=novatek_reassemble::assemble_crc_validated(&layout,
+            novatek_reassemble::AuthoredPayloads{
+                vector_table:Some(&vectors),ilm:Some(&ilm),dlm:Some(&dlm)
+            })?;
+        if built.flashable() || built.verified_mcu_program() {
+            return Err("unexpectedly marked unauthenticated payload as flashable".into());
+        }
+        fs::write(&args[5],&built.bytes).map_err(|e|e.to_string())?;
+        println!("Wrote {} structural bytes; recomputed {} CRC-32/MPEG-2 fields. WARNING: MCU ISA and input payload provenance NOT verified; do NOT flash.",built.bytes.len(),built.crc_fields_generated());
+        return Ok(());
+    }
     if args.first().map(String::as_str) == Some("assemble-structural-unverified") && args.len() == 6 {
         let meta=fs::read(&args[1]).map_err(|e|e.to_string())?;
         let layout=NabuNovatekLayout::parse(&meta)?;
@@ -32,7 +50,7 @@ fn run() -> Result<(), String> {
         return Ok(());
     }
     if args.len() < 2 || args.len() > 3 {
-        return Err("usage: novatek-nabu <inspect|verify-dlm-mirror|verify-crcs|emit-recomputed-crc-header|emit-header|emit-padding|emit-vector|emit-vector-padding|emit-post-dlm-padding|emit-tail-padding|emit-marker|verify-header|verify-envelope|verify-vectors> <private-reference.bin> [output] | assemble-structural-unverified <private-meta-reference> <externally-authored-vector-words> <independently-authored-ilm-after-0x450> <independently-authored-dlm> <output>".into());
+        return Err("usage: novatek-nabu <inspect|verify-dlm-mirror|verify-crcs|emit-recomputed-crc-header|emit-header|emit-padding|emit-vector|emit-vector-padding|emit-post-dlm-padding|emit-tail-padding|emit-marker|verify-header|verify-envelope|verify-vectors> <private-reference.bin> [output] | assemble-structural-unverified <private-meta-reference> <externally-authored-vector-words> <independently-authored-ilm-after-0x450> <independently-authored-dlm> <output> | assemble-crc-validated <private-meta-reference> <authored-vector-words> <authored-ilm> <authored-dlm> <output>".into());
     }
     let command = &args[0];
     let reference = fs::read(&args[1]).map_err(|e| e.to_string())?;

@@ -10,6 +10,7 @@
 
 use super::novatek_layout::{CoverageRegion, NabuNovatekLayout, RegionKind};
 use super::novatek_vector::CandidateVectorTable;
+use super::novatek_crc::{recompute_all_crcs,verify_all_crcs,CrcAudit};
 
 /// Caller-authored executable/data bytes. `None` means source is missing and
 /// MUST prevent complete generation (even if that region is zeros in an OEM
@@ -39,6 +40,38 @@ pub struct UnverifiedStructuralImage {
 
 impl UnverifiedStructuralImage {
     pub fn is_hardware_crc_verified(&self) -> bool { false }
+}
+
+/// Assembled from independently supplied vector/ILM/DLM payloads and
+/// *recomputed* CRC-32/MPEG-2 fields. This asserts only checksum consistency;
+/// it does not establish any controller ISA, code provenance or signing.
+#[derive(Debug,Clone,PartialEq,Eq)]
+pub struct CrcValidatedStructuralImage {
+    pub bytes: Vec<u8>,
+    pub checksum_audit: CrcAudit,
+}
+impl CrcValidatedStructuralImage {
+    pub fn crc_fields_generated(&self) -> usize { self.checksum_audit.stored_fields() }
+    pub fn verified_mcu_program(&self) -> bool { false }
+    pub fn flashable(&self) -> bool { false }
+}
+
+/// For a complete caller-authored payload set, generate the header CRCs,
+/// six info-entry CRCs and two bank-footer CRCs without vendor checksum
+/// inputs. The DLM-mirror region is derived from `authored.dlm` as before.
+/// Unknown executable bytes are never materialized implicitly; failing to
+/// supply them produces the same strict error as metadata-only assembly.
+pub fn assemble_crc_validated(
+    layout:&NabuNovatekLayout,
+    authored:AuthoredPayloads<'_>,
+)->Result<CrcValidatedStructuralImage,String>{
+    let mut result=assemble_structural_unverified(layout,authored)?.bytes;
+    let computed=recompute_all_crcs(&mut result)?;
+    let updated=NabuNovatekLayout::parse(&result)?;
+    updated.verify_envelope(&result)?;
+    let checked=verify_all_crcs(&updated,&result)?;
+    if checked != computed {return Err("CRC recomputation audit mismatch".into());}
+    Ok(CrcValidatedStructuralImage{bytes:result,checksum_audit:checked})
 }
 
 /// Return the full gapless region plan. This never needs the original
@@ -168,6 +201,31 @@ mod tests {
         let e=assemble_structural_unverified(&layout,AuthoredPayloads{
             vector_table:Some(&vectors),ilm:Some(&incorrect),..Default::default()}).unwrap_err();
         assert!(e.contains("length 17 != required 108592"),"{e}");
+    }
+    #[test]
+    fn crc_aware_assembler_generates_all_twelve_fields_and_dlm_mirror() {
+        let layout=sample_layout();
+        let vectors=CandidateVectorTable{initial_control_word:0,opaque_slots:[0;127]};
+        let mut ilm=vec![0xa5;0x1ac80-0x450];
+        let mut dlm=vec![0x5a;0xc190];
+        ilm[0x203]=0x80;dlm[0x24]=0xc6;
+        let image=assemble_crc_validated(&layout,AuthoredPayloads{
+            vector_table:Some(&vectors),ilm:Some(&ilm),dlm:Some(&dlm)
+        }).unwrap();
+        assert_eq!(image.crc_fields_generated(),12);
+        assert_eq!(image.bytes.len(),IMAGE_LENGTH);
+        assert_eq!(&image.bytes[0x2f000..0x2f900],&dlm[..0x900]);
+        assert!(!image.verified_mcu_program());
+        assert!(!image.flashable());
+        let checked=NabuNovatekLayout::parse(&image.bytes).unwrap();
+        assert_eq!(verify_all_crcs(&checked,&image.bytes).unwrap(),image.checksum_audit);
+        assert_ne!(&image.bytes[..HEADER_BYTES],&layout.write_header());
+    }
+    #[test]
+    fn crc_aware_assembly_rejects_unknown_input_code() {
+        let layout=sample_layout();
+        let error=assemble_crc_validated(&layout,AuthoredPayloads::default()).unwrap_err();
+        assert!(error.contains("missing externally authored candidate vector table"),"{error}");
     }
     #[test]
     fn assembles_synthetic_complete_image_but_crc_remains_unverified() {

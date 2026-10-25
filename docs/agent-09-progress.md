@@ -353,3 +353,38 @@ Verification: 181 Rust tests, 13 Python tests, offline release build,
 full checksum and envelope checks of both reference revisions, synthetic
 corruption-and-repair tests, and `git diff --check`. Known executable coverage
 remains zero bytes; Novatek MCU ISA still unconfirmed.
+
+## Checkpoint 08 — CRC-regenerating structural image builder
+
+The Novatek-only assembler now provides a second output type,
+`CrcValidatedStructuralImage`, and command
+`assemble-crc-validated <metadata-source> <authored-vectors> <authored-ILM>
+<authored-DLM> <output>`.
+
+The complete output path uses independently authored ILM/DLM input buffers,
+reconstructs the dual-bank header from scalar fields, inserts the vector
+padding and three verified zero gaps, **derives** the `0x2f000–0x2f900`
+configuration mirror from DLM, adds the fixed `NVT` suffix, and **recomputes
+all 12 CRC-32/MPEG-2 fields** over the newly generated payload and metadata.
+It then reparses and verifies the full envelope and every checksum; output
+fails if any source payload is missing or incorrectly sized.
+
+End-to-end validation used *synthetic, independently generated* ILM and DLM
+buffers; the 196,608-byte resulting image passed `verify-crcs` and
+`verify-envelope`. A shortened ILM was rejected without writing an output.
+The Rust tests also reject absent vectors and verify the `DLM-prefix` mirror
+and all regenerated CRC fields. No OEM binary data was inserted into source
+or used as the "authored" ILM/DLM inputs for this builder demonstration.
+
+**Important:** This is a *checksum-consistent structural build*, not a
+proven MCU program, and not flashable. Methods `verified_mcu_program()` and
+`flashable()` explicitly return false. Even a synthetically generated image
+with perfect CRCs is not genuine executable firmware.
+
+The independently reconstructed code count remains **0**; 158,144 unique
+executable/data bytes still need independently authored source, plus 512
+externally supplied candidate vectors. Both Nabu reference variants still
+verify all stored CRC fields with no mismatches.
+
+Tests: 183 Rust and 13 Python; offline
+release build and synthetic CLI end-to-end verification pass.
