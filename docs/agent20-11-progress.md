@@ -1,0 +1,28 @@
+# Agent 20-11 — Modem boot continuation
+
+**Base/branch:** This work is rooted in Agent 06's **verified** `d9f7e92` branch `agent/06-modem`, not a real checkpoint-50-derived integrated HEAD (the checkpoint 50 bundle is missing). Branch `agents20/11-modem-entry-prep`. Only accept this as a portable patch until integration Agent 20-01 publishes the verified merge.
+
+**Reference:** Original Qualcomm modem `modem.mbn`, SHA-256 `6f5cb32bc10e41abb40938d185805e788f5637a41d3ebcef278e4e169fc36782`, outside Git. ELF32 little-endian Hexagon V66, first executable PT_LOAD vaddr `[0xc0800000,0xc0802020)` / physical `[0x8e000000,0x8e002020)` / file `[0x3000,0x5020)`.
+
+## Checkpoint 01 — Privileged controller snapshot
+
+- New executable Hexagon V60 [file `0x4058`,`0x4098`) = **64 independently generated instruction bytes**, physical `[0x8e001058,0x8e001098)`, virtual `[0xc0801058,0xc0801098)`.
+- Function captures controller buffer fields from `r2`, writes S33/S34/S36/S37/S38/S39/S43 using named Hexagon system-register operands, with two simultaneous 32-bit loads and one automatically selected duplex pair. Returns via `jumpr lr`.
+- Source in `modem_entry_followup.s`; LLVM 6 assembles operands with explicit packet braces and checked privileged-register ISA macros. It does **not** contain copied reference instruction words.
+- Generated output is 64 bytes, exact comparison against reference passes with zero mismatches, using separate `tools/assemble-agent11-modem.py` verifier; SHA-256 and tests recorded in build output.
+- Previous Agent 06 verified file `[0x3000,0x4058)` = 4,184 bytes (2,972 executable + 412 typed metadata + 800 fixed linker fill). After this checkpoint, contiguous exact-reference prefix reaches file `0x4098` = 4,248 bytes total, **3,036 executable** + **412 metadata** + **800 linker fill**. The complete modem image is not reconstructed; no signing credentials are present.
+- Following uncovered file offset is `0x4098` (physical `0x8e001098`).
+
+## Build / verify
+
+```sh
+python3 tools/assemble-agent11-modem.py \
+  --llvm-mc /path/to/llvm6/bin/llvm-mc \
+  --output /tmp/modem-followup.bin \
+  --reference /private/pinned/modem.mbn
+cargo test --workspace --offline --locked
+cargo build --workspace --release --offline --locked
+python3 -m unittest discover -s tests -p 'test_*.py'
+```
+
+**Source ownership:** Only Agent 11-specific `modem_entry_followup.s`, its standalone assembler/test and this progress note; no shared central planner or other firmware has been edited. Source authors/committers use `Codex <codex@openai.com>`.
