@@ -29,6 +29,7 @@ SERVICE_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_lat
 SERVICE_MMIO_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_service_mmio.s"
 SERVICE_FLAGS_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_service_flags.s"
 SERVICE_ALLOC_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_service_alloc.s"
+AUX_HEAP_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_aux_heap.s"
 ATOMIC_START = 0x7C000
 ATOMIC_END = 0x7C040
 SERVICE_START = 0x7C2EC
@@ -51,6 +52,8 @@ AUX_STAGE_START = 0x446278
 AUX_STAGE_END = 0x4462E0
 AUX_MMIO_START = 0x4462E0
 AUX_MMIO_END = 0x4462F8
+AUX_HEAP_START = 0x4462F8
+AUX_HEAP_END = 0x4463B4
 MARKER_MASK = 3 << 14
 CONTINUE_MARKER = 1 << 14
 END_MARKER = 3 << 14
@@ -271,6 +274,28 @@ def restore_service_alloc_return_packet(assembled: bytes) -> bytes:
     return struct.pack("<41I", *words)
 
 
+def restore_aux_heap_predicate_packet(assembled: bytes) -> bytes:
+    """Preserve new-register compare/branch source order in heap slot scan.
+
+    LLVM6 hoists the compound new-value compare/branch ahead of the scalar
+    `r2=#0` that it tests, but the original target packer put the producer
+    first. Validate opcode classes, packet marker fields and 188-byte size,
+    then swap exactly the two independently assembled instructions.
+    """
+    if len(assembled) != AUX_HEAP_END-AUX_HEAP_START:
+        raise ValueError("auxiliary heap allocator requires exactly 188 bytes")
+    words=list(struct.unpack("<47I",assembled))
+    idx=0x6c//4
+    branch, zero = words[idx:idx+2]
+    if (branch>>24, zero>>24)!=(0x10,0x78):
+        raise ValueError("heap new-value branch and producer opcode class mismatch")
+    if (branch&MARKER_MASK,zero&MARKER_MASK)!=(CONTINUE_MARKER,END_MARKER):
+        raise ValueError("heap new-value producer packet markers changed")
+    words[idx:idx+2]=[(zero&~MARKER_MASK)|CONTINUE_MARKER,
+                      (branch&~MARKER_MASK)|END_MARKER]
+    return struct.pack("<47I",*words)
+
+
 def assemble(llvm_mc: Path, source: Path) -> bytes:
     with tempfile.TemporaryDirectory(prefix="nabu-modem-late-") as tmp:
         obj = Path(tmp) / "late.o"
@@ -294,9 +319,11 @@ def output_fragments(llvm_mc: Path) -> dict[int, bytes]:
         raise ValueError("auxiliary guard instruction block has invalid length")
     aux_stage = restore_aux_stage_packets(assemble(llvm_mc,AUX_STAGE_SOURCE))
     aux_mmio = assemble(llvm_mc,AUX_MMIO_SOURCE)
+    aux_heap = restore_aux_heap_predicate_packet(assemble(llvm_mc,AUX_HEAP_SOURCE))
     if len(aux_mmio) != AUX_MMIO_END-AUX_MMIO_START:
         raise ValueError("auxiliary MMIO initialization source has invalid length")
     assert AUX_GUARD_END == AUX_STAGE_START and AUX_STAGE_END == AUX_MMIO_START
+    assert AUX_MMIO_END == AUX_HEAP_START
     service = restore_service_probe_packets(assemble(llvm_mc,SERVICE_SOURCE))
     service_mmio = restore_service_mmio_packets(assemble(llvm_mc,SERVICE_MMIO_SOURCE))
     service_flags = restore_service_flag_packets(assemble(llvm_mc,SERVICE_FLAGS_SOURCE))
@@ -305,7 +332,7 @@ def output_fragments(llvm_mc: Path) -> dict[int, bytes]:
     assert SERVICE_FLAGS_END == SERVICE_ALLOC_START
     return {ATOMIC_START: atomic + controller, SERVICE_START: service+service_mmio+service_flags+service_alloc,
             AUX_START: auxiliary, AUX_INIT_START: aux_init,
-            AUX_GUARD_START: aux_guard+aux_stage+aux_mmio}
+            AUX_GUARD_START: aux_guard+aux_stage+aux_mmio+aux_heap}
 
 
 def executable_segments(reference: bytes) -> dict[int, tuple[int, int, int, int]]:

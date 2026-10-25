@@ -285,3 +285,28 @@ The entire regenerated 1,064-byte total exactly matches pinned
 `modem.mbn` SHA-256 `6f5cb32bc10e41abb40938d185805e788f5637a41d3ebcef278e4e169fc36782`.
 The original OEM signature, unimplemented program regions and interstitial
 data are not claimed as newly generated; this remains partial executable code.
+
+## Checkpoint 09: bounded auxiliary SRAM/heap slot allocator
+
+Added **188 independently assembled Hexagon V60 bytes** at file
+`[0x4462f8,0x4463b4)` (VMA `[0x1e4002f8,0x1e4003b4)`, physical
+`[0x900002f8,0x900003b4)`). This implements a controller memory allocator
+with three small fixed slots and a size-checked fallback into a shared heap.
+The source models `memh` slots, `mpyi`, signed size conversion and
+`bitsplit/addasl` address arithmetic as Hexagon assembly operations.
+
+LLVM6 schedules one scalar producer (`r2=#0`) after its new-value
+comparison/branch. `restore_aux_heap_predicate_packet` checks the exact
+188-byte object size, both instruction classes and legal source packet
+markers, then reorders the two instructions and corrects only their parse
+markers. No original vendor opcode bytes are substituted. Synthetic unit
+tests reject changed instruction classes, parse markers and length.
+
+**Cumulative source-generated later modem total: 1,252 bytes**, in five
+file-backed executable spans: `[0x7c000,0x7c0a0)` 160,
+`[0x7c2ec,0x7c4b0)` 452, `[0x446000,0x4460d8)` 216,
+`[0x446200,0x446254)` 84, `[0x446260,0x4463b4)` 340.
+The new contiguous 340-byte auxiliary fragment has SHA-256
+`ecddf048c671e9bd6748377a5fbc50928f7ab39f071304a82d14eaa005d73165`.
+All five intervals match the pinned original exactly; the entire firmware,
+non-code input data and OEM authentication remain unimplemented.
