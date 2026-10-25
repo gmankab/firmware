@@ -330,6 +330,14 @@ fn run() -> Result<(), Box<dyn Error>> {
         println!("External-authentication bytes: 0; signing material is never copied into generated source coverage.");
         return Ok(());
     }
+    if args.len() == 3 && args[0] == "audit-mbn-coverage-json" {
+        let spec = KNOWN_ELFS.iter().find(|s| s.name == args[1])
+            .ok_or("unknown Xiaomi Nabu MBN profile")?;
+        let original = fs::read(&args[2])?;
+        let manifest=firmware_tools::mbn_coverage_manifest::audit_reference(spec,&original)?;
+        println!("{}",manifest.to_json());
+        return Ok(());
+    }
     if args.len() == 3 && args[0] == "audit-elf-coverage" {
         let spec = KNOWN_ELFS.iter().find(|x| x.name == args[1])
             .ok_or("unknown ELF32 firmware filename")?;
@@ -372,7 +380,7 @@ fn run() -> Result<(), Box<dyn Error>> {
             OR verify-mbnv6-hashes ORIGINAL_MBN \
             OR <rebuild-modemuw|verify-modemuw|inspect-elf32|inspect-image> PATH \
             OR make-ghidra-bootstrap ORIGINAL OUTPUT-ANALYSIS-ONLY \
-            OR rebuild-elf-prefix NAME OUTPUT OR verify-elf-prefix NAME ORIGINAL             OR audit-elf-coverage NAME ORIGINAL OR audit-mbn-unsigned NAME ORIGINAL \
+            OR rebuild-elf-prefix NAME OUTPUT OR verify-elf-prefix NAME ORIGINAL             OR audit-elf-coverage NAME ORIGINAL OR audit-mbn-unsigned NAME ORIGINAL OR audit-mbn-coverage-json NAME ORIGINAL \
             OR extract-a640-isa ORIGINAL_MBN OUTDIR OR verify-a640-isa-fields ORIGINAL_MBN".into());
     }
     let target = PathBuf::from(&args[1]);
