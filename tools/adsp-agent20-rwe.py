@@ -24,7 +24,7 @@ from adsp_hexagon_v66 import (SystemRegister, ControlRegister, read_system_regis
                               write_predicate_group_from_gpr,packet_continuation)
 
 FILE_START=0x6030
-FILE_END=0x62c8
+FILE_END=0x638c
 SIZE=FILE_END-FILE_START
 PADDR=0x8BE03030
 REFERENCE_SHA='4b579e5dc1333d634e5bdc93f3314e357e0e30dab7140833f6cc7aef086b1c1e'
@@ -44,6 +44,10 @@ THREAD_GUARD_SOURCE=TOOLS/'adsp-agent20-rwe-thread-guard.S'
 THREAD_GUARD_SIZE=0x3c
 FRAME_INIT_SOURCE=TOOLS/'adsp-agent20-rwe-frame-init.S'
 FRAME_INIT_SIZE=0x6c
+RUNTIME_CALLS_SOURCE=TOOLS/'adsp-agent20-rwe-runtime-calls.S'
+RUNTIME_CALLS_SIZE=0x70
+RUNTIME_REGISTERS_SOURCE=TOOLS/'adsp-agent20-rwe-runtime-registers.S'
+RUNTIME_REGISTERS_SIZE=0x54
 
 
 def baseline():
@@ -138,6 +142,38 @@ def thread_guard(llvm_mc:str,previous)->bytes:
     return bytes(out)
 
 
+def runtime_registers(llvm_mc:str,previous)->bytes:
+    """Source-assemble controller status setup and type V66 register fields.
+
+    A GPR add-by-zero at +0x10 is used only as an independent `.new` value
+    producer so the assembler preserves the following same-packet memory
+    store. The producer's exact source opcode must be checked before replacing
+    it with the intended MODECTL read; this is not an OEM codeword splice.
+    """
+    out=bytearray(previous.assemble(llvm_mc,RUNTIME_REGISTERS_SOURCE,
+                                    RUNTIME_REGISTERS_SIZE))
+    sentinel_end=struct.pack('<I',0x7f00c000)
+    sentinel_mid=struct.pack('<I',0x7f004000)
+    checks={
+        0x00:(sentinel_mid,packet_continuation(
+            read_system_register(1,SystemRegister.HTID))),
+        0x10:(struct.pack('<I',0xb0014001),packet_continuation(
+            read_system_register(1,SystemRegister.MODECTL))),
+        0x24:(sentinel_end,read_system_register(0,SystemRegister.SYSCFG)),
+        0x2c:(sentinel_end,write_system_register(SystemRegister.SYSCFG,0)),
+        0x30:(sentinel_mid,packet_continuation(
+            read_system_register(0,SystemRegister.SSR))),
+        0x3c:(sentinel_end,write_system_register(SystemRegister.SSR,0)),
+    }
+    for at,(sentinel,value) in checks.items():
+        if out[at:at+4]!=sentinel:
+            raise previous.AdspError(f'V66 runtime bank sentinel moved at +0x{at:x}')
+        out[at:at+4]=struct.pack('<I',value)
+    if any(out[i:i+4] in (sentinel_end,sentinel_mid) for i in range(0,len(out),4)):
+        raise previous.AdspError('unresolved runtime register-bank placeholder')
+    return bytes(out)
+
+
 def render(llvm_mc:str)->bytes:
     previous=baseline()
     output=bytearray(previous.assemble(llvm_mc,SOURCE,STARTUP_SIZE))
@@ -160,6 +196,8 @@ def render(llvm_mc:str)->bytes:
     output.extend(memory_init(llvm_mc,previous))
     output.extend(thread_guard(llvm_mc,previous))
     output.extend(previous.assemble(llvm_mc,FRAME_INIT_SOURCE,FRAME_INIT_SIZE))
+    output.extend(previous.assemble(llvm_mc,RUNTIME_CALLS_SOURCE,RUNTIME_CALLS_SIZE))
+    output.extend(runtime_registers(llvm_mc,previous))
     if len(output)!=SIZE:
         raise previous.AdspError("RWE source fragments are not contiguous")
     return bytes(output)

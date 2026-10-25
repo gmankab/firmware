@@ -21,9 +21,9 @@ class RweEntryTests(unittest.TestCase):
         cls.ref=os.environ.get('NABU_ADSP_REFERENCE')
     def test_ptload_offset_mapping(self):
         self.assertEqual(module.FILE_START,0x6030)
-        self.assertEqual(module.FILE_END,0x62c8)
+        self.assertEqual(module.FILE_END,0x638c)
         self.assertEqual(module.PADDR,0x8BE03030)
-        self.assertEqual(module.SIZE,664)
+        self.assertEqual(module.SIZE,860)
     def test_source_assembler_with_checked_v66_registers(self):
         if not self.mc:self.skipTest('HEXAGON_LLVM_MC missing')
         b=module.render(self.mc)
@@ -102,12 +102,33 @@ class RweEntryTests(unittest.TestCase):
         b=module.render(self.mc)
         off=(module.STARTUP_SIZE+module.DISPATCH_SIZE+module.FINALIZE_SIZE+
              module.POLL_SIZE+module.MEMORY_INIT_SIZE+module.THREAD_GUARD_SIZE)
-        self.assertEqual(len(b)-off,module.FRAME_INIT_SIZE)
+        self.assertGreaterEqual(len(b)-off,module.FRAME_INIT_SIZE)
         self.assertEqual(module.FRAME_INIT_SIZE,0x6c)
         # The non-extended mpyi operation must be in its original packet
         # position. An explicit extender would change this word/size.
         self.assertEqual(struct.unpack_from('<I',b,off+0x0c)[0],0xe11c5c01)
         if self.ref:module.verify(Path(self.ref).read_bytes(),b)
+
+    def test_runtime_system_bank_and_new_value_packet(self):
+        if not self.mc:self.skipTest('HEXAGON_LLVM_MC missing')
+        code=module.render(self.mc)
+        off=(module.STARTUP_SIZE+module.DISPATCH_SIZE+module.FINALIZE_SIZE+
+             module.POLL_SIZE+module.MEMORY_INIT_SIZE+
+             module.THREAD_GUARD_SIZE+module.FRAME_INIT_SIZE+
+             module.RUNTIME_CALLS_SIZE)
+        self.assertEqual(len(code)-off,module.RUNTIME_REGISTERS_SIZE)
+        values=[(0x00,module.packet_continuation(module.read_system_register(
+                    1,SystemRegister.HTID))),
+                (0x10,module.packet_continuation(module.read_system_register(
+                    1,SystemRegister.MODECTL))),
+                (0x24,module.read_system_register(0,SystemRegister.SYSCFG)),
+                (0x2c,module.write_system_register(SystemRegister.SYSCFG,0)),
+                (0x30,module.packet_continuation(module.read_system_register(
+                    0,SystemRegister.SSR))),
+                (0x3c,module.write_system_register(SystemRegister.SSR,0))]
+        for at,v in values:self.assertEqual(struct.unpack_from('<I',code,off+at)[0],v)
+        self.assertEqual(struct.unpack_from('<I',code,off+0x14)[0],0xa1a0d200)
+        if self.ref:module.verify(Path(self.ref).read_bytes(),code)
 
     def test_wrong_firmware_is_rejected(self):
         if not self.mc:self.skipTest('HEXAGON_LLVM_MC missing')
