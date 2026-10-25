@@ -290,3 +290,8 @@ Original reference: private `map220v-nabu-firmware/venus.mbn`, SHA-256 `9d4af65d
 
 - Continuous A32 runtime `[0x21c78,0x2ba68)` = **40,432 bytes** exact against `venus.mbn`; additional `[0x2b774,0x2ba68)` = **756 bytes**, **169 instructions and 20 switch-table address words**.
 - Buffer-class and format-level checks select dedicated handlers from three tables: `[0x2b944,0x2b968)` (9 entries), `[0x2b988,0x2b9a4)` (7), and `[0x2ba58,0x2ba68)` (4). Function continues after `0x2ba68` into payload handlers and eventual return; current checkpoint should not be considered standalone callable code.
+
+## Checkpoint 42 — frame message processing and error-path callbacks
+
+- Runtime `[0x21c78,0x2be44)` = **41,420 contiguous bytes** identical to the pinned `venus.mbn`. New `[0x2ba68,0x2be44)` = **988 typed ARM32 instruction bytes** (247 A32 instructions and no literal data words).
+- Handles codec buffer type allocation, input descriptor selection, frame limits, callback dispatch and error reporting. This is still a section of the larger codec event function, whose later control flow continues beyond `0x2be44`.
