@@ -347,3 +347,57 @@ initial_memory_copy:
  r5:4 = memd(r1++#8)
  memd(r0++#8) = r5:4
 }
+// Firmware transfer-descriptor interpreter. Types 3/4 copy 64-bit or 32-bit
+// chunks to the configured destination; type 6 invokes a range callback.
+{ r2 = add(pc,##-2432) }
+{ r0 = #0 }
+transfer_record_next:
+{ r2 = add(r2,r0) }
+{ r0 = memuh(r2+#0) }
+{ p0 = cmp.eq(r0,#0) }
+.set transfer_records_complete, modem_boot_dispatch+0x41c
+{ if (p0) jump:nt transfer_records_complete }
+{ r1 = memuh(r2+#2) }
+{ p0 = cmp.eq(r1,#3) }
+.set transfer_decode, modem_boot_dispatch+0x3c0
+{ if (p0) jump transfer_decode }
+{ p0 = cmp.eq(r1,#4) }
+{ if (p0) jump transfer_decode }
+{ p0 = cmp.eq(r1,#6) }
+.set transfer_type6_callback, modem_boot_dispatch+0xa94
+{ if (p0) call transfer_type6_callback }
+{ jump transfer_record_next }
+transfer_decode:
+{ r4 = memw(r2+#4) }
+{ r5 = memw(r2+#8) }
+{ r6 = memw(r2+#12) }
+{ p0 = tstbit(r5,#0) }
+{ if (p0) r5 = add(r5,#-1) }
+{ if (p0) r5 = add(r5,r25) }
+{ r4 = add(r4,r25) }
+{ p0 = cmp.eq(r1,#3) }
+.set transfer_double_words, modem_boot_dispatch+0x3ec
+{ if (p0) jump transfer_double_words }
+{ p0 = cmp.eq(r1,#4) }
+.set transfer_single_words, modem_boot_dispatch+0x404
+{ if (p0) jump transfer_single_words }
+transfer_double_words:
+{ r6 = lsr(r6,#3) }
+{ loop0(transfer_double_iteration,r6) }
+transfer_double_iteration:
+{ r9:8 = memd(r4++#8) }
+{
+ nop
+ memd(r5++#8) = r9:8
+}:endloop0
+{ jump transfer_record_next }
+transfer_single_words:
+{ r6 = lsr(r6,#2) }
+{ loop0(transfer_single_iteration,r6) }
+transfer_single_iteration:
+{ r8 = memw(r4++#4) }
+{
+ nop
+ memw(r5++#4) = r8
+}:endloop0
+{ jump transfer_record_next }
