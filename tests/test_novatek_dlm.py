@@ -59,6 +59,21 @@ class PackedScheduleTests(unittest.TestCase):
             # The upper halfword of each original u32 remains UNKNOWN.
             self.assertEqual(start+len(data),start+2)
 
+    def test_descriptor_bank_relocation_is_flag_preserving_and_external_only(self):
+        record=bytearray([0x2e]*0x8c)
+        for index in range(9):
+            struct.pack_into("<H",record,0x48+2*index,0x8d18 if index%2 else 0x0a41)
+        transformed=dlm.transform_descriptor_bank(record)
+        for index in range(9):
+            self.assertEqual(struct.unpack_from("<H",transformed,0x48+2*index)[0],
+                             0x9d18 if index%2 else 0x1a41)
+        self.assertEqual(transformed[0x5a:0x5c],record[0x5a:0x5c])
+        with self.assertRaises(ValueError):
+            dlm.transform_descriptor_bank(b"x"*71)
+        struct.pack_into("<H",record,0x48,0xf500)
+        with self.assertRaises(ValueError):
+            dlm.transform_descriptor_bank(record)
+
     def test_idle_mailboxes_have_same_controller_token(self):
         fragments = dlm.generated_fragments()
         mailbox = next((start,name,data) for start,name,data in fragments if name=="controller-idle-mailboxes")
@@ -243,6 +258,7 @@ class OptionalReferenceTests(unittest.TestCase):
             subprocess.run([os.environ["NOVATEK_DLM_BIN"], "emit", tmp], check=True, capture_output=True, text=True)
             report = dlm.verification_report(os.environ["NOVATEK_REFERENCE"], tmp)
         self.assertEqual(report["independent_data_bytes"], 9328)
+        self.assertEqual(report["reference_assisted_descriptor_bytes"], 2940)
         self.assertEqual(report["mismatched_source_bytes"], 0)
         self.assertTrue(report["rust_output_matches"])
 

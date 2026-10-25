@@ -9,6 +9,7 @@
 #[path = "../devices/xiaomi_nabu/novatek_dlm.rs"] mod novatek_dlm;
 #[path = "../devices/xiaomi_nabu/novatek_dlm_gaussian.rs"] mod novatek_dlm_gaussian;
 #[path = "../devices/xiaomi_nabu/novatek_dlm_schedule_links.rs"] mod novatek_dlm_schedule_links;
+#[path = "../devices/xiaomi_nabu/novatek_dlm_bank_transform.rs"] mod novatek_dlm_bank_transform;
 #[path = "../devices/xiaomi_nabu/novatek_dlm_envelope.rs"] mod novatek_dlm_envelope;
 #[path = "../devices/xiaomi_nabu/novatek_dlm_provenance.rs"] mod novatek_dlm_provenance;
 
@@ -101,6 +102,9 @@ fn verify_reference(image:&[u8],parts:&[DataFragment])->Result<(),String> {
     let actual=hex_digest(image);
     if actual!=REFERENCE_SHA256 {return Err(format!("reference SHA-256 mismatch: {actual}"));}
     novatek_dlm_envelope::verify_envelope(image)?;
+    // Validation of a reference-assisted cross-bank transform does not promote
+    // any of the dependent descriptor bytes to independently authored source.
+    novatek_dlm_bank_transform::verify_against_supplied_reference(image)?;
     for part in parts {
         let reference=image.get(part.file_start..part.file_end()).ok_or("DLM fragment outside reference")?;
         if let Some(index)=part.bytes.iter().zip(reference).position(|(a,b)|a!=b) {
@@ -121,6 +125,12 @@ fn run()->Result<(),String> {
             verify_reference(&image,&parts)?;
             print!("{}",report(&parts,true)?);
         }
+        Some("verify-bank-pairs") if args.len()==2 => {
+            let image=fs::read(&args[1]).map_err(|e|e.to_string())?;
+            if hex_digest(&image)!=REFERENCE_SHA256 {return Err("reference SHA-256 mismatch".into());}
+            let count=novatek_dlm_bank_transform::verify_against_supplied_reference(&image)?;
+            println!("Verified {count} reference-dependent DLM descriptor bytes in two bank pairs; zero new independent source-byte credit");
+        }
         Some("check-envelope") if args.len()==2 => {
             let image=fs::read(&args[1]).map_err(|e|e.to_string())?;
             let a=novatek_dlm_envelope::verify_envelope(&image)?;
@@ -138,7 +148,7 @@ fn run()->Result<(),String> {
             println!("Emitted {} data fragments ({} bytes), with explicit holes retained in the provenance manifest.",
                 parts.len(),parts.iter().map(|part|part.bytes.len()).sum::<usize>());
         }
-        _=>return Err("usage: novatek-dlm ledger | emit <directory> | verify-reference <pinned-image.bin> | check-envelope <image.bin>".into()),
+        _=>return Err("usage: novatek-dlm ledger | emit <directory> | verify-reference <pinned-image.bin> | check-envelope <image.bin> | verify-bank-pairs <pinned-image.bin>".into()),
     }
     Ok(())
 }

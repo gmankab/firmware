@@ -341,11 +341,39 @@ def check_manifest(directory, fragments):
             raise ValueError("manifest regional evidence is missing")
 
 
+def transform_descriptor_bank(external_records):
+    """Independent packed-pointer relocation; output retains external provenance."""
+    if len(external_records)==0 or len(external_records)%0x8c:
+        raise ValueError("descriptor-bank transform requires complete 0x8c-byte records")
+    result=bytearray(external_records)
+    for record in range(len(result)//0x8c):
+        for slot in range(9):
+            at=record*0x8c+0x48+2*slot
+            word=struct.unpack_from("<H",result,at)[0]
+            index=word&0x7fff
+            if index+0x1000 > 0x7fff:
+                raise ValueError("descriptor pointer overflow")
+            struct.pack_into("<H",result,at,(word&0x8000)|(index+0x1000))
+    return bytes(result)
+
+
+def verify_descriptor_pairs(image):
+    """Repacking from an external first bank is NOT source reconstruction."""
+    total=0
+    for a,b,count in ((0x22a64,0x26a64,17),(0x25230,0x29230,4)):
+        size=count*0x8c
+        if transform_descriptor_bank(image[a:a+size])!=image[b:b+size]:
+            raise ValueError("external-dependent descriptor bank transform mismatch")
+        total+=size
+    return total
+
+
 def verify_reference(reference, fragments):
     reference = bytes(reference)
     if hashlib.sha256(reference).hexdigest() != REFERENCE_SHA256:
         raise ValueError("reference SHA-256 mismatch; use the pinned postmarketOS revision")
     checks = check_envelope(reference)
+    verify_descriptor_pairs(reference)
     for start, _, data in fragments:
         if reference[start:start + len(data)] != data:
             mismatch = next(i for i, (left, right) in enumerate(zip(data, reference[start:])) if left != right)
@@ -368,6 +396,7 @@ def verification_report(reference_path, emitted_directory):
         "minimum_half_integer_distance": str(margin),
         "closest_sigma_tenths": sigma, "closest_sample_x": x,
         "crc_stored_fields_checked": len(checks), "mirror_bytes_checked": 2304,
+        "reference_assisted_descriptor_bytes": verify_descriptor_pairs(Path(reference_path).read_bytes()),
         "mismatched_source_bytes": 0, "rust_output_matches": True,
         "concatenated_fragment_sha256": hashlib.sha256(b"".join(data for _, _, data in fragments)).hexdigest(),
         "fragments": [fragment_metadata(fragment) for fragment in fragments],
