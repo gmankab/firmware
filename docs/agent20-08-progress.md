@@ -217,3 +217,18 @@ Total Agent 20-08: **2,288 independently source-assembled executable bytes
 across 28 disjoint fragments**; verified zero mismatches, 160 Rust tests,
 143 Python tests and release build. Checkpoint-50-based integration is not yet
 established; this remains the provisional Agent04-descended branch.
+
+**Checkpoint 16 — controller-handoff branch continuation:** Source-reassembled
+40 exact Hexagon bytes `[file 0x3a7b8,0x3a7e0)` as a fragment of a controller
+notification path. It invokes runtime preparatory routines, forwards a
+platform event and branches to an earlier shared cleanup epilogue; **this is
+not a standalone complete function**. LLVM6 initially emitted an alternate
+packet parse flag for the 3-operation call/`immext`/argument packet and for
+the branch/deallocframe pair; restoring the original *semantic packet*
+grouping reproduces every byte without copying OEM instruction words.
+SHA-256 `f72a2df2163b895a5a7fd77f9b5ac009cb7a265e1f05ff420073e88ebe0d29f9`.
+It abuts the earlier 8-byte pointer helper at `0x3a7e0`; the two NOPs
+`[0x3a7e8,0x3a7f0)` remain excluded from independently authored executable
+counts. **2,328 total source-assembled executable bytes in 29 fragments.**
+All 160 Rust and 145 Python tests, offline release build, pinned-reference
+verification and Git diff checks pass. Agent04-descended provisional branch.
