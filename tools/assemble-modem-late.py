@@ -25,8 +25,11 @@ AUX_INIT_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_la
 AUX_GUARD_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_aux_guard.s"
 AUX_STAGE_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_aux_stage.s"
 AUX_MMIO_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_aux_mmio.s"
+SERVICE_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_service_probe.s"
 ATOMIC_START = 0x7C000
 ATOMIC_END = 0x7C040
+SERVICE_START = 0x7C2EC
+SERVICE_END = 0x7C324
 CONTROL_START = 0x7C040
 CONTROL_END = 0x7C0A0
 AUX_START = 0x446000
@@ -167,6 +170,27 @@ def restore_aux_stage_packets(assembled: bytes) -> bytes:
     return struct.pack("<"+"I"*len(words),*words)
 
 
+def restore_service_probe_packets(assembled: bytes) -> bytes:
+    """Preserve two source-semantic instruction packets combined by target compiler.
+
+    LLVM6 prematurely ends a call before an extended absolute register load,
+    and an absolute register load before another extender. The target compiler
+    uses two longer legal packets. Refuse unexpected instruction types/parse
+    fields and alter *only* the two terminating Hexagon parse bits.
+    """
+    if len(assembled) != SERVICE_END - SERVICE_START:
+        raise ValueError("modem late service probe requires 56 compiled bytes")
+    words=list(struct.unpack("<"+"I"*(len(assembled)//4),assembled))
+    for at,opcode,following in [(0x14,0x5a,0x0c),(0x24,0x78,0x0c)]:
+        i=at//4
+        if (words[i]>>24,words[i+1]>>24)!=(opcode,following):
+            raise ValueError(f"late modem service probe instruction classes changed at {SERVICE_START+at:#x}")
+        if (words[i]&MARKER_MASK,words[i+1]&MARKER_MASK)!=(END_MARKER,CONTINUE_MARKER):
+            raise ValueError(f"late modem service probe packet markers changed at {SERVICE_START+at:#x}")
+        words[i]=(words[i]&~MARKER_MASK)|CONTINUE_MARKER
+    return struct.pack("<"+"I"*len(words),*words)
+
+
 def assemble(llvm_mc: Path, source: Path) -> bytes:
     with tempfile.TemporaryDirectory(prefix="nabu-modem-late-") as tmp:
         obj = Path(tmp) / "late.o"
@@ -193,8 +217,10 @@ def output_fragments(llvm_mc: Path) -> dict[int, bytes]:
     if len(aux_mmio) != AUX_MMIO_END-AUX_MMIO_START:
         raise ValueError("auxiliary MMIO initialization source has invalid length")
     assert AUX_GUARD_END == AUX_STAGE_START and AUX_STAGE_END == AUX_MMIO_START
-    return {ATOMIC_START: atomic + controller, AUX_START: auxiliary,
-            AUX_INIT_START: aux_init, AUX_GUARD_START: aux_guard+aux_stage+aux_mmio}
+    service = restore_service_probe_packets(assemble(llvm_mc,SERVICE_SOURCE))
+    return {ATOMIC_START: atomic + controller, SERVICE_START: service,
+            AUX_START: auxiliary, AUX_INIT_START: aux_init,
+            AUX_GUARD_START: aux_guard+aux_stage+aux_mmio}
 
 
 def executable_segments(reference: bytes) -> dict[int, tuple[int, int, int, int]]:

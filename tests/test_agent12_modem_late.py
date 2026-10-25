@@ -23,7 +23,9 @@ class ModemLateTests(unittest.TestCase):
         self.assertEqual(agent12.CONTROL_END - agent12.CONTROL_START, 96)
         self.assertEqual(agent12.AUX_END - agent12.AUX_START, 216)
         self.assertEqual(agent12.ATOMIC_END, agent12.CONTROL_START)
-        self.assertLess(agent12.CONTROL_END, agent12.AUX_START)
+        self.assertEqual((agent12.SERVICE_START,agent12.SERVICE_END),(0x7C2EC,0x7C324))
+        self.assertLess(agent12.CONTROL_END,agent12.SERVICE_START)
+        self.assertLess(agent12.SERVICE_END,agent12.AUX_START)
         self.assertLessEqual(agent12.AUX_END, 0x446000 + 0x11DA4)
         self.assertEqual(agent12.AUX_INIT_START,0x446200)
         self.assertEqual(agent12.AUX_INIT_END,0x446254)
@@ -122,6 +124,26 @@ class ModemLateTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError,'104 bytes'):
             agent12.restore_aux_stage_packets(packed[:-4])
 
+    def test_service_probe_reorder_validates_isa_and_lengths(self):
+        words=[0x7800C000]*14
+        words[5]=0x5A00C000
+        words[6]=0x0C004000
+        words[9]=0x7800C000
+        words[10]=0x0C004000
+        synthetic=struct.pack('<14I',*words)
+        actual=agent12.restore_service_probe_packets(synthetic)
+        decoded=struct.unpack('<14I',actual)
+        self.assertEqual(decoded[5]&agent12.MARKER_MASK,agent12.CONTINUE_MARKER)
+        self.assertEqual(decoded[9]&agent12.MARKER_MASK,agent12.CONTINUE_MARKER)
+        bad=words.copy();bad[5]=0x7800C000
+        with self.assertRaisesRegex(ValueError,'instruction classes'):
+            agent12.restore_service_probe_packets(struct.pack('<14I',*bad))
+        bad=words.copy();bad[9]=0x78004000
+        with self.assertRaisesRegex(ValueError,'packet markers'):
+            agent12.restore_service_probe_packets(struct.pack('<14I',*bad))
+        with self.assertRaisesRegex(ValueError,'56 compiled bytes'):
+            agent12.restore_service_probe_packets(synthetic[:-4])
+
     def test_sources_use_packets_and_real_control_register_semantics(self):
         a = agent12.ATOMIC_SOURCE.read_text()
         b = agent12.AUX_SOURCE.read_text()
@@ -130,6 +152,7 @@ class ModemLateTests(unittest.TestCase):
         e = agent12.AUX_GUARD_SOURCE.read_text()
         f = agent12.AUX_STAGE_SOURCE.read_text()
         g = agent12.AUX_MMIO_SOURCE.read_text()
+        h = agent12.SERVICE_SOURCE.read_text()
         self.assertIn("memw_locked(r0)", a)
         self.assertIn("if (!p0.new) r3 = add", a)
         self.assertIn("memb(##3249533708) = r2.new", a)
@@ -151,6 +174,9 @@ class ModemLateTests(unittest.TestCase):
         self.assertIn('aux_run_worker',f)
         self.assertIn('HEX_WRITE_FRAMELIMIT',b)
         self.assertIn('memw(r2+#2052)',g)
+        self.assertIn('service_load',h)
+        self.assertIn('service_flush',h)
+        self.assertIn('combine(#0,##3249533728)',h)
 
     def test_rejects_bad_executable_elf_magic_and_isa(self):
         with self.assertRaisesRegex(ValueError, "ELF32"):
@@ -169,7 +195,7 @@ class ModemLateTests(unittest.TestCase):
     def test_optional_llvm6_exact_source_lengths(self):
         a = agent12.output_fragments(Path(os.environ["NABU_HEXAGON_LLVM_MC"]))
         self.assertEqual({k: len(v) for k, v in a.items()},
-                         {0x7C000:160,0x446000:216,0x446200:84,0x446260:152})
+                         {0x7C000:160,0x7C2EC:56,0x446000:216,0x446200:84,0x446260:152})
         if os.getenv("NABU_MODEM_REFERENCE"):
             agent12.verify_reference(Path(os.environ["NABU_MODEM_REFERENCE"]).read_bytes(), a)
 
