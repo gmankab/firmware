@@ -98,5 +98,34 @@ class WlanHexagonStatusPacketSourceTests(unittest.TestCase):
         self.assertTrue(all(r.classification == "executable" for r in late.select_regions(self.records, through_checkpoint=5)[-3:]))
 
 
+class WlanHexagonCheckpointSevenSourceTests(unittest.TestCase):
+    def setUp(self):
+        self.records = late.load_registry()
+
+    def test_four_contiguous_controller_routines(self):
+        old = late.select_regions(self.records, through_checkpoint=6)
+        current = late.select_regions(self.records, through_checkpoint=7)
+        self.assertEqual((old[-1].file_end, current[-1].file_end),
+                         (0x101BE4, 0x102014))
+        self.assertEqual(len(current) - len(old), 4)
+        self.assertEqual([r.size_bytes for r in current[-4:]], [452, 124, 64, 432])
+        self.assertEqual(sum(r.size_bytes for r in current), 7760)
+        self.assertEqual(current[-1].file_end, 0x102014)
+        self.assertLessEqual(current[-1].file_end, 0x353D38)
+
+    def test_packet_order_and_far_jump_extension_are_explicit(self):
+        base = ROOT / "sources/xiaomi-nabu/wlanmdsp/"
+        first = (base / "agent14-late-interface-query-report.S").read_text()
+        self.assertIn("call 0x13f040; memb(r18+#49) = #1; r0 = memw(r16+#44) }:mem_noshuf", first)
+        fourth = (base / "agent14-late-session-aux-dispatch.S").read_text()
+        self.assertIn("memb(r24+#49) = #1; r0 = memw(r3+#556) }:mem_noshuf", fourth)
+        self.assertIn("jump ##0x1e380c", fourth)
+        third = (base / "agent14-late-byte-counter-adjust.S").read_text()
+        self.assertIn("jump ##0x154f58", third)
+        for text in (first, fourth, third):
+            self.assertNotIn(".word ", text)
+            self.assertNotIn(".incbin", text)
+
+
 if __name__ == "__main__":
     unittest.main()

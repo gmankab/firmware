@@ -542,3 +542,32 @@ Build with `--through-checkpoint 6` instead of `5` in the checkpoint-05
 command. See `docs/evidence/agent20-14/checkpoint-06.json` for current
 per-region hashes and test provenance. Original private reference firmware
 and OEM signature material remain outside Git.
+
+## Checkpoint 07 — metadata query and auxiliary session dispatch
+
+Four adjacent complete Hexagon routines were reconstructed in the pinned
+`wlanmdsp.mbn` at file `[0x101be4,0x102014)` (1,072 executable bytes):
+
+| File range | Bytes | Source-derived purpose |
+| --- | ---: | --- |
+| `[0x101be4,0x101da8)` | 452 | Inspect interface state, emit warnings, and dispatch conditional callbacks. |
+| `[0x101da8,0x101e24)` | 124 | Validate command fields and record length limits. |
+| `[0x101e24,0x101e64)` | 64 | Adjust byte counters and route the warning path. |
+| `[0x101e64,0x102014)` | 432 | Apply session state flags, inspect status, submit auxiliary packet and transfer control. |
+
+The first and fourth functions require Hexagon `:mem_noshuf` to retain the
+original memory load/store instruction order within packets, and the third
+and fourth functions require explicit `##` jump constant extenders. Without
+these architectural details their assembler outputs differ. The legal,
+source-authored packet mnemonics were independently assembled by LLVM 18/V66
+and LLVM 6/V65; **all 1,072 added bytes match the original reference**.
+Reference comparisons are optional: the emitter never reads the OEM MBN
+unless `--reference` is supplied explicitly.
+
+Checkpoint 07 contiguous source-derived code: **7,760 bytes** at
+`[0x1001c4,0x102014)`; separate dispatch table data **496 bytes** at
+`[0x2f6cd0,0x2f6ec0)`. Total non-overlapping authored bytes: **8,256**.
+No source bytes are claimed for intervening holes or for the Agent13 seam
+`[0x100000,0x1001c4)`. Next adjacent complete function starts at
+`0x102014`; the rest of the large WLAN executable segment is unfinished.
+Code equality does not prove behavioral identity or hardware execution.

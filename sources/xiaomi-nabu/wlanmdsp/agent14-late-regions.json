@@ -353,6 +353,46 @@
       "sha256": "720091a5ed4c002672ad6707df231042f94551bd30598705666b1c5e0dd95558",
       "checkpoint": 6,
       "classification": "executable"
+    },
+    {
+      "name": "interface-query-report",
+      "file_start": 1055716,
+      "file_end": 1056168,
+      "source": "sources/xiaomi-nabu/wlanmdsp/agent14-late-interface-query-report.S",
+      "symbol": "agent14_late_interface_query_report",
+      "sha256": "55b7fb72cbac0c2df73ca0082b4a91652ecdc51b022e942aade4d78706178b1d",
+      "checkpoint": 7,
+      "classification": "executable"
+    },
+    {
+      "name": "command-field-check",
+      "file_start": 1056168,
+      "file_end": 1056292,
+      "source": "sources/xiaomi-nabu/wlanmdsp/agent14-late-command-field-check.S",
+      "symbol": "agent14_late_command_field_check",
+      "sha256": "16add88a2df6ac975b5723364e3b013eba5dbe2805a82a66d79cf696ac513faf",
+      "checkpoint": 7,
+      "classification": "executable"
+    },
+    {
+      "name": "byte-counter-adjust",
+      "file_start": 1056292,
+      "file_end": 1056356,
+      "source": "sources/xiaomi-nabu/wlanmdsp/agent14-late-byte-counter-adjust.S",
+      "symbol": "agent14_late_byte_counter_adjust",
+      "sha256": "dac68aa1eb5d08a44d2d80baa0be2e60721689bc295e8ebbbc09c44f1f13e73d",
+      "checkpoint": 7,
+      "classification": "executable"
+    },
+    {
+      "name": "session-aux-dispatch",
+      "file_start": 1056356,
+      "file_end": 1056788,
+      "source": "sources/xiaomi-nabu/wlanmdsp/agent14-late-session-aux-dispatch.S",
+      "symbol": "agent14_late_session_aux_dispatch",
+      "sha256": "9a7ee0aabf24fb55395719b3ab62b028ece37a344738144a2f4a44d6ae1994e8",
+      "checkpoint": 7,
+      "classification": "executable"
     }
   ]
 }
