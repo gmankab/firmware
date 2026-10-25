@@ -175,6 +175,32 @@ def mirrored_control_candidate():
     return bytes(out)
 
 
+def transfer_word_candidate():
+    """Exact 22-word recurrence, NOT a proven source/command implementation.
+
+    Three observed base addresses and two small index permutations reproduce
+    every record. Unknown controller opcode meanings preclude source-byte
+    credit, regardless of exact reference comparison.
+    """
+    out=bytearray()
+    def put(class_code, address):
+        if not 0<=address<=0xffff:
+            raise ValueError("transfer candidate address outside 16-bit field")
+        out.extend((0x20,0, class_code))
+        out.extend(struct.pack("<H",address))
+    stride=0x190
+    put(0x19,0x9004)
+    for index in (4,0,1,2,3,4):put(0x32,0x80c8+index*stride)
+    for index in (0,2):put(0x19,0x9068+index*stride)
+    for index in (0,1):put(0x02,0x4bf4+index*0x10)
+    for index in (1,3):put(0x19,0x9068+index*stride)
+    for index in (0,1):put(0x02,0x4bf4+index*0x10)
+    put(0x19,0x9068+5*stride)
+    for index in (4,0,1,2,3,4):put(0x32,0x9068+index*stride)
+    assert len(out)==110
+    return bytes(out)
+
+
 def inspect_external_five_byte_transfers(image):
     span = image[TRANSFER_CONTROL_START:TRANSFER_CONTROL_END]
     if len(span) != 110:
@@ -194,7 +220,12 @@ def verify_uncredited_candidates(image):
     if len(span) != len(expected) or span != expected:
         raise ValueError("reference-assisted 40-bit recurrence is not reproduced")
     transfers = inspect_external_five_byte_transfers(image)
+    expected_transfer=transfer_word_candidate()
+    actual_transfer=image[TRANSFER_CONTROL_START:TRANSFER_CONTROL_END]
+    if actual_transfer!=expected_transfer:
+        raise ValueError("external transfer recurrence not reproduced")
     return {"candidate_mathematically_matched_bytes": len(expected),
+            "candidate_transfer_mathematically_matched_bytes": len(expected_transfer),
             "external_transfer_structurally_validated_bytes": 5 * len(transfers),
             "additional_source_owned_bytes": 0,
             "source_generation_semantics_proven": False}

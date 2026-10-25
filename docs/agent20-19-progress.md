@@ -419,3 +419,52 @@ python3 tools/verify-agent19-upper-ilm-evidence.py \
 This branch remains rooted in the **older preview** at `941c805…`, not the
 required checkpoint-50 integration; the contribution must be replayed to the
 current verified merged base before declaring an integrated artifact.
+
+## Checkpoint 08 — independently reproduced 110-byte control-transfer recurrence, uncredited
+
+The 22 externally provided five-byte transfer records at file
+`[0x2d450,0x2d4be)` can be **re-encoded exactly** from a compact observed
+recurrence. Each record has bytes `20 00`, followed by a class byte in
+`{0x02,0x19,0x32}` and a little-endian 16-bit field. The previously
+source-unaccounted scalar fields follow three observed bases:
+
+- Class `0x32`: two six-record groups from `0x80c8` and `0x9068`, with
+  0x190-byte steps and index order `[4,0,1,2,3,4]`.
+- Class `0x19`: a single `0x9004` record, then five payloads beginning at
+  `0x9068` with index order `[0,2,1,3,5]` at the same `0x190` spacing.
+- Class `0x02`: a two-record pair based on `0x4bf4` and `0x4c04`, repeated
+  twice with a 16-byte difference.
+
+The Rust `transfer_word_candidate()` and separately implemented Python
+`transfer_word_candidate()` both produce exactly 110 bytes. The pinned
+reference matches, and corruption of an externally supplied payload now
+fails the **explicit pinned recurrence** check. The generic five-byte record
+*parser* remains appropriately permissive: it recognizes the prefix and
+class but does not invent a payload meaning.
+
+The recurring stride `0x190` also occurs in Agent 18's independent NDS32
+instruction source (e.g. `0x11226: addi r0,r14,0x190`), but it is **not
+established** that these particular payload fields refer to the same
+controller allocation. Neither the `0x20 00` header nor the fixed opcode
+bits of the adjacent mirrored 160-byte words have independent semantic
+specifications, so **ALL 270 candidate bytes remain UN-CREDITED**.
+Neither generator is included in the source-owned `novatek-dlm fragments()`
+output; the provenance manifest stays unmodified.
+
+Validation: 414 Rust test executions, 170 Python tests discovered (118 passed,
+52 skipped), offline locked release build, full pinned Novatek SHA-256,
+12 CRC fields, full 2,304-byte dependent mirror, all 69 independently generated
+fragment comparisons, and both uncredited candidate byte comparisons passed.
+
+| Byte-accounting field | Unchanged checkpoint 08 value |
+| --- | ---: |
+| Source-generated Agent19 DLM data | **9,353** |
+| Unknown DLM | **40,199** |
+| Unique source-generated image bytes | **45,027** |
+| Candidate control recurrence, uncredited | 160 |
+| Candidate transfer records, uncredited | 110 |
+| New source executable bytes | 0 |
+
+This portable branch remains based on the older preview rather than original
+checkpoint 50. Exact byte correspondence is not sufficient to claim recovered
+controller logic, calibration semantics, new OEM signing, or hardware behavior.

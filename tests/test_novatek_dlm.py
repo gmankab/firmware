@@ -155,14 +155,31 @@ class UncreditedCommandCandidatesTests(unittest.TestCase):
             self.assertEqual((raw >> 23) & 1, i % 2)
             self.assertEqual(raw & ~((0x1f << 24) | (1 << 23)), 0x8000064800)
 
+    def test_transfer_word_recursion_matches_permuted_stride_patterns(self):
+        observed=dlm.transfer_word_candidate()
+        self.assertEqual(len(observed),110)
+        image=bytearray(0x2d4be)
+        image[0x2d450:0x2d4be]=observed
+        records=dlm.inspect_external_five_byte_transfers(image)
+        self.assertEqual(len(records),22)
+        self.assertEqual(records[0],(0x19,0x9004))
+        for i,slot in enumerate((4,0,1,2,3,4),1):
+            self.assertEqual(records[i],(0x32,0x80c8+slot*0x190))
+        for i,slot in enumerate((4,0,1,2,3,4),16):
+            self.assertEqual(records[i],(0x32,0x9068+slot*0x190))
+        for i,slot in zip((7,8,11,12,15),(0,2,1,3,5)):
+            self.assertEqual(records[i],(0x19,0x9068+slot*0x190))
+        for i in (9,13):
+            self.assertEqual(records[i:i+2],[(0x02,0x4bf4),(0x02,0x4c04)])
+
     def test_uncredited_40bit_and_external_records_do_not_enter_source_ledger(self):
         image = bytearray(0x2d4be)
         image[0x2d3b0:0x2d450] = dlm.mirrored_control_candidate()
-        for i in range(22):
-            image[0x2d450 + i*5:0x2d450 + i*5 + 5] = bytes((0x20,0x00,(0x02,0x19,0x32)[i%3],i,0x88))
+        image[0x2d450:0x2d4be] = dlm.transfer_word_candidate()
         report = dlm.verify_uncredited_candidates(image)
         self.assertEqual(report["candidate_mathematically_matched_bytes"],160)
         self.assertEqual(report["external_transfer_structurally_validated_bytes"],110)
+        self.assertEqual(report["candidate_transfer_mathematically_matched_bytes"],110)
         self.assertEqual(report["additional_source_owned_bytes"],0)
         self.assertFalse(report["source_generation_semantics_proven"])
         self.assertFalse(any(start <= 0x2d3b0 < start + len(data)
@@ -181,6 +198,7 @@ class UncreditedCommandCandidatesTests(unittest.TestCase):
         self.assertEqual(__import__("hashlib").sha256(image).hexdigest(),dlm.REFERENCE_SHA256)
         result = dlm.verify_uncredited_candidates(image)
         self.assertEqual(result["candidate_mathematically_matched_bytes"],160)
+        self.assertEqual(result["candidate_transfer_mathematically_matched_bytes"],110)
         self.assertEqual(result["additional_source_owned_bytes"],0)
 
 

@@ -138,7 +138,7 @@ fn run()->Result<(),String> {
             let image=fs::read(&args[1]).map_err(|e|e.to_string())?;
             if hex_digest(&image)!=REFERENCE_SHA256 {return Err("reference SHA-256 mismatch".into());}
             let (mirrored,classified)=novatek_dlm_control_candidates::verify_reference_assisted_candidates(&image)?;
-            println!("Candidate 40-bit recurrence matches {mirrored} reference bytes; adjacent {classified} externally supplied transfer bytes have valid five-byte structure. ZERO new source-authored DLM credit; operation bits and record payload semantics are not established.");
+            println!("Two candidate 40-bit recurrences match {mirrored} plus {classified} reference bytes; transferred fields show 0x190 strides and selectors. ZERO new source-authored DLM credit; the controller operation bits and payload semantics remain unproven.");
         }
         Some("check-envelope") if args.len()==2 => {
             let image=fs::read(&args[1]).map_err(|e|e.to_string())?;

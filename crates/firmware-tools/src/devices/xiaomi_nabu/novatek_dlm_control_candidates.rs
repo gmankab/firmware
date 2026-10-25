@@ -70,6 +70,52 @@ pub fn inspect_external_transfer_records(input:&[u8])->Result<Vec<ObservedTransf
     Ok(result)
 }
 
+/// A compact candidate for the 22 adjacent 40-bit transfer words.
+///
+/// Payloads repeat a 0x190 (400) stride and select a handful of slots from
+/// three observed base addresses. The recurrence is fully checked against the
+/// *reference* but the controller opcode semantics and the origin of all
+/// three base addresses are still unknown. Therefore this output MUST NOT be
+/// returned from novatek_dlm::fragments() or credited as SourceDlmData.
+///
+/// The companion parser deliberately accepts other legal external payloads:
+/// only verify_reference_assisted_candidates() pins the exact recurrence.
+const TRANSFER_INDEX_STRIDE:u16=0x0190;
+const SMALL_SELECTOR_STRIDE:u16=0x0010;
+const TRANSFER_BASE_A:u16=0x80c8;
+const TRANSFER_BASE_B:u16=0x9068;
+const SMALL_SELECTOR_BASE:u16=0x4bf4;
+
+pub fn transfer_word_candidate()->Vec<u8>{
+    let mut out=Vec::with_capacity(TRANSFER_RECORDS*WORD_BYTES);
+    fn write(out:&mut Vec<u8>,class:u8,payload:u16){
+        out.extend_from_slice(&[0x20,0x00,class]);
+        out.extend_from_slice(&payload.to_le_bytes());
+    }
+    write(&mut out,0x19,0x9004);
+    for index in [4,0,1,2,3,4]{
+        write(&mut out,0x32,TRANSFER_BASE_A+index*TRANSFER_INDEX_STRIDE);
+    }
+    for index in [0,2]{
+        write(&mut out,0x19,TRANSFER_BASE_B+index*TRANSFER_INDEX_STRIDE);
+    }
+    for index in [0,1]{
+        write(&mut out,0x02,SMALL_SELECTOR_BASE+index*SMALL_SELECTOR_STRIDE);
+    }
+    for index in [1,3]{
+        write(&mut out,0x19,TRANSFER_BASE_B+index*TRANSFER_INDEX_STRIDE);
+    }
+    for index in [0,1]{
+        write(&mut out,0x02,SMALL_SELECTOR_BASE+index*SMALL_SELECTOR_STRIDE);
+    }
+    write(&mut out,0x19,TRANSFER_BASE_B+5*TRANSFER_INDEX_STRIDE);
+    for index in [4,0,1,2,3,4]{
+        write(&mut out,0x32,TRANSFER_BASE_B+index*TRANSFER_INDEX_STRIDE);
+    }
+    assert_eq!(out.len(),TRANSFER_RECORDS*WORD_BYTES);
+    out
+}
+
 /// Verify both candidate observations against a caller-supplied reference.
 /// This must never be used as evidence of new source-owned DLM bytes.
 pub fn verify_reference_assisted_candidates(image:&[u8])->Result<(usize,usize),String>{
@@ -83,6 +129,11 @@ pub fn verify_reference_assisted_candidates(image:&[u8])->Result<(usize,usize),S
     let transfer=image.get(TRANSFER_RECORDS_START..TRANSFER_RECORDS_END)
         .ok_or("missing external transfer record bytes")?;
     let parsed=inspect_external_transfer_records(transfer)?;
+    let candidate=transfer_word_candidate();
+    if let Some(i)=candidate.iter().zip(transfer).position(|(a,b)|a!=b){
+        return Err(format!("five-byte transfer recurrence mismatch at file 0x{:x}",
+            TRANSFER_RECORDS_START+i));
+    }
     Ok((generated.len(),parsed.len()*WORD_BYTES))
 }
 
@@ -121,15 +172,46 @@ pub fn verify_reference_assisted_candidates(image:&[u8])->Result<(usize,usize),S
         assert!(inspect_external_transfer_records(&external[..109]).is_err());
     }
     #[test]
+    fn transfer_recursion_has_stride_and_permutation_symmetry(){
+        let raw=transfer_word_candidate();
+        let parsed=inspect_external_transfer_records(&raw).unwrap();
+        assert_eq!(parsed.len(),22);
+        assert_eq!(parsed[0].class,0x19);
+        assert_eq!(parsed[0].externally_supplied_payload,0x9004);
+        for i in 1..7{
+            assert_eq!(parsed[i].class,0x32);
+            assert_eq!(parsed[i].externally_supplied_payload,
+                TRANSFER_BASE_A+[4u16,0,1,2,3,4][i-1]*TRANSFER_INDEX_STRIDE);
+        }
+        for (i,idx) in [0u16,2,1,3,5].iter().enumerate(){
+            assert_eq!(parsed[[7,8,11,12,15][i]].externally_supplied_payload,
+                TRANSFER_BASE_B+*idx*TRANSFER_INDEX_STRIDE);
+        }
+        for (i,idx) in [4u16,0,1,2,3,4].iter().enumerate(){
+            assert_eq!(parsed[16+i].externally_supplied_payload,
+                TRANSFER_BASE_B+*idx*TRANSFER_INDEX_STRIDE);
+        }
+        for i in [9,13]{
+            assert_eq!(parsed[i].class,0x02);
+            assert_eq!(parsed[i].externally_supplied_payload,SMALL_SELECTOR_BASE);
+            assert_eq!(parsed[i+1].externally_supplied_payload,
+                SMALL_SELECTOR_BASE+SMALL_SELECTOR_STRIDE);
+        }
+    }
+    #[test]
     fn altered_generated_candidate_is_rejected_by_explicit_reference_verifier(){
         let mut image=vec![0;TRANSFER_RECORDS_END];
         image[MIRRORED_WORDS_START..MIRRORED_WORDS_END]
             .copy_from_slice(&mirrored_control_word_candidate());
-        for record in image[TRANSFER_RECORDS_START..TRANSFER_RECORDS_END].chunks_exact_mut(5){
-            record.copy_from_slice(&[0x20,0x00,0x19,0,0]);
-        }
+        image[TRANSFER_RECORDS_START..TRANSFER_RECORDS_END]
+            .copy_from_slice(&transfer_word_candidate());
         assert_eq!(verify_reference_assisted_candidates(&image).unwrap(),(160,110));
         image[MIRRORED_WORDS_START+25]^=0x02;
         assert!(verify_reference_assisted_candidates(&image).unwrap_err().contains("0x2d3c9"));
+        image[MIRRORED_WORDS_START..MIRRORED_WORDS_END]
+            .copy_from_slice(&mirrored_control_word_candidate());
+        image[TRANSFER_RECORDS_START+4]^=1;
+        assert!(verify_reference_assisted_candidates(&image).unwrap_err()
+            .contains("five-byte transfer recurrence"));
     }
 }
