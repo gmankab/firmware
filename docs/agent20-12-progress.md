@@ -401,3 +401,28 @@ segments. The new contiguous callback/type-config segment
 All regenerated fragments compare byte-exactly against the pinned original;
 12 explicit NOP alignment bytes are disclosed separately from useful
 controller logic. Next helper begins at `0x4467a0`.
+
+## Checkpoint 14: controller-state notifier
+
+Added **80 independent Hexagon V60 bytes** at file `[0x4467a0,0x4467f0)`
+(VMA `[0x1e4007a0,0x1e4007f0)`, physical
+`[0x900007a0,0x900007f0)`). The helper checks a controller state cache,
+notifies a platform callback when it differs from a registered global,
+and updates the global state with checked stack-frame handling.
+
+LLVM6 hoists a new-value branch before the generating comparison/move,
+and schedules a later frame reload before an extended memory store.
+`restore_aux_controller_notify_packets` checks the instruction categories,
+source packet markers and 80-byte size; it restores the two original
+three-word packet orders by permuting source-assembled instructions and
+updating only their parse fields. Synthetic negative tests ensure unsupported
+opcode/marker changes fail rather than silently writing vendor opcodes.
+
+Total **1,880 source-generated later modem bytes**, with the newly contiguous
+callback/type-config/notification fragment `[0x446650,0x4467f0)` now
+**416 bytes** (SHA-256
+`da70ab6fec35df21657028296d3fa96d650cc312f5938674135553fa46fbc9e2`).
+The last packet includes a source `nop`, recorded as 4 bytes of deliberate
+alignment, not as recovered controller logic. The next callable function
+begins at modem file `0x4467f0`. Original modem authentication remains
+externally supplied; no full firmware image has been compiled.

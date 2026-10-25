@@ -34,6 +34,7 @@ AUX_WORKER_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_
 AUX_LOOKUP_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_aux_registry_lookup.s"
 AUX_DISPATCH_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_aux_dispatch_helpers.s"
 AUX_TYPE_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_aux_type_config.s"
+AUX_NOTIFY_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_aux_controller_notify.s"
 ATOMIC_START = 0x7C000
 ATOMIC_END = 0x7C040
 SERVICE_START = 0x7C2EC
@@ -66,6 +67,8 @@ AUX_DISPATCH_START = 0x446650
 AUX_DISPATCH_END = 0x446694
 AUX_TYPE_START = 0x446694
 AUX_TYPE_END = 0x4467A0
+AUX_NOTIFY_START = 0x4467A0
+AUX_NOTIFY_END = 0x4467F0
 MARKER_MASK = 3 << 14
 CONTINUE_MARKER = 1 << 14
 END_MARKER = 3 << 14
@@ -389,6 +392,36 @@ def restore_aux_type_return_packets(assembled: bytes) -> bytes:
     return struct.pack('<67I',*words)
 
 
+def restore_aux_controller_notify_packets(assembled: bytes) -> bytes:
+    """Restore target producer-order packets for controller notification.
+
+    LLVM6 moves the branch consumer before its `p0` comparison and source
+    move, and moves the frame reload before its extended MMIO store. The
+    target toolchain keeps each three-word group in explicit source order.
+    Only ISA-checked instruction ordering and 2-bit parse markers change.
+    No private OEM opcode word is read or copied into the generated result.
+    """
+    if len(assembled)!=AUX_NOTIFY_END-AUX_NOTIFY_START:
+        raise ValueError("auxiliary controller notifier must emit exactly 80 bytes")
+    words=list(struct.unpack('<20I',assembled))
+    groups=[
+       (0x10//4,[0x5c,0xf2,0x70]),
+       (0x38//4,[0x91,0x01,0x48]),
+    ]
+    for i,classes in groups:
+        seq=words[i:i+3]
+        if [x>>24 for x in seq]!=classes:
+            raise ValueError(f"aux notifier packet classes differ at offset {i*4:#x}")
+        if [x&MARKER_MASK for x in seq]!=[
+            CONTINUE_MARKER,CONTINUE_MARKER,END_MARKER
+        ]:
+            raise ValueError(f"aux notifier packet marker mismatch at offset {i*4:#x}")
+        consumer,first,second=seq
+        words[i:i+3]=[first,(second&~MARKER_MASK)|CONTINUE_MARKER,
+                      (consumer&~MARKER_MASK)|END_MARKER]
+    return struct.pack('<20I',*words)
+
+
 def assemble(llvm_mc: Path, source: Path) -> bytes:
     with tempfile.TemporaryDirectory(prefix="nabu-modem-late-") as tmp:
         obj = Path(tmp) / "late.o"
@@ -417,9 +450,10 @@ def output_fragments(llvm_mc: Path) -> dict[int, bytes]:
     aux_lookup = restore_aux_lookup_return_packet(assemble(llvm_mc,AUX_LOOKUP_SOURCE))
     aux_dispatch = assemble(llvm_mc,AUX_DISPATCH_SOURCE)
     aux_type = restore_aux_type_return_packets(assemble(llvm_mc,AUX_TYPE_SOURCE))
+    aux_notify = restore_aux_controller_notify_packets(assemble(llvm_mc,AUX_NOTIFY_SOURCE))
     if len(aux_dispatch) != AUX_DISPATCH_END-AUX_DISPATCH_START:
         raise ValueError("aux callback dispatcher must emit exactly 68 bytes")
-    assert AUX_DISPATCH_END == AUX_TYPE_START
+    assert AUX_DISPATCH_END == AUX_TYPE_START and AUX_TYPE_END == AUX_NOTIFY_START
     if len(aux_mmio) != AUX_MMIO_END-AUX_MMIO_START:
         raise ValueError("auxiliary MMIO initialization source has invalid length")
     assert AUX_GUARD_END == AUX_STAGE_START and AUX_STAGE_END == AUX_MMIO_START
@@ -434,7 +468,7 @@ def output_fragments(llvm_mc: Path) -> dict[int, bytes]:
     return {ATOMIC_START: atomic + controller, SERVICE_START: service+service_mmio+service_flags+service_alloc,
             AUX_START: auxiliary, AUX_INIT_START: aux_init,
             AUX_GUARD_START: aux_guard+aux_stage+aux_mmio+aux_heap+aux_worker+aux_lookup,
-            AUX_DISPATCH_START:aux_dispatch+aux_type}
+            AUX_DISPATCH_START:aux_dispatch+aux_type+aux_notify}
 
 
 def executable_segments(reference: bytes) -> dict[int, tuple[int, int, int, int]]:
