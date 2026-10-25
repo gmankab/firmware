@@ -655,3 +655,36 @@ cargo run --offline --locked -p firmware-tools --bin novatek-nabu -- \
 Validation: Rust workspace tests, Python unittest tests, and offline release
 build. The two CRC-valid layout variants remain independently generated only
 in the already integrated `[0x450,0x588)` prefix for now.
+
+## Checkpoint 16 — Embed complete 398-byte source-generated boot prefix
+
+The Novatek CRC-aware builder now emits the entire **398-byte independently
+reconstructed NDS32 prefix `[0x450,0x5de)`** from typed source; callers only
+supply opaque ILM *after `0x5de`*. A partition-profile selector recognizes
+both independently verified variants based on ILM length and rejects any
+unknown format rather than guessing linker placement, service IDs, or source
+code. Both generated paths are exact across the firmware revisions.
+
+The required postmarketOS image now has this fully disjoint provenance map:
+
+| Provenance | Bytes |
+| --- | ---: |
+| Independently generated zeros/`NVT` | 35,136 |
+| **Independently authored executable NDS32** | **398** |
+| Mirror derived from independently authored DLM input | 2,304 |
+| Externally provided structured vector/metadata values | 1,024 |
+| Remaining unimplemented ILM `[0x5de,0x1ac80)` | 108,194 |
+| Remaining unimplemented DLM `[0x22000,0x2e190)` | 49,552 |
+| **Total** | **196,608** |
+
+**35,534 bytes** are now generated directly from source (398 executable),
+while **157,746 ILM/DLM bytes** are not reconstructed. A structurally complete
+assembly from external original remainder inputs remains a useful integrity
+test but does **not** establish independent executable authorship or device
+flash safety. CRC-32/MPEG-2 recomputation, duplicated DLM prefix, and
+source-generated reset/ISR code exactly reproduce both pinned 196,608-byte
+images with zero mismatches in this external-input structural test.
+
+Rust tests: 197 passed; Python tests: 13; offline release build and
+`verify-envelope` for both references pass. All new original firmware bytes
+remain outside the repository.
