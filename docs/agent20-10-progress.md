@@ -274,3 +274,34 @@ Agent 20-10 owns only new `cdsp_late_*` sources, its verification tool, focused 
   outside Git; no OEM-authenticated new CDSP file or hardware behavior is
   claimed. **Next missing CDSP executable code starts at file offset `0x56448`**
   (physical `0x96cc8448`).
+
+## Checkpoint 20 — CDSP seed handoff function and contiguous 1,124-byte RWE layout
+
+- Added a complete **28-byte Hexagon V66 seeded-controller handoff** at
+  `[0x56448,0x56464)` (physical `[0x96cc8448,0x96cc8464)`, ELF virtual
+  `[0xc00c8448,0xc00c8464)`). All seven emitted 32-bit instruction words
+  match the pinned original `cdsp.mbn`, with zero differing bytes.
+- Checked semantic operations: physical call at `0x96cc8448` targeting
+  `0x96dc28ac`, extended pointer assignment and zero-frame duplex,
+  `R1:0=combine(1,0xc0226160)`, frame deallocation, and physical tail jump
+  from `0x96cc8460` to `0x96cce74c`. The original continuation/final packet
+  markers are modeled explicitly. The emitted instruction-word encoding
+  does not require OEM opcode tables or imported reference payload.
+- The independent LLVM6 semantic source reassembles all 28 bytes with
+  **five unchanged instruction words** and two differing, documented Hexagon
+  continuation marker choices. A mistaken LLVM fixture relative call value
+  was corrected to the actual `0xfa464` physical byte displacement.
+  Rizin V66 confirms all seven source-built words and both control transfers.
+- Verified source-built RWE prefix `[0x56000,0x56464)` = **1,124 bytes**:
+  **1,092 executable bytes + 32 NOP/fill layout bytes**. The other disjoint
+  completed 1,200-byte executable controller segment makes cumulative
+  independently rebuilt source code **2,292 bytes**, excluding the 32-byte
+  structural fill. The next unimplemented CDSP routine begins at `0x56464`.
+- Unit tests reject unsupported physical branch targets, operand registers,
+  and wrong duplex sizes. Run `cdsp-late-seed-handoff verify-prefix` with the
+  private pinned CDSP, and `tools/verify-agent20-10-cdsp-seed-handoff.py` with
+  LLVM6/Rizin V66 for independent confirmation. Complete offline Rust,
+  Python, and release checks pass before publication.
+- This branch is still **provisional from Agent05's old CDSP checkpoint 17**,
+  not from unavailable checkpoint-50-integrated history; it contains neither
+  original OEM signed payload nor a hardware-tested new firmware binary.
