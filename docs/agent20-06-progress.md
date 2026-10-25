@@ -227,3 +227,11 @@ python3 tools/agent20_06_a32_roundtrip.py /private/venus.mbn 0xa8ea0 0xa92c8 \
 - Functions verify codec plane-length limits, correct out-of-range counts with hardware diagnostics, update buffer-command checksums and dispatch callbacks. A conditional `STRH [R7],#2` is encoded using an existing checked halfword-postindex architecture helper; the retained after-return error branch is not discarded.
 - Direct generated Rust comparison and independent Clang/LLVM round-trip of all 1,360 bytes give **zero mismatches**. Rust regression covers all three new diagnostic data pools.
 - Next missing VMA `0xb11b4` (MBN file `0xb51b4`). Still a provisional old-branch instruction-byte re-encoding, not a fully recovered high-level source, not OEM signed.
+
+## Checkpoint 25 — codec stream state, buffer registration and reporting
+
+- Cumulative runtime `[0xa8000,0xb1b44)` = **39,748 consecutive reference-identical bytes**, corresponding MBN file `[0xac000,0xb5b44)`.
+- Rebuilt new `[0xb11b4,0xb1b44)` = 2,448 bytes: **601 ARM32 instructions (2,404 bytes)** and **11 non-executable literal words (44 bytes)** in two separately classified pools at `[0xb1a08,0xb1a2c)` (nine words) and `[0xb1b3c,0xb1b44)` (two words).
+- Reconstructs stream hardware initialization, data-plane/controller slot updates, callback/error handling and codec register reports. The original loop and conditional branches into earlier status transitions are retained. An original `POP {...,PC}` at `0xb1b38` returns before the second pool; no invented return is added.
+- Direct Rust bytes match pinned original exactly. Independent Clang/LLVM round-trip for `[0xb11b4,0xb1b44)` verifies 2,404 typed instruction bytes and 44 data bytes with **zero mismatches**. Literal regression tests cover both pools.
+- Next unimplemented VMA `0xb1b44` (file `0xb5b44`) begins the next codec controller helper. This remains provisional source-level A32 *instruction encoding*, not a behavioral decompilation or newly signed OEM image.
