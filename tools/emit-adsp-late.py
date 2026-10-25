@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import json
 import importlib.util
 from pathlib import Path
 import struct
@@ -35,6 +36,8 @@ FRAGMENTS = {
     'callback-registry': (TOOLS / 'adsp-late-callback-registry.S', 0x39120, 0x80),
     'unregister-registry': (TOOLS / 'adsp-late-unregister-registry.S', 0x391A0, 0x40),
     'initialize-registry': (TOOLS / 'adsp-late-initialize-registry.S', 0x391E0, 0x50),
+    'registry-allocator': (TOOLS / 'adsp-late-registry-allocator.S', 0x39230, 0x98),
+    'registry-probe': (TOOLS / 'adsp-late-registry-probe.S', 0x392C8, 0x50),
 }
 
 class LateAdspError(ValueError):
@@ -125,13 +128,71 @@ def verify_slice(code: bytes, data: bytes, offset: int) -> None:
                             f'generated={code[mismatch]:02x}, expected={original[mismatch]:02x}')
 
 
+def assembled_inventory(llvm_mc: str, reference: bytes | None = None) -> tuple[dict, dict[str,bytes]]:
+    """Return exact source-generated executable regions without filling holes.
+
+    Never concatenate disjoint regions or reuse OEM code in output. The
+    manifest accounts for executable instruction bytes only; interstitial
+    alignment/BSS and authentication are not reconstructed artifacts.
+    """
+    if reference is not None:
+        validate_reference(reference)
+    spans=[]
+    emitted={}
+    for name,(source,off,size) in sorted(FRAGMENTS.items(), key=lambda row:row[1][1]):
+        assembled=compile_source(llvm_mc,source,size)
+        if reference is not None:
+            verify_slice(assembled,reference,off)
+        matched=[(lo,va,pa,filesz) for lo,va,pa,filesz,_mem,_perm in SEGMENTS
+                 if lo <= off and off+size <= lo+filesz]
+        if len(matched)!=1:
+            raise LateAdspError(f'Fragment {name} has no unique executable segment')
+        lo,va,pa,_sz=matched[0]
+        spans.append({
+            'name':name,'source':source.name,
+            'file_offset_start':off,'file_offset_end':off+size,
+            'virtual_address_start':va+(off-lo),'physical_address_start':pa+(off-lo),
+            'source_generated_executable_bytes':size,
+            'sha256':hashlib.sha256(assembled).hexdigest(),
+            'reference_byte_identical':reference is not None,
+        })
+        emitted[name]=assembled
+    for left,right in zip(spans,spans[1:]):
+        if left['file_offset_end']>right['file_offset_start']:
+            raise LateAdspError('Overlap among independently reconstructed source intervals')
+    return ({
+        'format_version':1,
+        'firmware':'Xiaomi Nabu ADSP Hexagon v66',
+        'reference_sha256':REFERENCE_SHA256,
+        'compiler':'LLVM6 Hexagon v65 assembler, architecturally shared instructions only',
+        'fragments':spans,
+        'total_independently_assembled_executable_bytes':sum(x['source_generated_executable_bytes'] for x in spans),
+        'gap_bytes_included_in_generated_executables':0,
+        'external_original_code_bytes_in_output':0,
+        'complete_adsp_image':False,
+        'original_oem_authenticity_generated':False,
+    },emitted)
+
+
 def main(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser(description=__doc__)
-    p.add_argument('--segment', choices=sorted(FRAGMENTS), default='queue-drain')
+    p.add_argument('--segment', choices=['all', *sorted(FRAGMENTS)], default='queue-drain')
     p.add_argument('--llvm-mc', required=True)
     p.add_argument('--output', type=Path, required=True)
     p.add_argument('--reference', type=Path, help='private exact adsp.mbn (optional)')
     args = p.parse_args(argv)
+    if args.segment == 'all':
+        original = args.reference.read_bytes() if args.reference is not None else None
+        inventory, outputs = assembled_inventory(args.llvm_mc,original)
+        args.output.mkdir(parents=True,exist_ok=True)
+        for name,code in outputs.items():
+            (args.output/f'{name}.bin').write_bytes(code)
+        (args.output/'manifest.json').write_text(json.dumps(inventory,indent=2)+'\n')
+        print(f"Rebuilt {inventory['total_independently_assembled_executable_bytes']} "
+              f"original executable bytes in {len(outputs)} disjoint fragments, "
+              f"validated against reference={original is not None}; "
+              f"directory={args.output}")
+        return 0
     source, off, size = FRAGMENTS[args.segment]
     result = compile_source(args.llvm_mc, source, size)
     if args.reference is not None:
