@@ -1,0 +1,158 @@
+// SPDX-License-Identifier: GPL-3.0-only
+//! Hexagon CDSP RWE runtime-init callback loader and jump trampoline.
+//! The source reproduces the original V66 semantics as typed instruction
+//! encodings and preserves the original *forced-extended* GP and call forms.
+//! The 12-byte zero alignment after the preceding 84-byte initializer is
+//! explicitly recorded separately, not counted as reconstructed instructions.
+use super::cdsp_boot::{self,GeneralRegister,PacketMarker,ScalarPacket};
+use super::cdsp_late_mmio::encode_word_store_register;
+use super::cdsp_late_runtime;
+use super::cdsp_late_runtime_more;
+
+pub const FILE_OFFSET:usize=0x56060;
+pub const ELF_VADDR:u32=0xc00c_8060;
+pub const PHYSICAL_ADDRESS:u32=0x96cc_8060;
+pub const FUNCTION_LEN:usize=0x74;
+pub const FRAME_BOUNDARY:usize=0x560d4;
+pub const RWE_LAYOUT_PREFIX_LEN:usize=0x114; // file 0x56000..0x56114
+pub const EXECUTABLE_BYTES_IN_LAYOUT_PREFIX:usize=84+116+64;
+pub const LAYOUT_FILL_BYTES_IN_PREFIX:usize=12;
+
+fn put(out:&mut Vec<u8>,val:u32){out.extend_from_slice(&val.to_le_bytes());}
+
+/// Extended Hexagon GP-relative source word store. LLVM6 may use a shorter
+/// GP addressing mode, but this two-word V66 form is independently decoded
+/// with Rizin and its register/offset fields are checked.
+pub fn encode_extended_gp_plain_store(src:GeneralRegister,absolute:u32)->Result<[u32;2],String>{
+    if src.number()!=3 || absolute!=0xc036_488c || absolute&3!=0{
+        return Err("CDSP GP callback loader only supports R3 -> 0xc036488c".into());
+    }
+    let ext=((absolute>>20)<<16)|((absolute>>6)&0x3fff)|0x4000;
+    let body=0x4880_c000|(u32::from(src.number())<<8)|(absolute&0x3f);
+    Ok([ext,body])
+}
+
+/// Hexagon two-word extended direct CALL. Call displacement is measured
+/// relative to the *first instruction in the packet*, not from a linked ELF
+/// VMA; its upper 26 bits reside in `immext` and low six bits in the call.
+/// The caller must provide a word-aligned positive displacement; V66 parsing
+/// uses the final/continuation selector passed explicitly.
+pub fn encode_extended_call(displacement_bytes:u32,end_packet:bool)->Result<[u32;2],String>{
+    if displacement_bytes==0 || displacement_bytes>0x00ff_ffff || displacement_bytes&3!=0{
+        return Err("Hexagon extended CALL must be aligned, nonzero and fit checked 24-bit range".into());
+    }
+    let ext=((displacement_bytes>>20)<<16)|((displacement_bytes>>6)&0x3fff)|0x4000;
+    let body=0x5a00_c000|((displacement_bytes&0x3f)<<1);
+    Ok([ext,if end_packet {body}else{PacketMarker::ContinuationA.apply(body)}])
+}
+
+/// Low pair `R1:0` memory transfers at a fixed frame offset. LLVM6 and
+/// Rizin V66 corroborate these three selected forms, and other general
+/// addressing layouts are intentionally not guessed.
+pub fn encode_stack_pair_io(store:bool,postincrement:bool)->Result<u32,String>{
+    match (store,postincrement){
+        (true,false)=>Ok(0xa7dd_e0ff), // memd(SP+#-8)=R1:0
+        (false,false)=>Ok(0x91dd_c000), // R1:0=memd(SP+#0)
+        (false,true)=>Ok(0x9bdd_c020),  // R1:0=memd(SP++#8)
+        (true,true)=>Err("Unvalidated stack pair store+postincrement combination".into()),
+    }
+}
+
+/// Recreate the constructor registration loop. All eight call targets are
+/// original physical addresses (not raw call opcodes), and are converted to
+/// checked PC-relative offsets from their respective `immext` packet starts.
+pub fn build_runtime_loader()->Result<Vec<u8>,String>{
+    let r=|n|GeneralRegister::new(n);
+    let mut out=Vec::with_capacity(FUNCTION_LEN);
+    for word in encode_extended_gp_plain_store(r(3)?,0xc036_488c)?{put(&mut out,word);}
+    for word in encode_extended_call(0x5878,false)?{put(&mut out,word);}
+    put(&mut out,PacketMarker::ContinuationA.apply(
+        ScalarPacket::AddSignedSmallImmediate{dst:r(29)?,src:r(29)?,value:-8}.encode()?));
+    put(&mut out,encode_stack_pair_io(true,false)?);
+    for (distance,is_final) in [(0x1710,false),(0x2878,false)]{
+        for word in encode_extended_call(distance,is_final)?{put(&mut out,word);}
+        put(&mut out,encode_stack_pair_io(false,false)?);
+    }
+    for word in cdsp_boot::encode_extended_assignment(r(18)?,0xc028_c000_u32 as i32,true){put(&mut out,word);}
+    for word in encode_extended_call(0x148,true)?{put(&mut out,word);}
+    put(&mut out,encode_word_store_register(r(18)?,r(0)?));
+    for word in encode_extended_call(0x224,true)?{put(&mut out,word);}
+    for distance in [0x5984,0x2830]{
+        for word in encode_extended_call(distance,false)?{put(&mut out,word);}
+        put(&mut out,encode_stack_pair_io(false,false)?);
+    }
+    for word in encode_extended_call(0xfb280,false)?{put(&mut out,word);}
+    put(&mut out,encode_stack_pair_io(false,true)?);
+    put(&mut out,ScalarPacket::JumpRelative{displacement_bytes:0}.encode()?);
+    if out.len()!=FUNCTION_LEN{return Err("CDSP RWE loader must contain exactly 116 source-generated bytes".into());}
+    Ok(out)
+}
+
+pub fn verify_runtime_loader(reference:&[u8])->Result<(),String>{
+    cdsp_boot::validate_reference(reference)?;
+    let generated=build_runtime_loader()?;
+    if reference.get(FILE_OFFSET..FILE_OFFSET+generated.len())!=Some(generated.as_slice()){
+        return Err("Hexagon CDSP runtime constructor callback loader differs from pinned reference".into());
+    }
+    Ok(())
+}
+
+/// Reassemble file `0x56000..0x56114` with explicit 12-byte linker fill.
+/// The filler between functions is not executable reconstruction, and the
+/// reference firmware is NEVER read into this generator.
+pub fn build_rwe_source_and_layout_prefix()->Result<Vec<u8>,String>{
+    let mut bytes=cdsp_late_runtime::build_runtime_callback_initializer()?;
+    bytes.extend([0u8; LAYOUT_FILL_BYTES_IN_PREFIX]);
+    bytes.extend(build_runtime_loader()?);
+    bytes.extend(cdsp_late_runtime_more::build_link_state_and_gp_clear()?);
+    if bytes.len()!=RWE_LAYOUT_PREFIX_LEN{
+        return Err("CDSP RWE prefix layout does not cover 0x56000..0x56114".into());
+    }
+    Ok(bytes)
+}
+
+pub fn verify_rwe_source_and_layout_prefix(reference:&[u8])->Result<(),String>{
+    cdsp_boot::validate_reference(reference)?;
+    let bytes=build_rwe_source_and_layout_prefix()?;
+    if reference.get(0x56000..0x56000+bytes.len())!=Some(bytes.as_slice()){
+        return Err("CDSP first RWE layout fails exact comparison".into());
+    }
+    Ok(())
+}
+
+#[cfg(test)]
+mod tests{
+    use super::*;
+    #[test]
+    fn extended_hexagon_direct_calls_preserve_physical_targets(){
+        assert_eq!(encode_extended_gp_plain_store(GeneralRegister::new(3).unwrap(),0xc036488c).unwrap(),[0x0c03_5922,0x4880_c30c]);
+        assert!(encode_extended_gp_plain_store(GeneralRegister::new(2).unwrap(),0xc036488c).is_err());
+        let cases=[(0x5878,false,[0x0000_4161,0x5a00_4070]),
+                   (0x1710,false,[0x0000_405c,0x5a00_4020]),
+                   (0x2878,false,[0x0000_40a1,0x5a00_4070]),
+                   (0x148,true,[0x0000_4005,0x5a00_c010]),
+                   (0x224,true,[0x0000_4008,0x5a00_c048]),
+                   (0x5984,false,[0x0000_4166,0x5a00_4008]),
+                   (0x2830,false,[0x0000_40a0,0x5a00_4060]),
+                   (0xfb280,false,[0x0000_7eca,0x5a00_4000])];
+        for (displacement,last,expected) in cases{
+            assert_eq!(encode_extended_call(displacement,last).unwrap(),expected);
+        }
+        assert!(encode_extended_call(0x5879,false).is_err());
+        assert!(encode_extended_call(0,false).is_err());
+        assert_eq!(encode_stack_pair_io(true,false).unwrap(),0xa7dd_e0ff);
+        assert_eq!(encode_stack_pair_io(false,false).unwrap(),0x91dd_c000);
+        assert_eq!(encode_stack_pair_io(false,true).unwrap(),0x9bdd_c020);
+    }
+    #[test]
+    fn firmware_layout_counts_only_source_authored_execution(){
+        assert_eq!(build_runtime_loader().unwrap().len(),0x74);
+        let bytes=build_rwe_source_and_layout_prefix().unwrap();
+        assert_eq!(bytes.len(),0x114);
+        assert_eq!(EXECUTABLE_BYTES_IN_LAYOUT_PREFIX,264);
+        assert_eq!(LAYOUT_FILL_BYTES_IN_PREFIX,12);
+        assert_eq!(&bytes[0x54..0x60],&[0u8;12]);
+        assert_eq!(bytes[0x110..0x114],[0x00,0xc0,0x9f,0x52]); // jumpr LR
+        assert_eq!(0x56000+bytes.len(),0x56114);
+    }
+}
