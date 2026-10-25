@@ -195,3 +195,11 @@ Original reference: private `map220v-nabu-firmware/venus.mbn`, SHA-256 `9d4af65d
 - New `[0x28568,0x28744)` = **476 bytes**, **119 typed executable A32 instructions and zero literal data words**. Implements bounded codec segment reads, 16-bit/32-bit status packing, two-pass DMA/stream register writes and completion frame restore.
 - Independent Clang/LLVM full-region reassembly matches **6,348 instructions and 487 distinct data words across 110 classified literal pools**, zero byte differences. Three external BLX symbol typing link warnings do not change emitted bytes.
 - All 194 Rust tests, 13 Python tests and release build pass. Next function begins at `0x28744`.
+
+## Checkpoint 27 — active codec-port and MMIO stream registration
+
+- Full continuous typed A32 `[0x21c78,0x28c2c)` = **28,596 reference-exact bytes** (MBN file `[0x25c78,0x2cc2c)`).
+- New `[0x28744,0x28c2c)` = **1,256 bytes**, **298 A32 instructions** and **16 separately identified literal words** `[0x28bec,0x28c2c)` comprising MMIO registry pointers, platform handlers and two calibration scalar pairs.
+- Includes active codec queue frame setup, hardware MMIO register updates, codec callback registration and conditional status/error reporting. All opaque data values remain separate from executable instructions.
+- Independent Clang/LLVM reassembly matches the entire fragment: **6,646 A32 instructions and 503 non-instruction data words across 111 pools**, zero byte differences. Nine external BLX relocation typing warnings are non-fatal; linked bytes match reference exactly.
+- The full 194 Rust and 13 Python tests and release build pass. Next uncovered function starts at `0x28c2c`.
