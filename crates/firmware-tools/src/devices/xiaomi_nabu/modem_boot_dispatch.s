@@ -69,3 +69,109 @@ use_alternate_resource:
 }
 { p0 = cmp.eq(r4,#0); if (p0.new) jump:nt descriptor_ready }
 { r1 = r4; r0 = memw(r25+##-1064821852) }
+// First staged modem image-map lookup: return the table entry whose key
+// matches S29's extracted revision field, retaining the previous default.
+{ r4 = memw(r25+##-1064821872) }
+.set first_stage_done, modem_boot_dispatch+0xe4
+{
+ r3 = memw(r25+##-1061984940)
+ if (cmp.eq(r3.new,#0)) jump:t first_stage_done
+}
+{
+ r7 = add(r25,##-1045593560)
+ r8 = add(r25,##-1045593496)
+}
+first_stage_iter:
+{
+ r3 = add(r3,#-1)
+ r5 = memw(r7++#4)
+ r6 = memw(r8++#4)
+}
+.set first_stage_match, modem_boot_dispatch+0xdc
+{
+ p0 = cmp.eq(r6,r12)
+ if (p0.new) jump:nt first_stage_match
+ if (p0.new) r4 = add(r5,#0)
+}
+{ p1 = cmp.eq(r3,#0); if (!p1.new) jump:t first_stage_iter }
+first_stage_match:
+{ memw(r25+##-1064821872) = r4 }
+// Second staged resource table: the modem's secondary memory-map variant.
+{ r4 = memw(r25+##-1064821860) }
+.set second_stage_done, modem_boot_dispatch+0x12c
+{
+ r3 = memw(r25+##-1061985036)
+ if (cmp.eq(r3.new,#0)) jump:t second_stage_done
+}
+{
+ r7 = add(r25,##-1033824968)
+ r8 = add(r25,##-1033824904)
+}
+second_stage_iter:
+{
+ r3 = add(r3,#-1)
+ r5 = memw(r7++#4)
+ r6 = memw(r8++#4)
+}
+.set second_stage_match, modem_boot_dispatch+0x124
+{
+ p0 = cmp.eq(r6,r12)
+ if (p0.new) jump:nt second_stage_match
+ if (p0.new) r4 = add(r5,#0)
+}
+{ p1 = cmp.eq(r3,#0); if (!p1.new) jump:t second_stage_iter }
+second_stage_match:
+{ memw(r25+##-1064821860) = r4 }
+// Third image-map table, with a different resource stride but identical
+// bounded search semantics. Registers r7/r8 are post-incremented in packet.
+{ r4 = memw(r25+##-1064821876) }
+.set third_stage_done, modem_boot_dispatch+0x174
+{
+ r3 = memw(r25+##-1061985032)
+ if (cmp.eq(r3.new,#0)) jump:t third_stage_done
+}
+{
+ r7 = add(r25,##-1033824840)
+ r8 = add(r25,##-1033824776)
+}
+third_stage_iter:
+{
+ r3 = add(r3,#-1)
+ r5 = memw(r7++#4)
+ r6 = memw(r8++#4)
+}
+.set third_stage_match, modem_boot_dispatch+0x16c
+{
+ p0 = cmp.eq(r6,r12)
+ if (p0.new) jump:nt third_stage_match
+ if (p0.new) r4 = add(r5,#0)
+}
+{ p1 = cmp.eq(r3,#0); if (!p1.new) jump:t third_stage_iter }
+third_stage_match:
+{ memw(r25+##-1064821876) = r4 }
+// Fourth image-map table, covering the final optional region lookup.
+{ r4 = memw(r25+##-1064821888) }
+.set fourth_stage_done, modem_boot_dispatch+0x1bc
+{
+ r3 = memw(r25+##-1061984944)
+ if (cmp.eq(r3.new,#0)) jump:t fourth_stage_done
+}
+{
+ r7 = add(r25,##-1045593688)
+ r8 = add(r25,##-1045593624)
+}
+fourth_stage_iter:
+{
+ r3 = add(r3,#-1)
+ r5 = memw(r7++#4)
+ r6 = memw(r8++#4)
+}
+.set fourth_stage_match, modem_boot_dispatch+0x1b4
+{
+ p0 = cmp.eq(r6,r12)
+ if (p0.new) jump:nt fourth_stage_match
+ if (p0.new) r4 = add(r5,#0)
+}
+{ p1 = cmp.eq(r3,#0); if (!p1.new) jump:t fourth_stage_iter }
+fourth_stage_match:
+{ memw(r25+##-1064821888) = r4 }

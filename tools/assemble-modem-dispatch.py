@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: GPL-3.0-only
-"""Build typed Hexagon modem early-dispatch continuation [0x3644,0x36e0)."""
+"""Build typed Hexagon modem boot dispatch and four bounded map lookups."""
 from pathlib import Path
+import struct
 import argparse
 import hashlib
 import runpy
@@ -10,13 +11,37 @@ import sys
 import tempfile
 
 FILE_START = 0x3644
-FILE_END = 0x36e0
+FILE_END = 0x3800
 CONTIGUOUS_START = 0x3000
 LENGTH = FILE_END - FILE_START
 PREFIX_LENGTH = FILE_START - CONTIGUOUS_START
 EXPECTED_MODEM_SHA256 = '6f5cb32bc10e41abb40938d185805e788f5637a41d3ebcef278e4e169fc36782'
 text_from_object = runpy.run_path(str(Path(__file__).with_name('assemble-modem-tlb.py')))['text_from_object']
 
+
+# LLVM 6 packet scheduler canonicalizes the predicate consumer (branch)
+# ahead of the producer (cmp). The modem has four legal three-instruction
+# packets in the inverse ordering. Restore semantic producer-first order,
+# refusing to handle any unexpected instruction class or packet marker.
+PREDICATE_LOOKUP_PACKETS = (0x3710, 0x3758, 0x37a0, 0x37e8)
+MARKER_MASK = 3 << 14
+CONTINUE = 1 << 14
+END_PACKET = 3 << 14
+
+
+def restore_predicate_order(data: bytes) -> bytes:
+    if len(data) != LENGTH or len(data) % 4:
+        raise ValueError('unexpected code size for checked packet scheduling')
+    words = list(struct.unpack('<'+'I'*(len(data)//4),data))
+    for addr in PREDICATE_LOOKUP_PACKETS:
+        at=(addr-FILE_START)//4
+        jump, comparison, conditional_move = words[at:at+3]
+        if (jump >> 24) != 0x5c or (comparison >> 24) != 0xf2 or (conditional_move >> 24) != 0x74:
+            raise ValueError(f'unexpected predicated packet opcode class at 0x{addr:x}')
+        if [w & MARKER_MASK for w in (jump, comparison, conditional_move)] != [CONTINUE, CONTINUE, END_PACKET]:
+            raise ValueError(f'unexpected predicated packet markers at 0x{addr:x}')
+        words[at:at+3] = [comparison, jump, conditional_move]
+    return struct.pack('<'+'I'*len(words),*words)
 
 def assemble(llvm_mc: Path) -> bytes:
     source = Path(__file__).resolve().parents[1]/'crates/firmware-tools/src/devices/xiaomi_nabu/modem_boot_dispatch.s'
@@ -29,7 +54,7 @@ def assemble(llvm_mc: Path) -> bytes:
         compiled=text_from_object(obj.read_bytes())
     if len(compiled)!=LENGTH:
         raise ValueError(f'dispatcher length {len(compiled)} bytes, expected {LENGTH}')
-    return compiled
+    return restore_predicate_order(compiled)
 
 
 def verify(reference: bytes, generated: bytes, file_start: int) -> None:
