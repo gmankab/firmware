@@ -77,3 +77,11 @@ python3 tools/agent20_06_a32_roundtrip.py /private/venus.mbn 0xa8ea0 0xa92c8 \
 - This *function is incomplete*: it continues beyond the checkpoint boundary `0xa9800`. Later branches and literal pools must be reconstructed before claiming the complete routine.
 - Independently verified 162 instructions by Clang/LLVM mnemonic assembly and direct typed Rust emitter reference comparison; zero differing bytes.
 - Exact next missing ARM address: `0xa9800` (original `venus.mbn` file offset `0xad800`).
+
+## Checkpoint 07 — fast codec plane scaling and blending
+
+- Runtime interval `[0xa8000,0xa9cf0)` now yields **7,408 consecutive bytes**; private original MBN file offsets `[0xac000,0xadcf0)`. The added 1,264 bytes at `[0xa9800,0xa9cf0)` consist of 316 typed ARM32 instructions with **zero** literal words.
+- The code prepares scaling/quantization metadata and updates codec buffer accounting. It returns at `0xa9cec` on a fast path, but the enclosing routine still has later error paths beginning at `0xa9cf0`, so this checkpoint is not a complete function.
+- The shared checked public A32 encoder `signed_multiply_accumulate_bottom_halves` (`SMLABB`) is new. It encodes the low signed halfword multiply/accumulate at `0xa9bcc` and `0xa9bdc`, and rejects PC operands. Encoder source and tests are committed separately for integration review.
+- Direct source-generated Rust output matches all 7,408 reference bytes (SHA-256 `5a1a09cd923b2b5a624e36031c901f1120aa83cd2a39336df98f64a41ec40737`); independent Clang/LLVM reassembly of the new 316 instructions exactly matches original. All 189 Rust tests, 13 Python tests and offline release build passed.
+- Next missing runtime `0xa9cf0` (`venus.mbn` offset `0xadcf0`). No external OEM data is copied into the emitter. Remains provisional relative to unavailable checkpoint 50 integration base.
