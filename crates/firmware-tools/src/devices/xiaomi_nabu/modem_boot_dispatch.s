@@ -401,3 +401,48 @@ transfer_single_iteration:
  memw(r5++#4) = r8
 }:endloop0
 { jump transfer_record_next }
+// Program initial modem memory protection translations. The loop reads
+// doublewords of checked page-map entries and writes TLB slots with a
+// monotonically increasing index before handing control to init callbacks.
+.set install_modem_tlbs, modem_boot_dispatch+0xfa4
+{ call install_modem_tlbs }
+{ r5 = memw(r25+##-1064935396) }
+{ p0 = cmp.eq(r5,#0) }
+.set finished_modem_tlbs, modem_boot_dispatch+0x4dc
+{ if (p0) jump finished_modem_tlbs }
+{ p0 = tstbit(r5,#0) }
+{ if (p0) r5 = add(r5,#-1) }
+{ if (p0) r5 = add(r5,r24) }
+{ r4 = memw(r25+##-1064935412) }
+{ r3 = lsr(r24,#11) }
+{ r2 = #0 }
+tlb_stage_loop:
+{
+ p0 = !cmp.eq(r4,#0)
+ r1:0 = memd(r5+#0)
+}
+.set tlb_stage_exit, modem_boot_dispatch+0x470
+{
+ p1 = cmp.eq(r1,#0); if (p1.new) jump:nt tlb_stage_exit
+ if (p0) r0 = add(r0,r3)
+}
+{ memd(r5++#8) = r1:0 }
+// Y2_tlbw: 01101100000sssssPP0ttttt00000000; source pair R1:R0,
+// index r2, one instruction at the end of a packet.
+.word (0x6c000000 | (0 << 16) | (3 << 14) | (2 << 8))
+{
+ if (p0) r4 = add(r4,#-1)
+ r2 = add(r2,#1)
+ jump tlb_stage_loop
+}
+tlb_stage_exit:
+{ memw(r25+##-1047412276) = r2 }
+{ memw(r25+##-1064860592) = r2 }
+HEX_SYSTEM_READ 0,18
+.set modem_tlb_init, modem_boot_dispatch-0x144
+{
+ call modem_tlb_init
+ r0 = or(r0,#1)
+}
+.set post_tlb_callback, modem_boot_dispatch+0xeac
+{ call post_tlb_callback }

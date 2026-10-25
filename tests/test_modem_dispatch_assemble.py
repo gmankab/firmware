@@ -12,10 +12,10 @@ SPEC.loader.exec_module(modem)
 class DispatchChecks(unittest.TestCase):
     def test_contiguous_size(self):
         self.assertEqual(modem.FILE_START,0x3644)
-        self.assertEqual(modem.FILE_END,0x3a60)
-        self.assertEqual(modem.LENGTH,1052)
+        self.assertEqual(modem.FILE_END,0x3ad4)
+        self.assertEqual(modem.LENGTH,1168)
         self.assertEqual(modem.PREFIX_LENGTH,1604)
-        self.assertEqual(modem.LENGTH+modem.PREFIX_LENGTH,2656)
+        self.assertEqual(modem.LENGTH+modem.PREFIX_LENGTH,2772)
 
     def test_rejects_wrong_revision(self):
         with self.assertRaisesRegex(ValueError,'wrong modem reference'):
@@ -24,6 +24,7 @@ class DispatchChecks(unittest.TestCase):
     def test_all_packet_sites_are_inside_reconstructed_source(self):
         self.assertEqual(modem.PREDICATE_BRANCH_PACKETS,(0x3814,))
         self.assertEqual(modem.IMMEDIATE_BEFORE_BRANCH_PACKETS,(0x39a0,))
+        self.assertEqual(modem.TLB_LOOP_PACKETS,(0x3aa8,))
         self.assertEqual(modem.PREDICATE_LOOKUP_PACKETS,
                          (0x3710, 0x3758, 0x37a0, 0x37e8))
         self.assertTrue(all(modem.FILE_START <= pc < modem.FILE_END for pc in modem.PREDICATE_LOOKUP_PACKETS))
@@ -40,6 +41,8 @@ class DispatchChecks(unittest.TestCase):
         self.assertIn('r2 = asl(r2,#16)', text)
         self.assertIn('memd(r0++#8) = r5:4', text)
         self.assertIn('}:endloop0', text)
+        self.assertIn('tlb_stage_loop:', text)
+        self.assertIn('tlbw', text)
         self.assertIn('transfer_record_next', text)
         self.assertNotIn('.incbin',text)
 
