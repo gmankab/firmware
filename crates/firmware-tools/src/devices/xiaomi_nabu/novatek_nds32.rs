@@ -765,6 +765,23 @@ pub fn authored_startup_prefix(ilm_length:usize)->Result<Vec<u8>,String>{
     Ok(bytes)
 }
 
+/// All currently authored NDS32 executable bytes through the reset routine.
+/// Both pinned Novatek variants generate the same number of instruction
+/// bytes while using independent GP/SRAM and software-service parameters.
+pub fn authored_boot_prefix(ilm_length:usize)->Result<Vec<u8>,String>{
+    let mut bytes=authored_startup_prefix(ilm_length)?;
+    bytes.extend_from_slice(&reset_runtime_globals(boot_profile_for_ilm_length(ilm_length)?)?);
+    if bytes.len()!=RESET_RUNTIME_END-FIRST_HANDLER_OFFSET {
+        return Err("NDS32 fully authored boot prefix is not contiguous".into());
+    }
+    Ok(bytes)
+}
+
+pub fn verify_authored_boot_prefix(firmware:&[u8],ilm_length:usize)->Result<(),String>{
+    verify_authored_startup_prefix(firmware,ilm_length)?;
+    verify_reset_runtime_globals(firmware,boot_profile_for_ilm_length(ilm_length)?)
+}
+
 pub fn verify_authored_startup_prefix(firmware:&[u8],ilm_length:usize)->Result<(),String>{
     verify_complete_interrupt_prefix(firmware,ilm_length)?;
     verify_boot_control_setup(firmware,boot_profile_for_ilm_length(ilm_length)?)
@@ -903,6 +920,18 @@ pub fn verify_first_handler(firmware:&[u8])->Result<(),String>{
         candidate[0x4d8]^=1;
         assert!(verify_additional_interrupt_paths(&candidate)
             .unwrap_err().contains("0x4d8"));
+    }
+    #[test]fn reset_actions_extend_boot_prefix_to_538_executable_bytes(){
+        for ilm_size in [0x1aa80,0x19e90]{
+            let bytes=authored_boot_prefix(ilm_size).unwrap();
+            assert_eq!(bytes.len(),538);
+            assert_eq!(&bytes[..398],&authored_startup_prefix(ilm_size).unwrap());
+            let mut reference=vec![0;RESET_RUNTIME_END];
+            reference[FIRST_HANDLER_OFFSET..RESET_RUNTIME_END].copy_from_slice(&bytes);
+            verify_authored_boot_prefix(&reference,ilm_size).unwrap();
+            reference[0x605]^=1;
+            assert!(verify_authored_boot_prefix(&reference,ilm_size).unwrap_err().contains("0x605"));
+        }
     }
     #[test]fn complete_source_generated_boot_prefix_has_correct_length(){
         assert!(authored_startup_prefix(0x900).is_err());

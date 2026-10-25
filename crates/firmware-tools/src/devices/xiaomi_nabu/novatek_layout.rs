@@ -20,8 +20,8 @@ pub const BANK_BYTES: usize = 0x100;
 /// reserved zeros before an independently reconstructed NDS32 handler.
 pub const CANDIDATE_VECTORS_END: usize = 0x400;
 pub const ILM_CODE_START: usize = 0x450;
-/// First 398 bytes are independently reconstructed NDS32 exception/setup code.
-pub const ILM_SOURCE_PREFIX_END: usize = super::novatek_nds32::BOOT_SETUP_END;
+/// First 538 bytes are independently reconstructed NDS32 boot/reset code.
+pub const ILM_SOURCE_PREFIX_END: usize = super::novatek_nds32::RESET_RUNTIME_END;
 /// Nabu's observed all-zero reserved tail; this is specific to the pinned
 /// 196,608-byte firmware layout, not a general Novatek-family assumption.
 pub const ILM_SPACER_START: usize = 0x1ac80;
@@ -385,7 +385,7 @@ impl NabuNovatekLayout {
             return Err("metadata does not match fields".into());
         }
         require_zero(reference,CANDIDATE_VECTORS_END,ILM_CODE_START)?;
-        super::novatek_nds32::verify_authored_startup_prefix(reference,self.ilm.actual_length()?)?;
+        super::novatek_nds32::verify_authored_boot_prefix(reference,self.ilm.actual_length()?)?;
         let (start, end) = self.padding_range()?;
         if self.write_padding(reference)? != reference[start..end] {
             return Err("ILM–DLM padding mismatch".into());
@@ -425,7 +425,7 @@ mod tests {
         let mut bytes = vec![0; IMAGE_LENGTH];
         bytes[..HEADER_BYTES].copy_from_slice(&image.write_header());
         bytes[ILM_CODE_START..ILM_SOURCE_PREFIX_END]
-            .copy_from_slice(&super::super::novatek_nds32::authored_startup_prefix(image.ilm.actual_length().unwrap()).unwrap());
+            .copy_from_slice(&super::super::novatek_nds32::authored_boot_prefix(image.ilm.actual_length().unwrap()).unwrap());
         bytes[IMAGE_LENGTH - 3..].copy_from_slice(TRAILER_MARKER);
         bytes
     }
@@ -499,7 +499,7 @@ mod tests {
         // This source-generated path is relocatable: the old linker variant
         // places GP 0x1f0 bytes earlier than the postmarketOS image.
         raw[ILM_CODE_START..ILM_SOURCE_PREFIX_END].copy_from_slice(&
-            super::super::novatek_nds32::authored_startup_prefix(expected.ilm.actual_length().unwrap()).unwrap());
+            super::super::novatek_nds32::authored_boot_prefix(expected.ilm.actual_length().unwrap()).unwrap());
         raw[..HEADER_BYTES].copy_from_slice(&expected.write_header());
         let layout = NabuNovatekLayout::parse(&raw).unwrap();
         assert_eq!(layout.write_padding(&raw).unwrap().len(),0x7f70);
@@ -513,14 +513,14 @@ mod tests {
         let layout=NabuNovatekLayout::parse(&raw).unwrap();
         let coverage=layout.coverage().unwrap();
         let code=coverage.iter().find(|r|r.kind==RegionKind::IndependentlyGeneratedNds32).unwrap();
-        assert_eq!((code.start,code.end,code.length()),(0x450,0x5de,398));
+        assert_eq!((code.start,code.end,code.length()),(0x450,0x66a,538));
         assert!(code.source_independent());
         let remaining=coverage.iter().find(|r|r.kind==RegionKind::UnimplementedIlm).unwrap();
-        assert_eq!(remaining.start,0x5de);
-        assert_eq!(remaining.length(),108194);
+        assert_eq!(remaining.start,0x66a);
+        assert_eq!(remaining.length(),108054);
         let total_independent=coverage.iter().filter(|r|r.source_independent())
             .map(CoverageRegion::length).sum::<usize>();
-        assert_eq!(total_independent,35534);
+        assert_eq!(total_independent,35674);
     }
     #[test]
     fn mutated_encoded_isr_is_rejected_without_mutating_other_regions() {

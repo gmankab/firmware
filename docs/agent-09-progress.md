@@ -720,3 +720,38 @@ The remaining firmware remains *not flashable*.
 
 Tests: Rust workspace, Python and offline release build pass. Strict checked
 GP displacement rejects misaligned and out-of-range addresses.
+
+## Checkpoint 18 — Source-generated prefix now includes 538 NDS32 bytes
+
+The strict provenance map, `projected_regions()` and the CRC-aware assembler
+now independently emit the complete startup/reset interval
+**`[0x450,0x66a)` = 538 executable bytes** from typed NDS32 instructions.
+Firmware-dependent code addresses, software-service identifiers, and SRAM
+clear-word targets are represented as checked source operands selected from
+the two exact Nabu ILM partition profiles; no OEM executable stream is
+included in the generator.
+
+For the **required postmarketOS reference**:
+
+| Provenance | Bytes |
+| --- | ---: |
+| Independently emitted layout zeros and `NVT` marker | 35,136 |
+| Independently authored NDS32 executable `[0x450,0x66a)` | **538** |
+| DLM configuration mirror derived from authored DLM | 2,304 |
+| Metadata and vectors requiring external scalar inputs | 1,024 |
+| Unknown ILM `[0x66a,0x1ac80)` | 108,054 |
+| Unknown DLM `[0x22000,0x2e190)` | 49,552 |
+| **Total** | **196,608** |
+
+**35,674 bytes** are now truly independently source-generated. The
+**157,606 ILM/DLM bytes** not yet reconstructed remain rejected when omitted.
+Both revision's 196,608-byte envelope round-trips pass with byte-perfect
+CRC-32/MPEG-2 regeneration, mirrored DLM prefix, and all 538 authored
+executable bytes; the still-opaque reference remainders were passed as
+**external private inputs only** to test layout correctness. This is not
+evidence of independent reconstruction of those remainder bytes and it is
+**not safe or validated for firmware flashing**.
+
+The CLI now expects ILM tail after `0x66a`, and rejects old full-size
+inputs. Tests: 199 Rust, 13 Python, offline release build, strict envelope
+verification against both revisions and exact structural round-trip.
