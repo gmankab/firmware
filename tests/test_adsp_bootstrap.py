@@ -113,8 +113,9 @@ class ADSPBootstrapTests(unittest.TestCase):
                      adsp.assemble_context_save(LLVM_MC) +
                      adsp.assemble_context_capture(LLVM_MC) +
                      adsp.assemble_processor_startup(LLVM_MC) +
-                     adsp.assemble_startup_poll(LLVM_MC))
-        self.assertEqual(len(generated), 0xe44)
+                     adsp.assemble_startup_poll(LLVM_MC) +
+                     adsp.assemble_syscfg_update(LLVM_MC))
+        self.assertEqual(len(generated), 0xe7c)
         original = Path(REFERENCE).read_bytes()
         adsp.verify_reference(generated, original, 0x41e0)
         mutated = bytearray(generated)
@@ -412,6 +413,30 @@ class ADSPBootstrapTests(unittest.TestCase):
                 "{ nop } // V66 r1 = MODECTL", "{ isync } // V66 r1 = MODECTL",1))
             with self.assertRaisesRegex(adsp.AdspError,"state polling privileged slot"):
                 adsp.assemble_startup_poll(LLVM_MC,bad)
+
+    def test_syscfg_update_builds_branch_and_far_call_from_labels(self) -> None:
+        source=adsp.CONTROLLER_SYSCFG_UPDATE_SOURCE.read_text()
+        for item in ("read_syscfg", "continue_controller", "far_entry", "insert(r1,#3,#16)"):
+            # Literal source-level names only; no OEM instruction arrays.
+            if item == "read_syscfg":
+                self.assertIn("V66 r0 = SYSCFG",source)
+            else:
+                self.assertIn(item,source)
+        self.assertNotIn(".word",source)
+        self.assertNotIn(".incbin",source)
+
+    @unittest.skipUnless(LLVM_MC and REFERENCE,"Hexagon assembler and reference required")
+    def test_syscfg_update_matches_reference_and_rejects_modified_sentinel(self) -> None:
+        result=adsp.assemble_syscfg_update(LLVM_MC)
+        self.assertEqual(len(result),0x38)
+        adsp.verify_reference(result,Path(REFERENCE).read_bytes(),0x5024)
+        self.assertEqual(result[0x1c:0x20],struct.pack("<I",0x6700c012))
+        with tempfile.TemporaryDirectory() as td:
+            bad=Path(td)/"bad-syscfg-update.S"
+            bad.write_text(adsp.CONTROLLER_SYSCFG_UPDATE_SOURCE.read_text().replace(
+                "{ nop } // V66 SYSCFG = r0", "{ isync } // V66 SYSCFG = r0",1))
+            with self.assertRaisesRegex(adsp.AdspError,"SYSCFG update slot"):
+                adsp.assemble_syscfg_update(LLVM_MC,bad)
 
     @unittest.skipUnless(LLVM_MC, "Hexagon-capable llvm-mc unavailable")
     def test_syscfg_handoff_uses_typed_and_source_assembly(self) -> None:
