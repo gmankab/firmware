@@ -133,6 +133,89 @@ PROFILES = {
     },
 }
 
+
+# EX9 dependencies added by Agent 17 checkpoint 08, externally owned by Agent 18.
+# These are semantic operand expectations only, not OEM instruction bytes.
+# Derived via opcode-field inspection, and verified against pinned reference.
+ADDITIONAL_POSTMARKETOS_EX9 = {7: {'operation': 'jal', 'target_low25': 38128},
+ 8: {'operation': 'jal', 'target_low25': 96996},
+ 11: {'destination_register': 0, 'immediate': 232768, 'operation': 'movi'},
+ 12: {'address': 181492, 'destination_register': 0, 'operation': 'lwi.gp'},
+ 21: {'address': 181564, 'destination_register': 1, 'operation': 'lwi.gp'},
+ 24: {'address': 181229, 'destination_register': 0, 'operation': 'lbi.gp'},
+ 26: {'address': 181492, 'destination_register': 1, 'operation': 'lwi.gp'},
+ 33: {'address': 181556, 'operation': 'swi.gp', 'source_register': 0},
+ 64: {'operation': 'jal', 'target_low25': 64396},
+ 70: {'address': 182106, 'destination_register': 1, 'operation': 'lbi.gp'},
+ 78: {'dividend_register': 0,
+      'divisor_register': 1,
+      'operation': 'divsr',
+      'quotient_register': 0,
+      'remainder_register': 0},
+ 93: {'address': 181724, 'destination_register': 0, 'operation': 'lwi.gp'},
+ 96: {'operation': 'jal', 'target_low25': 16848},
+ 98: {'address': 181508, 'destination_register': 1, 'operation': 'lwi.gp'},
+ 107: {'operation': 'jal', 'target_low25': 10466},
+ 113: {'operation': 'jal', 'target_low25': 59574},
+ 116: {'address': 181306, 'destination_register': 0, 'operation': 'lhi.gp'},
+ 118: {'address': 181408, 'operation': 'swi.gp', 'source_register': 0},
+ 119: {'destination_register': 0, 'immediate': 255, 'operation': 'movi'},
+ 123: {'destination_register': 9, 'immediate': 255, 'operation': 'andi', 'source_register': 0},
+ 138: {'base_register': 9, 'displacement': 0, 'operation': 'sbi', 'source_register': 0},
+ 140: {'destination_register': 1, 'immediate': 100, 'operation': 'movi'},
+ 142: {'operation': 'jal', 'target_low25': 17312},
+ 144: {'destination_register': 3, 'immediate': 128, 'operation': 'movi'},
+ 148: {'address': 181151, 'destination_register': 0, 'operation': 'lbi.gp'},
+ 155: {'address': 181191, 'destination_register': 0, 'operation': 'lbi.gp'},
+ 165: {'operation': 'jal', 'target_low25': 63038},
+ 166: {'address': 191768, 'operation': 'shi.gp', 'source_register': 0},
+ 167: {'destination_register': 0, 'immediate': 254, 'operation': 'andi', 'source_register': 0},
+ 176: {'address': 181936, 'destination_register': 0, 'operation': 'lbi.gp'},
+ 177: {'address': 190528, 'operation': 'swi.gp', 'source_register': 0},
+ 178: {'address': 181199, 'operation': 'sbi.gp', 'source_register': 0},
+ 191: {'operation': 'jal', 'target_low25': 31694},
+ 194: {'dividend_register': 1,
+       'divisor_register': 0,
+       'operation': 'divsr',
+       'quotient_register': 0,
+       'remainder_register': 0},
+ 196: {'address': 181208, 'destination_register': 0, 'operation': 'lbi.gp'},
+ 203: {'address': 186496, 'destination_register': 0, 'operation': 'lwi.gp'},
+ 205: {'address': 181472, 'destination_register': 5, 'operation': 'lwi.gp'},
+ 218: {'address': 190564, 'destination_register': 0, 'operation': 'lbi.gp'},
+ 223: {'destination_register': 1, 'immediate': 254, 'operation': 'andi', 'source_register': 1},
+ 234: {'address': 181191, 'operation': 'sbi.gp', 'source_register': 0},
+ 237: {'address': 181776, 'operation': 'swi.gp', 'source_register': 6},
+ 257: {'destination_register': 0, 'immediate': 300, 'operation': 'movi'},
+ 258: {'address': 190528, 'destination_register': 0, 'operation': 'lwi.gp'},
+ 266: {'address': 181408, 'destination_register': 1, 'operation': 'lwi.gp'},
+ 273: {'address': 181138, 'destination_register': 0, 'operation': 'lbi.gp'},
+ 274: {'address': 131374, 'destination_register': 0, 'operation': 'lbi.gp'},
+ 286: {'operation': 'jal', 'target_low25': 38154},
+ 307: {'destination_register': 3, 'immediate': 7, 'operation': 'addi', 'source_register': 31},
+ 308: {'address': 181229, 'destination_register': 1, 'operation': 'lbi.gp'},
+ 318: {'address': 181937, 'destination_register': 0, 'operation': 'lbi.gp'},
+ 336: {'address': 181472, 'destination_register': 0, 'operation': 'lwi.gp'},
+ 356: {'address': 181184, 'destination_register': 0, 'operation': 'lbi.gp'},
+ 362: {'operation': 'jal', 'target_low25': 15048},
+ 371: {'operation': 'jal', 'target_low25': 15932},
+ 375: {'address': 181776, 'operation': 'swi.gp', 'source_register': 0},
+ 382: {'address': 182062, 'destination_register': 0, 'operation': 'lbi.gp'},
+ 386: {'destination_register': 1, 'immediate': 216080, 'operation': 'movi'},
+ 387: {'address': 181195, 'destination_register': 0, 'operation': 'lbi.gp'},
+ 388: {'operation': 'jal', 'target_low25': 17196},
+ 390: {'destination_register': 2, 'immediate': 100, 'operation': 'movi'},
+ 393: {'operation': 'jal', 'target_low25': 37424},
+ 403: {'address': 181155, 'operation': 'sbi.gp', 'source_register': 0},
+ 414: {'destination_register': 0, 'immediate': 259100, 'operation': 'movi'},
+ 438: {'destination_register': 1, 'immediate': 165, 'operation': 'movi'},
+ 450: {'address': 181241, 'operation': 'sbi.gp', 'source_register': 0},
+ 451: {'address': 181776, 'destination_register': 0, 'operation': 'lwi.gp'},
+ 458: {'address': 190540, 'destination_register': 1, 'operation': 'lwi.gp'},
+ 501: {'destination_register': 2, 'immediate': 6, 'operation': 'addi', 'source_register': 31}}
+
+PROFILES["postmarketos"]["ex9"].update(ADDITIONAL_POSTMARKETOS_EX9)
+
 FILE_START = 0x66A
 ASSIGNED_END = 0x10000
 ILM_FILE_BASE = 0x200
@@ -151,18 +234,20 @@ CHECKPOINT_COUNTS["postmarketos"][0xB22] = (458, 146, 312, 55, 29)
 CHECKPOINT_COUNTS["map220v"][0xB24] = (458, 147, 311, 54, 28)
 CHECKPOINT_COUNTS["postmarketos"][0xB42] = (471, 149, 322, 58, 32)
 CHECKPOINT_COUNTS["postmarketos"][0xE34] = (758, 239, 519, 132, 63)
+# Filled after typed encoder verification: 0x1c1a cumulative checkpoint.
+CHECKPOINT_COUNTS["postmarketos"][0x1C1A] = (2074,702,1372,401,131)
 SUPPORTED_MNEMONICS = {
     2: frozenset({
         "addi45", "beqs38", "bnes38", "beqz38", "bnez38", "beqzs8", "bnezs8",
         "add45", "bmski33", "fexti33", "slt45", "ex9.it", "ifcall9", "ifret16", "j8", "jr5", "jral5",
-        "lbi333", "lhi333", "lwi333", "lwi37", "lwi450", "mov55", "movi55", "movpi45", "or33",
+        "lbi333", "lhi333", "lwi333", "lwi37", "lwi37.sp", "lwi450", "swi333", "mov55", "movi55", "movpi45", "or33", "addi10.sp", "addri36.sp", "add333", "sub333", "sub45", "swi37.sp", "seh33", "slts45", "sltsi45", "neg33", "not33", "mul33", "xor33", "and33", "or33",
         "pop25", "push25", "ret5", "sbi333", "seb33", "shi333", "slti45", "srli45", "subi333", "subi45",
         "swi450", "xlsb33", "zeb33", "zeh33",
     }),
     4: frozenset({
         "add_slli", "addi", "andi", "beqc", "beqz", "bitci", "bnec", "bset", "dsb",
-        "ifcall", "lhi.gp", "lmw.bi", "smw.bi", "j", "jal", "jr", "jral", "lb", "lbi.gp", "lmw.bim", "lwi", "lwi.gp", "mfsr", "movi",
-        "mtsr", "or_slli", "ori", "sb", "sbi", "sbi.gp", "sethi", "sll", "smw.adm", "srli", "swi.gp",
+        "bnez", "ifcall", "lhi.gp", "lhsi.gp", "shi.gp", "lbi", "slti", "sltsi", "bgez", "bltz", "bgtz", "blez", "bgezal", "bltzal", "lhi", "lwi", "shi", "swi", "lbs", "lhs", "lw", "sw", "srai", "divsr", "divr", "sub_slli", "and_slli", "xor_slli", "nor_slli", "slt_slli", "slts_slli", "lbi.gp", "lmw.bi", "smw.bi", "j", "jal", "jr", "jral", "lb", "lbi.gp", "lmw.bim", "lwi", "lwi.gp", "mfsr", "movi",
+        "mtsr", "or_slli", "ori", "sb", "sbi", "sbi.gp", "sethi", "sll", "smw.adm", "smw.bim", "srli", "swi.gp",
     }),
 }
 # No directives, labels, strings, statement separators or assembler comments.
@@ -341,6 +426,25 @@ def verify_effect(table_bytes, effect, gp=None):
         return ((word >> 25) == opcode and (word >> 20 & 31) == effect["destination_register"]
                 and (word >> 15 & 31) == effect["source_register"]
                 and (word & 0x7FFF) == effect["immediate"])
+    if operation == "addi":
+        return ((word >> 25) == 0x28 and (word >> 20 & 31) == effect["destination_register"]
+                and (word >> 15 & 31) == effect["source_register"]
+                and signed_field(word,15) == effect["immediate"])
+    if operation == "divsr":
+        return ((word >> 25) == 0x20 and (word & 31) == 0x16
+                and (word >> 20 & 31) == effect["quotient_register"]
+                and (word >> 15 & 31) == effect["dividend_register"]
+                and (word >> 10 & 31) == effect["divisor_register"]
+                and (word >> 5 & 31) == effect["remainder_register"])
+    if operation == "add_slli":
+        return ((word >> 25) == 0x20 and (word & 31) == 0
+                and (word >> 20 & 31) == effect["destination_register"]
+                and (word >> 15 & 31) == effect["source_register"]
+                and (word >> 10 & 31) == effect["argument_register"]
+                and (word >> 5 & 31) == effect["shift"])
+    if operation == "lbi.gp":
+        return ((word >> 25) == 0x17 and (word >> 20 & 31) == effect["destination_register"]
+                and (gp + signed_field(word, 19)) & 0xffffffff == effect["address"])
     if operation == "movi":
         return ((word >> 25) == 0x22 and (word >> 20 & 31) == effect["destination_register"]
                 and signed_field(word, 20) == effect["immediate"])

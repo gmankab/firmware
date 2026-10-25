@@ -38,19 +38,42 @@ impl Width {
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum AluOp { Add, Or }
+#[derive(Clone,Copy,Debug,PartialEq,Eq)]
+pub enum AluRegOp { Add, Sub, And, Xor, Or, Nor, Slt, Slts }
+impl AluRegOp {
+    const fn bits(self)->u32 {match self {Self::Add=>0,Self::Sub=>1,Self::And=>2,Self::Xor=>3,Self::Or=>4,Self::Nor=>5,Self::Slt=>6,Self::Slts=>7}}
+    const fn mnemonic(self)->&'static str {match self {Self::Add=>"add",Self::Sub=>"sub",Self::And=>"and",Self::Xor=>"xor",Self::Or=>"or",Self::Nor=>"nor",Self::Slt=>"slt",Self::Slts=>"slts"}}
+}
+#[derive(Clone,Copy,Debug,PartialEq,Eq)]
+pub enum CompactMisc { Neg, Not, Mul, Xor, And, Or }
+impl CompactMisc {
+    const fn opcode(self)->u16 {match self {Self::Neg=>2,Self::Not=>3,Self::Mul=>4,Self::Xor=>5,Self::And=>6,Self::Or=>7}}
+    const fn mnemonic(self)->&'static str {match self {Self::Neg=>"neg33",Self::Not=>"not33",Self::Mul=>"mul33",Self::Xor=>"xor33",Self::And=>"and33",Self::Or=>"or33"}}
+}
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum Csr { Psw, Ivb, IntMask, IntMask2, IntMask3, MiscCtl }
+pub enum SignCondition { GeZero, LtZero, GtZero, LeZero, GeZeroLink, LtZeroLink }
+impl SignCondition {
+    const fn bits(self)->u32 {match self {
+        Self::GeZero=>4,Self::LtZero=>5,Self::GtZero=>6,Self::LeZero=>7,
+        Self::GeZeroLink=>12,Self::LtZeroLink=>13}}
+    const fn mnemonic(self)->&'static str {match self {
+        Self::GeZero=>"bgez",Self::LtZero=>"bltz",Self::GtZero=>"bgtz",
+        Self::LeZero=>"blez",Self::GeZeroLink=>"bgezal",Self::LtZeroLink=>"bltzal"}}
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Csr { Psw, Ivb, IntMask, IntMask2, IntMask3, MiscCtl, Number(u16) }
 impl Csr {
     fn index(self) -> u32 {
         match self { Self::Psw => 0x80, Self::Ivb => 0x89,
             Self::IntMask => 0xc0, Self::IntMask2 => 0xc1, Self::IntMask3 => 0xc2,
-            Self::MiscCtl => 0x179 }
+            Self::MiscCtl => 0x179, Self::Number(n)=>u32::from(n) }
     }
     fn name(self) -> &'static str {
         match self { Self::Psw => "psw", Self::Ivb => "ivb", Self::IntMask => "int_mask",
             Self::IntMask2 => "int_mask2", Self::IntMask3 => "int_mask3",
-            Self::MiscCtl => "misc_ctl" }
+            Self::MiscCtl => "misc_ctl", Self::Number(_) => "unknown_system_register" }
     }
 }
 
@@ -67,6 +90,7 @@ pub enum Insn {
     Move { dest: Reg, source: Reg },
     BranchZero { reg: Reg, nonzero: bool, target: u32 },
     BranchZeroWide { reg: Reg, nonzero: bool, target: u32 },
+    BranchSignWide { reg: Reg, comparison: SignCondition, target: u32 },
     BitClearImmediate { dest: Reg, source: Reg, mask: u16 },
     SetHigh { dest: Reg, value: u32 },
     AddImmediate { dest: Reg, source: Reg, value: i32 },
@@ -79,6 +103,7 @@ pub enum Insn {
     ImmediateMemory { store: bool, width: Width, reg: Reg, base: Reg, offset: i32 },
     WordAtRegister { store: bool, reg: Reg, base: Reg },
     WordAtFrame { store: bool, reg: Reg, offset: u16 },
+    WordAtStack { store: bool, reg: Reg, offset: u16 },
     ShiftRightSmall { reg: Reg, amount: u8 },
     ShiftRight { dest: Reg, source: Reg, amount: u8 },
     AluShiftLeft { op: AluOp, dest: Reg, left: Reg, right: Reg, shift: u8 },
@@ -90,12 +115,18 @@ pub enum Insn {
     AddSmallRegister { dest: Reg, source: Reg, subtract: bool },
     ZeroExtend { dest: Reg, source: Reg, half: bool },
     SignExtendByte { dest: Reg, source: Reg },
+    SignExtendHalf { dest: Reg, source: Reg },
     BitMaskShort { reg: Reg, bit: u8 },
     BitFieldExtractImmediate { reg: Reg, bit: u8 },
     CompactOr { dest: Reg, source: Reg },
+    CompactMiscOp { dest: Reg, source: Reg, op: CompactMisc },
     OrImmediate { dest: Reg, source: Reg, value: u16 },
     AndImmediate { dest: Reg, source: Reg, value: u16 },
     SubtractSmall3 { dest: Reg, source: Reg, value: u8 },
+    CompactAlu3 { dest: Reg, left: Reg, right: Reg, subtract: bool },
+    DivideRemainder { quotient: Reg, dividend: Reg, divisor: Reg, remainder: Reg, signed: bool },
+    ArithmeticShiftRight { dest: Reg, source: Reg, amount: u8 },
+    RegisterAlu {op:AluRegOp,dest:Reg,left:Reg,right:Reg,shift:u8},
     /// SLTI45 writes the implicit temporary register TA.
     LessThanSmallImmediate { reg: Reg, value: u8 },
     LessThanSmallRegister { left: Reg, right: Reg },
@@ -104,6 +135,7 @@ pub enum Insn {
     BranchTa { nonzero: bool, target: u32 },
     BitSet { dest: Reg, source: Reg, bit: u8 },
     IndexedByte { store: bool, reg: Reg, base: Reg, index: Reg, shift: u8 },
+    IndexedMemory { store:bool, width:Width, signed:bool, reg:Reg, base:Reg,index:Reg,shift:u8 },
     JumpShort { target: u32 },
     JumpRelative { target: u32, link: bool },
     /// IFC_LP/IFC_ON state differs from conventional JAL/RET.
@@ -113,6 +145,9 @@ pub enum Insn {
     Return { reg: Reg },
     JumpRegisterLink { reg: Reg },
     DataSync,
+    StackAdjust { bytes: i16 },
+    AddressFromStack { dest: Reg, offset: u16 },
+    LessThanWide { dest: Reg, source: Reg, value: u16, signed: bool },
     Stack { pop: bool, last: Reg, extra: u16 },
     /// The observed paired forms are after-decrement and before-increment.
     /// `specials` is the architectural four-bit FP/GP/LP/SP register mask.
@@ -147,8 +182,8 @@ impl Insn {
             }
             LoadByteGp { dest,address } => (0x17<<25)|(dest.number()<<20)
                 |signed(i64::from(address)-i64::from(gp),19)?,
-            ReadSystem { dest, csr } => (0x32 << 25) | (dest.number() << 20) | (csr.index() << 10) | 2,
-            WriteSystem { source, csr } => (0x32 << 25) | (source.number() << 20) | (csr.index() << 10) | 3,
+            ReadSystem { dest, csr } if csr.index()<1024 => (0x32 << 25) | (dest.number() << 20) | (csr.index() << 10) | 2,
+            WriteSystem { source, csr } if csr.index()<1024 => (0x32 << 25) | (source.number() << 20) | (csr.index() << 10) | 3,
             BitClearImmediate { dest, source, mask } => (0x33 << 25) | (dest.number()<<20)
                 | (source.number()<<15) | u15(mask)?,
             SetHigh { dest, value } => {
@@ -189,6 +224,8 @@ impl Insn {
             VariableShiftLeft { dest,source,amount } => (0x20<<25)|(dest.number()<<20)|(source.number()<<15)|(amount.number()<<10)|12,
             BranchImmediate { reg,value,nonzero,target } => (0x2d<<25)|(reg.number()<<20)
                 |(u32::from(nonzero)<<19)|(signed(i64::from(value),11)?<<8)|displacement(pc,target,8)?,
+            BranchSignWide { reg,comparison,target } => (0x27<<25)|(reg.number()<<20)
+                | (comparison.bits()<<16) | displacement(pc,target,16)?,
             BranchZeroWide { reg,nonzero,target } => (0x27<<25)|(reg.number()<<20)
                 |((2+u32::from(nonzero))<<16)|displacement(pc,target,16)?,
             OrImmediate { dest,source,value } => (0x2c<<25)|(dest.number()<<20)|(source.number()<<15)|u15(value)?,
@@ -197,6 +234,16 @@ impl Insn {
                 if bit>31{return Err("BSET bit exceeds 31".into());}
                 (0x21<<25)|(dest.number()<<20)|(source.number()<<15)|(u32::from(bit)<<10)|8
             }
+            IndexedMemory {store,width,signed,reg,base,index,shift} => {
+                if shift>3 || (store && signed) {return Err("invalid indexed memory shift/sign".into());}
+                let op=match (store,width,signed){
+                  (false,Width::Byte,false)=>0,(false,Width::Half,false)=>1,(false,Width::Word,false)=>2,
+                  (true,Width::Byte,false)=>8,(true,Width::Half,false)=>9,(true,Width::Word,false)=>10,
+                  (false,Width::Byte,true)=>16,(false,Width::Half,true)=>17,
+                  _=>return Err("no signed word/indexed store encoding".into())};
+                (0x1c<<25)|(reg.number()<<20)|(base.number()<<15)|(index.number()<<10)
+                 |(u32::from(shift)<<8)|op
+            },
             IndexedByte { store,reg,base,index,shift } => {
                 if shift>3{return Err("indexed byte shift exceeds 3".into());}
                 (0x1c<<25)|(reg.number()<<20)|(base.number()<<15)|(index.number()<<10)
@@ -211,7 +258,28 @@ impl Insn {
                     |(u32::from(specials)<<6)|(u32::from(store)<<5)
                     |(if decrement{0x18}else{0})|(u32::from(writeback)<<2)
             }
+            ReadSystem{..}|WriteSystem{..} => return Err("NDS32 CSR index exceeds 10 bits".into()),
+            RegisterAlu{op,dest,left,right,shift} => {
+                if shift>31{return Err("NDS32 ALU1 shifted register exceeds 31 bits".into());}
+                (0x20<<25)|(dest.number()<<20)|(left.number()<<15)|(right.number()<<10)
+                    |(u32::from(shift)<<5)|op.bits()
+            },
+            ArithmeticShiftRight { dest, source, amount } => {
+                if amount>31{return Err("SRAI amount exceeds 31".into());}
+                (0x20 << 25) | (dest.number()<<20) | (source.number()<<15)
+                    | (u32::from(amount)<<10) | 0x0a
+            },
+            DivideRemainder {quotient,dividend,divisor,remainder,signed:is_signed} => {
+                (0x20 << 25) | (quotient.number()<<20) | (dividend.number()<<15)
+                  | (divisor.number()<<10) | (remainder.number()<<5)
+                  | (if is_signed {0x16}else{0x17})
+            },
             DataSync => (0x32 << 25) | 8,
+            LessThanWide { dest,source,value,signed:is_signed } => {
+                if value >= 0x8000 { return Err("SLTI wide immediate exceeds 15 bits".into()); }
+                ((if is_signed {0x2f} else {0x2e})<<25)
+                    | (dest.number()<<20) | (source.number()<<15) | u32::from(value)
+            },
             _ => return Ok(self.short(pc)?.to_be_bytes().to_vec()),
         };
         Ok(word.to_be_bytes().to_vec())
@@ -219,6 +287,16 @@ impl Insn {
     fn short(self, pc: u32) -> Result<u16, String> {
         use Insn::*;
         Ok(match self {
+            AddressFromStack { dest,offset } => {
+                if offset>252 || offset%4 != 0 {return Err("ADDRI36.SP uses unsigned six-bit word offset".into());}
+                0xb000 | dest.small()?<<6 | offset/4
+            }
+            StackAdjust { bytes } => {
+                if bytes & 1 != 0 || bytes < -512 || bytes > 510 {
+                    return Err("ADDI10.SP requires even signed 10-bit operand".into());
+                }
+                0xec00 | (signed(i64::from(bytes),10)? as u16)
+            }
             Ex9(index) => {
                 if index > 511 { return Err("EX9 index exceeds 511".into()); }
                 if index < 32 { 0xdd40 | index } else { 0xea00 | index }
@@ -243,6 +321,10 @@ impl Insn {
                 operation | (u16::from(store)<<11) | reg.small()?<<6 | base.small()?<<3 | u16::from(offset/width.scale())
             }
             WordAtRegister { store,reg,base } => 0xb400|(u16::from(store)<<9)|(reg.compact()?<<5)|base.number() as u16,
+            WordAtStack {store,reg,offset} => {
+                if offset%4!=0 || offset>508 {return Err("invalid SP-relative compact word offset".into());}
+                0xf000 | reg.small()?<<8 | u16::from(store)<<7 | offset/4
+            },
             WordAtFrame { store,reg,offset } => {
                 if offset%4!=0 || offset>508{return Err("invalid FP-relative compact word offset".into());}
                 0xb800 | reg.small()?<<8 | u16::from(store)<<7 | offset/4
@@ -262,6 +344,9 @@ impl Insn {
             AddSmallRegister { dest,source,subtract } => 0x8800|u16::from(subtract)<<9|dest.compact()?<<5|source.number() as u16,
             ZeroExtend { dest,source,half } => 0x9600|dest.small()?<<6|source.small()?<<3|u16::from(half),
             SignExtendByte { dest,source } => 0x9602|dest.small()?<<6|source.small()?<<3,
+            SignExtendHalf { dest,source } => 0x9603|dest.small()?<<6|source.small()?<<3,
+            CompactAlu3 { dest,left,right,subtract } => 0x9800 | (u16::from(subtract)<<9)
+                | (dest.small()?<<6) | (left.small()?<<3) | right.small()?,
             SubtractSmall3 { dest,source,value } => {
                 if value>7{return Err("SUBI333 value exceeds 7".into());}
                 0x9e00|dest.small()?<<6|source.small()?<<3|u16::from(value)
@@ -286,6 +371,7 @@ impl Insn {
                 0x9606|reg.small()?<<6|u16::from(bit)<<3
             }
             CompactOr { dest,source } => 0xfe07|dest.small()?<<6|source.small()?<<3,
+            CompactMiscOp { dest,source,op } => 0xfe00 | dest.small()?<<6 | source.small()?<<3 | op.opcode(),
             JumpShort { target } => 0xd500|displacement(pc,target,8)? as u16,
             InlineCall { target } => {
                 if (pc|target)&1!=0 || target<pc || target-pc>1022{return Err("invalid IFCALL9 forward target".into());}
@@ -313,13 +399,20 @@ impl Insn {
             StoreByteGp { source,address } => format!("sbi.gp {},[{}]",r(source),i64::from(address)-i64::from(gp)),
             StoreWordGp { source,address } => format!("swi.gp {},[{}]",r(source),i64::from(address)-i64::from(gp)),
             LoadByteGp { dest,address } => format!("lbi.gp {},[{}]",r(dest),i64::from(address)-i64::from(gp)),
-            ReadSystem { dest,csr } => format!("mfsr {},{}",r(dest),if csr==Csr::IntMask3 {"0xc2".into()} else {format!("${}",csr.name())}),
-            WriteSystem { source,csr } => format!("mtsr {},{}",r(source),if csr==Csr::IntMask3 {"0xc2".into()} else {format!("${}",csr.name())}),
+            ReadSystem { dest,csr } => format!("mfsr {},{}",r(dest),if let Csr::Number(index)=csr {format!("0x{index:x}")} else if csr==Csr::IntMask3 {"0xc2".into()} else {format!("${}",csr.name())}),
+            WriteSystem { source,csr } => format!("mtsr {},{}",r(source),if let Csr::Number(index)=csr {format!("0x{index:x}")} else if csr==Csr::IntMask3 {"0xc2".into()} else {format!("${}",csr.name())}),
+            StackAdjust { bytes } => format!("addi10.sp {bytes}"),
+            AddressFromStack {dest,offset} => format!("addri36.sp {},{}",r(dest),offset),
+            RegisterAlu{op,dest,left,right,shift} => format!("{}_slli {},{},{},{}",op.mnemonic(),r(dest),r(left),r(right),shift),
+            ArithmeticShiftRight { dest,source,amount } => format!("srai {},{},{}",r(dest),r(source),amount),
+            DivideRemainder { quotient,dividend,divisor,remainder,signed:is_signed } => format!("{} {},{},{},{}",if is_signed {"divsr"}else{"divr"},r(quotient),r(dividend),r(divisor),r(remainder)),
+            LessThanWide { dest,source,value,signed:is_signed } => format!("{} {},{},{}", if is_signed {"sltsi"}else{"slti"},r(dest),r(source),value),
             Ex9(i) => format!("ex9.it {i}"),
             LowBit { dest,source } => format!("xlsb33 {},{}",r(dest),r(source)),
             Move { dest,source } => format!("mov55 {},{}",r(dest),r(source)),
             BranchZero { reg,nonzero,target } => format!("{} {},.{:+}",if nonzero{"bnez38"}else{"beqz38"},r(reg),i64::from(target)-i64::from(pc)),
             BranchZeroWide { reg,nonzero,target } => format!("{} {},.{:+}",if nonzero{"bnez"}else{"beqz"},r(reg),i64::from(target)-i64::from(pc)),
+            BranchSignWide { reg,comparison,target } => format!("{} {},.{:+}",comparison.mnemonic(),r(reg),i64::from(target)-i64::from(pc)),
             BitClearImmediate { dest,source,mask } => format!("bitci {},{},{}",r(dest),r(source),mask),
             SetHigh { dest,value } => format!("sethi {},{}",r(dest),value),
             AddImmediate { dest,source,value } => format!("addi {},{},{}",r(dest),r(source),value),
@@ -331,6 +424,7 @@ impl Insn {
             ShortMemory { store,width,reg,base,offset } => format!("{}{}i333 {},[{}+{}]",if store{"s"}else{"l"},width.letter(),r(reg),r(base),offset),
             ImmediateMemory { store,width,reg,base,offset } => format!("{}{}i {},[{}{:+}]",if store{"s"}else{"l"},width.letter(),r(reg),r(base),offset),
             WordAtRegister { store,reg,base } => format!("{}wi450 {},[{}]",if store{"s"}else{"l"},r(reg),r(base)),
+            WordAtStack {store,reg,offset} => format!("{}wi37.sp {},[$sp+{}]",if store{"s"}else{"l"},r(reg),offset),
             WordAtFrame { store,reg,offset } => format!("{}wi37 {},[$fp+{}]",if store{"s"}else{"l"},r(reg),offset),
             ShiftRightSmall { reg,amount } => format!("srli45 {},{}",r(reg),amount),
             ShiftRight { dest,source,amount } => format!("srli {},{},{}",r(dest),r(source),amount),
@@ -342,7 +436,9 @@ impl Insn {
             AddSmallRegister { dest,source,subtract } => format!("{} {},{}",if subtract{"sub45"}else{"add45"},r(dest),r(source)),
             ZeroExtend { dest,source,half } => format!("{} {},{}",if half{"zeh33"}else{"zeb33"},r(dest),r(source)),
             SignExtendByte { dest,source } => format!("seb33 {},{}",r(dest),r(source)),
+            SignExtendHalf { dest,source } => format!("seh33 {},{}",r(dest),r(source)),
             SubtractSmall3 { dest,source,value } => format!("subi333 {},{},{}",r(dest),r(source),value),
+            CompactAlu3 { dest,left,right,subtract } => format!("{} {},{},{}",if subtract {"sub333"}else{"add333"},r(dest),r(left),r(right)),
             LessThanSmallImmediate { reg,value } => format!("slti45 {},{}",r(reg),value),
             LessThanSmallRegister {left,right} => format!("slt45 {},{}",r(left),r(right)),
             LessThanSignedSmallRegister {left,right} => format!("slts45 {},{}",r(left),r(right)),
@@ -351,9 +447,11 @@ impl Insn {
             BitMaskShort { reg,bit } => format!("bmski33 {},{}",r(reg),bit),
             BitFieldExtractImmediate {reg,bit} => format!("fexti33 {},{}",r(reg),bit),
             CompactOr { dest,source } => format!("or33 {},{}",r(dest),r(source)),
+            CompactMiscOp { dest,source,op } => format!("{} {},{}",op.mnemonic(),r(dest),r(source)),
             OrImmediate { dest,source,value } => format!("ori {},{},{}",r(dest),r(source),value),
             AndImmediate { dest,source,value } => format!("andi {},{},{}",r(dest),r(source),value),
             BitSet { dest,source,bit } => format!("bset {},{},{}",r(dest),r(source),bit),
+            IndexedMemory {store,width,signed,reg,base,index,shift} => format!("{}{}{} {},[{}+({}<<{})]",if store{"s"}else{"l"},width.letter(),if signed{"s"}else{""},r(reg),r(base),r(index),shift),
             IndexedByte { store,reg,base,index,shift } => format!("{}b {},[{}+({}<<{})]",if store{"s"}else{"l"},r(reg),r(base),r(index),shift),
             JumpShort { target } => format!("j8 .{:+}",i64::from(target)-i64::from(pc)),
             JumpRelative { target,link } => format!("{} .{:+}",if link{"jal"}else{"j"},i64::from(target)-i64::from(pc)),
@@ -386,6 +484,28 @@ mod tests {
         assert!(Insn::HalfGp{store:true,signed:true,reg:R0,address:0x2d9e0}.encode(0,0x2d9e0).is_err());
         assert!(Insn::HalfGp{store:true,signed:false,reg:R0,address:0x2d9e1}.encode(0,0x2d9e0).is_err());
         assert_eq!(Insn::HalfGp{store:false,signed:false,reg:R0,address:0x2d9e0}.encode(0,0x2d9e0).unwrap(),[0x3c,0,0,0]);
+    }
+    #[test]
+    fn extended_instruction_forms_encode_checked_operands() {
+        assert_eq!(Insn::ArithmeticShiftRight{dest:R2,source:R5,amount:31}
+            .encode(0,0).unwrap(),0x4022_fc0au32.to_be_bytes());
+        assert_eq!(Insn::RegisterAlu{op:AluRegOp::Sub,dest:R1,left:Reg::new(16),right:R2,shift:0}
+            .encode(0,0).unwrap(),0x4018_0801u32.to_be_bytes());
+        assert_eq!(Insn::IndexedMemory{store:false,width:Width::Half,signed:true,
+            reg:R1,base:Reg::new(7),index:R0,shift:1}
+            .encode(0,0).unwrap(),0x3813_8111u32.to_be_bytes());
+        assert_eq!(Insn::WordAtStack{store:false,reg:R0,offset:4}
+            .encode(0,0).unwrap(),0xf001u16.to_be_bytes());
+        assert!(Insn::ArithmeticShiftRight{dest:R0,source:R1,amount:32}.encode(0,0).is_err());
+        assert!(Insn::RegisterAlu{op:AluRegOp::Sub,dest:R0,left:R1,right:R2,shift:32}
+            .encode(0,0).is_err());
+        assert!(Insn::IndexedMemory{store:true,width:Width::Half,signed:true,
+            reg:R0,base:R1,index:R2,shift:0}.encode(0,0).is_err());
+        assert!(Insn::WordAtStack{store:false,reg:R0,offset:3}.encode(0,0).is_err());
+        assert!(Insn::WordAtStack{store:false,reg:Reg::new(8),offset:4}.encode(0,0).is_err());
+        assert!(Insn::LessThanWide{dest:R0,source:R1,value:32768,signed:true}.encode(0,0).is_err());
+        assert!(Insn::ReadSystem{dest:R0,csr:Csr::Number(0x400)}.encode(0,0).is_err());
+        assert!(Insn::StackAdjust{bytes:-513}.encode(0,0).is_err());
     }
     #[test]
     fn compact_register_map_rejects_holes() {
