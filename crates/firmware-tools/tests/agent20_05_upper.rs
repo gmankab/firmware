@@ -70,3 +70,15 @@ fn rolling_record_metrics_matches_optional_reference(){
         assert_eq!(&bytes[..],original.get(off..off+bytes.len()).unwrap());
     }
 }
+
+#[path = "../src/devices/xiaomi_nabu/venus_agent20_05_magnitude.rs"]
+mod magnitude;
+#[test]
+fn magnitude_bucket_matches_optional_reference(){
+    let b=magnitude::fragment().unwrap();assert_eq!(b.len(),magnitude::END-magnitude::START);
+    if let Some(reference)=std::env::var_os("NABU_VENUS_REFERENCE") {
+        let original=std::fs::read(reference).unwrap();
+        let off=magnitude::START+magnitude::FILE_BASE;
+        assert_eq!(&b[..],original.get(off..off+b.len()).unwrap());
+    }
+}
