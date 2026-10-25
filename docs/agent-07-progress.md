@@ -270,3 +270,35 @@ python3 tools/build-wlanmdsp-startup.py /tmp/alias-through-compare.bin \
 The unimplemented gap `[0xb0001dac,0xb0001fa8)` is still 508 bytes and the
 following independent function begins at `0xb0002010`. The 104-byte artifact
 is not a flashable firmware or an independently authenticated image.
+
+### Checkpoint I: Hexagon hardware-loop record-array comparator
+
+The disconnected executable region now covers **400 exact independently
+assembled bytes**: runtime `[0xb0001fa8,0xb0002138)` and ELF file
+`[0x41fa8,0x42138)`. The new 296-byte function at `0xb0002010` compares
+record array entries, checks field counts and data ranges, and searches for
+matching entries using Hexagon `loop0` and `loop1` hardware loops. It has
+explicit mismatch/error exits and a shared reporting tail; it is a **complete
+function**, unlike the unfinished earlier record consumer.
+
+The implementation in `wlan-record-array-compare.S` was independently written
+as packetized Hexagon assembly. Two loop-start targets must point to
+source offsets `0x70` and `0x80`, not merely the comparison instructions;
+incorrect loop targets assemble without error but change exact bytes.
+Absolute far jumps are expressed as displacements normalized to this
+independently assembled fragment's runtime start. The code contains no OEM
+instruction byte arrays. The LLVM6 `hexagonv62` and `hexagonv65` encodings
+are identical to the exact hash-verified reference at `[0x42010,0x42138)`.
+
+```sh
+python3 tools/build-wlanmdsp-startup.py /tmp/imports-and-array-compare.bin \
+  --import-aliases-with-array-compare --llvm-mc /private/llvm6/bin/llvm-mc \
+  --reference /private/wlanmdsp.mbn --manifest /tmp/wlan-array-compare.json
+```
+
+The contiguous initial startup prefix remains 7,596 layout bytes (3,820
+independently encoded code plus 3,776 structural linker fill), and the
+unimplemented `[0xb0001dac,0xb0001fa8)` gap remains 508 bytes. The adjacent
+import-alias/comparator group is independently covered for 400 code bytes,
+raising the separately reconstructed executable total to **4,220 bytes**.
+Next function begins at `0xb0002138`. No complete signed WLAN MBN exists.

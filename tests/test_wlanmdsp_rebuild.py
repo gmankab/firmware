@@ -213,6 +213,30 @@ class WlanHexagonAssemblyTests(unittest.TestCase):
             fw.check_reference(together, Path(ref).read_bytes(),
                                runtime_offset=fw.IMPORT_ALIASES_OFFSET)
 
+    def test_hexagon_hardware_loop_array_comparator_matches_reference(self):
+        src = fw.ARRAY_COMPARE_SOURCE.read_text()
+        self.assertIn("loop1(inner_first,r12)", src)
+        self.assertIn("loop0(inner_iteration,r0)", src)
+        self.assertIn(":endloop0", src)
+        self.assertIn(":endloop1", src)
+        for opcode_blob in (".incbin", ".word", ".byte", ".long", ".quad"):
+            self.assertNotIn(opcode_blob, src)
+        rebuilt = fw.assemble(fw.ARRAY_COMPARE_SOURCE, self.mc,
+                              expected_length=fw.ARRAY_COMPARE_LENGTH)
+        self.assertEqual(len(rebuilt), 296)
+        self.assertEqual(rebuilt[0x6c:0x70], bytes.fromhex("08c02c60"))
+        self.assertEqual(rebuilt[0x7c:0x80], bytes.fromhex("08c00060"))
+        for cpu in ("hexagonv62",):
+            self.assertEqual(rebuilt, fw.assemble(fw.ARRAY_COMPARE_SOURCE, self.mc,
+                cpu=cpu, expected_length=fw.ARRAY_COMPARE_LENGTH))
+        joined = fw.assemble_import_aliases_through_array_compare(self.mc, "hexagonv65")
+        self.assertEqual(len(joined), fw.THROUGH_ARRAY_COMPARE_LENGTH)
+        self.assertEqual(joined[-296:], rebuilt)
+        ref = os.environ.get("WLANMDSP_REFERENCE")
+        if ref:
+            fw.check_reference(joined, Path(ref).read_bytes(),
+                               runtime_offset=fw.IMPORT_ALIASES_OFFSET)
+
     def test_unresolved_reference_is_rejected(self):
         with tempfile.TemporaryDirectory() as d:
             bad = Path(d) / "unresolved.S"
