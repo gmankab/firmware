@@ -41,3 +41,15 @@ python3 tools/build-wlanmdsp-agent13.py /tmp/wlan-prefix-through-27a0.bin \
 - Agent13 generated code now has SHA-256 `d6fce6e6ce1c796c7ff47499a0869ae25900bb6a7c25ad28af19f52b4dd1e82d`. Independently joining Agent7's verified code yields `[0x40000,0x42960)` = **10,592 matching layout bytes**, SHA-256 `e15f567f6364cea88c166665903f03319b93d14b358357614b9a582071700623`. Distinguish **6,816 executable instruction bytes** (6,216 prior +600 new) from **3,776 generated linker-fill bytes**.
 - Verified against the exact SHA-256-pinned `wlanmdsp.mbn`; zero differences over both the new fragment and entire joined prefix. Repository Rust suite: 160 tests passed. Python suite: 22 discovered, 20 passed, 2 skipped. Offline release build: passed.
 - **Next uncovered function begins at file `0x42960`, runtime VMA `0xb0002960`**. Owned reservation still ends at file `0x100000`, so no overlap with Agent 14.
+
+## Checkpoint 03 — record-list aggregate and wrappers
+
+- Added **324 independently written Hexagon instruction bytes** in three adjacent routines after Checkpoint 02:
+  - `[file 0x42960,0x42a14)` / VMA `[0xb0002960,0xb0002a14)`: **180-byte** record-list traversal and status aggregation; bounded by the record count at object offset `0x140`, branches through status 5/6/255 classes.
+  - `[file 0x42a14,0x42a54)`: **64-byte** diagnostic wrapper with QuRT frame restoration and tail branch to `0xb0002708`.
+  - `[file 0x42a54,0x42aa4)`: **80-byte** auxiliary logging wrapper computing a record pointer using a table index, then tail-branched back to `0xb0002a14`.
+- Zero byte differences for **all 324 new bytes** under independent LLVM22 Hexagon V66 compilation, with correct packet ordering for two `combine(#0,#0)` compound initialization bundles. These are complete functions, not padded gaps.
+- Total Agent13 new executable coverage: `[0x42708,0x42aa4)` **924 bytes**, SHA-256 `bce70806209bef5e137e41938ae45c564cd4dbc30abd33e67e83072993212a42`.
+- The full prefix rebuilt from Agent7 and Agent13 source is `[0x40000,0x42aa4)` = **10,916 layout bytes**, SHA-256 `69e77fe4dc061d8f69b49e0ff6e1ff4dacc0817a2a60730be62c623536ab2b43`, all reference-identical. Of these, **7,140 independently re-encoded instructions** and **3,776 prior linker fill**.
+- `cargo test --workspace --offline --locked -q`: **160 Rust tests passed**. Python test discovery: **22 tests, 20 passed, 2 skipped**. Offline release build: passed. Direct reference SHA, ELF segment and full-region comparison: passed.
+- Next function begins at file `0x42aa4`, VMA `0xb0002aa4`. No bytes above this boundary are claimed.

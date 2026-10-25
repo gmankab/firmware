@@ -26,6 +26,9 @@ START = 0x2708
 FRAGMENTS = (
     ("record-lookup", WLAN_SRC / "agent13-runtime-record-check.S", START, 0x98),
     ("record-classifier", WLAN_SRC / "agent13-runtime-record-classify.S", 0x27a0, 0x1c0),
+    ("record-list-summary", WLAN_SRC / "agent13-runtime-record-summary.S", 0x2960, 0xb4),
+    ("record-diagnostic-wrapper", WLAN_SRC / "agent13-runtime-record-report.S", 0x2a14, 0x40),
+    ("record-forward-wrapper", WLAN_SRC / "agent13-runtime-record-forward.S", 0x2a54, 0x50),
 )
 
 
