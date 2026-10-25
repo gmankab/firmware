@@ -376,3 +376,9 @@ Original reference: private `map220v-nabu-firmware/venus.mbn`, SHA-256 `9d4af65d
 - Contiguous typed A32 interval `[0x21c78,0x2f7d0)` = **56,152 exact bytes**; newly added `[0x2f5b0,0x2f7d0)` = **544 bytes**, **117 instructions** and **19 data words**.
 - Builds controller DMA input mappings, conditional queue/resource barriers, and trivial buffer getters. Five literal address words at `[0x2f658,0x2f66c)` and fourteen at `[0x2f788,0x2f7c0)` are separately modeled.
 - The next actual function starts at `0x2f7d0`. Only instruction-byte equality is verified, not OEM signature, hardware boot or high-level behavior.
+
+## Checkpoint 57 — MMIO state polls and counters
+
+- Contiguous typed A32 reconstruction `[0x21c78,0x2f96c)` = **56,564 exact bytes**, newly added `[0x2f7d0,0x2f96c)` = **412 bytes**: **90 ARM32 instructions** and **13 data words**.
+- Includes MMIO-controller state predicates, version/mode tests and three per-channel counter helpers. Ten interspersed literal pools are each explicitly classified as data, preventing OEM address words from being interpreted as instructions.
+- Next routine begins at `0x2f96c`. This is instruction-byte re-encoding only, not independently recovered high-level semantics or an OEM-signed firmware.
