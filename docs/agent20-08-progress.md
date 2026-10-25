@@ -125,3 +125,28 @@ decoding. The two original NOP alignment words `[0x39588,0x39590)` are
 **Total: 1,364 independently source-assembled executable bytes in 18 verified
 functions.** The next code begins at `0x39600` after a separate one-word
 alignment NOP `[0x395fc,0x39600)`; no neighboring OEM code is copied.
+
+**Checkpoint 12 — independent small-function cluster beyond the buffer manager:**
+Five further complete Hexagon routines have been source-assembled from explicit
+controller operations, using no `.word`, `.incbin`, copied OEM payload or
+implicit alignment: a **96-byte** eight-nibble status-text formatter
+`[0x3a86c,0x3a8cc)`; a **40-byte** codec-context activator
+`[0x3ab00,0x3ab28)`; a **4-byte** constant-return helper
+`[0x3ab28,0x3ab2c)`; a **64-byte** platform-limit checked counter updater
+`[0x3ab2c,0x3ab6c)`; and a **72-byte** callback-before/after probe
+`[0x3ab6c,0x3abb4)`.
+
+The four `0x3ab00–0x3abb4` functions form **180 contiguous source-generated
+executable bytes** (no intervening padding). The 96-byte status formatter is
+disjoint. All LLVM6-assembled bytes match the original pinned ADSP image;
+Rizin independently recognizes its nibble extraction, indirect callback and
+memory-modification operations. Some helper names reflect observed
+instruction-level behavior, *not* a proof of fully recovered high-level
+source. This checkpoint adds **276 executable bytes**, bringing Agent 20-08 to
+**1,640 independently assembled executable bytes in 23 fragments**. The main
+buffer-management procedure `[0x39600,0x398e8)` and intervals preceding these
+helpers remain **unreconstructed**, even though Hexagon disassemblers can
+list their original instructions. Next high-priority candidates are the
+independent helper(s) around file `0x3abb4` and the controller manager at
+`0x39600`. No executable bytes from the second RX region's large data/zero
+areas have been counted.

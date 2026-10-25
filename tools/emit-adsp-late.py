@@ -45,6 +45,13 @@ FRAGMENTS = {
     'conditional-query': (TOOLS / 'adsp-late-conditional-query.S', 0x39568, 0x20),
     'byte-prefix-compare': (TOOLS / 'adsp-late-byte-prefix-compare.S', 0x39590, 0x30),
     'bounded-copy': (TOOLS / 'adsp-late-bounded-copy.S', 0x395C0, 0x3C),
+    # Several disjoint small helpers after the large unreconstructed codec
+    # buffer manager; no bytes from that manager are included in the output.
+    'status-nibbles': (TOOLS / 'adsp-late-hex-prefix.S', 0x3A86C, 0x60),
+    'activate-context': (TOOLS / 'adsp-late-activate-context.S', 0x3AB00, 0x28),
+    'return-mode-two': (TOOLS / 'adsp-late-return-mode-two.S', 0x3AB28, 0x04),
+    'guarded-counter': (TOOLS / 'adsp-late-guarded-counter.S', 0x3AB2C, 0x40),
+    'probe-callbacks': (TOOLS / 'adsp-late-probe-callbacks.S', 0x3AB6C, 0x48),
 }
 
 class LateAdspError(ValueError):
