@@ -101,6 +101,7 @@ pub enum Insn {
     HalfGp { store: bool, signed: bool, reg: Reg, address: u32 },
     ShortMemory { store: bool, width: Width, reg: Reg, base: Reg, offset: u8 },
     ImmediateMemory { store: bool, width: Width, reg: Reg, base: Reg, offset: i32 },
+    SignedMemoryImmediate {width:Width,dest:Reg,base:Reg,offset:i32},
     WordAtRegister { store: bool, reg: Reg, base: Reg },
     WordAtFrame { store: bool, reg: Reg, offset: u16 },
     WordAtStack { store: bool, reg: Reg, offset: u16 },
@@ -123,10 +124,21 @@ pub enum Insn {
     OrImmediate { dest: Reg, source: Reg, value: u16 },
     AndImmediate { dest: Reg, source: Reg, value: u16 },
     SubtractSmall3 { dest: Reg, source: Reg, value: u8 },
+    AddSmall3 { dest:Reg,source:Reg,value:u8 },
+    ShiftLeftSmall3 { dest:Reg,source:Reg,amount:u8 },
     CompactAlu3 { dest: Reg, left: Reg, right: Reg, subtract: bool },
     DivideRemainder { quotient: Reg, dividend: Reg, divisor: Reg, remainder: Reg, signed: bool },
     ArithmeticShiftRight { dest: Reg, source: Reg, amount: u8 },
+    ShiftLeftImmediate {dest:Reg,source:Reg,amount:u8},
+    /// N32 ALU2/MADDR32: multiply-add rounded 32-bit DSP operation.
+    MultiplyAddRounded32 { dest:Reg, left:Reg, right:Reg },
+    MultiplyWide { dest:Reg, left:Reg, right:Reg },
+    MaximumRegister {dest:Reg,left:Reg,right:Reg},
+    MultiplyRegister64 {dest:Reg,left:Reg,right:Reg,signed:bool},
     RegisterAlu {op:AluRegOp,dest:Reg,left:Reg,right:Reg,shift:u8},
+    OrShiftRight {dest:Reg,left:Reg,right:Reg,shift:u8},
+    ZeroExtendWide {dest:Reg,source:Reg},
+    ReverseSubtractImmediate {dest:Reg,source:Reg,value:i16},
     /// SLTI45 writes the implicit temporary register TA.
     LessThanSmallImmediate { reg: Reg, value: u8 },
     LessThanSmallRegister { left: Reg, right: Reg },
@@ -205,6 +217,13 @@ impl Insn {
                 let type_code=if store{4}else if is_signed{2}else{0};
                 (0x1e<<25)|(reg.number()<<20)|(type_code<<17)|signed(delta/2,18)?
             }
+            SignedMemoryImmediate{width,dest,base,offset} => {
+                let (op,align)=match width{Width::Byte=>(0x10,1),Width::Half=>(0x11,2),
+                   Width::Word=>return Err("signed word immediate load is undefined".into())};
+                if offset%align !=0 {return Err("unaligned signed memory immediate".into());}
+                (op<<25)|(dest.number()<<20)|(base.number()<<15)
+                 |signed(i64::from(offset/align),15)?
+            },
             ImmediateMemory { store,width,reg,base,offset } => {
                 let scale=i32::from(width.scale());
                 if offset%scale!=0{return Err("unaligned immediate memory offset".into());}
@@ -259,10 +278,33 @@ impl Insn {
                     |(if decrement{0x18}else{0})|(u32::from(writeback)<<2)
             }
             ReadSystem{..}|WriteSystem{..} => return Err("NDS32 CSR index exceeds 10 bits".into()),
+            ReverseSubtractImmediate{dest,source,value} => (0x29<<25)
+                |(dest.number()<<20)|(source.number()<<15)|signed(i64::from(value),15)?,
+            ZeroExtendWide{dest,source} => (0x20<<25)|(dest.number()<<20)
+                |(source.number()<<15)|0x13,
+            OrShiftRight{dest,left,right,shift} => {
+                if shift>31{return Err("OR_SRLI amount exceeds 31".into());}
+                (0x20<<25)|(dest.number()<<20)|(left.number()<<15)|(right.number()<<10)
+                 |(u32::from(shift)<<5)|0x15
+            },
+            MultiplyRegister64{dest,left,right,signed:is_signed} =>
+                (0x21<<25)|(dest.number()<<20)|(left.number()<<15)|(right.number()<<10)
+                    |if is_signed {0x68}else{0x69},
+            MaximumRegister{dest,left,right} => (0x21<<25)
+                |(dest.number()<<20)|(left.number()<<15)|(right.number()<<10),
+            MultiplyWide{dest,left,right} => (0x21<<25)|(dest.number()<<20)
+                |(left.number()<<15)|(right.number()<<10)|0x24,
+            MultiplyAddRounded32 {dest,left,right} =>
+                (0x21<<25)|(dest.number()<<20)|(left.number()<<15)|(right.number()<<10)|0x73,
             RegisterAlu{op,dest,left,right,shift} => {
                 if shift>31{return Err("NDS32 ALU1 shifted register exceeds 31 bits".into());}
                 (0x20<<25)|(dest.number()<<20)|(left.number()<<15)|(right.number()<<10)
                     |(u32::from(shift)<<5)|op.bits()
+            },
+            ShiftLeftImmediate {dest,source,amount} => {
+                if amount>31{return Err("SLLI shift exceeds 31".into());}
+                (0x20<<25)|(dest.number()<<20)|(source.number()<<15)
+                |(u32::from(amount)<<10)|8
             },
             ArithmeticShiftRight { dest, source, amount } => {
                 if amount>31{return Err("SRAI amount exceeds 31".into());}
@@ -347,6 +389,14 @@ impl Insn {
             SignExtendHalf { dest,source } => 0x9603|dest.small()?<<6|source.small()?<<3,
             CompactAlu3 { dest,left,right,subtract } => 0x9800 | (u16::from(subtract)<<9)
                 | (dest.small()?<<6) | (left.small()?<<3) | right.small()?,
+            ShiftLeftSmall3{dest,source,amount} => {
+                if amount>7{return Err("SLLI333 shift exceeds 7".into());}
+                0x9400|dest.small()?<<6|source.small()?<<3|u16::from(amount)
+            },
+            AddSmall3{dest,source,value} => {
+                if value>7{return Err("ADDI333 operand exceeds 7".into());}
+                0x9c00|dest.small()?<<6|source.small()?<<3|u16::from(value)
+            },
             SubtractSmall3 { dest,source,value } => {
                 if value>7{return Err("SUBI333 value exceeds 7".into());}
                 0x9e00|dest.small()?<<6|source.small()?<<3|u16::from(value)
@@ -403,7 +453,15 @@ impl Insn {
             WriteSystem { source,csr } => format!("mtsr {},{}",r(source),if let Csr::Number(index)=csr {format!("0x{index:x}")} else if csr==Csr::IntMask3 {"0xc2".into()} else {format!("${}",csr.name())}),
             StackAdjust { bytes } => format!("addi10.sp {bytes}"),
             AddressFromStack {dest,offset} => format!("addri36.sp {},{}",r(dest),offset),
+            ReverseSubtractImmediate{dest,source,value} => format!("subri {},{},{}",r(dest),r(source),value),
+            ZeroExtendWide{dest,source} => format!("zeh {},{}",r(dest),r(source)),
+            OrShiftRight{dest,left,right,shift} => format!("or_srli {},{},{},{}",r(dest),r(left),r(right),shift),
+            MultiplyRegister64{dest,left,right,signed:is_signed} => format!("{} {},{},{}",if is_signed{"mulsr64"}else{"mulr64"},r(dest),r(left),r(right)),
+            MaximumRegister{dest,left,right} => format!("max {},{},{}",r(dest),r(left),r(right)),
+            MultiplyWide{dest,left,right} => format!("mul {},{},{}",r(dest),r(left),r(right)),
+            MultiplyAddRounded32{dest,left,right} => format!("maddr32 {},{},{}",r(dest),r(left),r(right)),
             RegisterAlu{op,dest,left,right,shift} => format!("{}_slli {},{},{},{}",op.mnemonic(),r(dest),r(left),r(right),shift),
+            ShiftLeftImmediate {dest,source,amount} => format!("slli {},{},{}",r(dest),r(source),amount),
             ArithmeticShiftRight { dest,source,amount } => format!("srai {},{},{}",r(dest),r(source),amount),
             DivideRemainder { quotient,dividend,divisor,remainder,signed:is_signed } => format!("{} {},{},{},{}",if is_signed {"divsr"}else{"divr"},r(quotient),r(dividend),r(divisor),r(remainder)),
             LessThanWide { dest,source,value,signed:is_signed } => format!("{} {},{},{}", if is_signed {"sltsi"}else{"slti"},r(dest),r(source),value),
@@ -422,6 +480,7 @@ impl Insn {
             LoadWordGp { dest,address } => format!("lwi.gp {},[{}]",r(dest),i64::from(address)-i64::from(gp)),
             HalfGp { store,signed,reg,address } => format!("{} {},[{}]",if store{"shi.gp"}else if signed{"lhsi.gp"}else{"lhi.gp"},r(reg),i64::from(address)-i64::from(gp)),
             ShortMemory { store,width,reg,base,offset } => format!("{}{}i333 {},[{}+{}]",if store{"s"}else{"l"},width.letter(),r(reg),r(base),offset),
+            SignedMemoryImmediate{width,dest,base,offset} => format!("l{}si {},[{}{:+}]",width.letter(),r(dest),r(base),offset),
             ImmediateMemory { store,width,reg,base,offset } => format!("{}{}i {},[{}{:+}]",if store{"s"}else{"l"},width.letter(),r(reg),r(base),offset),
             WordAtRegister { store,reg,base } => format!("{}wi450 {},[{}]",if store{"s"}else{"l"},r(reg),r(base)),
             WordAtStack {store,reg,offset} => format!("{}wi37.sp {},[$sp+{}]",if store{"s"}else{"l"},r(reg),offset),
@@ -437,6 +496,8 @@ impl Insn {
             ZeroExtend { dest,source,half } => format!("{} {},{}",if half{"zeh33"}else{"zeb33"},r(dest),r(source)),
             SignExtendByte { dest,source } => format!("seb33 {},{}",r(dest),r(source)),
             SignExtendHalf { dest,source } => format!("seh33 {},{}",r(dest),r(source)),
+            ShiftLeftSmall3{dest,source,amount} => format!("slli333 {},{},{}",r(dest),r(source),amount),
+            AddSmall3{dest,source,value} => format!("addi333 {},{},{}",r(dest),r(source),value),
             SubtractSmall3 { dest,source,value } => format!("subi333 {},{},{}",r(dest),r(source),value),
             CompactAlu3 { dest,left,right,subtract } => format!("{} {},{},{}",if subtract {"sub333"}else{"add333"},r(dest),r(left),r(right)),
             LessThanSmallImmediate { reg,value } => format!("slti45 {},{}",r(reg),value),
@@ -506,6 +567,27 @@ mod tests {
         assert!(Insn::LessThanWide{dest:R0,source:R1,value:32768,signed:true}.encode(0,0).is_err());
         assert!(Insn::ReadSystem{dest:R0,csr:Csr::Number(0x400)}.encode(0,0).is_err());
         assert!(Insn::StackAdjust{bytes:-513}.encode(0,0).is_err());
+    }
+    #[test]
+    fn sensor_dsp_and_signed_memory_forms_have_strict_limits(){
+        assert_eq!(Insn::AddSmall3{dest:R1,source:R2,value:7}.encode(0,0).unwrap(),
+            0x9c57_u16.to_be_bytes());
+        assert!(Insn::ShiftLeftSmall3{dest:R1,source:R2,amount:8}.encode(0,0).is_err());
+        assert!(Insn::AddSmall3{dest:R1,source:R2,value:8}.encode(0,0).is_err());
+        assert!(Insn::SignedMemoryImmediate{width:Width::Half,dest:R1,base:R2,offset:3}
+            .encode(0,0).is_err());
+        assert!(Insn::SignedMemoryImmediate{width:Width::Word,dest:R1,base:R2,offset:4}
+            .encode(0,0).is_err());
+        assert_eq!(Insn::SignedMemoryImmediate{width:Width::Byte,dest:R1,base:R2,offset:-1}
+            .encode(0,0).unwrap(), ((0x10u32<<25)|(1<<20)|(2<<15)|0x7fff).to_be_bytes());
+        assert!(Insn::OrShiftRight{dest:R0,left:R1,right:R2,shift:32}.encode(0,0).is_err());
+        assert!(Insn::ShiftLeftImmediate{dest:R0,source:R1,amount:32}.encode(0,0).is_err());
+        assert!(Insn::ReverseSubtractImmediate{dest:R0,source:R1,value:-16385}
+            .encode(0,0).is_err());
+        assert_eq!(Insn::MaximumRegister{dest:R0,left:R1,right:R2}
+            .encode(0,0).unwrap(), ((0x21u32<<25)|(1<<15)|(2<<10)).to_be_bytes());
+        assert_eq!(Insn::MultiplyRegister64{dest:R0,left:R1,right:R2,signed:true}
+            .encode(0,0).unwrap(),((0x21u32<<25)|(1<<15)|(2<<10)|0x68).to_be_bytes());
     }
     #[test]
     fn compact_register_map_rejects_holes() {

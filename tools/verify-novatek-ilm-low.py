@@ -214,7 +214,36 @@ ADDITIONAL_POSTMARKETOS_EX9 = {7: {'operation': 'jal', 'target_low25': 38128},
  458: {'address': 190540, 'destination_register': 1, 'operation': 'lwi.gp'},
  501: {'destination_register': 2, 'immediate': 6, 'operation': 'addi', 'source_register': 31}}
 
+# EX9 dependencies from Agent 17 checkpoint 09 semantic re-encoding.
+# These are operand semantics for externally owned Agent 18 entries, NOT
+# raw instruction words or firmware bytes.
+ADDITIONAL_CHECKPOINT09_POSTMARKETOS_EX9 = {42: {'operation': 'jal', 'target_low25': 94600},
+ 47: {'address': 190532, 'destination_register': 0, 'operation': 'lbi.gp'},
+ 124: {'address': 181560, 'destination_register': 0, 'operation': 'lwi.gp'},
+ 172: {'dividend_register': 2,
+       'divisor_register': 3,
+       'operation': 'divsr',
+       'quotient_register': 2,
+       'remainder_register': 2},
+ 227: {'base_register': 11, 'displacement': 0, 'operation': 'sbi', 'source_register': 0},
+ 280: {'destination_register': 15, 'immediate': 51, 'operation': 'sltsi', 'source_register': 0},
+ 326: {'base_register': 6, 'destination_register': 0, 'displacement': 125, 'operation': 'lbi'},
+ 399: {'base_register': 6, 'displacement': 18, 'operation': 'shi', 'source_register': 0},
+ 402: {'address': 181261, 'destination_register': 0, 'operation': 'lbi.gp'},
+ 404: {'address': 182144, 'destination_register': 1, 'operation': 'lwi.gp'},
+ 406: {'address': 191725, 'destination_register': 5, 'operation': 'lbi.gp'},
+ 412: {'argument_register': 4, 'destination_register': 5, 'operation': 'or_srli', 'shift': 31, 'source_register': 5},
+ 416: {'base_register': 6, 'displacement': 125, 'operation': 'sbi', 'source_register': 0},
+ 459: {'destination_register': 15, 'immediate': 51, 'operation': 'sltsi', 'source_register': 2},
+ 478: {'base_register': 7, 'destination_register': 2, 'displacement': 20, 'operation': 'lhi'},
+ 479: {'base_register': 7, 'destination_register': 2, 'displacement': 24, 'operation': 'lhi'},
+ 480: {'destination_register': 3, 'operation': 'srai', 'shift': 31, 'source_register': 2},
+ 490: {'address': 181512, 'destination_register': 0, 'operation': 'lwi.gp'},
+ 497: {'operation': 'jal', 'target_low25': 6452},
+ 506: {'operation': 'jal', 'target_low25': 6586}}
+
 PROFILES["postmarketos"]["ex9"].update(ADDITIONAL_POSTMARKETOS_EX9)
+PROFILES["postmarketos"]["ex9"].update(ADDITIONAL_CHECKPOINT09_POSTMARKETOS_EX9)
 
 FILE_START = 0x66A
 ASSIGNED_END = 0x10000
@@ -236,18 +265,20 @@ CHECKPOINT_COUNTS["postmarketos"][0xB42] = (471, 149, 322, 58, 32)
 CHECKPOINT_COUNTS["postmarketos"][0xE34] = (758, 239, 519, 132, 63)
 # Filled after typed encoder verification: 0x1c1a cumulative checkpoint.
 CHECKPOINT_COUNTS["postmarketos"][0x1C1A] = (2074,702,1372,401,131)
+CHECKPOINT_COUNTS["postmarketos"][0x23D0] = (2776,987,1789,477,151)
 SUPPORTED_MNEMONICS = {
     2: frozenset({
         "addi45", "beqs38", "bnes38", "beqz38", "bnez38", "beqzs8", "bnezs8",
         "add45", "bmski33", "fexti33", "slt45", "ex9.it", "ifcall9", "ifret16", "j8", "jr5", "jral5",
         "lbi333", "lhi333", "lwi333", "lwi37", "lwi37.sp", "lwi450", "swi333", "mov55", "movi55", "movpi45", "or33", "addi10.sp", "addri36.sp", "add333", "sub333", "sub45", "swi37.sp", "seh33", "slts45", "sltsi45", "neg33", "not33", "mul33", "xor33", "and33", "or33",
         "pop25", "push25", "ret5", "sbi333", "seb33", "shi333", "slti45", "srli45", "subi333", "subi45",
-        "swi450", "xlsb33", "zeb33", "zeh33",
+        "swi450", "xlsb33", "zeb33", "zeh33", "slli333", "addi333",
     }),
     4: frozenset({
         "add_slli", "addi", "andi", "beqc", "beqz", "bitci", "bnec", "bset", "dsb",
         "bnez", "ifcall", "lhi.gp", "lhsi.gp", "shi.gp", "lbi", "slti", "sltsi", "bgez", "bltz", "bgtz", "blez", "bgezal", "bltzal", "lhi", "lwi", "shi", "swi", "lbs", "lhs", "lw", "sw", "srai", "divsr", "divr", "sub_slli", "and_slli", "xor_slli", "nor_slli", "slt_slli", "slts_slli", "lbi.gp", "lmw.bi", "smw.bi", "j", "jal", "jr", "jral", "lb", "lbi.gp", "lmw.bim", "lwi", "lwi.gp", "mfsr", "movi",
         "mtsr", "or_slli", "ori", "sb", "sbi", "sbi.gp", "sethi", "sll", "smw.adm", "smw.bim", "srli", "swi.gp",
+        "maddr32", "mul", "mulr64", "mulsr64", "max", "or_srli", "zeh", "subri", "slli", "lbsi", "lhsi",
     }),
 }
 # No directives, labels, strings, statement separators or assembler comments.
@@ -426,6 +457,31 @@ def verify_effect(table_bytes, effect, gp=None):
         return ((word >> 25) == opcode and (word >> 20 & 31) == effect["destination_register"]
                 and (word >> 15 & 31) == effect["source_register"]
                 and (word & 0x7FFF) == effect["immediate"])
+    if operation == "sltsi":
+        return ((word >> 25) == 0x2f and (word >> 20 & 31) == effect["destination_register"]
+                and (word >> 15 & 31) == effect["source_register"]
+                and (word & 0x7fff) == effect["immediate"])
+    if operation in {"lbi", "sbi", "lhi", "shi"}:
+        op = {"lbi": 0, "sbi": 8, "lhi": 2, "shi": 9}[operation]
+        reg = effect["source_register" if operation in {"sbi", "shi"} else "destination_register"]
+        expected_offset = effect["displacement"]
+        if operation in {"lhi", "shi"}:
+            require(expected_offset % 2 == 0, "NDS32 halfword immediate requires halfword displacement")
+            expected_offset //= 2
+        return ((word >> 25) == op and (word >> 20 & 31) == reg
+                and (word >> 15 & 31) == effect["base_register"]
+                and signed_field(word, 15) == expected_offset)
+    if operation == "srai":
+        return ((word >> 25) == 0x20 and (word & 0x3ff) == 10
+                and (word >> 20 & 31) == effect["destination_register"]
+                and (word >> 15 & 31) == effect["source_register"]
+                and (word >> 10 & 31) == effect["shift"])
+    if operation == "or_srli":
+        return ((word >> 25) == 0x20 and (word & 31) == 0x15
+                and (word >> 20 & 31) == effect["destination_register"]
+                and (word >> 15 & 31) == effect["source_register"]
+                and (word >> 10 & 31) == effect["argument_register"]
+                and (word >> 5 & 31) == effect["shift"])
     if operation == "addi":
         return ((word >> 25) == 0x28 and (word >> 20 & 31) == effect["destination_register"]
                 and (word >> 15 & 31) == effect["source_register"]
