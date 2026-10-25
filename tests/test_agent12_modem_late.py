@@ -25,7 +25,10 @@ class ModemLateTests(unittest.TestCase):
         self.assertEqual(agent12.ATOMIC_END, agent12.CONTROL_START)
         self.assertEqual((agent12.SERVICE_START,agent12.SERVICE_END),(0x7C2EC,0x7C324))
         self.assertLess(agent12.CONTROL_END,agent12.SERVICE_START)
-        self.assertLess(agent12.SERVICE_END,agent12.AUX_START)
+        self.assertEqual((agent12.SERVICE_MMIO_START,agent12.SERVICE_MMIO_END),
+                         (0x7C324,0x7C3A8))
+        self.assertEqual(agent12.SERVICE_END, agent12.SERVICE_MMIO_START)
+        self.assertLess(agent12.SERVICE_MMIO_END,agent12.AUX_START)
         self.assertLessEqual(agent12.AUX_END, 0x446000 + 0x11DA4)
         self.assertEqual(agent12.AUX_INIT_START,0x446200)
         self.assertEqual(agent12.AUX_INIT_END,0x446254)
@@ -144,6 +147,27 @@ class ModemLateTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError,'56 compiled bytes'):
             agent12.restore_service_probe_packets(synthetic[:-4])
 
+    def test_service_mmio_packet_adjustment_rejects_unrelated_opcode_classes(self):
+        words=[0x7800C000]*33
+        words[5]=0x5A00C000
+        words[6]=0x0C004000
+        words[8]=0x5B00C000
+        words[9]=0x0C004000
+        source=struct.pack('<33I',*words)
+        decoded=struct.unpack('<33I',agent12.restore_service_mmio_packets(source))
+        for i in (5,8):
+            self.assertEqual(decoded[i]&agent12.MARKER_MASK,agent12.CONTINUE_MARKER)
+            self.assertEqual(decoded[i+1],words[i+1])
+        self.assertEqual(decoded[0:5],tuple(words[0:5]))
+        with self.assertRaisesRegex(ValueError,'opcode classes'):
+            bad=words.copy();bad[5]=0x7800C000
+            agent12.restore_service_mmio_packets(struct.pack('<33I',*bad))
+        with self.assertRaisesRegex(ValueError,'packet markers'):
+            bad=words.copy();bad[8]=0x5B004000
+            agent12.restore_service_mmio_packets(struct.pack('<33I',*bad))
+        with self.assertRaisesRegex(ValueError,'132 bytes'):
+            agent12.restore_service_mmio_packets(source[:-4])
+
     def test_sources_use_packets_and_real_control_register_semantics(self):
         a = agent12.ATOMIC_SOURCE.read_text()
         b = agent12.AUX_SOURCE.read_text()
@@ -153,6 +177,7 @@ class ModemLateTests(unittest.TestCase):
         f = agent12.AUX_STAGE_SOURCE.read_text()
         g = agent12.AUX_MMIO_SOURCE.read_text()
         h = agent12.SERVICE_SOURCE.read_text()
+        j = agent12.SERVICE_MMIO_SOURCE.read_text()
         self.assertIn("memw_locked(r0)", a)
         self.assertIn("if (!p0.new) r3 = add", a)
         self.assertIn("memb(##3249533708) = r2.new", a)
@@ -177,6 +202,9 @@ class ModemLateTests(unittest.TestCase):
         self.assertIn('service_load',h)
         self.assertIn('service_flush',h)
         self.assertIn('combine(#0,##3249533728)',h)
+        self.assertIn('memw(r2+#-1012)',j)
+        self.assertIn('setbit(r3,#2)',j)
+        self.assertIn('jumpr r31',j)
 
     def test_rejects_bad_executable_elf_magic_and_isa(self):
         with self.assertRaisesRegex(ValueError, "ELF32"):
@@ -195,7 +223,7 @@ class ModemLateTests(unittest.TestCase):
     def test_optional_llvm6_exact_source_lengths(self):
         a = agent12.output_fragments(Path(os.environ["NABU_HEXAGON_LLVM_MC"]))
         self.assertEqual({k: len(v) for k, v in a.items()},
-                         {0x7C000:160,0x7C2EC:56,0x446000:216,0x446200:84,0x446260:152})
+                         {0x7C000:160,0x7C2EC:188,0x446000:216,0x446200:84,0x446260:152})
         if os.getenv("NABU_MODEM_REFERENCE"):
             agent12.verify_reference(Path(os.environ["NABU_MODEM_REFERENCE"]).read_bytes(), a)
 

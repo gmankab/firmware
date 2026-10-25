@@ -196,3 +196,36 @@ mismatches. The new service-fragment digest is
 The gap `[0x7c0a0,0x7c2ec)` and the next routine starting at file
 `0x7c324` are *not* independently reconstructed; no space is filled from
 reference bytes. The second executable remains incomplete after `0x4462f8`.
+
+## Checkpoint 06: later modem service MMIO configuration
+
+Added **132 source-built Hexagon V60 bytes** in the first later modem executable
+segment at file `[0x7c324,0x7c3a8)` (mapped virtual
+`[0xc0890324,0xc08903a8)`; physical `[0x8e090324,0x8e0903a8)`).
+This is an independently assembled codec/controller service routine that
+updates MMIO service registers, probes status and returns through the
+original `jumpr r31` packet, followed by an explicit 4-byte `brkpt` guard.
+
+LLVM6 terminates two call packets earlier than the original toolchain.
+`restore_service_mmio_packets` validates both call opcode classes (`0x5A`,
+`0x5B`) and following constant-extender class (`0x0C`), then changes only
+the checked 2-bit packet-termination markers, not instruction semantics or
+reference OEM code. Synthetic tests reject malformed lengths, changed ISA
+classes and changed packet boundaries.
+
+**Total source-generated late-modem bytes: 800** in five disjoint spans:
+
+| Modem file interval | Size | Meaning |
+|---|---:|---|
+| `[0x7c000,0x7c0a0)` | 160 | Atomic, trap guards, callback |
+| `[0x7c2ec,0x7c3a8)` | 188 | Service probe and MMIO programming |
+| `[0x446000,0x4460d8)` | 216 | Auxiliary startup and zeroing |
+| `[0x446200,0x446254)` | 84 | Constructor walker |
+| `[0x446260,0x4462f8)` | 152 | Guard, resource stage, MMIO setup |
+
+This covers **788 other operation bytes plus 12 explicitly assembled trap
+`brkpt` bytes**. Byte equality with pinned original verified for every
+fragment; no gap padding or OEM signature bytes included. Newly contiguous
+probe+MMIO SHA-256: `47992871a615ebedd925a865d7db2ebeab6c0466338c8cbf694f50892eb4374`.
+All further modem executable bytes remain incomplete; this is *not* a
+whole independently source-compiled firmware or authenticated replacement.
