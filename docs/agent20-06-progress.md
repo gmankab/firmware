@@ -211,3 +211,11 @@ python3 tools/agent20_06_a32_roundtrip.py /private/venus.mbn 0xa8ea0 0xa92c8 \
 - Captures codec record allocation, initialization of tagged byte/halfword fields, input/output size bounds, and guarded controller notification. Includes three separate helper/function entries at `0xb02b0`, `0xb0448` and `0xb06dc`. Returns retain the original `POP {...,PC}`.
 - Direct Rust reference comparison and independent Clang/LLVM round-trip (explicit `--data-range 0xb0444:0xb0448 --data-range 0xb06d8:0xb06dc`) have **zero byte differences**. Rust regression checks both data words.
 - Next missing runtime address `0xb0748`, MBN file `0xb4748`, begins a larger codec controller read/modify loop. Still a provisional old-base source-encoded fragment, not high-level source recovery or newly signed firmware.
+
+## Checkpoint 23 — controller FIFO, codec records and IRQ response
+
+- Verified contiguous runtime `[0xa8000,0xb0c64)` = **35,940 byte-identical bytes**, original file `[0xac000,0xb4c64)`.
+- Newly source-encoded `[0xb0748,0xb0c64)` = 1,308 bytes: **322 ARM32 instructions** (1,288 bytes) and **five separately classified literal words** `[0xb0c50,0xb0c64)` (20 bytes). The instruction stream implements queue/plane reassignment, status comparison and codec IRQ notification; retains branches back into the preceding initialization path.
+- New checked A32 `transfer_word_register_offset` supports **negative** shifted-register offsets without writeback. Unit tests validate exact architectural opcodes and reject unsafe PC operands; byte transfer reuses existing signed-index checked encoder. Shared encoder change committed separately for integration review.
+- Direct typed Rust bytes match reference exactly. Clang/LLVM independently reassembles 1,288 instruction bytes and 20 data bytes (`--data-range 0xb0c50:0xb0c64`) with no differences. Regression test checks the five diagnostic literal words.
+- Next uncovered VMA `0xb0c64`, MBN file `0xb4c64`, a short guarded codec helper. Work remains provisional from older Agent 03, not checkpoint-50 merge; is byte-identical instruction encoding, not independent high-level source reconstruction or OEM-authenticated image.
