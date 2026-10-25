@@ -180,3 +180,11 @@ python3 -m unittest discover -s tests -p 'test_*.py'
 - Independent LLVM6 Hexagon V60 assembler output and pinned OEM `modem.mbn` SHA-256 reference match all 100 bytes; SHA-256 of generated fragment `5370cebcb691b64acddb3ce3a079fe1a3280b694e73fe5cc1bcd4bf5838a778e`.
 - Optional pinned reference verifier: `python3 tools/assemble-agent11-rwe.py --llvm-mc /path/to/llvm-mc --reference /private/modem.mbn --output /tmp/agent11-modem-rwe.bin`.
 - This new RWE piece is **not contiguous** with the first executable PT_LOAD. Do not count file `[0x5020,0xcb00)` as source code or append the two fragments together. More modem RWE functions and OEM-authenticated contents remain incomplete.
+
+## Checkpoint 21 — Complete second-PT_LOAD control descriptor + priority handler
+
+- Independently sourced Hexagon V60 code `[file 0xcb00,0xcc1c)` = **284 exact bytes**, mapped virtual `[0xc0814b00,0xc0814c1c)` and physical `[0x8e014b00,0x8e014c1c)`, inside separately mapped executable/RWE `PT_LOAD [0xa000,0x436a8)`.
+- Complete first routine `[0xcb00,0xcb48)` saves thread-local descriptor values using checked HTID S8 and S57:56 encodings and long GP-relative load. Second routine `[0xcb48,0xcc1c)` handles tagged controller-priority comparisons, compact 32-bit compare/branch, a strict predicate packet, optional callback `0xe8a0`, setprio(p3,r1) encoded through named checked operand fields and saved-register return.
+- LLVM6 packet scheduler reverses two valid compare/branch packets at `0xcb78` and `0xcb98`, and cannot see the standalone source macro used for a compact 32-bit branch at `0xcbc8`. A **strict fail-closed normalizer** checks generated instruction classes, registers and parse bits before reordering two LLVM-authored words or changing the one needed parse marker. The original firmware bytes are not spliced in.
+- Original pinned `modem.mbn` SHA256 remains `6f5cb32bc10e41abb40938d185805e788f5637a41d3ebcef278e4e169fc36782`; complete generated region SHA256 `6f5b4abb2f0bc15b9dd84a2668e7b9decdefc75058b74208078592cf2c5d4826`; byte differences **zero**.
+- The intervening original file bytes before `0xcb00`, and after `0xcc1c` until the next executable island, remain **unreconstructed**; no padding or existing OEM data are counted as code. First executable `PT_LOAD [0x3000,0x5020)` remains separately complete from Agent 06 + Agent 11 checkpoint 19.

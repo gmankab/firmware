@@ -9,6 +9,7 @@ or an OEM-accepted signature.
 from __future__ import annotations
 import argparse
 import hashlib
+import struct
 import runpy
 from pathlib import Path
 import subprocess
@@ -16,11 +17,56 @@ import tempfile
 import sys
 
 FILE_START=0xcb00
-FILE_END=0xcb64
+FILE_END=0xcc1c
 ELF_VADDR=0xc0814b00
 PHYSICAL_START=0x8e014b00
 PINNED_REFERENCE_SHA256='6f5cb32bc10e41abb40938d185805e788f5637a41d3ebcef278e4e169fc36782'
 
+
+
+def preserve_original_legal_packet_order(generated:bytes)->bytes:
+    """Normalize LLVM6's legal packet scheduling to the source packet order.
+
+    LLVM6 moves the .new conditional branch ahead of its producer in two
+    2-word packets. The valid target uses compare first, branch last. Move
+    *only* LLVM-authored operations after checking classes, operands and
+    start/end parse markers; never import bytes from the reference.
+    """
+    data=bytearray(generated)
+    packet_bits=3<<14
+    for address,cmp_reg,cmp_prefix,end_marker in (
+        (0xcb78,8,0xf2000000,3),
+        (0xcb98,9,0x75000000,1),
+    ):
+        off=address-FILE_START
+        branch,comparison=struct.unpack_from('<II',data,off)
+        if (branch & 0xff000000)!=0x5c000000 or (branch & packet_bits)!=(1<<14):
+            raise ValueError(f'unrecognized LLVM6 modem RWE branch at {address:#x}')
+        if ((comparison & 0xff000000)!=cmp_prefix or
+            (comparison>>16)&31 != cmp_reg or
+            (comparison & packet_bits)!=(end_marker<<14)):
+            raise ValueError(f'unrecognized LLVM6 RWE predicate at {address+4:#x}')
+        compare=(comparison & ~packet_bits)|(1<<14)
+        branch=(branch & ~packet_bits)|(end_marker<<14)
+        struct.pack_into('<II',data,off,compare,branch)
+    # The compact compare-and-branch at 0xcbc8 is written by the checked
+    # macro. The preceding r17 compare must CONTINUE the same 3-word packet,
+    # but LLVM6 has no knowledge of the manually encoded compact operation.
+    off=0xcbc4-FILE_START
+    predicate=struct.unpack_from('<I',data,off)[0]
+    if ((predicate&0xff000000)!=0x75000000 or
+         ((predicate>>16)&31)!=17 or
+         (predicate&packet_bits)!=(3<<14)):
+        raise ValueError('unexpected standalone r17 predicate before compact branch')
+    struct.pack_into('<I',data,off,(predicate&~packet_bits)|(1<<14))
+    # Architecturally: comparison, branch, byte load must have
+    # CONTINUE, CONTINUE, END packet flags respectively.
+    for addr,wanted in ((0xcb78,1),(0xcb7c,3),(0xcb98,1),(0xcb9c,1),
+                        (0xcbc4,1),(0xcbc8,1),(0xcbcc,3)):
+        got=struct.unpack_from('<I',data,addr-FILE_START)[0]
+        if (got & packet_bits)!=(wanted<<14):
+            raise ValueError(f'incorrect packet parse field at {addr:#x}')
+    return bytes(data)
 
 def assemble(llvm_mc:Path, source:Path)->bytes:
     with tempfile.TemporaryDirectory(prefix='modem-rwe-') as tmp:
@@ -47,7 +93,7 @@ def assemble(llvm_mc:Path, source:Path)->bytes:
             raise ValueError('Hexagon long GP-relative paired load was shortened')
         if words[12]!=(0x6f000000|(56<<16)|(1<<14)|14):
             raise ValueError('Hexagon saved S57:56 source pairing mismatch')
-        return blob
+        return preserve_original_legal_packet_order(blob)
 
 
 def verify_pinned(reference:bytes, produced:bytes)->None:
