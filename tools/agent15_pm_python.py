@@ -132,6 +132,9 @@ def audit_blob(blob: bytes) -> dict[str, object]:
         "distinct_storage_words": len(word_frequencies),
         "all_zero_storage_words": word_frequencies[0],
         "transport_byte_mismatches": 0,
+        "source_verified_20bit_half_slots": 0,
+        "first_uncovered_pm_word": 0,
+        "first_uncovered_pm_half": 0,
         "independently_rebuilt_executable_bytes": 0,
         "unresolved_instruction_isa": True,
     }

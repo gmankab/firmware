@@ -3,7 +3,7 @@
 //! Outputs *counts and hashes only*. No original DSP instructions are exported
 //! or copied into this project, and no HALO ISA decoding is claimed.
 use firmware_tools::{parse_wmfw,wmfw_halo_pm_transport as pm,
-    wmfw_sha256,wmfw_program_patterns,wmfw_halo_memory::HaloMemoryKind};
+    wmfw_sha256,wmfw_program_patterns,wmfw_halo_pm_oracle,wmfw_halo_memory::HaloMemoryKind};
 use std::{error::Error,env,fs,path::Path};
 
 const REFERENCE_SHA: &str="d1bea27e41001024eb3878276292b5bcc0cda4484ffced0880e12c03ec9bac2c";
@@ -67,6 +67,14 @@ fn main()->Result<(),Box<dyn Error>> {
     if patterns.distinct_words!=3_701 || patterns.all_zero_words!=29 || patterns.total_words!=4_056 {
         return Err("PM pattern inventory differs from pinned reference".into());
     }
+    // No independent HALO assembler evidence has been provided. This verified
+    // zero-source-coverage ledger must not be upgraded by transport matching.
+    let verified=wmfw_halo_pm_oracle::compare_candidates(pm_bytes,&[])?;
+    if verified.matched_20bit_slots!=0 || verified.fully_covered_storage_words!=0 ||
+        verified.first_uncovered_storage_word!=Some(0) ||
+        verified.first_uncovered_half!=Some(0) {
+        return Err("unexpected HALO source-coverage evidence".into());
+    }
     // No opcode labels appear: these are storage words, not decoded code.
     let report=format!(concat!(
         "{{\n",
@@ -84,6 +92,9 @@ fn main()->Result<(),Box<dyn Error>> {
         "  \"distinct_storage_words\": {},\n",
         "  \"all_zero_storage_words\": {},\n",
         "  \"transport_byte_mismatches\": 0,\n",
+        "  \"source_verified_20bit_half_slots\": 0,\n",
+        "  \"first_uncovered_pm_word\": 0,\n",
+        "  \"first_uncovered_pm_half\": 0,\n",
         "  \"independently_rebuilt_executable_bytes\": 0,\n",
         "  \"unresolved_instruction_isa\": true\n",
         "}}\n"

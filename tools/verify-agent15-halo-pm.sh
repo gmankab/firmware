@@ -30,6 +30,8 @@ assert r['20byte_transport_blocks']==1014
 assert r['32bit_host_writes']==5070
 assert r['transport_byte_mismatches']==0
 assert r['independently_rebuilt_executable_bytes']==0
+assert r['source_verified_20bit_half_slots']==0
+assert r['first_uncovered_pm_word']==0
 print('Agent 15 HALO PM audit: 20280 reference bytes, 4056 storage words, 5070 host writes; mismatch=0; independent HALO executable=0')
 PY
 git diff --check

@@ -88,3 +88,20 @@ Absent those inputs, continuing to transcribe arbitrary 40-bit blobs or
 padding unknown memory with zeros would provide false "recompiled"
 coverage. The correct checkpoint is a reproducible transport implementation
 and an evidence-backed blocker report, **not** a flashable DSP binary.
+
+## Candidate ISA reconstruction acceptance criteria (Checkpoint 02)
+
+A future legitimate independent HALO assembler may generate 20-bit and/or
+40-bit encoded instruction candidates. The new API records these as
+*untrusted hypotheses* indexed by 40-bit storage word and 20-bit half;
+it verifies bit-identity to an externally pinned PM reference only after
+an evidence ID has been provided for human verification. Passing this
+numerical equality check does not prove that a half-word encodes a real
+HALO instruction or that its control-flow semantics match.
+
+The companion `assemble_candidate_storage()` API fails on any uncovered
+20-bit half-slot. In particular, **zero-padded undecoded storage is
+never accepted as a complete recompiled DSP program**. Synthetic tests
+exercise mixed 20/40-bit candidates and a full 4,056-word independent
+fixture, while the genuine reference audit reports zero source candidates
+and the first missing candidate at PM storage word zero, high half.

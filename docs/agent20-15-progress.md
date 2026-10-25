@@ -47,3 +47,29 @@ program operations and regenerate bytes from legitimate source. The original
 PM starts at file `0x278c`; **that is still the first not-source-recovered
 byte**. Do not confuse independently verified transport with independent
 firmware decompilation. Agent 16 owns XM/YM data and metadata.
+
+## Checkpoint 02 — fail-closed candidate instruction-span coverage gate
+
+* Added `wmfw_halo_pm_oracle.rs`, a bounded **bit-field acceptance gate**
+  for future CS35L41-specific *independently source-assembled* 20-/40-bit
+  instruction candidates. It does **not** decode the ISA or prove that
+  arbitrary halves of a 40-bit storage word are instructions.
+* Candidate record includes the storage word index, high/low 20-bit position,
+  width, numeric candidate bits and human-audited source-evidence identifier.
+  Empty or anonymous evidence, overwide encodings, overlap, unaligned long
+  claims and out-of-range word indices all fail closed.
+* The reader verifies each candidate bit-field against the original PM
+  reference, returning a count of verified half-slots, complete storage words,
+  and the **first unaccounted half-slot**. No OEM instruction bits are
+  incorporated into the repository.
+* The standalone source-candidate assembler requires **all 8,112 half-slots**
+  to be explicitly provided and rejects gaps rather than inventing zeros.
+  Complete reconstruction is exercised on a deterministic **synthetic**
+  4,056-word fixture, not any reconstructed Cirrus opcode.
+* Rust/Python pinned-reference audit now reports
+  `source_verified_20bit_half_slots: 0`, `first_uncovered_pm_word: 0`,
+  `first_uncovered_pm_half: 0`, and
+  `independently_rebuilt_executable_bytes: 0` identically.
+* This new gate does not change the source-derived firmware-byte count;
+  until a valid CS35L41 HALO assembler/ISA oracle or source program is
+  supplied, PM executable source reconstruction remains **0 / 20,280**.
