@@ -166,3 +166,12 @@
 - Tool `verify-agent20-09-physdump.py` independently checks all **30 Rizin V66 decoded words** and **15 LLVM6 scalar encodings** (normalizing Hexagon packet parse bits). Privileged S54, physical reads and source-dependent `.new` semantics remain Rizin-correlated only; no claim that LLVM6 assembles unsupported privileged instructions.
 - Total verified executable code `[0x41e0,0x4418)` = **568**, `[0x4500,0x4ab0)` = **1,456**, sum **2,024 bytes**. `[0x4418,0x4500)` = 232 reference linker zeros explicitly **not** counted as executable source.
 - Next original executable begins at `0x4ab0` (physical `0x96c01ab0`), a controller stop/restart wrapper that calls existing physical snapshot and cache routines. The branch is still portable Agent 05-parented history, not checkpoint-50 ancestry.
+
+## Checkpoint 20 — supervisor stop wrappers and TLB save/flush through `0x4b1c`
+
+- Independently source-encoded another **108 exact Hexagon executable bytes** `[0x4ab0,0x4b1c)` (physical `[0x96c01ab0,0x96c01b1c)`). First 44 bytes implement a STOP controller and two wrappers that call earlier physical snapshot, L2 SYSCFG sync and L1 cache-publish routines. Last 64 bytes implement a hardware-looped privileged TLB read into an S54-relative context buffer and subsequent cache-line cleans.
+- `cdsp_early_runtime_maintenance.rs` encodes signed packet-relative CALLs through the previously checked `short_call`, a narrow STOP system operation with a checked GPR field, a TLB paired-register read rejecting odd register pairs, hardware-loop offsets, postincrement doubleword stores and an explicit endloop parse marker.
+- All **27** emitted words decode correctly using Rizin V66; **10** ordinary scalar/loop/address instruction forms independently match LLVM6 after packet parse-bit normalization. Privileged `S54`, `TLBR` and `STOP` are decoder corroborated only. Direct whole-region reference comparison shows **zero mismatches**; no OEM firmware byte constants were pasted.
+- New standalone `tools/verify-agent20-09-maintenance.py`, CLI `emit-maintenance`, and cumulative supervisor generator/verifier now include `[0x4500,0x4b1c)`.
+- Cumulative independent executable code is **2,132 bytes**, `[0x41e0,0x4418)` = 568 and `[0x4500,0x4b1c)` = 1,564. ELF linker zeros `[0x4418,0x4500)` = **232 bytes excluded** from executable/source count.
+- First uncovered executable instruction begins file `0x4b1c` (physical `0x96c01b1c`), entry of the next variable-width memory-dispatch routine. Branch remains based on verified Agent 05, **not** checkpoint 50.
