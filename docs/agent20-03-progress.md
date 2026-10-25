@@ -188,3 +188,10 @@ Original reference: private `map220v-nabu-firmware/venus.mbn`, SHA-256 `9d4af65d
 - Includes controller plane descriptors, codec DMA queues, platform callback registration and bounded channel reporting, with literal tables separated from actual executable A32 instructions.
 - Full Clang/LLVM mnemonic reassembly independently matches **6,229 instructions and 487 non-instruction data words** across **110 literal pools**. Three external BLX linker warnings remain harmless for byte identity, not a hardware semantics claim.
 - All 194 Rust tests, 13 Python tests and release build pass; next executable routine begins at `0x28568`.
+
+## Checkpoint 26 — packed codec plane transfer sequencer
+
+- Contiguous typed A32 region `[0x21c78,0x28744)` = **27,340 byte-identical bytes** (original MBN file `[0x25c78,0x2c744)`).
+- New `[0x28568,0x28744)` = **476 bytes**, **119 typed executable A32 instructions and zero literal data words**. Implements bounded codec segment reads, 16-bit/32-bit status packing, two-pass DMA/stream register writes and completion frame restore.
+- Independent Clang/LLVM full-region reassembly matches **6,348 instructions and 487 distinct data words across 110 classified literal pools**, zero byte differences. Three external BLX symbol typing link warnings do not change emitted bytes.
+- All 194 Rust tests, 13 Python tests and release build pass. Next function begins at `0x28744`.
