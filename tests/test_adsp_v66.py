@@ -159,6 +159,34 @@ class V66BootstrapTests(unittest.TestCase):
             with self.subTest(offset=hex(loc)):
                 self.assertEqual(struct.unpack_from("<I",b,loc)[0],ins)
 
+    def test_interrupt_mask_and_extended_control_fields(self) -> None:
+        self.assertEqual(v66.read_interrupt_mask(28,1),0x6601c01c)
+        self.assertEqual(v66.read_interrupt_mask(0,1),0x6601c000)
+        self.assertEqual(v66.read_control_register_pair(18,v66.ControlRegisterPair.UTIMER),0x681ec012)
+        for invalid in (-1,32,2.0,"r1"):
+            with self.subTest(selector=invalid):
+                with self.assertRaises(v66.HexagonEncodingError):
+                    v66.read_interrupt_mask(28,invalid)
+        self.assertEqual(v66.write_predicate_group_from_gpr(19),0x6233c004)
+        self.assertEqual(v66.packet_continuation(
+            v66.write_predicate_group_from_gpr(19)),0x62334004)
+
+    @unittest.skipUnless(REFERENCE,"Exact reference required")
+    def test_control_save_interrupt_masks_and_system_registers(self) -> None:
+        b=Path(REFERENCE).read_bytes()
+        for loc in (0x50b4,0x50c0,0x50cc,0x50d8):
+            with self.subTest(address=hex(loc)):
+                self.assertEqual(struct.unpack_from("<I",b,loc)[0],
+                                 v66.read_interrupt_mask(28,1))
+        for at,reg,dst in ((0x506c,v66.SystemRegister.PMUCFG,18),
+                           (0x5070,v66.SystemRegister.MODECTL,19),
+                           (0x50e4,v66.SystemRegister.S63,28),
+                           (0x50ec,v66.SystemRegister.S60,28),
+                           (0x50f4,v66.SystemRegister.S35,28)):
+            with self.subTest(address=hex(at)):
+                self.assertEqual(struct.unpack_from("<I",b,at)[0],
+                                 v66.read_system_register(dst,reg))
+
     def test_near_jump_alignment_and_range(self) -> None:
         self.assertEqual(v66.jump_near(0x40, 0x63c), 0x5800C2FE)
         with self.assertRaises(v66.HexagonEncodingError):

@@ -36,6 +36,13 @@ class SystemRegister(IntEnum):
     BADVA = 9
     STID = 2
     MODECTL = 17
+    DIAG = 28
+    S20 = 20
+    REV = 29
+    SGP0 = 0
+    S63 = 63
+    S60 = 60
+    S35 = 35
 
 
 class CacheCommand(IntEnum):
@@ -91,6 +98,7 @@ class ControlRegisterPair(IntEnum):
     LC1_SA1 = 2
     M1_0 = 6
     CS1_0 = 12
+    UTIMER = 30
 
 
 def read_control_register(destination: int, source: ControlRegister) -> int:
@@ -112,6 +120,17 @@ def read_control_register_pair(destination_even: int, source: ControlRegisterPai
     if not isinstance(source, ControlRegisterPair):
         raise HexagonEncodingError("Expected named Hexagon control pair")
     return 0x6800C000 | (int(source) << 16) | destination_even
+
+
+def read_interrupt_mask(destination: int, selector: int) -> int:
+    """Read the Hexagon v66 interrupt mask for a GPR selector.
+
+    The controller uses ``r28 = getimask(r1)`` four times with selectors
+    0..3 in R1, all compiled to the *same instruction* carrying R1 and R28
+    as operands. This is a bounded register-field encoder, not a generic
+    interrupt-state API or a replacement for independent packet scheduling.
+    """
+    return 0x6600C000 | (gpr(selector) << 16) | gpr(destination)
 
 
 def write_predicate_group_from_gpr(source: int) -> int:

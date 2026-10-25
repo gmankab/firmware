@@ -719,3 +719,40 @@ python3 -S tools/emit-adsp-entry.py \
   --segment counter-controller --llvm-mc "$HEXAGON_LLVM_MC" \
   --reference "$NABU_ADSP_REFERENCE" --output /tmp/adsp-controller-3708.bin
 ```
+
+## Checkpoint 29: controller system-state and interrupt-mask snapshot
+
+Added **172 exact executable bytes** `[0x505c,0x5108)` (physical
+`[0x8be0205c,0x8be02108)`) implementing a complete Hexagon controller
+state-capture routine. It allocates a frame, saves the previous predicates
+and GP, reads PMU configuration and event registers, `UTIMER`, diagnostic,
+revision and application controls, collects four interrupt-mask values with
+`getimask(r1)`, records selected system register values, and restores the
+predicate bank and return context.
+
+LLVM6 independently compiles 25 ordinary instruction words and all legal
+memory-packet/allocframe/dealloc_return boundaries. The remaining eighteen
+v66-only special-register and interrupt-mask words use typed operand encoders,
+with one-op vs continuing-packet forms distinguished and every assembler
+NOP sentinel checked before replacement. The four repeated `getimask(r1)`
+instances match one strict operand encoding, and the control register fields
+are verified at distinct locations. Invalid register indices and corrupted
+source sentinels are rejected. The original OEM file remains a **read-only
+verification oracle**, not included in generated outputs or commits.
+
+The contiguous controller region is now **3,880 bytes** `[0x41e0,0x5108)`,
+SHA-256 `ff1614805b73f01e575ca20b7d5601ed4337df3c4d9a4c2eccf1ac9e1403c3d3`.
+Adding the separate 68-byte boot prefix gives **3,948 independently
+reproduced bytes**, including 504 bytes of explicitly reconstructed NOP
+alignment. **All 100 Python regression tests pass**, zero reference byte
+differences. Next missing controller offset is `0x5108`. The full ADSP image
+is not yet reconstructed, authenticated or flashable.
+
+```sh
+python3 -S tools/emit-adsp-entry.py \
+  --segment controller-save-control --llvm-mc "$HEXAGON_LLVM_MC" \
+  --reference "$NABU_ADSP_REFERENCE" --output /tmp/adsp-system-save-172.bin
+python3 -S tools/emit-adsp-entry.py \
+  --segment counter-controller --llvm-mc "$HEXAGON_LLVM_MC" \
+  --reference "$NABU_ADSP_REFERENCE" --output /tmp/adsp-controller-3880.bin
+```

@@ -114,8 +114,9 @@ class ADSPBootstrapTests(unittest.TestCase):
                      adsp.assemble_context_capture(LLVM_MC) +
                      adsp.assemble_processor_startup(LLVM_MC) +
                      adsp.assemble_startup_poll(LLVM_MC) +
-                     adsp.assemble_syscfg_update(LLVM_MC))
-        self.assertEqual(len(generated), 0xe7c)
+                     adsp.assemble_syscfg_update(LLVM_MC) +
+                     adsp.assemble_save_control(LLVM_MC))
+        self.assertEqual(len(generated), 0xf28)
         original = Path(REFERENCE).read_bytes()
         adsp.verify_reference(generated, original, 0x41e0)
         mutated = bytearray(generated)
@@ -437,6 +438,26 @@ class ADSPBootstrapTests(unittest.TestCase):
                 "{ nop } // V66 SYSCFG = r0", "{ isync } // V66 SYSCFG = r0",1))
             with self.assertRaisesRegex(adsp.AdspError,"SYSCFG update slot"):
                 adsp.assemble_syscfg_update(LLVM_MC,bad)
+
+    def test_controller_control_save_source_tracks_register_groups(self) -> None:
+        src=adsp.CONTROLLER_SAVE_CONTROL_SOURCE.read_text()
+        for item in ("getimask(r1)","memd(r0+#0x18)","P3:0", "memw(r0+#0x3c)", "dealloc_return"):
+            self.assertIn(item,src)
+        self.assertNotIn(".word",src)
+        self.assertNotIn(".incbin",src)
+
+    @unittest.skipUnless(LLVM_MC and REFERENCE,"Hexagon source and reference required")
+    def test_controller_control_save_byte_identity_and_sentinels(self) -> None:
+        b=adsp.assemble_save_control(LLVM_MC)
+        self.assertEqual(len(b),0xac)
+        adsp.verify_reference(b,Path(REFERENCE).read_bytes(),0x505c)
+        self.assertEqual(b[0x58:0x5c],struct.pack("<I",0x6601c01c))
+        with tempfile.TemporaryDirectory() as td:
+            bad=Path(td)/"bad-save-control.S"
+            bad.write_text(adsp.CONTROLLER_SAVE_CONTROL_SOURCE.read_text().replace(
+                "{ nop } // r18 = PMUCFG", "{ isync } // r18 = PMUCFG",1))
+            with self.assertRaisesRegex(adsp.AdspError,"controller state save sentinel"):
+                adsp.assemble_save_control(LLVM_MC,bad)
 
     @unittest.skipUnless(LLVM_MC, "Hexagon-capable llvm-mc unavailable")
     def test_syscfg_handoff_uses_typed_and_source_assembly(self) -> None:

@@ -53,10 +53,11 @@ CONTROLLER_CONTEXT_CAPTURE_SOURCE = pathlib.Path(__file__).with_name("adsp-contr
 CONTROLLER_PROCESSOR_STARTUP_SOURCE = pathlib.Path(__file__).with_name("adsp-controller-processor-startup.S")
 CONTROLLER_STARTUP_POLL_SOURCE = pathlib.Path(__file__).with_name("adsp-controller-startup-poll.S")
 CONTROLLER_SYSCFG_UPDATE_SOURCE = pathlib.Path(__file__).with_name("adsp-controller-syscfg-update.S")
+CONTROLLER_SAVE_CONTROL_SOURCE = pathlib.Path(__file__).with_name("adsp-controller-save-control.S")
 FRAGMENTS = {
     "vectors": (ASM_SOURCE, OEM_FILE_OFFSET, GENERATED_LENGTH),
     "boot-prefix": (ASM_SOURCE, OEM_FILE_OFFSET, 0x44),
-    "counter-controller": (CONTROLLER_SOURCE, 0x41e0, 0xe7c),
+    "counter-controller": (CONTROLLER_SOURCE, 0x41e0, 0xf28),
     "controller-bootstrap": (CONTROLLER_BOOTSTRAP_SOURCE, 0x4980, 0x2c),
     "controller-cache-copy": (CONTROLLER_CACHE_COPY_SOURCE, 0x49ac, 0x5c),
     "controller-physical-copy": (CONTROLLER_PHYSICAL_COPY_SOURCE, 0x4a08, 0x4c),
@@ -73,6 +74,7 @@ FRAGMENTS = {
     "controller-processor-startup": (CONTROLLER_PROCESSOR_STARTUP_SOURCE, 0x4f1c, 0x74),
     "controller-startup-poll": (CONTROLLER_STARTUP_POLL_SOURCE, 0x4f90, 0x94),
     "controller-syscfg-update": (CONTROLLER_SYSCFG_UPDATE_SOURCE, 0x5024, 0x38),
+    "controller-save-control": (CONTROLLER_SAVE_CONTROL_SOURCE, 0x505c, 0xac),
     "tlb-reconcile": (TLB_RECONCILE_SOURCE, 0x48d0, 0xb0),
     "cacheline-copy": (CACHELINE_COPY_SOURCE, 0x4818, 0x78),
     "tlb-flush": (TLB_FLUSH_SOURCE, 0x4788, 0x90),
@@ -663,6 +665,50 @@ def assemble_syscfg_update(
     return bytes(out)
 
 
+def assemble_save_control(
+    llvm_mc: str, source: pathlib.Path = CONTROLLER_SAVE_CONTROL_SOURCE
+) -> bytes:
+    """Capture 172 bytes of V66 processor control/interrupt state.
+
+    LLVM6 assembles all regular packet operations; 18 special-register
+    sites are replaced only after verifying their one-word NOP positions.
+    """
+    from adsp_hexagon_v66 import (
+        SystemRegister, ControlRegister, ControlRegisterPair,
+        read_system_register, read_control_register, read_control_register_pair,
+        write_predicate_group_from_gpr, read_interrupt_mask, packet_continuation,
+    )
+    out=bytearray(assemble(llvm_mc,source,0xac))
+    regs=(
+        (0x00,True,read_control_register(19, ControlRegister.P3_0)),
+        (0x10,False,read_system_register(18, SystemRegister.PMUCFG)),
+        (0x14,False,read_system_register(19, SystemRegister.MODECTL)),
+        (0x1c,False,read_control_register_pair(18, ControlRegisterPair.UTIMER)),
+        (0x24,False,read_system_register(18, SystemRegister.EVB)),
+        (0x28,False,read_system_register(19, SystemRegister.DIAG)),
+        (0x30,False,read_system_register(18, SystemRegister.S20)),
+        (0x34,False,read_system_register(19, SystemRegister.S20)),
+        (0x3c,False,read_system_register(18, SystemRegister.REV)),
+        (0x40,False,read_system_register(19, SystemRegister.SGP0)),
+        (0x58,False,read_interrupt_mask(28,1)),
+        (0x64,False,read_interrupt_mask(28,1)),
+        (0x70,False,read_interrupt_mask(28,1)),
+        (0x7c,False,read_interrupt_mask(28,1)),
+        (0x88,False,read_system_register(28, SystemRegister.S63)),
+        (0x90,False,read_system_register(28, SystemRegister.S60)),
+        (0x98,False,read_system_register(28, SystemRegister.S35)),
+        (0xa0,True,write_predicate_group_from_gpr(19)),
+    )
+    for at,continuing,opcode in regs:
+        sentinel=0x7f004000 if continuing else 0x7f00c000
+        if out[at:at+4] != struct.pack("<I",sentinel):
+            raise AdspError(f"Expected controller state save sentinel at 0x{at:x}")
+        if continuing:
+            opcode=packet_continuation(opcode)
+        out[at:at+4]=struct.pack("<I",opcode)
+    return bytes(out)
+
+
 def run(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--llvm-mc", required=True,
@@ -709,6 +755,8 @@ def run(argv: list[str] | None = None) -> int:
             out = assemble_startup_poll(args.llvm_mc, args.source or source)
         elif args.segment == "controller-syscfg-update":
             out = assemble_syscfg_update(args.llvm_mc, args.source or source)
+        elif args.segment == "controller-save-control":
+            out = assemble_save_control(args.llvm_mc, args.source or source)
         elif args.segment == "controller-debug-check":
             out = assemble_controller_debug_check(args.llvm_mc, args.source or source)
         elif args.segment == "controller-startup":
@@ -748,7 +796,8 @@ def run(argv: list[str] | None = None) -> int:
                    assemble_context_capture(args.llvm_mc) +
                    assemble_processor_startup(args.llvm_mc) +
                    assemble_startup_poll(args.llvm_mc) +
-                   assemble_syscfg_update(args.llvm_mc))
+                   assemble_syscfg_update(args.llvm_mc) +
+                   assemble_save_control(args.llvm_mc))
         else:
             out = assemble(args.llvm_mc, args.source or source, expected_length)
         if len(out) != expected_length:
