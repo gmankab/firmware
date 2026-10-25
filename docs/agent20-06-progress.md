@@ -186,3 +186,11 @@ python3 tools/agent20_06_a32_roundtrip.py /private/venus.mbn 0xa8ea0 0xa92c8 \
 - Independent LLVM/Clang reassembly exactly reproduced all instruction/data words; explicit `--data-range 0xae984:0xaea28 --data-range 0xaf24c:0xaf290` flags were required.
 - Added an independent Rust regression checking legal dispatch destinations, frequency of repeated branch targets and selected non-code diagnostic values.
 - Rust/Python test suites pass. Next uncovered runtime address `0xaf290` (file `0xb3290`), a separate short controller helper. This remains provisional old-base instruction-level reconstruction, not independently signed or hardware-validated firmware.
+
+## Checkpoint 20 — codec format lookup, reverse map and allocator helpers
+
+- Verified contiguous Venus runtime `[0xa8000,0xaf6e0)` = **30,432 exact bytes**, MBN original file `[0xac000,0xb36e0)`.
+- Added `[0xaf290,0xaf6e0)` = 1,104 bytes, comprising **263 A32 instructions (1,052 bytes)** and **13 words of explicit non-executable data (52 bytes)**: eight-jump format table `[0xaf370,0xaf390)`, two scaling/data constants `[0xaf5b8,0xaf5c0)`, and three diagnostic words `[0xaf688,0xaf694)`.
+- Implements codec parameter extraction, 8-way format-to-controller-code mapping, reverse codec format lookup, scaling prediction and a bounded allocator helper. All functions preserve their actual `BX LR` or `POP ... PC` return instructions and conditional error branches.
+- Independent LLVM/Clang round-trip with all three `--data-range`s reconstructs exactly 1,052 instruction and 52 data bytes; **zero byte differences**.
+- Rust/Python tests pass; next uncovered address `0xaf6e0` (original file `0xb36e0`). Checkpoint remains provisionally based on older Agent 03 rather than checkpoint-50 merge, and demonstrates ISA-level byte identity, not semantic or OEM-signed firmware rebuild.
