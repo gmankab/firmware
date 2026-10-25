@@ -64,12 +64,38 @@ class WlanHexagonStatusPacketSourceTests(unittest.TestCase):
         self.assertIn("r17:16 = memd(r29+#0)", src)
         self.assertIn("call 0x15556c", src)
 
+    def test_checkpoint_six_extends_contiguously_by_six_functions(self):
+        prior = late.select_regions(self.records, through_checkpoint=5)
+        current = late.select_regions(self.records, through_checkpoint=6)
+        self.assertEqual(len(prior), 29)
+        self.assertEqual(len(current), 35)
+        self.assertEqual((current[-6].file_start, current[-1].file_end),
+                         (0x101870, 0x101BE4))
+        self.assertEqual([r.size_bytes for r in current[-6:]],
+                         [460, 40, 188, 88, 88, 20])
+        self.assertEqual(sum(r.size_bytes for r in current), 6688)
+        self.assertEqual(current[-1].file_end, 0x101BE4)
+
+    def test_status_packet_followup_preserves_extended_call_and_nonshuffled_data(self):
+        path = ROOT / "sources/xiaomi-nabu/wlanmdsp/agent14-late-buffer-service-post.S"
+        text = path.read_text()
+        self.assertIn("jump ##0x1e3dfc", text)
+        self.assertIn("r17 = r0; r0 = r20", text)
+        self.assertNotIn(".incbin", text)
+        self.assertNotIn(".word ", text)
+
+    def test_status_warning_thunk_not_assumed_to_return(self):
+        path = ROOT / "sources/xiaomi-nabu/wlanmdsp/agent14-late-status-warning-thunk.S"
+        text = path.read_text()
+        self.assertIn("call 0x15b3e4", text)
+        self.assertNotIn("dealloc_return", text)
+
     def test_all_three_fragments_match_pinned_source_identity(self):
         raw = json.loads(REGISTRY.read_text())
         self.assertEqual(raw["reference_sha256"],
                          "87c2c7bb1fe97eaf007a947832feba0898644b4d6626ac8ef49d8b94dd82604b")
-        self.assertEqual([r.checkpoint for r in self.records[-3:]], [5,5,5])
-        self.assertTrue(all(r.classification == "executable" for r in self.records[-3:]))
+        self.assertEqual([r.checkpoint for r in late.select_regions(self.records, through_checkpoint=5)[-3:]], [5,5,5])
+        self.assertTrue(all(r.classification == "executable" for r in late.select_regions(self.records, through_checkpoint=5)[-3:]))
 
 
 if __name__ == "__main__":

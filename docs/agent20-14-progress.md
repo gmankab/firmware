@@ -1,12 +1,12 @@
 # Agent 20-14 — WLAN late Hexagon reconstruction
 
-Latest checkpoint: **05**, with **5,804 executable bytes** in 28 logical
-routines (29 separately emitted source regions because one long-jump packet
-is built as its own fragment), plus **496 data bytes** in two symbol-derived
-dispatch tables. The current non-overlapping coverage total is **6,300 bytes**.
-The newly verified file region is `[0x101724,0x101870)` and the first
-uncovered forward address is `0x101870`. Checkpoint 04 and all its
-verified source fragments remain unchanged.
+Latest checkpoint: **06**, with **6,688 executable bytes** in 34
+logical functions (35 assembler source regions because one far-jump packet
+is emitted separately) and **496 disjoint data bytes** in two
+symbol-derived dispatch tables. Total reconstructed coverage: **7,184 bytes**.
+New contiguous code `[0x101870,0x101be4)` = 884 bytes (six functions).
+The next uncovered forward file offset is `0x101be4`. Checkpoints 01–05
+remain fully reproducible via `--through-checkpoint`.
 
 ## Assignment and provenance
 
@@ -508,3 +508,37 @@ Code coverage `[0x1001c4,0x101870)` = **5,804 bytes**, table coverage
 must not be concatenated into a fake contiguous MBN. `[0x100000,0x1001c4)`
 remains the unhandled Agent13 seam; `[0x101870,0x2f6cd0)` remains uncovered.
 No original firmware/signature/certificate bytes are committed to Git.
+
+## Checkpoint 06 — post-status service and helper routines
+
+Six complete small functions immediately follow the two checkpoint 05
+status-packet routines, at file `[0x101870,0x101be4)` and virtual address
+`[0xb00c1870,0xb00c1be4)`:
+
+| File range | Length | Source-derived operation group |
+| --- | ---: | --- |
+| `[0x101870,0x101a3c)` | 460 | Build a live buffer-completion record, apply status/limit checks, invoke a diagnostic hook and tail-transfer control. |
+| `[0x101a3c,0x101a64)` | 40 | Forward a session warning through the shared diagnostic helper. |
+| `[0x101a64,0x101b20)` | 188 | Probe session status and conditionally enable its active descriptor. |
+| `[0x101b20,0x101b78)` | 88 | Update buffer/status counters and issue a size report. |
+| `[0x101b78,0x101bd0)` | 88 | Validate descriptor level and restore saved registers. |
+| `[0x101bd0,0x101be4)` | 20 | Emit fixed warning arguments and call a terminal diagnostic helper (non-returning inferred only). |
+
+The 460-byte record builder requires two Hexagon packet encoding details:
+a `##0x1e3dfc` extended far jump and an explicitly ordered two-word
+load/move packet; shuffling that packet changes the original duplex choice.
+Both problems are resolved using legal Hexagon assembly source operations,
+without embedding original firmware opcode bytes.
+
+The entire 884-byte continuation and preceding 5,804 bytes are independently
+reassembled with LLVM 18/V66 and LLVM 6/V65 and exactly match the pinned
+WLAN reference. The builders operate without reading that reference unless
+verification is explicitly requested. The previously recovered 496-byte
+dispatch table is a separate output interval and must remain disjoint from
+code. The remaining owned WLAN file budget is 2,433,320 bytes, and
+`[0x100000,0x1001c4)` still needs Agent 13's coordination.
+
+Build with `--through-checkpoint 6` instead of `5` in the checkpoint-05
+command. See `docs/evidence/agent20-14/checkpoint-06.json` for current
+per-region hashes and test provenance. Original private reference firmware
+and OEM signature material remain outside Git.

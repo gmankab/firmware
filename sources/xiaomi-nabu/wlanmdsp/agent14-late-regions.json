@@ -293,6 +293,66 @@
       "sha256": "f2cfcc0a63d6d7b4cd4df5c19c9b5ab59b197ee825e3ecfa4396c9f6b118e4d5",
       "checkpoint": 5,
       "classification": "executable"
+    },
+    {
+      "name": "buffer-service-post",
+      "file_start": 1054832,
+      "file_end": 1055292,
+      "source": "sources/xiaomi-nabu/wlanmdsp/agent14-late-buffer-service-post.S",
+      "symbol": "agent14_late_buffer_service_post",
+      "sha256": "648ef717f5245518e6290346dfb8b50ccf23b4db5f2cd33d9bd1138b369ea978",
+      "checkpoint": 6,
+      "classification": "executable"
+    },
+    {
+      "name": "buffer-service-warning",
+      "file_start": 1055292,
+      "file_end": 1055332,
+      "source": "sources/xiaomi-nabu/wlanmdsp/agent14-late-buffer-service-warning.S",
+      "symbol": "agent14_late_buffer_service_warning",
+      "sha256": "32f135c1dd408e81da28aacebf03edc70b0806b90adcd521881b5dea996ead6b",
+      "checkpoint": 6,
+      "classification": "executable"
+    },
+    {
+      "name": "session-descriptor-probe",
+      "file_start": 1055332,
+      "file_end": 1055520,
+      "source": "sources/xiaomi-nabu/wlanmdsp/agent14-late-session-descriptor-probe.S",
+      "symbol": "agent14_late_session_descriptor_probe",
+      "sha256": "ac96d7a608b419ddd4443dbe4f77bf51f545c052654c944dd723667878daf690",
+      "checkpoint": 6,
+      "classification": "executable"
+    },
+    {
+      "name": "buffer-counters-store",
+      "file_start": 1055520,
+      "file_end": 1055608,
+      "source": "sources/xiaomi-nabu/wlanmdsp/agent14-late-buffer-counters-store.S",
+      "symbol": "agent14_late_buffer_counters_store",
+      "sha256": "4824638ef0ddae51211c447a6e09724b61992a59c4c6d75e42fd5719be89d633",
+      "checkpoint": 6,
+      "classification": "executable"
+    },
+    {
+      "name": "descriptor-level-check",
+      "file_start": 1055608,
+      "file_end": 1055696,
+      "source": "sources/xiaomi-nabu/wlanmdsp/agent14-late-descriptor-level-check.S",
+      "symbol": "agent14_late_descriptor_level_check",
+      "sha256": "9c724b08237e8e27cb1ed7765044992953d332591e21e664a9a937b5e4f33835",
+      "checkpoint": 6,
+      "classification": "executable"
+    },
+    {
+      "name": "status-warning-thunk",
+      "file_start": 1055696,
+      "file_end": 1055716,
+      "source": "sources/xiaomi-nabu/wlanmdsp/agent14-late-status-warning-thunk.S",
+      "symbol": "agent14_late_status_warning_thunk",
+      "sha256": "720091a5ed4c002672ad6707df231042f94551bd30598705666b1c5e0dd95558",
+      "checkpoint": 6,
+      "classification": "executable"
     }
   ]
 }
