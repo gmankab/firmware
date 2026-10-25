@@ -118,3 +118,14 @@ when the actual algorithm directory is supplied; the original packed WMFW
 does not itself provide this trusted runtime registry. Synthetic fixtures
 in the audit confirm 57 controls and reject malformed boundaries. There is
 no increase in independently generated firmware bytes.
+
+
+## Checkpoint 08-16 — non-executable loader-placement image
+
+Added `wmfw_loader_image.rs` with a checked sparse word map of all seven
+packed WMFW DSP regions; only 1,280 of the 1,452 declared X words are
+initialized, while Y and P are fully initialized. The model re-encodes
+*externally supplied* XM/YM/PM bytes and bounds 32-bit AHB write spans.
+No HALO instructions are decoded or generated, and it cannot fill absent
+file payloads without external input. `simulate-halo-wmfw-load` is included
+in the audit script and uses the real reference supplied by the user.

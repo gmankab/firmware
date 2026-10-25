@@ -278,3 +278,29 @@ most compact full-file repackaging mode.
 Public ABI references:
 - `https://raw.githubusercontent.com/torvalds/linux/master/include/linux/firmware/cirrus/wmfw.h`
 - `https://raw.githubusercontent.com/torvalds/linux/master/drivers/firmware/cirrus/cs_dsp.c`
+
+## Checkpoint 08-16 — reproducible sparse HALO loader memory image
+
+The new `wmfw_loader_image` module replays all seven declared packed DSP
+payload regions into three independent X/Y/program word-address spaces,
+mirroring the *logical placements* from the Linux CS35L41 loader. Its
+`Option<u64>` representation distinguishes uninitialized X memory addresses
+from explicit zero-valued packed words. Exactly **1,280 / 1,452** X words,
+**2,044 / 2,044** Y words and **4,056 / 4,056** program words are loaded;
+unknown X-memory words remain unknown, not silently fabricated.
+
+Each packed memory region can be re-encoded from the resulting word image;
+all 30,252 proprietary payload bytes are recovered **only because they were
+supplied as input**, not independently generated. An optional AHB transfer
+manifest divides the logical packed-write span into at-most-128-byte aligned
+chunks, checking file, DSP and register ranges. It does **not** claim a precise
+SPI/I2C bus transaction schedule or HALO instruction behavior. The new
+`simulate-halo-wmfw-load "$REF"` command validates the checked reference
+and reports the allocated/unallocated memory coverage. The end-to-end audit
+runs it alongside the three existing exact-file repackers.
+
+Synthetic Rust fixtures exercise word reversal, explicit zero preservation,
+control of uninitialized ranges, bad region kinds, out-of-range transport
+words, overlapping placements, and invalid DMA span limits. The independent
+metadata/source count remains **3,984**; reference-confirmed zero bytes
+remain **5,748** in the most compact mode, with **24,504 external bytes**.

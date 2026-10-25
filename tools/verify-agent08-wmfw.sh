@@ -26,6 +26,7 @@ cargo run --offline --locked -q -p firmware-tools -- verify-wmfw-layout "$ref"
 cargo run --offline --locked -q -p firmware-tools -- wmfw-coverage
 cargo run --offline --locked -q -p firmware-tools -- wmfw-memory-map
 cargo run --offline --locked -q -p firmware-tools -- wmfw-cs35l41-bus-map
+cargo run --offline --locked -q -p firmware-tools -- simulate-halo-wmfw-load "$ref"
 cargo run --offline --locked -q -p firmware-tools -- wmfw-control-ranges
 cargo run --offline --locked -q -p firmware-tools -- inspect-wmfw-program-patterns "$ref"
 

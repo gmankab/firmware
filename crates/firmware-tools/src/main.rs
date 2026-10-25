@@ -286,6 +286,18 @@ fn run() -> Result<(), Box<dyn Error>> {
         println!("Generated 40-byte WMFW metadata header (NOT DSP firmware)");
         return Ok(());
     }
+    if args.len() == 2 && args[0] == "simulate-halo-wmfw-load" {
+        let source=fs::read(&args[1])?;
+        let image=firmware_tools::wmfw_loader_image::load_packed_memory(&source)?;
+        firmware_tools::wmfw_loader_image::compare_loaded_regions(&source,&image)?;
+        println!("HALO packed memory placement checked: XM {} initialized / {} total words, YM {} / {}, PM {} / {}. Not executing DSP code.",
+            image.xm.initialized(),image.xm.words.len(),image.ym.initialized(),
+            image.ym.words.len(),image.pm.initialized(),image.pm.words.len());
+        let writes=firmware_tools::wmfw_loader_image::bounded_writes(&image,128)?;
+        println!("Packed AHB write plan: {} bounded register spans, {} total external DSP bytes, no overlap.",
+            writes.len(),writes.iter().map(|w|w.file_span.len()).sum::<usize>());
+        return Ok(());
+    }
     if args.len() == 2 && args[0] == "inspect-halo-runtime-registry" {
         // Raw *unpacked* 32-bit DSP register dump, not packed WMFW payload.
         let raw=fs::read(&args[1])?;
