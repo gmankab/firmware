@@ -1,13 +1,11 @@
 # Agent 20-14 — WLAN late Hexagon reconstruction
 
-Latest checkpoint: **09**, with **9,464 contiguous executable bytes** in 42
-assembler-defined source regions and **496 separate jump-table data bytes**.
-Total independently generated disjoint coverage: **9,960 bytes**. New complete
-command-parser function `[0x102368,0x1026bc)` = 852 bytes. The next
-function begins at file offset `0x1026bc`; the Agent 13 leading seam
-`[0x100000,0x1001c4)` remains outside this agent's reconstructed code.
-All checkpoint-01–08 sources remain independently reproducible by selecting
-`--through-checkpoint` in the builder.
+Latest checkpoint: **10**, with **9,820 contiguous executable bytes**
+and **496 independent dispatch-table data bytes**, for **10,316**
+source-derived bytes in disjoint intervals. This checkpoint adds **356**
+Hexagon instruction bytes in three adjacent complete functions at
+`[0x1026bc,0x102820)`. The next function begins at `0x102820`. The
+Agent 13 leading seam `[0x100000,0x1001c4)` remains unimplemented here.
 
 ## Assignment and provenance
 
@@ -635,3 +633,30 @@ build and `git diff --check` pass. The current continuation is the
 function at `0x1026bc`; **2,430,544 bytes of the exclusive assignment** remain
 uncovered, counting the leading 452-byte seam and excluding the separate
 496-byte jump-table range. This is not a complete or signed firmware.
+
+## Checkpoint 10 — session activity update and descriptor normalization
+
+Three adjacent, complete functions were reconstructed after the command
+parser. `[0x1026bc,0x102754)` (152 bytes) checks current WLAN control
+state, updates active session metadata or counters, and preserves the
+original far-jump diagnostic thunk after its return. `[0x102754,0x1027a8)`
+(84 bytes) normalizes optional descriptor bytes and forwards a bounded
+status message. `[0x1027a8,0x102820)` (120 bytes) selects a status byte
+by attribute type and sends the associated request.
+
+Hexagon packet encoding requires **one `:mem_noshuf` packet in the second
+function and two in the third**. Without these architectural constraints,
+the assembler either shuffles predicate-dependent load/store operations or
+uses a duplex word, losing the original packet size and shifting branches.
+The first function's terminal far jump uses `jump ##-792140` so the extender
+is explicitly retained. LLVM 22/V66 and LLVM 6/V65 independently reproduce
+all 356 bytes and the complete 9,820-byte code fragment without an OEM
+firmware input. An optional pinned-reference comparison reports zero byte
+mismatches. The separate 496-byte table generator was also checked unchanged.
+
+Build using `--through-checkpoint 10`, and see
+`docs/evidence/agent20-14/checkpoint-10.json`. Tests run in a private Cargo
+target directory: 160 Rust tests, 103 Python test cases (98 executed and
+passed, five skipped for optional dependencies), and workspace release build
+completed. `git diff --check` passed. These results do not establish high-level
+source-level equivalence, on-device execution or signed firmware support.

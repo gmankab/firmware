@@ -47,7 +47,7 @@ class CommandParserCheckpoint09Tests(unittest.TestCase):
         self.assertIn('memub(r1++#0x4)', body)
 
     def test_code_ends_before_next_function(self):
-        record = late.load_registry()[-1]
+        record = late.select_regions(late.load_registry(),through_checkpoint=9)[-1]
         self.assertEqual(record.symbol, 'agent14_late_command_parser')
         self.assertEqual(record.sha256, 'fd4d53401e3e295ac4be69fc5eec69761fbb9adc641d719d57ab461c835ddbc7')
         self.assertIn('jumpr r31', ASM.read_text())
