@@ -400,3 +400,9 @@ Original reference: private `map220v-nabu-firmware/venus.mbn`, SHA-256 `9d4af65d
 - Full contiguous A32 region `[0x21c78,0x3027c)` = **58,884 exact bytes**; new function `[0x2fcbc,0x3027c)` = **1472 bytes** (**358 ARM32 instructions** and ten literal data words).
 - Emits codec plane dimensions, interlacing/sample-stride calculations, 32-entry command array and command packer. The table `[0x30254,0x3027c)` is explicitly non-executable data.
 - The next function starts at `0x3027c`. This is instruction-byte re-encoding and deterministic span generation, not independent high-level codec semantics or new OEM signing.
+
+## Checkpoint 61 — Codec controller register serializer
+
+- Contiguous typed A32 reconstruction `[0x21c78,0x311c0)` = **62,792 exact bytes**; new large function `[0x3027c,0x311c0)` = **3908 bytes** with **965 ARM32 instructions** and **12 literal data words**.
+- Re-encodes model/format descriptor fields, range checking, controller command registers and retry/diagnostic paths; `[0x31190,0x311c0)` is controller offsets and diagnostic data, not ARM instructions.
+- Next independent routine starts at `0x311c0`. Instruction-byte equivalence is not a recovered high-level implementation or authenticated firmware.
