@@ -25,7 +25,7 @@ from adsp_hexagon_v66 import (SystemRegister, ControlRegister, InstructionCacheR
                               write_predicate_group_from_gpr,packet_continuation)
 
 FILE_START=0x6030
-FILE_END=0x697c
+FILE_END=0x6ab0
 SIZE=FILE_END-FILE_START
 PADDR=0x8BE03030
 REFERENCE_SHA='4b579e5dc1333d634e5bdc93f3314e357e0e30dab7140833f6cc7aef086b1c1e'
@@ -81,6 +81,10 @@ FEATURE_MODES_A_SOURCE=TOOLS/'adsp-agent20-rwe-feature-modes-a.S'
 FEATURE_MODES_A_SIZE=0xa4
 FEATURE_MODES_B_SOURCE=TOOLS/'adsp-agent20-rwe-feature-modes-b.S'
 FEATURE_MODES_B_SIZE=0xc0
+FEATURE_MODES_C_SOURCE=TOOLS/'adsp-agent20-rwe-feature-modes-c.S'
+FEATURE_MODES_C_SIZE=0x94
+FEATURE_MODES_D_SOURCE=TOOLS/'adsp-agent20-rwe-feature-modes-d.S'
+FEATURE_MODES_D_SIZE=0xa0
 
 
 def baseline():
@@ -430,6 +434,8 @@ def render(llvm_mc:str)->bytes:
     output.extend(physical_scan(llvm_mc,previous))
     output.extend(previous.assemble(llvm_mc,FEATURE_MODES_A_SOURCE,FEATURE_MODES_A_SIZE))
     output.extend(previous.assemble(llvm_mc,FEATURE_MODES_B_SOURCE,FEATURE_MODES_B_SIZE))
+    output.extend(previous.assemble(llvm_mc,FEATURE_MODES_C_SOURCE,FEATURE_MODES_C_SIZE))
+    output.extend(previous.assemble(llvm_mc,FEATURE_MODES_D_SOURCE,FEATURE_MODES_D_SIZE))
     if len(output)!=SIZE:
         raise previous.AdspError("RWE source fragments are not contiguous")
     return bytes(output)
