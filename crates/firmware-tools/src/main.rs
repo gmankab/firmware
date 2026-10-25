@@ -301,6 +301,170 @@ fn run() -> Result<(), Box<dyn Error>> {
         println!("Generated 40-byte WMFW metadata header (NOT DSP firmware)");
         return Ok(());
     }
+    if args.len() == 1 && args[0] == "wmfw-byte-provenance" {
+        print!("{}",firmware_tools::wmfw_provenance::build_ledger()?.to_json());
+        return Ok(());
+    }
+    if args.len() == 2 && args[0] == "simulate-halo-wmfw-load" {
+        let source=fs::read(&args[1])?;
+        let image=firmware_tools::wmfw_loader_image::load_packed_memory(&source)?;
+        firmware_tools::wmfw_loader_image::compare_loaded_regions(&source,&image)?;
+        println!("HALO packed memory placement checked: XM {} initialized / {} total words, YM {} / {}, PM {} / {}. Not executing DSP code.",
+            image.xm.initialized(),image.xm.words.len(),image.ym.initialized(),
+            image.ym.words.len(),image.pm.initialized(),image.pm.words.len());
+        let writes=firmware_tools::wmfw_loader_image::bounded_writes(&image,128)?;
+        println!("Packed AHB write plan: {} bounded register spans, {} total external DSP bytes, no overlap.",
+            writes.len(),writes.iter().map(|w|w.file_span.len()).sum::<usize>());
+        return Ok(());
+    }
+    if args.len() == 2 && args[0] == "inspect-halo-runtime-registry" {
+        // Raw *unpacked* 32-bit DSP register dump, not packed WMFW payload.
+        let raw=fs::read(&args[1])?;
+        let registry=firmware_tools::wmfw_halo_registry::parse_runtime_registry(&raw,0x5ac,0x7fc)?;
+        println!("HALO core {} firmware 0x{:x} v{:x}, {} algorithms (runtime snapshot)",
+            registry.header.core_id,registry.header.firmware_id,registry.header.firmware_version,
+            registry.algorithms.len());
+        let slots=firmware_tools::wmfw_halo_control_bus::resolve_control_bus_spans(&registry)?;
+        println!("Resolved {} named HALO controls using supplied runtime algorithm bases",slots.len());
+        println!("Register windows are CS35L41 XM/YM unpacked24; address step is 4 bytes per DSP control word.");
+        for item in slots {
+            println!("0x{:x} {:?} DSP 0x{:x}..0x{:x} AHB 0x{:08x}..0x{:08x} {}",
+                item.algorithm_id,item.memory,item.dsp_word_span.start,
+                item.dsp_word_span.end,item.register_span.start,
+                item.register_span.end,item.control_name);
+        }
+        return Ok(());
+    }
+    if args.len() == 3 && args[0] == "assemble-wmfw-with-compact-y" {
+        let output=firmware_tools::wmfw_compact_y::assemble_directory(std::path::Path::new(&args[1]))?;
+        fs::write(&args[2],output)?;
+        println!("Repacked exact WMFW: 3984 independently generated metadata bytes, 5748 reference-verified zeros, 24504 external DSP bytes. NOT independent HALO code.");
+        return Ok(());
+    }
+    if args.len() == 3 && args[0] == "extract-wmfw-compact-y-inputs" {
+        firmware_tools::wmfw_compact_y::extract_inputs(&fs::read(&args[1])?,std::path::Path::new(&args[2]))?;
+        println!("Extracted nine private external inputs (24504 bytes); 5748 reference-verified zeros are regenerated separately.");
+        return Ok(());
+    }
+    if args.len() == 3 && args[0] == "assemble-wmfw-with-sparse-y" {
+        let out=firmware_tools::wmfw_sparse_ym::assemble_directory(std::path::Path::new(&args[1]))?;
+        fs::write(&args[2],out)?;
+        println!("WMFW repacked with 3984 independent metadata bytes, 5445 reference-verified zero bytes, and 24807 external DSP bytes. HALO code is NOT decompiled.");
+        return Ok(());
+    }
+    if args.len() == 3 && args[0] == "extract-wmfw-sparse-y-inputs" {
+        firmware_tools::wmfw_sparse_ym::extract_private_sparse_inputs(&fs::read(&args[1])?,std::path::Path::new(&args[2]))?;
+        println!("Created 8 private external source fragments totalling 24807 bytes; 5445 reference-verified zeros omitted.");
+        return Ok(());
+    }
+    if args.len() == 3 && args[0] == "assemble-wmfw-with-external-payloads" {
+        let out=firmware_tools::wmfw_external_payload::assemble_directory(
+            std::path::Path::new(&args[1]))?;
+        fs::write(&args[2],&out)?;
+        println!("Wrote {}-byte WMFW from 3984 independent metadata bytes and 30252 EXTERNAL proprietary DSP payload bytes.",out.len());
+        println!("Exact reference SHA-256 verified. HALO instructions were not reconstructed; do not confuse this with independent compilation.");
+        return Ok(());
+    }
+    if args.len() == 3 && args[0] == "extract-wmfw-external-payloads" {
+        let original=fs::read(&args[1])?;
+        firmware_tools::wmfw_external_payload::extract_from_private_reference(
+            &original,std::path::Path::new(&args[2]))?;
+        println!("Extracted seven PRIVATELY HELD proprietary DSP binary inputs (30252 bytes). NEVER commit or redistribute them as independent source.");
+        return Ok(());
+    }
+    if args.len() == 1 && args[0] == "wmfw-cs35l41-bus-map" {
+        for region in firmware_tools::wmfw_cs35l41_bus::all_transfers()? {
+            println!("{:?}: DSP 0x{:x}..0x{:x} from file 0x{:x}..0x{:x} to AHB 0x{:08x}..0x{:08x}",
+                region.memory,region.dsp_word_span.start,region.dsp_word_span.end,
+                region.original_file_span.start,region.original_file_span.end,
+                region.ahb_register_span.start,region.ahb_register_span.end);
+        }
+        println!("Checked mapped AHB transfer boundaries only; no HALO program bytes were independently generated.");
+        return Ok(());
+    }
+    if args.len() == 2 && args[0] == "inspect-wmfw-program-patterns" {
+        let b=fs::read(&args[1])?;
+        firmware_tools::wmfw_plan::verify_container(&b)?;
+        let pm=firmware_tools::wmfw_plan::regions()?.into_iter().find(|r|r.kind==0x10)
+            .ok_or("missing HALO packed program memory region")?;
+        let a=firmware_tools::wmfw_program_patterns::analyze_packed_program(&b[pm.payload_offset..pm.end()])?;
+        println!("HALO packed PM: {} 40-bit transport words, {} distinct, {} exactly zero",
+            a.total_words,a.distinct_words,a.all_zero_words);
+        for pattern in a.repeated_four_word_tails.iter().take(20) {
+            println!("Candidate 4-word repeating-tail pattern: start DSP word {} with {} entries",
+                pattern.initial_word,pattern.entries);
+        }
+        println!("Frequency and pattern inventory ONLY; HALO instruction opcodes and control flow remain unknown.");
+        return Ok(());
+    }
+    if args.len() == 1 && args[0] == "wmfw-control-ranges" {
+        let reports=firmware_tools::wmfw_control_ranges::coverage()?;
+        for r in reports {
+            println!("HALO algorithm 0x{:x}: XM controls {} words through relative 0x{:x}; YM controls {} words through relative 0x{:x}",
+                r.algorithm_id,r.x_control_words,r.x_highest_word,
+                r.y_control_words,r.y_highest_word);
+        }
+        println!("All 57 named HALO algorithm controls have nonoverlapping memory spans. Algorithm base addresses require the original DSP image or runtime discovery.");
+        return Ok(());
+    }
+    if args.len() == 1 && args[0] == "wmfw-memory-map" {
+        for layout in firmware_tools::wmfw_memory_map::layouts()? {
+            println!("{:?}: {}/{} DSP words initialized by WMFW sections; {} memory gaps",
+                layout.kind,layout.explicitly_initialized_words,
+                layout.capacity_words,layout.uninitialized_intervals.len());
+            for gap in layout.uninitialized_intervals {
+                println!("  UNINITIALIZED DSP MEMORY 0x{:x}..0x{:x} ({} words, no WMFW file bytes)",
+                    gap.start,gap.end,gap.end-gap.start);
+            }
+        }
+        println!("These holes are DSP memory allocation gaps, not missing bytes that may be auto-filled in a firmware file.");
+        return Ok(());
+    }
+    if args.len() == 1 && args[0] == "wmfw-external-manifest" {
+        println!("Opaque DSP region inputs for original WMFW revision (NOT independently rebuilt):");
+        for r in firmware_tools::wmfw_external_payload::OPAQUE_REGIONS {
+            println!("{}: {} bytes; SHA256 {}",r.filename(),r.size,r.expected_sha256);
+        }
+        return Ok(());
+    }
+    if args.len() == 2 && args[0] == "inspect-wmfw-halo-memory" {
+        use firmware_tools::wmfw_halo_memory::{self,HaloMemoryKind};
+        let bytes = fs::read(&args[1])?;
+        firmware_tools::wmfw_plan::verify_container(&bytes)?;
+        for region in firmware_tools::wmfw_plan::regions()? {
+            if let Ok(kind) = HaloMemoryKind::from_wmfw_type(region.kind) {
+                let report = wmfw_halo_memory::summarize(kind, &bytes[region.payload_offset..region.end()])?;
+                println!("{} @ WMFW 0x{:x}: {} packed {}-bit DSP words, {} nonzero (inspection only)",
+                    region.name(), region.payload_offset, report.word_count,
+                    report.word_width_bits, report.nonzero_word_count);
+            }
+        }
+        println!("No HALO opcode semantics decoded and no DSP payload bytes independently rebuilt by this command.");
+        return Ok(());
+    }
+    if args.len() == 1 && args[0] == "wmfw-coverage" {
+        let plan = firmware_tools::wmfw_plan::partial_container()?;
+        println!("Cirrus HALO WMFW v3 independently generated: {} / {} bytes ({} region descriptors)",
+            plan.filled_bytes(), plan.total_bytes(), firmware_tools::wmfw_plan::REGION_COUNT);
+        for region in firmware_tools::wmfw_plan::regions()? {
+            let state = match (region.kind, region.file_header_offset) {
+                (0xff, _) => "INDEPENDENT TEXT",
+                (0xf2, _) => "INDEPENDENT CONTROL METADATA",
+                _ => "UNIMPLEMENTED PAYLOAD",
+            };
+            println!("  {} (0x{:02x}) @ file 0x{:x}, DSP 0x{:06x}: {} bytes, {:?} memory words, {}",
+                region.name(), region.kind, region.payload_offset,
+                region.dsp_address, region.payload_length, region.word_count, state);
+        }
+        println!("Final firmware prohibited: {} payload regions are missing", plan.holes().len());
+        return Ok(());
+    }
+    if args.len() == 2 && args[0] == "verify-wmfw-layout" {
+        firmware_tools::wmfw_plan::verify_container(&fs::read(&args[1])?)?;
+        println!("WMFW v3 strict container layout verified; {} independently generated metadata bytes (DSP payloads remain missing).",
+            firmware_tools::wmfw_plan::INDEPENDENT_METADATA_BYTES);
+        return Ok(());
+    }
     if args.len() == 2 && args[0] == "verify-wmfw-structure" {
         let matched = verify_wmfw_structure(&fs::read(&args[1])?)?;
         println!("Matched {} bytes of independently rebuilt WMFW metadata; NOT executable payload", matched);

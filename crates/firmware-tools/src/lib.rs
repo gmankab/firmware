@@ -17,6 +17,21 @@ pub mod elf_file_coverage;
 pub mod devices;
 pub use devices::xiaomi_nabu::modemuw::build_modemuw;
 pub mod wmfw_metadata;
+pub mod wmfw_plan;
+pub mod wmfw_algorithms;
+pub mod wmfw_halo_memory;
+pub mod wmfw_sha256;
+pub mod wmfw_external_payload;
+pub mod wmfw_sparse_ym;
+pub mod wmfw_compact_y;
+pub mod wmfw_halo_registry;
+pub mod wmfw_halo_control_bus;
+pub mod wmfw_loader_image;
+pub mod wmfw_provenance;
+pub mod wmfw_memory_map;
+pub mod wmfw_control_ranges;
+pub mod wmfw_program_patterns;
+pub mod wmfw_cs35l41_bus;
 
 /// Parse only the bounded ELF32 little-endian header and segment table.
 /// Neither this metadata inspector nor its output is an executable decompiler.
