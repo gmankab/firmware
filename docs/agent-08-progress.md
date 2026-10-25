@@ -183,3 +183,40 @@ is rejected, preserving user files and preventing inadvertent overwrite.
 Synthetic unit tests cover rollback, overwrite refusal and private modes.
 This affects only safe handling of **externally supplied OEM bytes**; source-
 independent WMFW coverage remains **3,984 / 34,236 bytes**.
+
+## Checkpoint 08-13 — independently encoded sparse Y-memory zero initialization
+
+The reference's packed Y-memory section (WMFW file `0x0f90–0x2784`, 2,044
+24-bit DSP words) includes 1,815 consecutive zero-valued words at DSP offsets
+`223..2038`, corresponding to **5,445 bytes** at file offsets
+`0x122d..0x2772`. The new `wmfw_sparse_ym.rs` builder emits these bytes as
+an explicit bounded zero-initialization range, not by copying them from a
+source file. The remaining Y-memory prefix (669 bytes) and suffix (18 bytes)
+and all six XM/PM payloads are separately SHA-256-pinned external sources.
+The full WMFW matches its reference SHA-256 when supplied with eight files
+totaling **24,807 external bytes**; the original seven-whole-region repacker
+is preserved as an alternative. Both use private all-or-nothing extraction,
+and altered or missing source fragments cause failure.
+
+The zero run was **inferred by inspecting the exact proprietary reference**.
+Its re-expression as `vec![0;5445]` is a verified serialization optimization,
+**not independent reconstruction of HALO executable source**. Continue to
+report source-derived metadata as **3,984 bytes**, reference-verified zero
+bytes as **5,445**, and proprietary external payload requirements as
+**24,807 bytes**. This separate accounting prevents counting the zero run
+as recovered DSP instructions. The 4,056 program-memory words remain wholly
+opaque and require an independently validated 40-bit HALO instruction set
+before claiming decompilation.
+
+Commands (reference and input directory are private and outside Git):
+
+```sh
+cargo run --offline --locked -p firmware-tools -- \
+  extract-wmfw-sparse-y-inputs "$REF" "$PRIVATE/new-sparse-inputs"
+cargo run --offline --locked -p firmware-tools -- \
+  assemble-wmfw-with-sparse-y "$PRIVATE/new-sparse-inputs" "$PRIVATE/rebuilt.wmfw"
+cmp "$REF" "$PRIVATE/rebuilt.wmfw"
+```
+
+`tools/verify-agent08-wmfw.sh` now checks both the original seven-input and
+new sparse eight-input repackers and tests altered sparse source rejection.

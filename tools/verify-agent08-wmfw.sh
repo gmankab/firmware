@@ -34,6 +34,25 @@ cargo run --offline --locked -q -p firmware-tools -- extract-wmfw-external-paylo
 cargo run --offline --locked -q -p firmware-tools -- assemble-wmfw-with-external-payloads "$work/original-dsp-payloads" "$work/repacked.wmfw"
 cmp "$ref" "$work/repacked.wmfw"
 sha256sum "$work/repacked.wmfw"
+
+# Alternative source footprint: packed Y-memory contains one 1815-word
+# reference-confirmed all-zero range. No zero bytes are extracted, and the
+# remaining 24807 proprietary bytes are still hash-validated external inputs.
+cargo run --offline --locked -q -p firmware-tools -- extract-wmfw-sparse-y-inputs "$ref" "$work/sparse-y-external"
+cargo run --offline --locked -q -p firmware-tools -- assemble-wmfw-with-sparse-y "$work/sparse-y-external" "$work/repacked-sparse.wmfw"
+cmp "$ref" "$work/repacked-sparse.wmfw"
+sha256sum "$work/repacked-sparse.wmfw"
+[ "$(find "$work/sparse-y-external" -type f | wc -l)" -eq 8 ]
+[ "$(wc -c < "$work/repacked-sparse.wmfw")" -eq 34236 ]
+
+# Reject a payload corrupted after extraction, without overwriting reference.
+printf '\001' | dd of="$work/sparse-y-external/region-0f90-prefix.bin" bs=1 seek=0 conv=notrunc status=none
+if cargo run --offline --locked -q -p firmware-tools -- assemble-wmfw-with-sparse-y "$work/sparse-y-external" "$work/should-fail.wmfw" >/dev/null 2>&1; then
+    echo 'ERROR: altered sparse external payload was accepted' >&2
+    exit 1
+fi
+test ! -e "$work/should-fail.wmfw"
 git diff --check
 printf '\nAgent08 exact reference REPACK verified. Independent 3984 metadata bytes; 30252 externally supplied proprietary DSP bytes.\n'
+printf 'Sparse repack: 5445 reference-verified zero bytes emitted, 24807 proprietary external bytes required.\n'
 printf 'HALO source reconstruction is not complete, regardless of byte-identical repack.\n'

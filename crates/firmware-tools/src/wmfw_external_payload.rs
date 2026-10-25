@@ -117,7 +117,7 @@ fn stage_new_private_directory(output_dir:&Path)->Result<StagedDirectory,String>
     Err("could not allocate a unique private WMFW staging directory".into())
 }
 
-fn write_private_region_directory(output_dir:&Path,entries:&[(String,Vec<u8>)])->Result<(),String>{
+pub(crate) fn write_private_region_directory(output_dir:&Path,entries:&[(String,Vec<u8>)])->Result<(),String>{
     let mut stage=stage_new_private_directory(output_dir)?;
     for (filename,data) in entries {
         if filename.is_empty() || filename=="." || filename==".." ||

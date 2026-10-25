@@ -87,3 +87,14 @@ private staging directory. Existing folders (including empty ones) and
 symlinks are rejected. Failed extraction does not leave a partially populated
 OEM payload directory. This is a protective behavior change to the external
 repack workflow, not a reconstruction of proprietary HALO source.
+
+## Checkpoint 08-13 — sparse Y-memory zero-run serialization
+
+An alternative whole-file build consumes eight private external inputs totaling
+24,807 bytes, regenerating 5,445 WMFW Y-memory zero bytes from a checked DSP
+word interval `223..2038`. The original seven-payload importer is unchanged.
+This zero interval was identified by comparing against the original and is
+**not** independently recovered DSP program source; independent metadata
+coverage remains 3,984 bytes. Run `extract-wmfw-sparse-y-inputs` and
+`assemble-wmfw-with-sparse-y` for the reduced external input path. The full
+SHA-256 and each external fragment hash must match the pinned reference.
