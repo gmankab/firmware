@@ -150,3 +150,9 @@ Original reference: private `map220v-nabu-firmware/venus.mbn`, SHA-256 `9d4af65d
 - Runtime `[0x21c78,0x273a4)` = **22,316 generated, byte-identical bytes**, reference MBN `[0x25c78,0x2b3a4)`.
 - New `[0x27180,0x273a4)` = **548 bytes**, with **122 A32 instructions** and **15 separately identified MMIO/diagnostic words** in three literal pools. It implements controller readiness probes, per-stream descriptor range checks and IRQ availability transitions.
 - Cumulative independent Clang/LLD mnemonic round-trip reproduces all **5,174 instructions and 405 non-instruction words in 93 pools**, zero byte differences. First missing routine begins at `0x273a4`.
+
+## Checkpoint 21 — queued IRQ barriers and codec resource shutdown
+
+- Contiguous A32 source-generated `[0x21c78,0x27684)` = **23,052 reference-exact bytes**, file `[0x25c78,0x2b684)`.
+- New `[0x273a4,0x27684)` = **736 bytes**, **170 ARM instructions** and **14 named MMIO/diagnostic data words** in five pools. Implements posted-write readback waits, controller queue polling and teardown, and per-codec resource shutdown helpers.
+- Independent Clang/LLD reassembly confirms the complete cumulative **5,344 instructions and 419 data words in 98 pools** with zero differences. Next uncovered codec routine starts at runtime `0x27684`.
