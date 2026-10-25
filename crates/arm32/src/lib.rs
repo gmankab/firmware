@@ -196,6 +196,18 @@ pub fn load_signed_halfword(condition: Condition, rd: Register, rn: Register,
         | ((offset & 0xf0) << 4) | (offset & 0x0f))
 }
 
+/// A32 register-indexed halfword LDRH/STRH without writeback.
+/// Registers are unshifted; the instruction requires dedicated extra-load/
+/// store fields, unlike normal word-register addressing.
+pub fn transfer_halfword_register(condition: Condition, load: bool,
+    rd: Register, rn: Register, rm: Register) -> Result<u32,String> {
+    if [rd,rn,rm].contains(&Register::PC) {
+        return Err("PC is not a supported A32 halfword register transfer operand".into());
+    }
+    Ok(cond(condition) | 0x0180_00b0 | if load { 1 << 20 } else { 0 }
+       | (rn.number() << 16) | (rd.number() << 12) | rm.number())
+}
+
 /// A32 aligned LDRD or STRD: the pair is always Rt and Rt+1.
 /// Invalid odd or high register pairs, PC bases and large displacements are
 /// rejected instead of silently encoding unpredictable instructions.
@@ -254,6 +266,15 @@ pub fn transfer_byte_register(condition: Condition, load: bool, rd: Register,
                               rn: Register, rm: Register,
                               shift: Shift, amount: u8) -> Result<u32, String> {
     Ok(transfer_word_register(condition, load, rd, rn, rm, shift, amount)? | (1 << 22))
+}
+
+/// A32 byte transfer with register-offset preindexing and base writeback.
+/// Supports positive Rm << amount shifts; rejects undefined PC/base aliases.
+pub fn transfer_byte_register_preindexed_writeback(condition: Condition,
+    load: bool, rd: Register, rn: Register, rm: Register,
+    shift: Shift, amount: u8) -> Result<u32,String> {
+    Ok(transfer_word_register_preindexed_writeback(condition,load,rd,rn,rm,shift,amount)?
+       | (1 << 22))
 }
 
 /// A32 DSP SMLABB: signed 16-bit bottom-half multiply and accumulate.
@@ -573,6 +594,21 @@ mod tests {
         assert!(store_halfword(Condition::Al, Register::R1,
             Register::R0, -256).is_err());
     }
+    #[test]
+    fn register_halfword_and_byte_preindexed_writeback_encoders() {
+        let r3=Register::new(3).unwrap();
+        let r4=Register::new(4).unwrap();
+        let r6=Register::new(6).unwrap();
+        assert_eq!(transfer_halfword_register(Condition::Al,true,
+            Register::R1,r4,Register::R1).unwrap(),0xe194_10b1);
+        assert_eq!(transfer_byte_register_preindexed_writeback(Condition::Al,false,
+            r6,r3,Register::LR,Shift::Lsl,0).unwrap(),0xe7e3_600e);
+        assert!(transfer_halfword_register(Condition::Al,true,
+            Register::PC,r3,r4).is_err());
+        assert!(transfer_byte_register_preindexed_writeback(Condition::Al,true,
+            r3,r3,Register::R1,Shift::Lsl,0).is_err());
+    }
+
     #[test]
     fn halfword_writeback_and_postindex_encoders() {
         let r9=Register::new(9).unwrap();
