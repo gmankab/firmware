@@ -4,13 +4,14 @@ use firmware_tools::devices::xiaomi_nabu::venus_agent20_04_middle as v;
 use firmware_tools::devices::xiaomi_nabu::venus_agent20_04_controller_flags as flags;
 use firmware_tools::devices::xiaomi_nabu::venus_agent20_04_format_registers as format;
 use firmware_tools::devices::xiaomi_nabu::venus_agent20_04_codec_controller as codec;
+use firmware_tools::devices::xiaomi_nabu::venus_agent20_04_controller_packets as packets;
 use std::{env,fs,error::Error};
 fn main()->Result<(),Box<dyn Error>>{
     let args:Vec<String>=env::args().skip(1).collect();
     if args.len()!=2 || !["emit","verify"].contains(&args[0].as_str()){
         return Err("usage: cargo run --example agent20_04_venus_middle -- <emit output|verify private/venus.mbn>".into());
     }
-    let fragments=[(v::FIRST_START,v::first_fragment()?), (codec::START,codec::fragment()?), (format::START,format::fragment()?), (flags::START,flags::fragment()?)];
+    let fragments=[(v::FIRST_START,v::first_fragment()?), (codec::START,codec::fragment()?), (format::START,format::fragment()?), (packets::START,packets::fragment()?), (flags::START,flags::fragment()?)];
     if args[0]=="emit" {
         for (start,bytes) in &fragments {fs::write(format!("{}-{start:x}.bin",args[1]),bytes)?;}
     } else {

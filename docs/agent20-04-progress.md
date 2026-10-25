@@ -53,3 +53,11 @@ git diff --check
 - Independent 422-instruction LLVM mnemonic reassembly agrees byte-for-byte with the source-generated code; original reference comparison of every 1,700 bytes likewise passes. Three named literal constants (`0x26201c16`, `0x88888889`, `0xfffffdda`) are verified independently.
 - The previously separate first and third fragments now form **3,220 consecutive bytes** `[0x40a2c,0x416c0)`. The additional capability function `[0x424c0,0x4272c)` is still **disjoint**; the next uncovered region is `[0x416c0,0x424c0)`.
 - Source-derived total through this checkpoint = **3,840 bytes**, of which **3,808 executable bytes** (952 instructions) and **32 literal data bytes** (eight words), without inferred padding, externally borrowed code or implicit original-byte copying.
+
+## Checkpoint 05 — contiguous controller packet processing
+
+- Fully source-generated and reference-verified the gap function at runtime `[0x416c0,0x424c0)`, file `[0x456c0,0x464c0)` (**3,584 bytes**). It has 886 executable A32 instructions, six explicitly typed scaler-class jump-table words at `0x41cb4–0x41ccc`, and four trailing constant words at `0x424b0–0x424c0`.
+- Encodes multiple runtime buffer commands, conditional device-specific feature flags, scaled widths/strides, register-indexed halfword/signed-halfword loads, signed and unsigned 64-bit multiply, and exact BLX behavior. No OEM instruction words or implicit padding appear in the generated source.
+- Verified the two executable chunks independently using Clang/LLVM: 381 instructions at `[0x416c0,0x41cb4)` and 505 instructions `[0x41ccc,0x424b0)`. Conditional `BLO`/`BHS` targets must be symbolically resolved in the independent linker; comparing all original instruction bytes now passes.
+- **The five preceding source-built fragments now form one gapless `[0x40a2c,0x4272c)` output of 7,424 bytes**, composed of **1,838 A32 executable instructions** (7,352 bytes) and 18 explicitly classified literal data words (72 bytes). Full concat of generated fragments matches the pinned firmware exactly with zero differences. The fragment at runtime `[0x40000,0x40a2c)` remains unimplemented because the reservation begins inside a prior function.
+- Next confirmed function boundary after this contiguous block is `0x4272c`.

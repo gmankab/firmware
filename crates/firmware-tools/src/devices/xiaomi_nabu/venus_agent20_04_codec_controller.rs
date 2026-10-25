@@ -17,7 +17,7 @@ const CONTROLLER_DATA:[u32;3]=[0x2620_1c16,0x8888_8889,0xffff_fdda];
 
 /// A32 SMULL, signed multiply 32 x 32 into RdHi:RdLo. Register pairing and
 /// prohibited PC operands are checked before emitting an instruction.
-fn signed_long_multiply(cond:C,lo:R,hi:R,rm:R,rs:R)->Result<u32,String>{
+pub(super) fn signed_long_multiply(cond:C,lo:R,hi:R,rm:R,rs:R)->Result<u32,String>{
     if lo==hi || [lo,hi,rm,rs].contains(&R::PC) {
         return Err("invalid SMULL operand registers".into());
     }
