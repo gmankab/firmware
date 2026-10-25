@@ -17,8 +17,8 @@ spec.loader.exec_module(builder)
 class Agent13WlanTests(unittest.TestCase):
     def test_starts_after_agent07_and_ends_at_full_function_return(self):
         self.assertEqual(builder.START, 0x2708)
-        self.assertEqual(builder.validate_fragment_layout(), 0x417c)
-        self.assertEqual(sum(length for _, _, _, length in builder.FRAGMENTS), 6772)
+        self.assertEqual(builder.validate_fragment_layout(), 0x445c)
+        self.assertEqual(sum(length for _, _, _, length in builder.FRAGMENTS), 7508)
         self.assertEqual(builder.FILE_OFFSET + builder.START, 0x42708)
 
     def test_does_not_embed_opaque_instructions(self):
@@ -88,6 +88,14 @@ class Agent13WlanTests(unittest.TestCase):
         self.assertIn("popcount", index["record-query-popcount"])
         self.assertIn("if (cmp.eq(r2.new", index["controller-ready-probe"])
 
+    def test_extended_branch_and_reordering_in_record_refresh(self):
+        index={name:source.read_text() for name,source,_,_ in builder.FRAGMENTS}
+        self.assertIn("r1 = #0x2 ; jump ##0xc", index["record-refresh-dispatch"])
+        self.assertIn(":mem_noshuf", index["record-refresh-dispatch"])
+        self.assertIn("dealloc_return", index["record-refresh-dispatch"])
+        self.assertIn("memd(r29", index["controller-release-report"])
+        self.assertIn("call", index["record-mark-and-release"])
+
     def test_explicit_gap_rejected(self):
         old = builder.FRAGMENTS[0]
         with self.assertRaisesRegex(ValueError, "not adjacent"):
@@ -102,7 +110,7 @@ class Agent13WlanTests(unittest.TestCase):
     def test_optional_independent_assembler(self):
         parent=builder.load_parent()
         program=b"".join(parent.assemble(source,os.environ["HEXAGON_LLVM22"],"hexagonv66",expected_length=length) for _,source,_,length in builder.FRAGMENTS)
-        self.assertEqual(len(program),6772)
+        self.assertEqual(len(program),7508)
         firmware=os.getenv("NABU_WLAN_REFERENCE")
         if firmware:
             parent.check_reference(program,Path(firmware).read_bytes(),runtime_offset=builder.START)

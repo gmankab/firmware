@@ -151,3 +151,17 @@ python3 tools/build-wlanmdsp-agent13.py /tmp/wlan-prefix-through-27a0.bin \
 - Agent 13's independently assembled instruction count: **6,772** bytes `[file 0x42708,0x4417c)`. Joined Agent7+13 prefix `[file 0x40000,0x4417c)` is **16,764 bytes**, consisting of **12,988 independent Hexagon instructions** and **3,776 noninstruction linker-fill bytes**. Strict pinned-reference comparison reports zero mismatches.
 - LLVM22 V66 reassembly, 160 Rust tests, Python discovery 24 cases (**23 passed, 1 optional skipped**), offline release build, and Git diff checks passed. No original binary byte literals were embedded in the assembly sources.
 - Next full routine begins at file `0x4417c` / VMA `0xb000417c`; Agent13 reservation ends at `0x100000`. Branch is still Agent7-derived and not merged atop checkpoint50; firmware authentication, further code, and hardware execution remain unverified.
+
+## Checkpoint 13 — record control, refresh, and status thunks
+
+- Seven adjacent complete Hexagon V66 routines add **736 independent instruction bytes**:
+  - `[file 0x4417c,0x441cc)` 80 bytes, controller callback gate;
+  - `[file 0x441cc,0x44244)` 120 bytes, controller notification and resource release;
+  - `[file 0x44244,0x44314)` 208 bytes, record mode/field marking and cleanup;
+  - `[file 0x44314,0x443e4)` 208 bytes, record-refresh and packet serialization;
+  - `[file 0x443e4,0x4443c)` 88 bytes, record status handler;
+  - `[file 0x4443c,0x4444c)` and `[0x4444c,0x4445c)` 16 bytes each, state-notification wrappers.
+- The original refresh packet at runtime `0x4314` requires forcing an extended packet-local jump (`r1=#2; jump ##0xc`) to retain original immediate-extension placement and duplex selection; no raw instruction word import was used. Packet `0x43d8` preserves memory dependence with `:mem_noshuf`.
+- Agent13 source assembled `[file 0x42708,0x4445c)` = **7,508 instruction bytes**. Joined Agent7+13 `[file 0x40000,0x4445c)` is **17,500 exact layout bytes**, comprising **13,724 genuine instruction bytes** and **3,776 separately modeled linker fill**. Direct pinned revision compare: zero mismatched bytes; all source modules use semantic Hexagon packet syntax.
+- LLVM22 V66 assembler, 160 Rust tests, Python discovery 25 cases (**24 passed, 1 skipped**), release build and Git diff checks passed. Next routine starts file `0x4445c`, VMA `0xb000445c`; Agent13 exclusive ownership ends at file `0x100000`.
+- Portable Agent7 branch only, not checkpoint50-descended or signed/flashable WLAN firmware. Full executable and on-device behavioral verification remain unfinished.

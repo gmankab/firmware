@@ -54,6 +54,13 @@ FRAGMENTS = (
     ("record-ring-increment", WLAN_SRC / "agent13-runtime-record-increment.S", 0x3e04, 0x150),
     ("controller-ready-probe", WLAN_SRC / "agent13-runtime-controller-ready.S", 0x3f54, 0x34),
     ("controller-plane-update", WLAN_SRC / "agent13-runtime-plane-update.S", 0x3f88, 0x1f4),
+    ("controller-callback-gate", WLAN_SRC / "agent13-runtime-controller-gate.S", 0x417c, 0x50),
+    ("controller-release-report", WLAN_SRC / "agent13-runtime-controller-release.S", 0x41cc, 0x78),
+    ("record-mark-and-release", WLAN_SRC / "agent13-runtime-record-mark-release.S", 0x4244, 0xd0),
+    ("record-refresh-dispatch", WLAN_SRC / "agent13-runtime-record-refresh.S", 0x4314, 0xd0),
+    ("record-status-handler", WLAN_SRC / "agent13-runtime-record-status-handler.S", 0x43e4, 0x58),
+    ("state-notify-a", WLAN_SRC / "agent13-runtime-state-notify-a.S", 0x443c, 0x10),
+    ("state-notify-b", WLAN_SRC / "agent13-runtime-state-notify-b.S", 0x444c, 0x10),
 )
 
 
