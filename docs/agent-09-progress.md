@@ -256,3 +256,53 @@ cargo run --offline --locked -p firmware-tools --bin novatek-nabu -- \
 Checks: workspace Rust tests (176), Python tests (13), offline release build,
 strict `verify-envelope` for **both revisions**, `git diff --check`, and
 explicit single-byte mutation test for the new zero gap.
+
+## Checkpoint 06 — Discover and generate the exact DLM-prefix mirror
+
+Byte comparisons of the **correct** postmarketOS firmware and the separate
+upstream map220v revision independently establish:
+
+```text
+[0x2f000,0x2f900) == [0x22000,0x22900)  (2,304 identical bytes)
+```
+
+This is not a generic Novatek firmware law. The exact Nabu variant uses its
+first 2,304 DLM bytes twice: once inside DLM at `0x22000` and again in the
+auxiliary/controller configuration bank at `0x2f000`. The mirror is now
+**generated from a caller-authored DLM**, with exact source-length checks.
+It is not an additional independent copy of reference bytes. A one-byte
+mirror mutation causes strict envelope validation to fail.
+
+The assembler needs only authored vector metadata, ILM and DLM; **it no
+longer asks for a distinct 2,304-byte auxiliary payload**. Missing ILM/DLM
+still fails immediately; DLM CRC values in the header remain opaque.
+The `DerivedFromAuthoredDlm` region is deliberately *not* counted as
+independently source-derived, because the underlying DLM instructions have
+not been reconstructed.
+
+Coverage for the required 196,608-byte image:
+
+| Provenance | Byte count | Description |
+| --- | ---: | --- |
+| Independent constant/zero generation | 35,136 | Four zeros regions and three-byte `NVT` |
+| Source-derived when DLM exists | 2,304 | DLM prefix mirror; byte-identical in both known revisions |
+| External structured metadata | 1,024 | Dual-bank header, vectors and opaque CRC/targets |
+| Still independently unimplemented | 158,144 | ILM after candidate vectors + DLM (executable/data) |
+
+The four categories total the full **196,608** bytes without overlap. The
+upstream version has shorter ILM/DLM and therefore different region counts,
+but obeys the same mirror invariant. Neither firmware's actual DLM program
+was copied into the source or identified as independently authored. Therefore
+**independently reconstructed executable bytes = 0**, MCU ISA and stored
+hardware CRC algorithm still unknown.
+
+Verification commands:
+
+```sh
+cargo run --offline --locked -p firmware-tools --bin novatek-nabu -- \
+  verify-dlm-mirror /private/postmarketos-nabu-firmware/novatek_nt36523_fw.bin
+cargo run --offline --locked -p firmware-tools --bin novatek-nabu -- \
+  verify-envelope /private/postmarketos-nabu-firmware/novatek_nt36523_fw.bin
+```
+
+All 177 Rust and 13 Python tests pass; offline release build succeeds.

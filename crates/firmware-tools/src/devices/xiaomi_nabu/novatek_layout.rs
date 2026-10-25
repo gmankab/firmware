@@ -27,6 +27,11 @@ pub const DLM_FILE_END: usize = 0x2e190;
 /// the nonzero configuration bank. These aren't a generic Novatek rule.
 pub const POST_DLM_PADDING_END: usize = 0x2f000;
 pub const RESERVED_TAIL_START: usize = 0x2f900;
+/// The 0x900-byte bank at 0x2f000 is a byte-for-byte mirror of the DLM
+/// prefix, in both independent Nabu firmware revisions. This is a *derived*
+/// region: it can only be written after the DLM payload has been authored.
+pub const DLM_MIRROR_START: usize = POST_DLM_PADDING_END;
+pub const DLM_MIRROR_BYTES: usize = RESERVED_TAIL_START - DLM_MIRROR_START;
 pub const END_MARKER_OFFSET: usize = IMAGE_LENGTH - 3;
 pub const TRAILER_MARKER: &[u8; 3] = b"NVT";
 
@@ -91,8 +96,10 @@ pub enum RegionKind {
     UnimplementedIlm,
     IndependentlyGeneratedZero,
     UnimplementedDlm,
-    UnimplementedAuxiliary,
     IndependentlyGeneratedMarker,
+    /// Emit from a validated, independently authored DLM prefix, not the OEM
+    /// reference. No unknown data may be substituted here.
+    DerivedFromAuthoredDlm,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -112,8 +119,7 @@ impl CoverageRegion {
     pub fn is_unimplemented(&self) -> bool {
         matches!(self.kind, RegionKind::StructuredVectorsWithOpaqueTargets |
                   RegionKind::UnimplementedIlm
-                  | RegionKind::UnimplementedDlm
-                  | RegionKind::UnimplementedAuxiliary)
+                  | RegionKind::UnimplementedDlm)
     }
 }
 
@@ -282,6 +288,30 @@ impl NabuNovatekLayout {
     /// The three-byte fixed end marker can be emitted without firmware input.
     pub fn write_marker(&self) -> [u8; 3] { *TRAILER_MARKER }
 
+    /// Recreate the 2304-byte configuration mirror from the supplied DLM.
+    /// The *source* DLM must still be independently authored/decompiled;
+    /// simply passing the OEM DLM does not reconstruct its instructions.
+    pub fn write_dlm_mirror(&self, authored_dlm: &[u8]) -> Result<Vec<u8>, String> {
+        if authored_dlm.len() != self.dlm.actual_length()? {
+            return Err("DLM mirror source has unexpected length".into());
+        }
+        let bytes = authored_dlm.get(..DLM_MIRROR_BYTES)
+            .ok_or("DLM payload shorter than mirrored block")?;
+        Ok(bytes.to_vec())
+    }
+
+    /// Confirm the Nabu-specific mirror invariant against a reference.
+    pub fn verify_dlm_mirror(&self, reference: &[u8]) -> Result<(), String> {
+        if reference.len()!=self.image_len {return Err("different image length".into());}
+        let dlm = reference.get(self.dlm.file_offset as usize..self.dlm.end()?)
+            .ok_or("missing DLM data")?;
+        let from_dlm = self.write_dlm_mirror(dlm)?;
+        if from_dlm != reference[DLM_MIRROR_START..RESERVED_TAIL_START] {
+            return Err("DLM mirrored configuration is not identical to DLM prefix".into());
+        }
+        Ok(())
+    }
+
     /// A complete, gapless provenance map. The unknown regions remain marked
     /// unknown even when the reference happens to have incidental zero bytes.
     pub fn coverage(&self) -> Result<Vec<CoverageRegion>, String> {
@@ -315,8 +345,9 @@ impl NabuNovatekLayout {
                 end: dlm_end, kind: RegionKind::UnimplementedDlm },
             CoverageRegion { name: "post-DLM reserved zero gap", start: dlm_end,
                 end: POST_DLM_PADDING_END, kind: RegionKind::IndependentlyGeneratedZero },
-            CoverageRegion { name: "auxiliary calibration/configuration", start: POST_DLM_PADDING_END,
-                end: RESERVED_TAIL_START, kind: RegionKind::UnimplementedAuxiliary },
+            CoverageRegion { name: "DLM-prefix configuration mirror (requires authored DLM)",
+                start: DLM_MIRROR_START, end: RESERVED_TAIL_START,
+                kind: RegionKind::DerivedFromAuthoredDlm },
             CoverageRegion { name: "reserved end padding", start: RESERVED_TAIL_START,
                 end: END_MARKER_OFFSET, kind: RegionKind::IndependentlyGeneratedZero },
             CoverageRegion { name: "NVT magic suffix", start: END_MARKER_OFFSET,
@@ -344,6 +375,7 @@ impl NabuNovatekLayout {
         if self.write_reserved_tail(reference)? != reference[RESERVED_TAIL_START..END_MARKER_OFFSET] {
             return Err("reserved-tail padding mismatch".into());
         }
+        self.verify_dlm_mirror(reference)?;
         if self.write_marker().as_slice() != &reference[END_MARKER_OFFSET..] {
             return Err("firmware suffix mismatch".into());
         }
@@ -405,7 +437,7 @@ mod tests {
         assert_eq!(regions.first().unwrap().start, 0);
         assert_eq!(regions.last().unwrap().end, IMAGE_LENGTH);
         assert_eq!(regions.iter().map(CoverageRegion::length).sum::<usize>(), IMAGE_LENGTH);
-        assert_eq!(regions.iter().filter(|r|r.is_unimplemented()).count(),4);
+        assert_eq!(regions.iter().filter(|r|r.is_unimplemented()).count(),3);
         let independents: usize = regions.iter().filter(|r| r.source_independent())
             .map(CoverageRegion::length).sum();
         assert_eq!(independents, (ILM_CODE_START-CANDIDATE_VECTORS_END)
@@ -421,6 +453,17 @@ mod tests {
         assert!(generated.iter().all(|b|*b==0));
         raw[0x2e195] = 0xa5;
         assert!(layout.write_post_dlm_padding(&raw).unwrap_err().contains("0x2e195"));
+        assert!(layout.verify_envelope(&raw).is_err());
+    }
+    #[test]
+    fn dlm_prefix_mirror_is_derived_and_tamper_detected() {
+        let mut raw=synthetic();
+        let layout=NabuNovatekLayout::parse(&raw).unwrap();
+        let dlm=raw[0x22000..0x2e190].to_vec();
+        assert_eq!(layout.write_dlm_mirror(&dlm).unwrap(), vec![0;DLM_MIRROR_BYTES]);
+        layout.verify_dlm_mirror(&raw).unwrap();
+        raw[DLM_MIRROR_START+0x29]=0x42;
+        assert!(layout.verify_dlm_mirror(&raw).unwrap_err().contains("mirrored"));
         assert!(layout.verify_envelope(&raw).is_err());
     }
     #[test]

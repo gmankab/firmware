@@ -19,7 +19,6 @@ pub struct AuthoredPayloads<'a> {
     /// Authored ILM program/data after the 512-byte vector and 80-byte gap.
     pub ilm: Option<&'a [u8]>,
     pub dlm: Option<&'a [u8]>,
-    pub auxiliary: Option<&'a [u8]>,
 }
 
 /// Generated values for *only* source-known regions. An absent fragment
@@ -52,7 +51,7 @@ pub fn projected_regions(layout: &NabuNovatekLayout) -> Result<Vec<ProjectedRegi
             RegionKind::IndependentlyGeneratedZero => Some(vec![0; range.length()]),
             RegionKind::IndependentlyGeneratedMarker => Some(layout.write_marker().to_vec()),
             RegionKind::UnimplementedIlm | RegionKind::UnimplementedDlm |
-            RegionKind::UnimplementedAuxiliary => None,
+            RegionKind::DerivedFromAuthoredDlm => None,
         };
         ProjectedRegion {range,bytes}
     }).collect())
@@ -93,11 +92,18 @@ pub fn assemble_structural_unverified(
             result.extend_from_slice(&words.write());
             continue;
         }
+        if region.range.kind == RegionKind::DerivedFromAuthoredDlm {
+            let dlm=authored.dlm.ok_or_else(||"missing independently authored DLM for mirror".to_string())?;
+            let generated=layout.write_dlm_mirror(dlm)?;
+            if generated.len() != region.range.length() {return Err("DLM mirror has wrong length".into());}
+            result.extend_from_slice(&generated);
+            continue;
+        }
         let part = match region.range.kind {
             RegionKind::StructuredVectorsWithOpaqueTargets => unreachable!("handled above"),
             RegionKind::UnimplementedIlm => check_supplied(&region.range,authored.ilm)?,
             RegionKind::UnimplementedDlm => check_supplied(&region.range,authored.dlm)?,
-            RegionKind::UnimplementedAuxiliary => check_supplied(&region.range,authored.auxiliary)?,
+            RegionKind::DerivedFromAuthoredDlm => unreachable!("DLM mirror handled above"),
             _ => region.bytes.as_deref().ok_or("missing generated fixed region")?,
         };
         if part.len()!=region.range.length() {
@@ -129,7 +135,7 @@ mod tests {
         let layout=sample_layout();
         let projection=projected_regions(&layout).unwrap();
         assert_eq!(projection.len(),10);
-        assert_eq!(projection.iter().filter(|x|x.bytes.is_none()).count(),4);
+        assert_eq!(projection.iter().filter(|x|x.bytes.is_none()).count(),4); // vectors, ILM, DLM, derived mirror
         assert_eq!(projection[0].bytes.as_ref().unwrap().len(),HEADER_BYTES);
         assert_eq!(projection[2].bytes.as_ref().unwrap().len(),0x50);
         assert_eq!(projection[4].bytes.as_ref().unwrap().len(),0x7380);
@@ -140,7 +146,7 @@ mod tests {
         assert!(e.contains("missing externally authored candidate vector table"),"{e}");
     }
     #[test]
-    fn refuses_missing_dlm_and_aux_even_when_other_payloads_exist() {
+    fn refuses_missing_dlm_and_uses_derived_config_from_authored_dlm() {
         let layout=sample_layout();
         let vectors=CandidateVectorTable{initial_control_word:0,
             opaque_slots:[0;127]};
@@ -148,9 +154,9 @@ mod tests {
         let e=assemble_structural_unverified(&layout,AuthoredPayloads{
             vector_table:Some(&vectors),ilm:Some(&ilm),..Default::default()}).unwrap_err();
         assert!(e.contains("DLM"));
-        let e=assemble_structural_unverified(&layout,AuthoredPayloads{
-            vector_table:Some(&vectors),ilm:Some(&ilm),dlm:Some(&dlm),auxiliary:None}).unwrap_err();
-        assert!(e.contains("auxiliary"));
+        let img=assemble_structural_unverified(&layout,AuthoredPayloads{
+            vector_table:Some(&vectors),ilm:Some(&ilm),dlm:Some(&dlm)}).unwrap();
+        assert_eq!(&img.bytes[0x2f000..0x2f900],&dlm[..0x900]);
     }
     #[test]
     fn refuses_payloads_of_wrong_lengths_before_finalizing() {
@@ -167,9 +173,8 @@ mod tests {
         let ilm=vec![0xa5;0x1ac80-0x450]; let dlm=vec![0x55;0xc190];
         let vectors=CandidateVectorTable{initial_control_word:0x41020304,
             opaque_slots:[0x0480;127]};
-        let auxiliary=vec![0x35; 0x2f900-0x2f000];
         let img=assemble_structural_unverified(&layout,AuthoredPayloads{
-            vector_table:Some(&vectors),ilm:Some(&ilm),dlm:Some(&dlm),auxiliary:Some(&auxiliary)}).unwrap();
+            vector_table:Some(&vectors),ilm:Some(&ilm),dlm:Some(&dlm)}).unwrap();
         assert_eq!(img.bytes.len(),IMAGE_LENGTH);
         assert_eq!(&img.bytes[0..HEADER_BYTES],&layout.write_header());
         assert_eq!(&img.bytes[0x200..0x400],&vectors.write());
@@ -178,7 +183,7 @@ mod tests {
         assert!(img.bytes[0x1ac80..0x22000].iter().all(|&x|x==0));
         assert_eq!(&img.bytes[0x22000..0x2e190],&dlm);
         assert!(img.bytes[0x2e190..0x2f000].iter().all(|&x|x==0));
-        assert_eq!(&img.bytes[0x2f000..0x2f900],&auxiliary);
+        assert_eq!(&img.bytes[0x2f000..0x2f900],&dlm[..0x900]);
         assert!(img.bytes[0x2f900..0x2fffd].iter().all(|&x|x==0));
         assert_eq!(&img.bytes[0x2fffd..],b"NVT");
         assert!(!img.is_hardware_crc_verified());
