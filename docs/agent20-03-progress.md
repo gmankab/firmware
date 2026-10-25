@@ -406,3 +406,9 @@ Original reference: private `map220v-nabu-firmware/venus.mbn`, SHA-256 `9d4af65d
 - Contiguous typed A32 reconstruction `[0x21c78,0x311c0)` = **62,792 exact bytes**; new large function `[0x3027c,0x311c0)` = **3908 bytes** with **965 ARM32 instructions** and **12 literal data words**.
 - Re-encodes model/format descriptor fields, range checking, controller command registers and retry/diagnostic paths; `[0x31190,0x311c0)` is controller offsets and diagnostic data, not ARM instructions.
 - Next independent routine starts at `0x311c0`. Instruction-byte equivalence is not a recovered high-level implementation or authenticated firmware.
+
+## Checkpoint 62 — Controller command lists and frame buffer types
+
+- Contiguous typed A32 reconstruction `[0x21c78,0x3192c)` = **64,692 exact bytes**, new `[0x311c0,0x3192c)` = **1900 bytes**, **462 ARM32 instructions** and **13 data words**.
+- Includes protocol/format conversion, cache-write/MMIO setup, input descriptor loops, shared queue entry registration and a seven-word resource/log pointer pool.
+- Four literal pools are kept out of the instruction stream; controller list fill and command payloads use typed ARM op encoders. Next handler begins at `0x3192c`.
