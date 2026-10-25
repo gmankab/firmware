@@ -21,9 +21,9 @@ class RweEntryTests(unittest.TestCase):
         cls.ref=os.environ.get('NABU_ADSP_REFERENCE')
     def test_ptload_offset_mapping(self):
         self.assertEqual(module.FILE_START,0x6030)
-        self.assertEqual(module.FILE_END,0x625c)
+        self.assertEqual(module.FILE_END,0x62c8)
         self.assertEqual(module.PADDR,0x8BE03030)
-        self.assertEqual(module.SIZE,556)
+        self.assertEqual(module.SIZE,664)
     def test_source_assembler_with_checked_v66_registers(self):
         if not self.mc:self.skipTest('HEXAGON_LLVM_MC missing')
         b=module.render(self.mc)
@@ -96,6 +96,18 @@ class RweEntryTests(unittest.TestCase):
                          module.packet_continuation(module.write_predicate_group_from_gpr(28)))
         self.assertEqual(struct.unpack_from('<I',b,off+0x20)[0],0x9213C000)
         self.assertEqual(struct.unpack_from('<I',b,off+0x28)[0],0x5C00E836)
+
+    def test_frame_initialization_exact_packet_layout(self):
+        if not self.mc:self.skipTest('HEXAGON_LLVM_MC missing')
+        b=module.render(self.mc)
+        off=(module.STARTUP_SIZE+module.DISPATCH_SIZE+module.FINALIZE_SIZE+
+             module.POLL_SIZE+module.MEMORY_INIT_SIZE+module.THREAD_GUARD_SIZE)
+        self.assertEqual(len(b)-off,module.FRAME_INIT_SIZE)
+        self.assertEqual(module.FRAME_INIT_SIZE,0x6c)
+        # The non-extended mpyi operation must be in its original packet
+        # position. An explicit extender would change this word/size.
+        self.assertEqual(struct.unpack_from('<I',b,off+0x0c)[0],0xe11c5c01)
+        if self.ref:module.verify(Path(self.ref).read_bytes(),b)
 
     def test_wrong_firmware_is_rejected(self):
         if not self.mc:self.skipTest('HEXAGON_LLVM_MC missing')

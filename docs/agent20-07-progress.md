@@ -81,3 +81,21 @@ Combined RWE code now covers `[0x6030,0x6220)` = **496 exact bytes** (physical `
 Another **60 exact source-derived bytes** decode selected controller-thread bits, read `HTID`, check the 64-bit synchronization slot via `memw_locked`, branch on predicate ownership, then restore packed `P3:0` from an input GPR. The three-instruction-plus-extension packet following the predicate write is preserved exactly. LLVM6 encodes thirteen ordinary instruction words; two v66-only HTID/predicate-group words are strictly checked typed replacement operations (one one-word packet, one packet continuation). The registered external branch destinations use physical address arithmetic and are independently decoded by Rizin.
 
 Total contiguous independently reconstructed executable bytes in the second ADSP `RWE` section: **556 bytes** `[0x6030,0x625c)`. Next uncovered instruction is the `allocframe(#8)` at `0x625c`. Do not count `[0x6000,0x6030)` loader metadata as executable.
+
+## Checkpoint 08: per-thread codec frame state `[0x625c,0x62c8)`
+
+Another **108 source-assembled exact instruction bytes** prepare thread-local
+codec frame metadata, validate its packed type and controller predicate, send
+the attached metadata to a platform handler and clean the corresponding cache
+line. The frame's 27 V66 instruction words are built entirely from human-written
+Hexagon assembly in `tools/adsp-agent20-rwe-frame-init.S`. LLVM6 packetization
+matches the original bytes when the signed `mpyi(r28,#0xe0)` immediate remains
+**unextended**; using `##0xe0` creates an additional extender and changes
+byte identity. No original byte arrays or privileged placeholder patches are
+needed in this extension. Rizin V66 decoding provides a second decoder check.
+
+RWE coverage is now **664 bytes**, ADSP file `[0x6030,0x62c8)` and physical
+`[0x8be03030,0x8be032c8)`, generated SHA-256
+`a35018c28ecf2adc1ba4f09f7f22c19128d8815c68c9738e968c186be74da95a`.
+The first 0x30 bytes of the RWE load are still external data metadata, not
+reconstructed instructions. Next missing code starts at file `0x62c8`.

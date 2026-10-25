@@ -24,7 +24,7 @@ from adsp_hexagon_v66 import (SystemRegister, ControlRegister, read_system_regis
                               write_predicate_group_from_gpr,packet_continuation)
 
 FILE_START=0x6030
-FILE_END=0x625c
+FILE_END=0x62c8
 SIZE=FILE_END-FILE_START
 PADDR=0x8BE03030
 REFERENCE_SHA='4b579e5dc1333d634e5bdc93f3314e357e0e30dab7140833f6cc7aef086b1c1e'
@@ -42,6 +42,8 @@ MEMORY_INIT_SOURCE=TOOLS/'adsp-agent20-rwe-memory-init.S'
 MEMORY_INIT_SIZE=0x8c
 THREAD_GUARD_SOURCE=TOOLS/'adsp-agent20-rwe-thread-guard.S'
 THREAD_GUARD_SIZE=0x3c
+FRAME_INIT_SOURCE=TOOLS/'adsp-agent20-rwe-frame-init.S'
+FRAME_INIT_SIZE=0x6c
 
 
 def baseline():
@@ -157,6 +159,7 @@ def render(llvm_mc:str)->bytes:
     output.extend(previous.assemble(llvm_mc,POLL_SOURCE,POLL_SIZE))
     output.extend(memory_init(llvm_mc,previous))
     output.extend(thread_guard(llvm_mc,previous))
+    output.extend(previous.assemble(llvm_mc,FRAME_INIT_SOURCE,FRAME_INIT_SIZE))
     if len(output)!=SIZE:
         raise previous.AdspError("RWE source fragments are not contiguous")
     return bytes(output)
