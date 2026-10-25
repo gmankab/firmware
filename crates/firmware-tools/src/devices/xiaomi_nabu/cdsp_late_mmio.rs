@@ -19,6 +19,11 @@ pub const JOINED_LEN:usize=FIRST_ENTRY_LEN+WAIT_LEN;
 pub const DETECT_OFFSET:usize=0x55070;
 pub const DETECT_LEN:usize=0x38;
 pub const THREE_STAGE_LEN:usize=JOINED_LEN+DETECT_LEN;
+pub const CONFIG_MODE_100_OFFSET:usize=0x550a8;
+pub const CONFIG_MODE_200_OFFSET:usize=0x55158;
+pub const CONFIG_DEFAULT_OFFSET:usize=0x55208;
+pub const CONFIG_COMMON_EXIT_OFFSET:usize=0x552b4;
+pub const COMPLETE_CONFIG_PREFIX_LEN:usize=CONFIG_COMMON_EXIT_OFFSET-FILE_OFFSET;
 
 /// Checked Hexagon `memw(Rbase + #offset) = ##value` with an immediate extender.
 /// Only the small verified 32-bit, word-aligned addressing form is admitted;
@@ -190,6 +195,67 @@ pub fn verify_joined_with_mode_dispatch(reference:&[u8])->Result<(),String>{
     Ok(())
 }
 
+/// Three mutually exclusive codec clock/control configuration paths.
+/// The original code uses R14/R15/R16 as three control parameters, then
+/// writes nine 32-bit MMIO slots and executes a memory barrier. The values
+/// below are named hardware settings, not original instruction words.
+#[derive(Debug,Clone,Copy,PartialEq,Eq)]
+pub enum ControllerMode {Feature100,Feature200,Neither}
+
+/// One 176-byte (or final 172-byte) mode-config path, assembled from
+/// structured MMIO value pairs. Source operands, extenders, parser markers,
+/// and two jump displacements are reconstructed with architecture encoders.
+pub fn build_controller_mode_program(mode:ControllerMode)->Result<Vec<u8>,String>{
+    let r0=GeneralRegister::new(0)?;
+    let mut out=Vec::with_capacity(176);
+    let mode_code=if mode==ControllerMode::Feature100 {0x31} else {0x39};
+    for (reg,value) in [(14,mode_code),(15,0x44),(16,1)]{
+        for word in cdsp_boot::encode_extended_assignment(GeneralRegister::new(reg)?,value,true){push_word(&mut out,word);}
+    }
+    let option_228=if mode==ControllerMode::Feature100 {2} else {0};
+    const DATA_BASE:u32=0x0830_0200;
+    let settings=[
+        (0x18,0x2048_5699), (0x1c,0x2267), (0x20,0x24),
+        (0x0c,0), (0x10,0x805), (0x14,0xd0),
+        (0x24,0), (0x28,option_228), (0x2c,0x20),
+    ];
+    for (offset,value) in settings{
+        let register_address=DATA_BASE+offset;
+        for word in cdsp_boot::encode_extended_assignment(r0,register_address as i32,true){push_word(&mut out,word);}
+        for word in encode_extended_word_store_immediate(r0,0,value)?{push_word(&mut out,word);}
+    }
+    // Barrier is a checked documented Hexagon operation, LLVM6 assembled.
+    push_word(&mut out,0xa800_c000);
+    match mode {
+        ControllerMode::Feature100 =>push_word(&mut out,ScalarPacket::JumpRelative{displacement_bytes:0x160}.encode()?),
+        ControllerMode::Feature200 =>push_word(&mut out,ScalarPacket::JumpRelative{displacement_bytes:0xb0}.encode()?),
+        ControllerMode::Neither=>{}, // falls through to 0x552b4
+    }
+    let wanted=if mode==ControllerMode::Neither {0xac}else{0xb0};
+    if out.len()!=wanted {return Err("CDSP controller configuration branch length changed".into());}
+    Ok(out)
+}
+
+pub fn build_all_controller_mode_programs()->Result<Vec<u8>,String>{
+    let mut out=build_joined_with_mode_dispatch()?;
+    out.extend(build_controller_mode_program(ControllerMode::Feature100)?);
+    out.extend(build_controller_mode_program(ControllerMode::Feature200)?);
+    out.extend(build_controller_mode_program(ControllerMode::Neither)?);
+    if out.len()!=COMPLETE_CONFIG_PREFIX_LEN{
+        return Err("CDSP all three controller paths have inconsistent coverage".into());
+    }
+    Ok(out)
+}
+
+pub fn verify_all_controller_mode_programs(reference:&[u8])->Result<(),String>{
+    cdsp_boot::validate_reference(reference)?;
+    let generated=build_all_controller_mode_programs()?;
+    if reference.get(FILE_OFFSET..FILE_OFFSET+generated.len())!=Some(generated.as_slice()){
+        return Err("CDSP controller MMIO configuration cases mismatch pinned original".into());
+    }
+    Ok(())
+}
+
 pub fn verify_mmio_setup(reference:&[u8])->Result<(),String>{
     cdsp_boot::validate_reference(reference)?;
     let actual=build_mmio_setup()?;
@@ -211,6 +277,21 @@ mod tests {
         assert_eq!(encode_extended_word_store_immediate(r0,0,0x1234).unwrap(),[0x0000_4048,0x3c40_c034]);
         assert!(encode_extended_word_store_immediate(r0,2,7).is_err());
         assert!(encode_extended_word_store_immediate(r0,16,7).is_err());
+    }
+    #[test]
+    fn all_hardware_mode_programs_are_exactly_partitioned(){
+        assert_eq!(build_controller_mode_program(ControllerMode::Feature100).unwrap().len(),0xb0);
+        assert_eq!(build_controller_mode_program(ControllerMode::Feature200).unwrap().len(),0xb0);
+        assert_eq!(build_controller_mode_program(ControllerMode::Neither).unwrap().len(),0xac);
+        let joined=build_all_controller_mode_programs().unwrap();
+        assert_eq!(joined.len(),COMPLETE_CONFIG_PREFIX_LEN);
+        assert_eq!(FILE_OFFSET+joined.len(),CONFIG_COMMON_EXIT_OFFSET);
+        let get_word=|f:usize|u32::from_le_bytes(joined[f-FILE_OFFSET..f-FILE_OFFSET+4].try_into().unwrap());
+        assert_eq!(get_word(0x55154),0x5800_c0b0); // first shared epilogue jump
+        assert_eq!(get_word(0x55204),0x5800_c058); // second shared epilogue jump
+        assert_eq!(get_word(0x552b0),0xa800_c000); // default falls through
+        assert_eq!(get_word(0x5513c),0x3c40_c002); // feature100 register 0x228=2
+        assert_eq!(get_word(0x551ec),0x3c40_c000); // feature200 register 0x228=0
     }
     #[test]
     fn controller_mode_detection_packet_operands_are_validated(){
