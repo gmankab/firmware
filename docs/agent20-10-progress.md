@@ -27,3 +27,12 @@ CDSP is little-endian ELF32 Hexagon V66, `e_machine=164`, `e_flags=0x66`. **ELF 
 ## Merge guidance
 
 Agent 20-10 owns only new `cdsp_late_*` sources, its verification tool, focused CLI and this progress document. Registering the CDSP late module in the shared `devices/xiaomi_nabu/mod.rs` is a single, separate integration change that Agent 20-01 should reconcile, not overwrite. Do not modify Agent 05's CDSP boot/controller code or any other firmware images.
+
+## Checkpoint 02 — shared MMIO counter wait, contiguous 112 bytes
+
+- Independently emitted `[0x55000,0x55070)` = **112 byte-identical Hexagon executable bytes**; ELF VMA `[0xc00c7000,0xc00c7070)`, physical `[0x96cc7000,0x96cc7070)`.
+- Added a 56-byte counter-read helper `[0x55038,0x55070)`: preserve R1/R2/R3 in R8/R9/R10, read the monotonic hardware counter at `0x083a2000`, spin until an unsigned counter delta exceeds R2, restore arguments and jump through R13.
+- Checked typed encoder `encode_word_load_immediate` handles only verified small aligned offsets, and `encode_wait_if_unsigned_delta_small` encodes the compound `P0=cmp.gtu(R3,R2); if(!P0.new) jump:t` with a narrow negative offset. The latter branches from physical `0x96cc705c` to `0x96cc7054`, the **second** counter load, not the initial snapshot at `0x96cc7050`.
+- An independently authored LLVM 6 fixture emits all 28 words and 17 packet groups exactly; Rizin V66 independently decodes the 28 words, their parse markers and operands, and direct comparison to the exact OEM reference passes.
+- Reproduce: `cargo run -p firmware-tools --bin cdsp-late-rebuild -- emit-joined /tmp/cdsp-late-112.bin`, `... -- verify-joined /private/cdsp.mbn`, and `python3 tools/verify-agent20-10-cdsp-late.py --joined --llvm-mc /path/to/llvm6/bin/llvm-mc --rz-asm /path/to/rz-asm --generated /tmp/cdsp-late-112.bin --reference /private/cdsp.mbn`.
+- Next unimplemented code is at file `0x55070`. Nothing from the metadata-heavy ELF segment `[0x3b000,0x5475c)` is counted as independent executable source. Checkpoint-50 base remains unavailable, so the branch is **provisional**.

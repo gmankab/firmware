@@ -8,7 +8,9 @@ fn main()->Result<(),Box<dyn Error>>{
     match args[0].as_str(){
         "emit"=>{let bytes=late::build_mmio_setup()?;fs::write(&args[1],&bytes)?;println!("Emitted {} source-generated CDSP Hexagon bytes file {:#x}–{:#x}",bytes.len(),late::FILE_OFFSET,late::FILE_OFFSET+bytes.len());},
         "verify"=>{let orig=fs::read(&args[1])?;late::verify_mmio_setup(&orig)?;println!("Verified {} CDSP Hexagon bytes against original; no opcode copying",late::FIRST_ENTRY_LEN);},
-        _=>return Err("usage: cdsp-late-rebuild <emit FILE|verify REFERENCE_CDSP_MBN>".into()),
+        "emit-joined"=>{let bytes=late::build_joined_initial_controller()?;fs::write(&args[1],&bytes)?;println!("Emitted {} independently generated CDSP late controller bytes file {:#x}–{:#x}",bytes.len(),late::FILE_OFFSET,late::FILE_OFFSET+bytes.len());},
+        "verify-joined"=>{let orig=fs::read(&args[1])?;late::verify_joined_controller(&orig)?;println!("Verified {} typed Hexagon bytes against original, no copied opcodes",late::JOINED_LEN);},
+        _=>return Err("usage: cdsp-late-rebuild <emit|verify|emit-joined|verify-joined> <OUTPUT|CDSP_MBN>".into()),
     }
     Ok(())
 }
