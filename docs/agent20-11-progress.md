@@ -61,3 +61,11 @@ python3 -m unittest discover -s tests -p 'test_*.py'
 - The first nine fixed device writes use a checked `MODEM_MMIO_STORE_WORD` macro with named **absolute addresses and values**, not any copied instruction encodings; barriers and packet terminators remain explicit.
 - The 3-word controller capability packet at `0x42bc–0x42c8` is assembled by LLVM6 as legal branch/extension/predicate order but the OEM firmware uses extension/predicate/branch. `restore_original_legal_hexagon_packet_order` checks all instruction **classes**, source register, and original parse bits before moving LLVM-authored words and swapping architecture packet-marker fields. Unknown scheduling fails closed. This does **not** splice proprietary bytes.
 - Generated `[0x4058,0x4310)` now totals **696 byte-identical executable bytes** (174 Hexagon words), output SHA-256 `6989f8265e3a1feb6ca33f6b684b883f44745d0489b88e1d75a4a578b5f28261`. Combined Agent 06+11 prefix `[0x3000,0x4310)` is **4,880 bytes**: **3,668 executable** + **412 metadata** + **800 alignment fill**. Next uncovered file offset `0x4310`.
+
+## Checkpoint 07 — Masked controller writes and callback setup
+
+- Independently authored additional Hexagon executable region `[file 0x4310,0x43d0)` = **192 bytes**, physical `[0x8e001310,0x8e0013d0)`, via LLVM6 source and named MMIO registers.
+- Clears reserved bits at controller addresses 67633664 and 67633720 using derived masks, synchronizes writes with barriers, performs explicit `dcinva(r7)` cache invalidation, sets a controller-ready bit and loops through the already-rebuilt status poll shim.
+- Three dependent `r7=r0` plus `r5.h=0` packet pairs remain single two-instruction packets. Combined with the small LLVM6 packet-order normalizer, the entire new interval and all previous bytes match the reference exactly.
+- New Agent 11 cumulative `[0x4058,0x43d0)` = **888 independently generated executable bytes**; combined early-PT_LOAD prefix `[0x3000,0x43d0)` totals **5,072 bytes**: 3,860 executable, 412 named boot manifest, 800 architecture-linked alignment fill. SHA-256 for Agent11 region: `dee8e417c72363aa2185d61e2a195f46396e76c31e142015213c9b3665ef90df`.
+- Next instruction at modem file `0x43d0` (physical `0x8e0013d0`) is not yet reconstructed; this is still a partial executable and not a whole signed firmware.

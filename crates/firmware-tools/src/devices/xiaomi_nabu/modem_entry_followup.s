@@ -271,3 +271,63 @@ modem_controller_dimension_writes:
 { r1 = r15 }
 { memw(r0+#0) = r1 }
 { barrier }
+
+// Clear reserved controller ownership bits. Each register update uses a
+// barrier so subsequent protected hardware reads observe the written state.
+.globl agent11_modem_enable_controller_registers
+agent11_modem_enable_controller_registers:
+{ r0 = ##67633664 }
+{
+    r7 = r0
+    r5.h = #0
+}
+{ r5.l = #1 }
+{
+    r5 = sub(#-1,r5)
+    r4 = memw(r0+#0)
+}
+{ r4 = and(r4,r5) }
+{ memw(r0+#0) = r4 }
+{ barrier }
+{ r0 = ##67633720 }
+{
+    r7 = r0
+    r5.h = #0
+}
+{ r5.l = #7 }
+{
+    r5 = sub(#-1,r5)
+    r4 = memw(r0+#0)
+}
+{ r4 = and(r4,r5) }
+{ memw(r0+#0) = r4 }
+{ barrier }
+{ r0 = ##67633664 }
+{
+    r7 = r0
+    r5.h = #0
+}
+{
+    r5.l = #4
+    dcinva(r7)
+}
+{
+    r6 = sub(#-1,r5)
+    r4 = memw(r0+#0)
+}
+{ r4 = and(r4,r6) }
+{ r4 = or(r4,r5) }
+{ memw(r0+#0) = r4 }
+{ barrier }
+{ r0 = ##67633720 }
+{ r1 = memw(r0+#0) }
+{ r2 = ##1 }
+{ r1 = or(r1,r2) }
+{ memw(r0+#0) = r1 }
+{ barrier }
+// Preserve the callback's signed range mask and link register return PC.
+{ r4 = ##67633664 }
+{ r2 = ##-2147483648 }
+{ r0 = ##192 }
+{ r13 = add(pc,#8) }
+{ jump agent11_modem_await_counter }
