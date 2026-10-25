@@ -8,7 +8,7 @@
 use arm32::{Condition as C, DataOp as Op, Register as R, Shift, BlockMode};
 
 pub const START: usize = 0x21c78;
-pub const END: usize = 0x27180;
+pub const END: usize = 0x273a4;
 pub const FILE_BASE:usize = 0x4000;
 pub const FILE_OFFSET:usize=FILE_BASE+START;
 pub const RESERVATION_END:usize=0x40000;
@@ -89,6 +89,8 @@ mod irq_channels;
 mod handshake;
 #[path="venus_runtime_mid_controller.rs"]
 mod controller;
+#[path="venus_runtime_mid_status.rs"]
+mod status;
 
 fn frame_allocation(c:&mut Code)->Result<(),String>{
     c.check(START)?;
@@ -599,6 +601,7 @@ pub fn fragment()->Result<Vec<u8>,String>{
     irq_channels::emit(&mut code)?;
     handshake::emit(&mut code)?;
     controller::emit(&mut code)?;
+    status::emit(&mut code)?;
     Ok(code.bytes)
 }
 
@@ -616,7 +619,7 @@ pub fn verify_reference(reference:&[u8])->Result<usize,String>{
 #[cfg(test)] mod tests {
     use super::*;
     #[test] fn generated_region_exact_layout(){
-        assert_eq!(END-START,0x5508);
+        assert_eq!(END-START,0x572c);
         assert_eq!(fragment().unwrap().len(),END-START);
         assert_eq!(FILE_OFFSET,0x25c78);
     }

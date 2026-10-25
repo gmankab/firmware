@@ -144,3 +144,9 @@ Original reference: private `map220v-nabu-firmware/venus.mbn`, SHA-256 `9d4af65d
 - Contiguous `[0x21c78,0x27180)` = **21,768 byte-identical typed bytes**, reference file `[0x25c78,0x2b180)`.
 - New `[0x26c60,0x27180)` = **1,312 bytes**, **306 A32 instructions and 22 named non-instruction values** in two pools (`[0x26dcc,0x26de0)`, `[0x2713c,0x27180)`). Includes repeated MMIO flush/read barriers, controller power/IRQ reset, event-channel handshake flags and diagnostic callback paths.
 - Cumulative independent LLVM/Clang verification passes all **5,052 instructions and 390 data words across 90 pools** without byte differences. The next uncovered routine is `0x27180`.
+
+## Checkpoint 20 — controller readiness and descriptor bounds
+
+- Runtime `[0x21c78,0x273a4)` = **22,316 generated, byte-identical bytes**, reference MBN `[0x25c78,0x2b3a4)`.
+- New `[0x27180,0x273a4)` = **548 bytes**, with **122 A32 instructions** and **15 separately identified MMIO/diagnostic words** in three literal pools. It implements controller readiness probes, per-stream descriptor range checks and IRQ availability transitions.
+- Cumulative independent Clang/LLD mnemonic round-trip reproduces all **5,174 instructions and 405 non-instruction words in 93 pools**, zero byte differences. First missing routine begins at `0x273a4`.
