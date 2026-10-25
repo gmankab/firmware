@@ -140,3 +140,14 @@ No byte is classified as independently decompiled HALO code. The audit
 script validates the ledger and all three repackaging paths. Integration
 should use these counts instead of adding external payloads to the author's
 independent source-derived byte count.
+
+## Checkpoint 08-18 — runtime control AHB address derivation
+
+Use the checked `wmfw_halo_control_bus` output rather than extrapolating
+control register addresses from the *packed* WMFW upload addresses. The
+CS35L41 control windows use unpacked-24 XM `0x02800000` and YM `0x03400000`,
+with four bytes per DSP control word. `inspect-halo-runtime-registry` prints
+these checked register spans once passed a genuine 40+24*n-byte runtime
+algorithm directory. **No live algorithm directory was provided**, and the
+synthetic test addresses are not real device control mappings. This change
+adds no independently reconstructed WMFW file bytes or HALO opcodes.

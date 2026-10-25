@@ -309,12 +309,14 @@ fn run() -> Result<(), Box<dyn Error>> {
         println!("HALO core {} firmware 0x{:x} v{:x}, {} algorithms (runtime snapshot)",
             registry.header.core_id,registry.header.firmware_id,registry.header.firmware_version,
             registry.algorithms.len());
-        let slots=firmware_tools::wmfw_halo_registry::resolve_named_controls(&registry)?;
-        println!("Resolved {} named HALO controls using actual per-algorithm runtime bases",slots.len());
+        let slots=firmware_tools::wmfw_halo_control_bus::resolve_control_bus_spans(&registry)?;
+        println!("Resolved {} named HALO controls using supplied runtime algorithm bases",slots.len());
+        println!("Register windows are CS35L41 XM/YM unpacked24; address step is 4 bytes per DSP control word.");
         for item in slots {
-            println!("0x{:x} {:?} 0x{:x}..0x{:x} {}",
+            println!("0x{:x} {:?} DSP 0x{:x}..0x{:x} AHB 0x{:08x}..0x{:08x} {}",
                 item.algorithm_id,item.memory,item.dsp_word_span.start,
-                item.dsp_word_span.end,item.control_name);
+                item.dsp_word_span.end,item.register_span.start,
+                item.register_span.end,item.control_name);
         }
         return Ok(());
     }

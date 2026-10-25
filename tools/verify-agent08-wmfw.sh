@@ -61,6 +61,7 @@ cargo run --offline --locked -q -p firmware-tools -- \
   inspect-halo-runtime-registry "$work/synthetic-halo-unpacked-registry.bin" \
   > "$work/synthetic-halo-resolved-controls.txt"
 grep -q 'Resolved 57 named HALO controls' "$work/synthetic-halo-resolved-controls.txt"
+grep -q 'AHB 0x03400400..0x03400590' "$work/synthetic-halo-resolved-controls.txt"
 
 # Explicit original DSP payloads are temporarily isolated outside Git.
 cargo run --offline --locked -q -p firmware-tools -- extract-wmfw-external-payloads "$ref" "$work/original-dsp-payloads"

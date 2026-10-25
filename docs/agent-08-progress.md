@@ -330,3 +330,32 @@ level firmware reconstruction.
 ```sh
 cargo run --offline --locked -q -p firmware-tools -- wmfw-byte-provenance > wmfw-provenance.json
 ```
+
+## Checkpoint 08-18 — CS35L41 unpacked-24 HALO coefficient register windows
+
+The public Linux CS35L41 DSP configuration binds `WMFW_ADSP2_XM` controls to
+`CS35L41_DSP1_XMEM_UNPACK24_0 = 0x02800000` and `WMFW_ADSP2_YM` controls to
+`CS35L41_DSP1_YMEM_UNPACK24_0 = 0x03400000`. The HALO `region_to_reg`
+operation uses **four AHB register bytes per absolute DSP control word**.
+Those addresses are *not* the packed upload windows and are *not* the narrower
+`UNPACK32` windows.
+
+The new `wmfw_halo_control_bus` maps the 57 source-authored control records,
+only **after** their algorithm word bases have been decoded from a real,
+caller-provided runtime HALO registry. It checks the Linux register-window
+endpoints (`0x02803ff4`, `0x03401ff4`), integer overflow, empty spans and
+cross-algorithm register overlap. It accurately resolves a synthetic CSPL
+400-byte YM control at DSP word range `0x100..0x164` to the register range
+`0x03400400..0x03400590`, and updates `inspect-halo-runtime-registry` to
+show both DSP word addresses and host bus address ranges.
+
+The end-to-end audit includes this synthetic register-resolution check and
+all original byte-identical WMFW repackaging checks. **No live runtime HALO
+registry dump has been supplied**, so it would be incorrect to publish these
+synthetic offsets as the actual device's runtime control addresses. This
+checkpoint adds four Rust tests; source-derived firmware reconstruction is
+still **3,984 / 34,236 bytes**, reference-inferred zero serialization
+**5,748 bytes**, and required external DSP payloads **24,504 bytes**.
+There are still **zero** independently decompiled HALO instructions.
+
+Public sources: [Linux `cs_dsp_halo_region_to_reg`](https://github.com/torvalds/linux/blob/master/drivers/firmware/cirrus/cs_dsp.c), [CS35L41 DSP memory-region configuration](https://github.com/torvalds/linux/blob/master/sound/soc/codecs/cs35l41-lib.c), and [CS35L41 register definitions](https://github.com/torvalds/linux/blob/master/include/sound/cs35l41.h).

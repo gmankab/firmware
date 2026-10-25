@@ -21,6 +21,7 @@ pub mod wmfw_external_payload;
 pub mod wmfw_sparse_ym;
 pub mod wmfw_compact_y;
 pub mod wmfw_halo_registry;
+pub mod wmfw_halo_control_bus;
 pub mod wmfw_loader_image;
 pub mod wmfw_provenance;
 pub mod wmfw_memory_map;
