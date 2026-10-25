@@ -439,6 +439,33 @@ pub fn verify_authored_interrupt_prefix(firmware:&[u8])->Result<(),String>{
     verify_additional_interrupt_paths(firmware)
 }
 
+/// Associate the two pinned Nabu partition geometries with independently
+/// reconstructed linker GP bases. Neither identity is inferred from copied
+/// instruction bytes. Unknown layouts are refused instead of guessing.
+pub fn gp_base_for_ilm_length(length:usize)->Result<i32,String>{
+    match length {
+        0x1aa80=>Ok(POSTMARKETOS_GP_BASE),
+        0x19e90=>Ok(MAP220V_GP_BASE),
+        _=>Err(format!("NDS32 executable profile is not known for ILM length 0x{length:x}")),
+    }
+}
+
+/// Source-authored executable prefix from offset 0x450 up to 0x588, selecting
+/// the correct GP relocation for the independently identified firmware build.
+pub fn complete_interrupt_prefix(ilm_length:usize)->Result<Vec<u8>,String>{
+    let mut out=authored_interrupt_prefix()?;
+    out.extend_from_slice(&third_interrupt_path(gp_base_for_ilm_length(ilm_length)?)?);
+    if out.len()!=THIRD_INTERRUPT_END-FIRST_HANDLER_OFFSET{
+        return Err("NDS32 extended-prefix length mismatch".into());
+    }
+    Ok(out)
+}
+
+pub fn verify_complete_interrupt_prefix(firmware:&[u8],ilm_length:usize)->Result<(),String>{
+    verify_authored_interrupt_prefix(firmware)?;
+    verify_third_interrupt_path(firmware,gp_base_for_ilm_length(ilm_length)?)
+}
+
 /// Confirm the independently built ISR *path* matches the provided *private*
 /// reference, and that it is physically inside the pinned ILM partition.
 pub fn verify_first_handler(firmware:&[u8])->Result<(),String>{
@@ -526,6 +553,21 @@ pub fn verify_first_handler(firmware:&[u8])->Result<(),String>{
         candidate[0x4d8]^=1;
         assert!(verify_additional_interrupt_paths(&candidate)
             .unwrap_err().contains("0x4d8"));
+    }
+    #[test]fn profile_selection_refuses_unverified_ilm_layouts(){
+        assert_eq!(gp_base_for_ilm_length(0x1aa80).unwrap(),POSTMARKETOS_GP_BASE);
+        assert_eq!(gp_base_for_ilm_length(0x19e90).unwrap(),MAP220V_GP_BASE);
+        assert!(gp_base_for_ilm_length(0x1aa81).is_err());
+        for length in [0x1aa80,0x19e90]{
+            let prefix=complete_interrupt_prefix(length).unwrap();
+            assert_eq!(prefix.len(),312);
+            assert_eq!(&prefix[..244],&authored_interrupt_prefix().unwrap());
+            let mut image=vec![0;THIRD_INTERRUPT_END];
+            image[FIRST_HANDLER_OFFSET..THIRD_INTERRUPT_END].copy_from_slice(&prefix);
+            verify_complete_interrupt_prefix(&image,length).unwrap();
+            image[0x573]^=1;
+            assert!(verify_complete_interrupt_prefix(&image,length).unwrap_err().contains("0x573"));
+        }
     }
     #[test]fn generated_isr_prefix_is_contiguous_and_typed() {
         let prefix=authored_interrupt_prefix().unwrap();

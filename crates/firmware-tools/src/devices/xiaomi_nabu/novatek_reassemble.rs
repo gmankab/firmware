@@ -20,7 +20,7 @@ use super::novatek_crc::{recompute_all_crcs,verify_all_crcs,CrcAudit};
 pub struct AuthoredPayloads<'a> {
     pub vector_table: Option<&'a CandidateVectorTable>,
     /// Independently authored ILM *after* the already generated NDS32 ISR
-    /// paths: `[0x544, ILM_END)`. The first 244 executable bytes are written
+    /// paths: `[0x588, ILM_END)`. The first 312 executable bytes are written
     /// by us. Older full-ILM callers must remove that prefix and cannot
     /// override it with reference bytes.
     pub ilm: Option<&'a [u8]>,
@@ -86,7 +86,7 @@ pub fn projected_regions(layout: &NabuNovatekLayout) -> Result<Vec<ProjectedRegi
         let bytes = match range.kind {
             RegionKind::StructuredMetadataRecomputableCrc => Some(layout.write_header().to_vec()),
             RegionKind::IndependentlyGeneratedNds32 =>
-                Some(super::novatek_nds32::authored_interrupt_prefix()?),
+                Some(super::novatek_nds32::complete_interrupt_prefix(layout.ilm.actual_length()?)?),
             RegionKind::StructuredVectorsWithOpaqueTargets => None,
             RegionKind::IndependentlyGeneratedZero => Some(vec![0; range.length()]),
             RegionKind::IndependentlyGeneratedMarker => Some(layout.write_marker().to_vec()),
@@ -179,7 +179,7 @@ mod tests {
         assert_eq!(projection.iter().filter(|x|x.bytes.is_none()).count(),4); // vectors, remaining ILM, DLM, derived mirror
         assert_eq!(projection[0].bytes.as_ref().unwrap().len(),HEADER_BYTES);
         assert_eq!(projection[2].bytes.as_ref().unwrap().len(),0x50);
-        assert_eq!(projection[3].bytes.as_ref().unwrap().len(),0xf4);
+        assert_eq!(projection[3].bytes.as_ref().unwrap().len(),0x138);
         assert_eq!(projection[5].bytes.as_ref().unwrap().len(),0x7380);
         assert_eq!(projection[7].bytes.as_ref().unwrap().len(),0xe70);
         assert_eq!(projection[9].bytes.as_ref().unwrap().len(),1789);
@@ -197,16 +197,16 @@ mod tests {
         let err=assemble_structural_unverified(&layout,AuthoredPayloads{
             vector_table:Some(&vectors),ilm:Some(&legacy_whole_ilm),..Default::default()
         }).unwrap_err();
-        assert!(err.contains("108592 != required 108348"),"{err}");
+        assert!(err.contains("108592 != required 108280"),"{err}");
         assert_eq!(projected_regions(&layout).unwrap()[3].bytes.as_ref().unwrap(),
-            &super::super::novatek_nds32::authored_interrupt_prefix().unwrap());
+            &super::super::novatek_nds32::complete_interrupt_prefix(layout.ilm.actual_length().unwrap()).unwrap());
     }
     #[test]
     fn refuses_missing_dlm_and_uses_derived_config_from_authored_dlm() {
         let layout=sample_layout();
         let vectors=CandidateVectorTable{initial_control_word:0,
             opaque_slots:[0;127]};
-        let ilm=vec![3;0x1ac80-0x544]; let dlm=vec![2;0xc190];
+        let ilm=vec![3;0x1ac80-0x588]; let dlm=vec![2;0xc190];
         let e=assemble_structural_unverified(&layout,AuthoredPayloads{
             vector_table:Some(&vectors),ilm:Some(&ilm),..Default::default()}).unwrap_err();
         assert!(e.contains("DLM"));
@@ -221,13 +221,13 @@ mod tests {
         let incorrect=vec![0;17];
         let e=assemble_structural_unverified(&layout,AuthoredPayloads{
             vector_table:Some(&vectors),ilm:Some(&incorrect),..Default::default()}).unwrap_err();
-        assert!(e.contains("length 17 != required 108348"),"{e}");
+        assert!(e.contains("length 17 != required 108280"),"{e}");
     }
     #[test]
     fn crc_aware_assembler_generates_all_twelve_fields_and_dlm_mirror() {
         let layout=sample_layout();
         let vectors=CandidateVectorTable{initial_control_word:0,opaque_slots:[0;127]};
-        let mut ilm=vec![0xa5;0x1ac80-0x544];
+        let mut ilm=vec![0xa5;0x1ac80-0x588];
         let mut dlm=vec![0x5a;0xc190];
         ilm[0x203]=0x80;dlm[0x24]=0xc6;
         let image=assemble_crc_validated(&layout,AuthoredPayloads{
@@ -235,8 +235,8 @@ mod tests {
         }).unwrap();
         assert_eq!(image.crc_fields_generated(),12);
         assert_eq!(image.bytes.len(),IMAGE_LENGTH);
-        assert_eq!(&image.bytes[0x450..0x544],
-            &super::super::novatek_nds32::authored_interrupt_prefix().unwrap());
+        assert_eq!(&image.bytes[0x450..0x588],
+            &super::super::novatek_nds32::complete_interrupt_prefix(layout.ilm.actual_length().unwrap()).unwrap());
         assert_eq!(&image.bytes[0x2f000..0x2f900],&dlm[..0x900]);
         assert!(!image.verified_mcu_program());
         assert!(!image.flashable());
@@ -253,7 +253,7 @@ mod tests {
     #[test]
     fn assembles_synthetic_complete_image_but_crc_remains_unverified() {
         let layout=sample_layout();
-        let ilm=vec![0xa5;0x1ac80-0x544]; let dlm=vec![0x55;0xc190];
+        let ilm=vec![0xa5;0x1ac80-0x588]; let dlm=vec![0x55;0xc190];
         let vectors=CandidateVectorTable{initial_control_word:0x41020304,
             opaque_slots:[0x0480;127]};
         let img=assemble_structural_unverified(&layout,AuthoredPayloads{
@@ -262,9 +262,9 @@ mod tests {
         assert_eq!(&img.bytes[0..HEADER_BYTES],&layout.write_header());
         assert_eq!(&img.bytes[0x200..0x400],&vectors.write());
         assert!(img.bytes[0x400..0x450].iter().all(|&x|x==0));
-        assert_eq!(&img.bytes[0x450..0x544],
-            &super::super::novatek_nds32::authored_interrupt_prefix().unwrap());
-        assert_eq!(&img.bytes[0x544..0x1ac80],&ilm);
+        assert_eq!(&img.bytes[0x450..0x588],
+            &super::super::novatek_nds32::complete_interrupt_prefix(layout.ilm.actual_length().unwrap()).unwrap());
+        assert_eq!(&img.bytes[0x588..0x1ac80],&ilm);
         assert!(img.bytes[0x1ac80..0x22000].iter().all(|&x|x==0));
         assert_eq!(&img.bytes[0x22000..0x2e190],&dlm);
         assert!(img.bytes[0x2e190..0x2f000].iter().all(|&x|x==0));

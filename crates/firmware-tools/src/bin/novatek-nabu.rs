@@ -121,7 +121,7 @@ fn run() -> Result<(), String> {
         return Ok(());
     }
     if args.len() < 2 || args.len() > 3 {
-        return Err("usage: novatek-nabu <emit-nds32-isr out.bin|verify-nds32-isr reference.bin|emit-nds32-extra-paths out.bin|verify-nds32-extra-paths reference.bin|emit-nds32-third-path postmarketos|map220v out.bin|verify-nds32-third-path reference.bin postmarketos|map220v> | <inspect|verify-dlm-mirror|verify-crcs|emit-recomputed-crc-header|emit-header|emit-padding|emit-vector|emit-vector-padding|emit-post-dlm-padding|emit-tail-padding|emit-marker|verify-header|verify-envelope|verify-vectors> <private-reference.bin> [output] | assemble-structural-unverified <private-meta-reference> <externally-authored-vector-words> <independently-authored-ilm-after-0x544> <independently-authored-dlm> <output> | assemble-crc-validated <private-meta-reference> <authored-vector-words> <authored-ilm> <authored-dlm> <output>".into());
+        return Err("usage: novatek-nabu <emit-nds32-isr out.bin|verify-nds32-isr reference.bin|emit-nds32-extra-paths out.bin|verify-nds32-extra-paths reference.bin|emit-nds32-third-path postmarketos|map220v out.bin|verify-nds32-third-path reference.bin postmarketos|map220v> | <inspect|verify-dlm-mirror|verify-crcs|emit-recomputed-crc-header|emit-header|emit-padding|emit-vector|emit-vector-padding|emit-post-dlm-padding|emit-tail-padding|emit-marker|verify-header|verify-envelope|verify-vectors> <private-reference.bin> [output] | assemble-structural-unverified <private-meta-reference> <externally-authored-vector-words> <independently-authored-ilm-after-0x588> <independently-authored-dlm> <output> | assemble-crc-validated <private-meta-reference> <authored-vector-words> <authored-ilm> <authored-dlm> <output>".into());
     }
     let command = &args[0];
     let reference = fs::read(&args[1]).map_err(|e| e.to_string())?;
@@ -150,7 +150,7 @@ fn run() -> Result<(), String> {
             let independent = layout.coverage()?.iter().filter(|r| r.source_independent()).map(|r| r.length()).sum::<usize>();
             let unresolved: usize = layout.coverage()?.iter().filter(|r|r.is_unimplemented())
                 .map(|r|r.length()).sum();
-            println!("independently reconstructible bytes, including typed NDS32 ISR: {independent}");
+            println!("independently reconstructible bytes, including typed NDS32 interrupt prefix: {independent}");
             println!("unreconstructed firmware payload bytes: {unresolved}");
             println!("verified reserved tail: 0x{RESERVED_TAIL_START:x}–0x{END_MARKER_OFFSET:x}");
             for region in novatek_reassemble::projected_regions(&layout)? { let range=region.range; println!("  {:>6} bytes 0x{:05x}..0x{:05x} {:?} {}",

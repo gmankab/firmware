@@ -575,3 +575,43 @@ until the next checkpoint. The full 196,608-byte firmware remains incomplete.
 
 Validation: 193 Rust tests, 13 Python tests, offline release build and exact
 byte checks against both private references.
+
+## Checkpoint 14 — Integrate source-derived 312-byte NDS32 prefix
+
+The full-image provenance map and CRC-aware builders now generate all **312
+NDS32 executable bytes `[0x450,0x588)`** directly from typed instruction
+encoders. The GP linker profile is selected by one of two pinned *metadata
+partition lengths*, not guessed from a copied instruction stream:
+`ILM_length=0x1aa80 -> GP=0x2d9e0` (required postmarketOS);
+`ILM_length=0x19e90 -> GP=0x2d7f0` (upstream map220v). Any other ILM length
+is explicitly rejected rather than emitting incorrect executable code.
+
+The strict builder now accepts external ILM data only from **`0x588`** until
+the image-specific ILM end. It will not accept a stale full-ILM input. Its
+CRC-aware output computes all 12 CRC-32/MPEG-2 fields and the authored-DLM
+mirror as before. Both complete layout smoke tests, using the **still-opaque
+reference remainder as external input only**, match their respective original
+images byte-for-byte; the external portions **do not count as decompiled**.
+
+Required postmarketOS revision provenance:
+
+| Category | Bytes |
+| --- | ---: |
+| Independently generated zeros and `NVT` | 35,136 |
+| **Independently authored NDS32 executable** | **312** |
+| DLM mirror derived from authored DLM | 2,304 |
+| Structured metadata and vector table (external scalars) | 1,024 |
+| Missing independently rebuilt ILM `[0x588,0x1ac80)` | 108,280 |
+| Missing independently rebuilt DLM `[0x22000,0x2e190)` | 49,552 |
+| **Total** | **196,608** |
+
+**35,448 bytes are now independently generated**; 157,832 core ILM/DLM
+bytes still need original source reconstruction. The new 68-byte handler
+is tested against two distinct firmware revisions with correct GP-relative
+instructions and explicitly rejected on tamper. A mismatch at `0x565` is
+reported at its actual file offset.
+
+Tests: full offline Rust workspace tests (195), Python unittest suite (13),
+offline release build, `verify-envelope` for both references, strict
+six-file external-input assembly round-trip. Not flashable; firmware runtime
+behavior remains unverified.
