@@ -120,3 +120,14 @@ python3 tools/build-wlanmdsp-agent13.py /tmp/wlan-prefix-through-27a0.bin \
 - Total new Agent13 code `[file 0x42708,0x437f0)` **4,328 source-assembled instruction bytes**. Joined with Agent 7 source the layout prefix is `[0x40000,0x437f0)` = **14,320 reference-exact bytes**, **10,544 instruction bytes** and **3,776 linker-fill bytes**. SHA-256 `9cb96bc6ffa35277012456125a3cfd4f23c0b084e56f63bf8c1fa6dc39264fa4`.
 - Direct strict reference check, LLVM22 assembler reconstruction, 160 Rust tests, 22 Python test cases (21 pass, 1 skip), release build and Git diff checks passed. Next Hexagon routine begins at file `0x437f0` / VMA `0xb00037f0`, still below Agent13's upper file bound `0x100000`.
 - Portable Agent7-based branch only; no checkpoint-50 ancestry, new Qualcomm signature, complete WLAN executable, or hardware execution has been established.
+
+## Checkpoint 10 — stream control, bounded counter, and record query
+
+- Added **772 reference-exact source-authored Hexagon V66 instruction bytes** in three adjacent completed routines:
+  - `[file 0x437f0,0x43984)` = **404 bytes**: stream/control-format unpacking, optional status checks, record-list handling and controller callbacks.
+  - `[file 0x43984,0x43a18)` = **148 bytes**: bounded record/count normalization with conditional callback return.
+  - `[file 0x43a18,0x43af4)` = **220 bytes**: record lookup and query-format dispatch with restored frames and common diagnostics.
+- The first routine preserves the original compound call/zero-branch packet at `0x3830` (`r0 = #0; jump ##0x2a1fe8`) and a deliberate duplex grouping of `r0/r1/r2/r3` around `0x38e0`. All 772 bytes independently LLVM22-reassemble, with zero OEM copied word arrays.
+- Source-generated Agent13 code is now `[file 0x42708,0x43af4)` **5,100 bytes**; combined Agent7+13 executable layout prefix `[0x40000,0x43af4)` is **15,092 byte-identical bytes**, including **11,316 independently encoded instruction bytes** and **3,776 separate linker-fill bytes**. Whole-prefix SHA-256 `0fd8383ee9ffa3ab7b15b9688382770734597198b3b7d28df4d61c8994aa3f8d`.
+- Full strict firmware checksum and direct byte verification, LLVM22 assembly, **160 Rust tests**, **21 passing Python tests with 1 optional skip**, release build and `git diff --check` all passed. The next function begins at **file `0x43af4` / VMA `0xb0003af4`**. Agent13's owned upper bound remains `0x100000`; the file is still partial and not OEM-signed.
+- Git branch remains an Agent7-based portable continuation; integration against absent checkpoint-50 requires an independent merge and full retest.

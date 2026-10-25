@@ -45,6 +45,9 @@ FRAGMENTS = (
     ("record-allocator-tail", WLAN_SRC / "agent13-runtime-record-allocator-tail.S", 0x34a8, 0x0c),
     ("record-state-init", WLAN_SRC / "agent13-runtime-record-context-init.S", 0x34b4, 0x12c),
     ("record-state-controller", WLAN_SRC / "agent13-runtime-record-controller.S", 0x35e0, 0x210),
+    ("stream-record-control", WLAN_SRC / "agent13-runtime-stream-control.S", 0x37f0, 0x194),
+    ("bounded-record-counter", WLAN_SRC / "agent13-runtime-record-counter.S", 0x3984, 0x94),
+    ("record-query-dispatch", WLAN_SRC / "agent13-runtime-record-query.S", 0x3a18, 0xdc),
 )
 
 
