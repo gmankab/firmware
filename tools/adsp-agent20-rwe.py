@@ -19,10 +19,11 @@ import tempfile
 TOOLS=Path(__file__).resolve().parent
 if str(TOOLS) not in sys.path:
     sys.path.insert(0,str(TOOLS))
-from adsp_hexagon_v66 import SystemRegister,read_system_register,write_system_register
+from adsp_hexagon_v66 import (SystemRegister, ControlRegister, read_system_register,
+                              write_system_register, read_control_register,packet_continuation)
 
 FILE_START=0x6030
-FILE_END=0x6194
+FILE_END=0x6220
 SIZE=FILE_END-FILE_START
 PADDR=0x8BE03030
 REFERENCE_SHA='4b579e5dc1333d634e5bdc93f3314e357e0e30dab7140833f6cc7aef086b1c1e'
@@ -36,6 +37,8 @@ FINALIZE_NOPAIR_SIZE=0x78
 FINALIZE_SIZE=0x74
 POLL_SOURCE=TOOLS/'adsp-agent20-rwe-poll.S'
 POLL_SIZE=0x4c
+MEMORY_INIT_SOURCE=TOOLS/'adsp-agent20-rwe-memory-init.S'
+MEMORY_INIT_SIZE=0x8c
 
 
 def baseline():
@@ -93,6 +96,25 @@ def finalize(llvm_mc:str, previous)->bytes:
     return bytes(out)
 
 
+def memory_init(llvm_mc:str,previous)->bytes:
+    """Build 140 bytes using LLVM6 source and two privilege-checked fields."""
+    out=bytearray(previous.assemble(llvm_mc,MEMORY_INIT_SOURCE,MEMORY_INIT_SIZE))
+    sentinel_end=struct.pack('<I',0x7f00c000)
+    sentinel_mid=struct.pack('<I',0x7f004000)
+    replacements={
+        0x20:(sentinel_end,read_system_register(1,SystemRegister.HTID)),
+        0x30:(sentinel_mid,packet_continuation(
+            read_control_register(28,ControlRegister.P3_0))),
+    }
+    for at,(sentinel,word) in replacements.items():
+        if out[at:at+4]!=sentinel:
+            raise previous.AdspError(f'V66 controller bank sentinel moved at +0x{at:x}')
+        out[at:at+4]=struct.pack('<I',word)
+    if any(out[i:i+4] in (sentinel_end,sentinel_mid) for i in range(0,len(out),4)):
+        raise previous.AdspError('unresolved controller bank sentinel')
+    return bytes(out)
+
+
 def render(llvm_mc:str)->bytes:
     previous=baseline()
     output=bytearray(previous.assemble(llvm_mc,SOURCE,STARTUP_SIZE))
@@ -112,6 +134,7 @@ def render(llvm_mc:str)->bytes:
     output.extend(extra)
     output.extend(finalize(llvm_mc,previous))
     output.extend(previous.assemble(llvm_mc,POLL_SOURCE,POLL_SIZE))
+    output.extend(memory_init(llvm_mc,previous))
     if len(output)!=SIZE:
         raise previous.AdspError("RWE source fragments are not contiguous")
     return bytes(output)
