@@ -571,3 +571,25 @@ No source bytes are claimed for intervening holes or for the Agent13 seam
 `[0x100000,0x1001c4)`. Next adjacent complete function starts at
 `0x102014`; the rest of the large WLAN executable segment is unfinished.
 Code equality does not prove behavioral identity or hardware execution.
+
+## Checkpoint 08 — interface event handler and status reply
+
+Recovered two adjacent *complete* Hexagon functions with typed V66 packet
+assembly: `[0x102014,0x102280)` (620 bytes) processes live interface
+events, warning/command callbacks and descriptor state; `[0x102280,0x102368)`
+(232 bytes) builds a bounded status response.
+
+The event handler has a mandatory `:mem_noshuf` packet at offset `+0x154`;
+a regular memory-shuffle packet emits the same operations in a different
+word order and fails byte matching. The status reply requires original
+instruction ordering around a `##25992` constant extender to preserve the
+Hexagon encoding. Both were rebuilt with legal source instructions, not
+firmware opcode copies. LLVM18 V66 and LLVM6 V65 independently yield exact
+OEM-reference bytes in both functions.
+
+Contiguous code `[0x1001c4,0x102368)` now totals **8,612 bytes**.
+The source-derived 496-byte dispatch tables remain separate at
+`[0x2f6cd0,0x2f6ec0)`; total nonoverlapping independently authored
+bytes **9,108**. There are no zero-filled hidden gaps.
+The following command-parser function starts at file `0x102368`; its
+unverified body is not included. The Agent13 leading seam remains.

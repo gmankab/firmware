@@ -127,5 +127,30 @@ class WlanHexagonCheckpointSevenSourceTests(unittest.TestCase):
             self.assertNotIn(".incbin", text)
 
 
+class WlanHexagonCheckpointEightSourceTests(unittest.TestCase):
+    def setUp(self):
+        self.records = late.load_registry()
+
+    def test_two_full_contiguous_interface_routines(self):
+        before=late.select_regions(self.records,through_checkpoint=7)
+        after=late.select_regions(self.records,through_checkpoint=8)
+        self.assertEqual(len(after)-len(before),2)
+        self.assertEqual([r.size_bytes for r in after[-2:]],[620,232])
+        self.assertEqual((after[-2].file_start,after[-1].file_end),
+                         (0x102014,0x102368))
+        self.assertEqual(sum(r.size_bytes for r in after),8612)
+        self.assertEqual(after[-1].file_end,0x102368)
+
+    def test_memory_packet_order_and_extender_source_is_explicit(self):
+        source=ROOT/"sources/xiaomi-nabu/wlanmdsp"
+        event=(source/"agent14-late-interface-event-handler.S").read_text()
+        reply=(source/"agent14-late-status-reply.S").read_text()
+        self.assertIn("memb(r24+#49) = #1; r0 = memw(r16+#44) }:mem_noshuf",event)
+        self.assertIn("{ r0 = ##25992; r18 = r0; r16 = r1 }",reply)
+        for s in (event,reply):
+            self.assertNotIn(".word ",s)
+            self.assertNotIn(".incbin",s)
+
+
 if __name__ == "__main__":
     unittest.main()
