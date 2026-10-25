@@ -130,4 +130,5 @@ pub mod cdsp_early_controllers; // Agent 20-09: 0x4290 startup, disjoint from pr
 pub mod cdsp_early_copier; // Agent 20-09: 0x42bc cache-zero copier
 pub mod cdsp_early_physcopy; // Agent 20-09: 0x4318 physical copy
 pub mod cdsp_early_compare; // Agent 20-09: 0x4364 controller physical-memory compare
-pub mod cdsp_early_cfgbase; // Agent 20-09: 0x43f4 CFGBASE probe, 0x4418..0x4500 structural fill
+pub mod cdsp_early_cfgbase;
+pub mod cdsp_early_system_start; // Agent 20-09: 0x43f4 CFGBASE probe, 0x4418..0x4500 structural fill
