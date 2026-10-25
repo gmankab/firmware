@@ -14,7 +14,7 @@ use arm32::{branch, transfer_word, BlockMode, Condition as C,
 /// jump table includes entries at 0x18010–0x1802b and must not be split.
 pub const FILE_BASE: usize = 0x4000;
 pub const START: usize = 0x183e0;
-pub const END: usize = 0x213fc;
+pub const END: usize = 0x21604;
 pub const MAX_RESERVED_END: usize = 0x24000;
 
 // Isolated builder: unlike the boot-prefix helper, the A32 address is tracked
@@ -87,6 +87,8 @@ mod stream_format;
 mod codec_features;
 #[path = "venus_runtime_late_state.rs"]
 mod state;
+#[path = "venus_runtime_late_controller_init.rs"]
+mod controller_init;
 
 /// Normalize stride/crop dimensions to hardware layout constraints, clamp
 /// bounds exposed by firmware state, and report four alignment invariants.
@@ -422,6 +424,7 @@ pub fn fragment() -> Result<Vec<u8>, String> {
     stream_format::extend(&mut c)?;
     codec_features::extend(&mut c)?;
     state::extend(&mut c)?;
+    controller_init::extend(&mut c)?;
     c.check(END)?;
     Ok(c.bytes)
 }
@@ -449,7 +452,7 @@ mod tests {
         let buf = fragment().unwrap();
         assert_eq!(buf.len(), END - START);
         assert_eq!(START, 0x183e0);
-        assert_eq!(END, 0x213fc);
+        assert_eq!(END, 0x21604);
         assert_eq!(&buf[0x18574 - START..0x18578 - START], &CODEC_RUNTIME_DIAGNOSTIC.to_le_bytes());
         assert_eq!(&buf[0x19690 - START..0x19694 - START], &CODEC_RUNTIME_DIAGNOSTIC.to_le_bytes());
         assert_eq!(&buf[0x196a0 - START..0x196a4 - START], &0xffff_fb80u32.to_le_bytes());

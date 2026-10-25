@@ -213,3 +213,23 @@ uncovered because its initial address is mid-function. The Git branch is
 still anchored to `69ebf0d`, not unavailable checkpoint-50 `b7ed4b5`;
 cherry-pick isolated Agent 03 commits before integrating with other agents.
 **No independently signed or flashable OEM firmware has been produced.**
+
+## Checkpoint 21 — controller/session resource initialization
+
+Two complete adjacent routines at `[0x213fc,0x21604)` (file offsets
+`[0x253fc,0x25604)`) add **520 byte-identical bytes**: 121 typed ARM32
+instructions and nine separately identified diagnostic-pointer data words
+at `[0x214ec,0x214f8)` and `[0x215ec,0x21604)`. The first binds a
+controller session and verifies its backing codec resource; the second
+checks resource status and emits conditional diagnostics. All bytes match the
+pinned private Venus firmware reference. An independent LLVM/Clang assembly
+and linker pass at the correct virtual address produces **zero differences**.
+
+The contiguous Agent 03 interval is now `[0x183e0,0x21604)` = **37,412 bytes**
+(8,960 ARM32 instruction words and 393 non-instruction data words). Rust
+unit tests, Python tests and the offline release build all pass. First
+unimplemented function begins at `0x21604`; the original reserved interval
+continues up to `0x24000` (exclusive). The unimplemented initial mid-function
+tail `[0x18000,0x183e0)` is not counted. Branch ancestry is still the
+available `69ebf0d`, **not** missing checkpoint-50 commit `b7ed4b5`;
+cherry-pick Agent 03 commits during integration. Not signed or flashable.
