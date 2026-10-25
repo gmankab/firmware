@@ -25,6 +25,7 @@ BASE_VADDR = 0xB0000000
 START = 0x2708
 FRAGMENTS = (
     ("record-lookup", WLAN_SRC / "agent13-runtime-record-check.S", START, 0x98),
+    ("record-classifier", WLAN_SRC / "agent13-runtime-record-classify.S", 0x27a0, 0x1c0),
 )
 
 
@@ -91,7 +92,6 @@ def run(args):
         parent.check_reference(fragment, args.reference.read_bytes(), runtime_offset=runtime_offset)
     args.output.parent.mkdir(exist_ok=True, parents=True)
     args.output.write_bytes(fragment)
-    prefix_length = START if args.join_agent07 else 0
     report = {
         "agent": 13,
         "module": "wlanmdsp.mbn",
