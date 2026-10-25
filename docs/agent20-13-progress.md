@@ -67,3 +67,16 @@ python3 tools/build-wlanmdsp-agent13.py /tmp/wlan-prefix-through-27a0.bin \
 - Total Agent13 independently assembled code `[0x42708,0x42d64)` = **1,628 instruction bytes** SHA-256 `9fffffcb5f33321138dd7c98c1c2a7aa2967f71f650050c4ba766e0b2e80292e`.
 - Source-built joined prefix `[0x40000,0x42d64)` = **11,620 matching layout bytes**, SHA-256 `03111a4e49b3a0583b7564e020d1ac064ec6ee2f718cd095ef693df1a03d2920`; composed of **7,844 instruction bytes** (6,216 Agent7 + 1,628 Agent13) plus **3,776 linker fill**.
 - 160 offline Rust tests passed; 22 Python tests discovered (20 passed, 2 skipped), offline release build passed. Direct reference hash+ELF+byte comparison passed. Next function begins at file `0x42d64`, VMA `0xb0002d64`.
+
+## Checkpoint 05 — record exchange, two-slot update, and byte-table seeding
+
+- Three consecutive independently written Hexagon v66 routines add **436 source-generated instruction bytes**:
+  - `[file 0x42d64,0x42e20)` = 188-byte record-field exchange, using packet-local conditional operations, `:mem_noshuf` ordering and an explicit far handler jump.
+  - `[file 0x42e20,0x42ed4)` = 180-byte bounded two-slot hardware-loop updater with packet-local predicate and log handling.
+  - `[file 0x42ed4,0x42f18)` = 68-byte byte-table seeder, with a two-member hardware loop and `:mem_noshuf` on the combined byte-load/store packet.
+- Agent 13 now independently reassembles **2,064 executable bytes** `[file 0x42708,0x42f18)` (VMA `[0xb0002708,0xb0002f18)`), SHA-256 `caf44fb8f8258bf8a44ad1a4d548dfec8adc8f3325189daf5231394350a6efa5`.
+- Joined with independently reassembled Agent 7 code, the source-built executable **layout** `[file 0x40000,0x42f18)` contains **12,056 byte-identical bytes**, SHA-256 `e3c6f2320eff8de7a9247f7f9552b0190066e2ebe7fa4ee7f63d3ed79532d230`. Ledger: **8,280 independently authored instruction bytes** (6,216 Agent 7 + 2,064 Agent 13), **3,776 earlier linker fill** (not source code).
+- Strict firmware reference SHA/ELF/byte comparison reports **zero mismatches** for both the new independent fragment and complete joined prefix. No source file includes opaque `.word`, `.incbin`, `.byte`, or proprietary opcode imports.
+- Offline Rust suite: **160 passing tests**. Python discovery with LLVM22/reference configured: **22 tests discovered, 21 passing, 1 skipped**; the offline release build and `git diff --check` pass.
+- **Next uncovered function starts at file offset `0x42f18`, VMA `0xb0002f18`**. Remaining assigned interval is `[0x42f18,0x100000)`. Nothing beyond the next boundary is claimed as rebuilt.
+- **Provenance limitation:** branch is based on Agent 7's checkpoint (`d6104bb`) because the original checkpoint-50 merged history is unavailable. This is an integration-ready **portable branch**, not a checkpoint-50-descendant or a hardware-signed firmware.

@@ -35,6 +35,9 @@ FRAGMENTS = (
     ("auxiliary-metadata-report", WLAN_SRC / "agent13-runtime-metadata-report-aux.S", 0x2c50, 0x3c),
     ("session-table-seeding", WLAN_SRC / "agent13-runtime-session-seed.S", 0x2c8c, 0xa4),
     ("session-validation-guard", WLAN_SRC / "agent13-runtime-session-guard.S", 0x2d30, 0x34),
+    ("record-field-exchange", WLAN_SRC / "agent13-runtime-record-exchange.S", 0x2d64, 0xbc),
+    ("record-two-slot-update", WLAN_SRC / "agent13-runtime-record-update.S", 0x2e20, 0xb4),
+    ("byte-table-seed", WLAN_SRC / "agent13-runtime-byte-table-seed.S", 0x2ed4, 0x44),
 )
 
 
