@@ -35,7 +35,7 @@ LOADER_HOOKS_LENGTH = 0x64
 THROUGH_LOADER_HOOKS_LENGTH = CODE_AND_PLT_LENGTH + LOADER_HOOKS_LENGTH
 CONFIG_LOOKUP_LENGTH = 0x9c
 THROUGH_CONFIG_LOOKUP_LENGTH = THROUGH_LOADER_HOOKS_LENGTH + CONFIG_LOOKUP_LENGTH
-RECORD_CONSUMER_PREFIX_LENGTH = 0x94
+RECORD_CONSUMER_PREFIX_LENGTH = 0x12c
 THROUGH_RECORD_PREFIX_LENGTH = THROUGH_CONFIG_LOOKUP_LENGTH + RECORD_CONSUMER_PREFIX_LENGTH
 # Identified uniform gap immediately following _init up to the linker PLT.
 # Treat this as layout fill, NEVER as independently reconstructed code.
@@ -229,7 +229,7 @@ def main() -> None:
     ap.add_argument("--with-config-lookup", action="store_true",
                     help="include the 156-byte table lookup and descriptor extractor")
     ap.add_argument("--with-record-prefix", action="store_true",
-                    help="append the independently reconstructed 148-byte record-consumer entry; partial function")
+                    help="append the 300-byte record-consumer entry and initial checks; partial function")
     ap.add_argument("--emit-plt-assembly", type=Path,
                     help="write independently generated PLT source for inspection")
     args = ap.parse_args()

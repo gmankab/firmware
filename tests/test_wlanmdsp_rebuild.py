@@ -143,15 +143,15 @@ class WlanHexagonAssemblyTests(unittest.TestCase):
 
     def test_record_consumer_entry_is_explicit_partial_function(self):
         src = fw.RECORD_PREFIX_SOURCE.read_text()
-        self.assertIn("verified function ENTRY ONLY", src)
+        self.assertIn("verified INITIAL PATH ONLY", src)
         for token in (".incbin", ".word", ".byte", ".long", ".quad"):
             self.assertNotIn(token, src)
         self.assertIn("if (p0.new) jump:nt fail_exit", src)
         encoded = fw.assemble(fw.RECORD_PREFIX_SOURCE, self.mc,
                               expected_length=fw.RECORD_CONSUMER_PREFIX_LENGTH)
-        self.assertEqual(len(encoded), 148)
+        self.assertEqual(len(encoded), 300)
         self.assertEqual(encoded[:8], bytes.fromhex("505d545a0ec09da0"))
-        self.assertEqual(encoded[-16:],bytes.fromhex("1140007816400078035a9da105d49da1"))
+        self.assertEqual(encoded[-4:],bytes.fromhex("04c1005a"))
         for cpu in ("hexagonv62",):
             self.assertEqual(encoded, fw.assemble(fw.RECORD_PREFIX_SOURCE, self.mc, cpu,
                              expected_length=fw.RECORD_CONSUMER_PREFIX_LENGTH))

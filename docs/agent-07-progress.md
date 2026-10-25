@@ -172,3 +172,34 @@ python3 tools/build-wlanmdsp-startup.py /tmp/wlan-through-consumer-prefix.bin \
 The remaining ≈3.22 MiB Hexagon executable and all non-executable container
 and external authentication fields are not reconstructed. This fragment is
 not flashable WLAN firmware.
+
+### Checkpoint F: expanded packet-consumer validation and metadata transfer
+
+The same Hexagon packed-record consumer is now implemented through **300
+byte-identical bytes**, covering runtime `[0xb0001c80,0xb0001dac)` and ELF
+file `[0x41c80,0x41dac)`. This advances **152 real executable bytes** beyond
+checkpoint E. The extended source checks the global record list, makes calls
+to the existing index/size lookup, validates the packed 16-/18-/19-format
+entry against caller capacity, initializes working stack fields, and begins
+descriptor-size normalization.
+
+The new-value packet rules are important: counter comparisons, predicate
+branches, paired memory stores, and the group of four instructions at
+`0x1d98` must be emitted as the correct Hexagon VLIW bundles. Branches to
+unimplemented later handlers remain *relative targets*, not fabricated
+function bodies. `wlan-record-consumer-prefix.S` ends at an original packet
+boundary and does **not** pretend the larger consumer is complete.
+
+The complete contiguous executable-layout prefix is **7,596 bytes**
+(`0x40000–0x41dac` file and `0xb0000000–0xb0001dac` runtime). Independently
+encoded executable instructions total **3,820 bytes**, alongside **3,776
+separately modeled linker fill/alignment bytes**. Byte equality is checked
+against the SHA-256-fixed WLAN reference, including earlier reconstructed
+code; zero differences. Test builds with LLVM6 `hexagonv62` and `hexagonv65`
+agree byte-for-byte. Next unimplemented runtime address: `0xb0001dac`.
+
+```sh
+python3 tools/build-wlanmdsp-startup.py /tmp/wlan-through-record-prefix.bin \
+  --with-record-prefix --llvm-mc /path/to/llvm6/bin/llvm-mc \
+  --reference /private/wlanmdsp.mbn --manifest /tmp/wlan-record-prefix.json
+```
