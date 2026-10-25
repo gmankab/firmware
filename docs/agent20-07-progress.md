@@ -386,3 +386,29 @@ Reproduce with the pinned private ADSP reference outside Git:
 python3 -S tools/adsp-agent20-rwe.py --llvm-mc "$HEXAGON_LLVM_MC" \
   --reference "$NABU_ADSP_REFERENCE" --output /tmp/adsp-rwe-3072.bin
 ```
+
+## Checkpoint 23: ADSP TLB readback and cache clean `[0x6c30,0x6c6c)`
+
+Added a **60-byte** Hexagon V66 helper that reads 128 TLB entry pairs,
+persists them into the `0xf000cf20` controller array, and cleans 32 D-cache
+lines. `tools/adsp-agent20-rwe-tlb-readback.S` contains source-level
+instructions and two labeled loops; LLVM6 compiles 14 ordinary 32-bit
+packet words. A bounded typed V66 `tlb_read_pair(2,0)` encoder replaces the
+checked single-word `nop` sentinel at `+0x18`, after verifying the opcode
+slot and end-of-packet fields. Rizin independently decodes both loops,
+`R3:2 = tlbr(R0)`, the 8-byte postincrement and `dccleana(R1)`.
+
+Reference SHA-256 and MBN PT_LOAD header checks pass. **The entire
+`[0x6030,0x6c6c)` RWE executable block is now 3,132 source-built,
+byte-identical bytes**, physical `[0x8be03030,0x8be03c6c)`; SHA-256
+`507b5a42a35b95cf68af607520bb2c2a49bdb436bb274ce9dc75ed5eea6426e0`.
+The readback routine's 15 instruction words contain one typed privileged
+operation. Rust (160 tests), Python (159 tests) and the offline release
+build pass with the real Hexagon LLVM6 compiler and pinned ADSP reference.
+
+**Important boundary:** The original second `RWE` PT_LOAD contains a long
+file-backed zero region from `0x6c6c` up to its next nonzero byte at
+`0xff20`. The zero region is not source-assembled executable instructions
+and must not be appended to `adsp-agent20-rwe.py` output or counted as a
+source-reconstructed routine. The next investigation should first classify
+the nonzero material at `0xff20` before attempting any further code.

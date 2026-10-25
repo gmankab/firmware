@@ -25,7 +25,7 @@ from adsp_hexagon_v66 import (SystemRegister, ControlRegister, InstructionCacheR
                               write_predicate_group_from_gpr,packet_continuation)
 
 FILE_START=0x6030
-FILE_END=0x6c30
+FILE_END=0x6c6c
 SIZE=FILE_END-FILE_START
 PADDR=0x8BE03030
 REFERENCE_SHA='4b579e5dc1333d634e5bdc93f3314e357e0e30dab7140833f6cc7aef086b1c1e'
@@ -91,6 +91,8 @@ FEATURE_MODES_F_SOURCE=TOOLS/'adsp-agent20-rwe-feature-modes-f.S'
 FEATURE_MODES_F_SIZE=0xbc
 TLB_RESTORE_SOURCE=TOOLS/'adsp-agent20-rwe-tlb-restore.S'
 TLB_RESTORE_SIZE=0x20
+TLB_READBACK_SOURCE=TOOLS/'adsp-agent20-rwe-tlb-readback.S'
+TLB_READBACK_SIZE=0x3c
 
 
 def baseline():
@@ -420,6 +422,24 @@ def tlb_restore(llvm_mc: str, previous) -> bytes:
     return bytes(code)
 
 
+def tlb_readback(llvm_mc:str,previous)->bytes:
+    """Read controller TLB pairs and clean each corresponding D-cache line.
+
+    The copy loop has a paired start/zero operation and one checked v66
+    paired-register TLB read. Its LLVM6 source retains packet markers and
+    two hardware-loop end packets; we reject a relocated/missing marker.
+    """
+    out=bytearray(previous.assemble(llvm_mc,TLB_READBACK_SOURCE,TLB_READBACK_SIZE))
+    at=0x18
+    sentinel=struct.pack('<I',0x7f00c000)
+    if out[at:at+4]!=sentinel:
+        raise previous.AdspError('V66 tlb readback marker moved')
+    out[at:at+4]=struct.pack('<I',tlb_read_pair(2,0))
+    if any(out[i:i+4]==sentinel for i in range(0,len(out),4)):
+        raise previous.AdspError('unresolved tlb readback special opcode')
+    return bytes(out)
+
+
 def render(llvm_mc:str)->bytes:
     previous=baseline()
     output=bytearray(previous.assemble(llvm_mc,SOURCE,STARTUP_SIZE))
@@ -464,6 +484,7 @@ def render(llvm_mc:str)->bytes:
     output.extend(previous.assemble(llvm_mc,FEATURE_MODES_E_SOURCE,FEATURE_MODES_E_SIZE))
     output.extend(previous.assemble(llvm_mc,FEATURE_MODES_F_SOURCE,FEATURE_MODES_F_SIZE))
     output.extend(tlb_restore(llvm_mc,previous))
+    output.extend(tlb_readback(llvm_mc,previous))
     if len(output)!=SIZE:
         raise previous.AdspError("RWE source fragments are not contiguous")
     return bytes(output)
@@ -498,7 +519,7 @@ def main()->int:
     b=render(args.llvm_mc)
     if args.reference:verify(args.reference.read_bytes(),b)
     args.output.write_bytes(b)
-    print('ADSP RWE fragment: %d exact bytes, MBN [0x%x,0x%x), physical [0x%x,0x%x), SHA256=%s; next function begins at 0x6c30' %
+    print('ADSP RWE fragment: %d exact bytes, MBN [0x%x,0x%x), physical [0x%x,0x%x), SHA256=%s; next code starts at 0x6c6c (zero linker alignment follows)' %
           (len(b),FILE_START,FILE_END,PADDR,PADDR+len(b),hashlib.sha256(b).hexdigest()))
     return 0
 
