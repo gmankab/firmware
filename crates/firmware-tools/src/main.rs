@@ -85,6 +85,21 @@ fn run() -> Result<(), Box<dyn Error>> {
         println!("SHA-384 ELF segment integrity verified. OEM signature, certificate trust, and hardware acceptance were NOT verified.");
         return Ok(());
     }
+    if args.len() == 2 && args[0] == "verify-a640-complete" {
+        let original = fs::read(&args[1])?;
+        let audit = firmware_tools::devices::xiaomi_nabu::a640_container::
+            audit_complete_reference(&original)?;
+        println!("A640 complete byte comparison: {} / {} identical bytes.",
+            audit.matching_file_bytes, audit.original_file_bytes);
+        println!("  INDEPENDENT SOURCE/STRUCTURE: {} bytes.",
+            audit.independently_generated_file_bytes);
+        println!("  BORROWED ORIGINAL AUTHENTICATION: {} bytes at 0x{:x}..0x{:x}.",
+            audit.original_oem_authentication_bytes,
+            audit.authentication_file_range.start, audit.authentication_file_range.end);
+        println!("Byte identity reuses OEM signing material from the original input; it does NOT create a signature or establish hardware trust.");
+        println!("Run tools/verify-mbn-signatures.py independently to test embedded-chain RSA-PSS consistency.");
+        return Ok(());
+    }
     if args.len() == 2 && args[0] == "verify-mbnv6-hashes" {
         let firmware = fs::read(&args[1])?;
         let report = firmware_tools::qcom_mbn_validation::verify_elf32_mbnv6_hashes(&firmware)?;
@@ -298,6 +313,55 @@ fn run() -> Result<(), Box<dyn Error>> {
         println!("Generated {} bytes of metadata-only ELF header for {} (NOT firmware)", 4096, spec.name);
         return Ok(());
     }
+    if args.len() == 3 && args[0] == "audit-mbn-unsigned" {
+        let spec = KNOWN_ELFS.iter().find(|s|s.name==args[1])
+            .ok_or("unknown Xiaomi Nabu MBN profile")?;
+        let reference = fs::read(&args[2])?;
+        let plan = firmware_tools::qcom_mbn_profiles::unsigned_metadata_plan(spec,reference.len())?;
+        plan.compare_known(&reference)?;
+        let coverage = plan.coverage();
+        println!("{}: {} source-described ELF+MBNv6 bytes / {} original file bytes.",
+            spec.name, coverage.generated_bytes, coverage.total_bytes);
+        println!("Signed fields such as SoC policy were generated structurally, but signatures/certificates and executable segments remain UNRECONSTRUCTED.");
+        if let Some(first)=coverage.holes.first() {
+            println!("FIRST MISSING FILE SPAN: 0x{:x}..0x{:x} ({} bytes).",
+                first.start,first.end,first.len());
+        }
+        println!("External-authentication bytes: 0; signing material is never copied into generated source coverage.");
+        return Ok(());
+    }
+    if args.len() == 3 && args[0] == "audit-mbn-coverage-json" {
+        let spec = KNOWN_ELFS.iter().find(|s| s.name == args[1])
+            .ok_or("unknown Xiaomi Nabu MBN profile")?;
+        let original = fs::read(&args[2])?;
+        let manifest=firmware_tools::mbn_coverage_manifest::audit_reference(spec,&original)?;
+        println!("{}",manifest.to_json());
+        return Ok(());
+    }
+    if args.len() == 3 && args[0] == "audit-elf-coverage" {
+        let spec = KNOWN_ELFS.iter().find(|x| x.name == args[1])
+            .ok_or("unknown ELF32 firmware filename")?;
+        let original = fs::read(&args[2])?;
+        let report = firmware_tools::elf_file_coverage::compare_known_first_page(spec, &original)?;
+        let sha = firmware_tools::qcom_mbn_validation::verify_elf32_mbnv6_hashes(&original)?;
+        println!("{}: {} file bytes; {} / {} independently generated ELF header bytes; {} unimplemented file bytes.",
+            spec.name, report.file_size, report.coverage.generated_bytes,
+            report.file_size, report.coverage.missing_bytes);
+        println!("ELF: {} program headers, {} unique file-backed segment bytes, {} *memory-only* (BSS) bytes.",
+            report.program_header_count, report.file_segment_bytes,
+            report.zero_fill_memory_bytes);
+        println!("Hash segment 0x{:x}..0x{:x}; {} checked segment hashes; signer material is not generated.",
+            report.authentication_file_range.start, report.authentication_file_range.end,
+            sha.hashed_count);
+        for (i, range) in report.executable_file_ranges.iter().enumerate() {
+            println!("  executable[{i}] file 0x{:x}..0x{:x} ({} bytes; outside this header-only report)",
+                range.start, range.end, range.len());
+        }
+        println!("  FIRST MISSING FILE BYTES: 0x{:x}..0x{:x} (no implicit padding or BSS synthesis).",
+            report.coverage.holes[0].start, report.coverage.holes[0].end);
+        println!("INTEGRITY ONLY; OEM signature, embedded root and hardware trust are independent checks.");
+        return Ok(());
+    }
     if args.len() == 3 && args[0] == "verify-elf-prefix" {
         let spec = KNOWN_ELFS.iter().find(|x| x.name == args[1])
             .ok_or("unknown ELF32 firmware filename")?;
@@ -312,11 +376,11 @@ fn run() -> Result<(), Box<dyn Error>> {
     if args.len() != 2 {
         return Err("usage: firmware-tools a640-coverage OR a640-container-coverage \
             OR emit-a640-executable OUTPUT_BIN OR emit-a640-fragments OUTDIR \
-            OR verify-a640-routines ORIGINAL_MBN \
+            OR verify-a640-routines ORIGINAL_MBN OR verify-a640-complete ORIGINAL_MBN \
             OR verify-mbnv6-hashes ORIGINAL_MBN \
             OR <rebuild-modemuw|verify-modemuw|inspect-elf32|inspect-image> PATH \
             OR make-ghidra-bootstrap ORIGINAL OUTPUT-ANALYSIS-ONLY \
-            OR rebuild-elf-prefix NAME OUTPUT OR verify-elf-prefix NAME ORIGINAL \
+            OR rebuild-elf-prefix NAME OUTPUT OR verify-elf-prefix NAME ORIGINAL             OR audit-elf-coverage NAME ORIGINAL OR audit-mbn-unsigned NAME ORIGINAL OR audit-mbn-coverage-json NAME ORIGINAL \
             OR extract-a640-isa ORIGINAL_MBN OUTDIR OR verify-a640-isa-fields ORIGINAL_MBN".into());
     }
     let target = PathBuf::from(&args[1]);

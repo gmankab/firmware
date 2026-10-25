@@ -5,7 +5,8 @@
 //! file-backed ELF segments. It does NOT validate a Qualcomm/OEM signature,
 //! establish trust-chain provenance, or authorize deployment on hardware.
 
-use crate::{parse_elf32, qcom_mbn::{sha384_table, V6Header, V6Layout, SHA384_SIZE}};
+use crate::{parse_elf32, ElfHeader, image_plan::ImagePlan,
+    qcom_mbn::{sha384_table, V6Header, V6Layout, SHA384_SIZE}};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct HashAudit {
@@ -18,6 +19,66 @@ pub struct HashAudit {
     pub has_signatures: bool,
 }
 
+/// Refuse malformed ELF hash geometry before reading reference bytes or
+/// accepting generated segment bytes. BSS (p_filesz == 0) contributes no file
+/// bytes even when its p_offset is beyond EOF, as seen in original Nabu MBNs.
+/// The signed MBNv6 hash/authentication region must never overlap a segment
+/// that is independently hashed: such overlap would mix signing bytes with
+/// source program bytes and make provenance ambiguous.
+fn check_hash_input_geometry(elf: &ElfHeader, hash_segment_index: usize) -> Result<(), String> {
+    let hash = elf.program_headers.get(hash_segment_index)
+        .ok_or("invalid MBNv6 hash-segment program-header index")?;
+    if hash.flags & 0x0700_0000 != 0x0200_0000 {
+        return Err("selected ELF program header is not a Qualcomm hash segment".into());
+    }
+    let hash_start = hash.offset as usize;
+    let hash_end = hash_start.checked_add(hash.file_size as usize)
+        .ok_or("MBNv6 hash segment offset overflow")?;
+    for (index, segment) in elf.program_headers.iter().enumerate() {
+        if segment.kind == 1 && segment.file_size > segment.mem_size {
+            return Err(format!("ELF PT_LOAD index {index} has p_filesz greater than p_memsz"));
+        }
+        if index == hash_segment_index || segment.file_size == 0 { continue; }
+        let start = segment.offset as usize;
+        let end = start.checked_add(segment.file_size as usize)
+            .ok_or("ELF segment offset overflow")?;
+        if start < hash_end && hash_start < end {
+            return Err(format!("ELF segment {index} overlaps signed MBNv6 hash/authentication segment"));
+        }
+    }
+    Ok(())
+}
+
+/// Build SHA-384 hashes **only** from independently generated, file-backed
+/// ELF segment bytes. The hash segment and explicit BSS (p_filesz == 0)
+/// produce zero-digest placeholders. Unknown bytes or imported signatures
+/// inside any hashed segment make the build fail with a first-hole error.
+/// This does not authenticate the resulting image or its signer.
+pub fn sha384_table_from_generated_plan(
+    elf: &ElfHeader, hash_segment_index: usize, plan: &ImagePlan,
+) -> Result<Vec<u8>, String> {
+    if elf.program_headers.is_empty() || hash_segment_index >= elf.program_headers.len() {
+        return Err("invalid MBNv6 hash-segment program-header index".into());
+    }
+    check_hash_input_geometry(elf, hash_segment_index)?;
+    let mut entries = Vec::with_capacity(elf.program_headers.len());
+    for (index, segment) in elf.program_headers.iter().enumerate() {
+        if index == hash_segment_index || segment.file_size == 0 {
+            entries.push(None);
+            continue;
+        }
+        if segment.kind == 1 && segment.file_size > segment.mem_size {
+            return Err(format!("ELF PT_LOAD index {index} has p_filesz greater than p_memsz"));
+        }
+        let start = segment.offset as usize;
+        let end = start.checked_add(segment.file_size as usize)
+            .ok_or("ELF segment offset overflow")?;
+        entries.push(Some(plan.generated_slice(start..end)
+            .map_err(|reason| format!("ELF segment {index}: {reason}"))?));
+    }
+    sha384_table(&entries.iter().map(|entry| entry.as_deref()).collect::<Vec<_>>())
+}
+
 pub fn verify_elf32_mbnv6_hashes(image: &[u8]) -> Result<HashAudit, String> {
     let elf = parse_elf32(image)?;
     if elf.program_headers.is_empty() {
@@ -28,6 +89,7 @@ pub fn verify_elf32_mbnv6_hashes(image: &[u8]) -> Result<HashAudit, String> {
         return Err(format!("expected one MBNv6 hash segment, found {}", hash_segments.len()));
     }
     let (hash_index, hash_segment) = hash_segments.remove(0);
+    check_hash_input_geometry(&elf, hash_index)?;
     let hash_start = hash_segment.offset as usize;
     let hash_end = hash_start.checked_add(hash_segment.file_size as usize)
         .ok_or("MBNv6 signed region offset overflow")?;
@@ -103,6 +165,7 @@ mod tests {
         put32(&mut b, p2, 1);
         put32(&mut b, p2 + 4, 0x200);
         put32(&mut b, p2 + 16, 32);
+        put32(&mut b, p2 + 20, 32);
         put32(&mut b, p2 + 24, 5);
         for i in 0..32 { b[0x200 + i] = (i as u8).wrapping_mul(7).wrapping_add(1); }
         let header = V6Header {
@@ -118,6 +181,32 @@ mod tests {
         b
     }
     #[test]
+    fn reconstructs_hashes_only_from_source_generated_file_bytes() {
+        let original = fixture();
+        let elf = parse_elf32(&original).unwrap();
+        let mut plan = ImagePlan::new(original.len()).unwrap();
+        plan.place("header", 0, &original[..148]).unwrap();
+        plan.place("generated program", 0x200, &original[0x200..0x220]).unwrap();
+        let rebuilt = sha384_table_from_generated_plan(&elf, 1, &plan).unwrap();
+        assert_eq!(rebuilt, original[0x130..0x1c0]);
+        assert!(sha384_table_from_generated_plan(&elf, 0, &plan).unwrap_err().contains("hash segment"));
+        let mut incomplete = ImagePlan::new(original.len()).unwrap();
+        incomplete.place("partial header", 0, &original[..30]).unwrap();
+        incomplete.place("program", 0x200, &original[0x200..0x220]).unwrap();
+        assert!(sha384_table_from_generated_plan(&elf, 1, &incomplete)
+            .unwrap_err().contains("unimplemented file byte at 0x1e"));
+        let mut external = ImagePlan::new(original.len()).unwrap();
+        external.place_external_authentication("header copied", 0, &original[..148]).unwrap();
+        external.place("program", 0x200, &original[0x200..0x220]).unwrap();
+        assert!(sha384_table_from_generated_plan(&elf, 1, &external)
+            .unwrap_err().contains("externally supplied"));
+        let mut bogus = elf;
+        bogus.program_headers[2].mem_size = 1;
+        assert!(sha384_table_from_generated_plan(&bogus, 1, &plan)
+            .unwrap_err().contains("greater than"));
+    }
+
+    #[test]
     fn validates_generic_elf32_mbnv6_and_rejects_changed_payload() {
         let mut firmware = fixture();
         let report = verify_elf32_mbnv6_hashes(&firmware).unwrap();
@@ -131,6 +220,38 @@ mod tests {
         firmware[0x130] ^= 1;
         assert!(verify_elf32_mbnv6_hashes(&firmware).unwrap_err().contains("index 0"));
     }
+    #[test]
+    fn rejects_pt_load_p_filesz_greater_than_p_memsz() {
+        let mut firmware = fixture();
+        put32(&mut firmware, 116 + 20, 31); // existing 32-byte PT_LOAD program
+        assert!(verify_elf32_mbnv6_hashes(&firmware).unwrap_err()
+            .contains("p_filesz greater than p_memsz"));
+        let elf = parse_elf32(&firmware).unwrap();
+        let plan = ImagePlan::new(firmware.len()).unwrap();
+        assert!(sha384_table_from_generated_plan(&elf, 1, &plan).unwrap_err()
+            .contains("p_filesz greater than p_memsz"));
+    }
+
+    #[test]
+    fn rejects_segments_overlapping_signed_hash_or_authentication() {
+        let mut firmware = fixture();
+        put32(&mut firmware, 116 + 4, 0x180); // malicious program inside hash region
+        let reason = verify_elf32_mbnv6_hashes(&firmware).unwrap_err();
+        assert!(reason.contains("overlaps signed MBNv6 hash"), "{reason}");
+        let elf = parse_elf32(&firmware).unwrap();
+        let plan = ImagePlan::new(firmware.len()).unwrap();
+        assert!(sha384_table_from_generated_plan(&elf, 1, &plan).unwrap_err()
+            .contains("overlaps signed MBNv6 hash"));
+        // A zero-file-size BSS segment with offset beyond EOF is *not*
+        // an overlapping file-backed program; it must remain accepted.
+        put32(&mut firmware, 116 + 16, 0);
+        put32(&mut firmware, 116 + 4, 0xff00);
+        let elf = parse_elf32(&firmware).unwrap();
+        let mut plan = ImagePlan::new(firmware.len()).unwrap();
+        plan.place("original ELF header", 0, &firmware[..148]).unwrap();
+        assert!(sha384_table_from_generated_plan(&elf, 1, &plan).is_ok());
+    }
+
     #[test]
     fn rejects_bad_format_and_truncated_authentication() {
         let mut firmware = fixture();

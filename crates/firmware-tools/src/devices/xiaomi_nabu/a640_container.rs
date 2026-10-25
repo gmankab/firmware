@@ -3,55 +3,16 @@
 //!
 //! The ELF header, all QRISC/IR3 instructions, alignment, unsigned MBNv6
 //! header, and SHA-384 segment hashes can be generated independently.
-//! The OEM metadata, original signature and certificate chain remain absent.
+//! The OEM image-policy metadata is generated from typed fields. The original
+//! signature and certificate chain remain externally supplied and ungenerated.
 //! The resulting ImagePlan refuses to emit a potentially misleading firmware.
 
-use crate::{
-    elf32_prefix::write_elf32_first_page,
-    image_plan::ImagePlan,
-    qcom_mbn::{sha384_table, V6Header, V6Metadata120},
-};
+use crate::{image_plan::ImagePlan,mbn_source_builder::MbnSourceBuilder};
 use super::{a640_plan, elf_specs::KNOWN_ELFS};
 
 pub const HEADER_BYTES: usize = 0x1000;
 pub const AUTHENTICATION_OFFSET: usize = 0x1000;
 pub const EXECUTABLE_OFFSET: usize = 0x3000;
-
-/// A640-specific public MBNv6 header fields. These describe lengths and
-/// placement only; they cannot authorize any firmware under secure boot.
-fn mbn_header() -> V6Header {
-    V6Header {
-        image_id: 0,
-        version: 6,
-        qti_signature_size: 0,
-        qti_certificate_size: 0,
-        declared_payload_size: 0x1990,
-        hash_table_size: 3 * 48,
-        oem_signature_pointer: u32::MAX,
-        oem_signature_size: 0x100,
-        oem_certificate_pointer: u32::MAX,
-        oem_certificate_size: 0x1800,
-        qti_metadata_size: 0,
-        oem_metadata_size: 0x78,
-    }
-}
-
-/// Image-policy fields recovered from the signed image and expressed using
-/// the public MBNv6 metadata format. Changing them would require a new valid
-/// signature; these are not generated OEM signing credentials.
-fn metadata() -> V6Metadata120 {
-    let mut signed_policy = V6Metadata120 {
-        software_id: 20,
-        hardware_id: 0x0a50e1,
-        oem_id: 0x72,
-        policy_flags: V6Metadata120::FLAG_USE_SOC_VERSION
-            | (1 << V6Metadata120::DEBUG_POLICY_SHIFT),
-        anti_rollback_version: 1,
-        ..Default::default()
-    };
-    signed_policy.supported_soc_versions[0] = 0x6003;
-    signed_policy
-}
 
 /// Construct only bytes we can produce through structured code and hashing.
 /// None of the missing authentication bytes are sourced from reference input.
@@ -76,40 +37,20 @@ pub fn partial_container() -> Result<ImagePlan, String> {
         return Err("authentication segment overlaps executable".into());
     }
 
-    let prefix = write_elf32_first_page(spec)?;
-    if prefix.len() != HEADER_BYTES { return Err("unexpected ELF header page size".into()); }
-    let program = a640_plan::partial_executable()?.build_complete()?;
-
-    let signed_header = mbn_header();
-    let signed_layout = signed_header.layout(hash.filesz as usize)?;
-    if signed_layout.padding.len() != 0 || signed_layout.hashes.len() != 3 * 48 {
-        return Err("unexpected A640 signed segment layout".into());
+    // The generic MBNv6 assembler writes the typed ELF/header/policy fields,
+    // refuses to hash unimplemented bytes, and leaves OEM authentication
+    // absent. This A640 specialization supplies its fully authored QRISC/IR3
+    // code and its format-defined, independently checked alignment zeros.
+    let mut builder=MbnSourceBuilder::new(spec,total)?;
+    let program=a640_plan::partial_executable()?.build_complete()?;
+    builder.add_generated_segment(2,&program)?;
+    builder.add_verified_zero_padding(authentication_end..EXECUTABLE_OFFSET)?;
+    builder.generate_hashes()?;
+    let plan=builder.into_plan();
+    if plan.holes()!=vec![0x1138..0x2a38] ||
+        plan.coverage().generated_bytes!=7856 {
+        return Err("A640 unsigned build layout unexpectedly changed".into());
     }
-    // For an ELF32 header without section records, the first digest covers
-    // e_ehsize and all program headers, not the rest of the first zero page.
-    let elf_header_len = 52usize.checked_add(spec.headers.len() * 32)
-        .ok_or("ELF header digest length overflow")?;
-    if elf_header_len > prefix.len() { return Err("ELF digest exceeds prefix".into()); }
-    let oem_metadata = metadata().encode();
-    if oem_metadata.len() != signed_layout.oem_metadata.len() {
-        return Err("MBNv6 OEM metadata size mismatch".into());
-    }
-    let segment_hashes = sha384_table(&[Some(&prefix[..elf_header_len]), None, Some(&program)])?;
-    if segment_hashes.len() != signed_layout.hashes.len() {
-        return Err("MBNv6 digest count does not match ELF segments".into());
-    }
-
-    let mut plan = ImagePlan::new(total)?;
-    plan.place("ELF32 metadata and program headers", 0, &prefix)?;
-    plan.place("typed MBNv6 unsigned header", AUTHENTICATION_OFFSET,
-        &signed_header.encode())?;
-    plan.place("typed MBNv6 OEM image-policy metadata",
-        AUTHENTICATION_OFFSET + signed_layout.oem_metadata.start, &oem_metadata)?;
-    plan.place("SHA-384 digest table of generated ELF and executable",
-        AUTHENTICATION_OFFSET + signed_layout.hashes.start, &segment_hashes)?;
-    plan.place("deterministic zero ELF alignment padding", authentication_end,
-        &vec![0; EXECUTABLE_OFFSET - authentication_end])?;
-    plan.place("fully encoded QRISC and IR3 executable", EXECUTABLE_OFFSET, &program)?;
     Ok(plan)
 }
 
@@ -138,16 +79,61 @@ pub fn assemble_with_external_authentication(external_auth: &[u8]) -> Result<Vec
             EXTERNAL_AUTH_SIZE, external_auth.len()
         ));
     }
-    plan.place("externally supplied OEM signature and certificate field",
+    plan.place_external_authentication("externally supplied OEM signature and certificate field",
         expected.start, external_auth)?;
     let image = plan.build_complete()?;
     crate::qcom_mbn_validation::verify_elf32_mbnv6_hashes(&image)?;
     Ok(image)
 }
 
+/// External-auth bytes are *borrowed from the original reference* solely
+/// to prove that every other byte can be regenerated. Passing this check is
+/// **not** equivalent to deriving the signature, validating device secure
+/// boot policy, or producing a new signed firmware release.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct A640ReferenceAudit {
+    pub original_file_bytes: usize,
+    pub independently_generated_file_bytes: usize,
+    pub original_oem_authentication_bytes: usize,
+    pub authentication_file_range: std::ops::Range<usize>,
+    pub matching_file_bytes: usize,
+}
+
+/// Reconstruct a complete bytewise comparison image *in memory* using only
+/// externally borrowed OEM authentication. Refuse a mismatching revision at
+/// the first offset and leave the private reference untouched.
+pub fn audit_complete_reference(reference: &[u8]) -> Result<A640ReferenceAudit, String> {
+    let partial = partial_container()?;
+    let holes = partial.holes();
+    if holes.len() != 1 || holes[0] != (0x1138..0x2a38) {
+        return Err("unexpected A640 authentication boundary".into());
+    }
+    if reference.len() != partial.total_bytes() {
+        return Err(format!("wrong A640 reference revision or length: expected {}, got {}",
+            partial.total_bytes(), reference.len()));
+    }
+    // This compares all source-generated regions before referencing any
+    // signature bytes; no unknown firmware byte is allowed to match by fiat.
+    partial.compare_known(reference)?;
+    let borrowed_auth = &reference[holes[0].clone()];
+    let result = assemble_with_external_authentication(borrowed_auth)?;
+    if let Some(offset) = result.iter().zip(reference).position(|(a,b)| a != b) {
+        return Err(format!("full A640 reassembly differs at file offset 0x{offset:x}"));
+    }
+    let coverage = partial.coverage();
+    Ok(A640ReferenceAudit {
+        original_file_bytes: reference.len(),
+        independently_generated_file_bytes: coverage.generated_bytes,
+        original_oem_authentication_bytes: borrowed_auth.len(),
+        authentication_file_range: holes[0].clone(),
+        matching_file_bytes: result.len(),
+    })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::{qcom_mbn::sha384_table,elf32_prefix::write_elf32_first_page};
 
     #[test]
     fn unsigned_mbnv6_fields_and_hashes_do_not_make_signed_image_complete() {
@@ -175,8 +161,27 @@ mod tests {
         assert_eq!(completed.len(), 0x37b0);
         original.compare_known(&completed).unwrap();
         assert_eq!(&completed[0x1138..0x2a38], &vec![0x55; EXTERNAL_AUTH_SIZE]);
+        let mut derived = partial_container().unwrap();
+        derived.place_external_authentication("OEM test-only bytes", 0x1138,
+            &vec![0x55; EXTERNAL_AUTH_SIZE]).unwrap();
+        assert_eq!(derived.coverage().generated_bytes, 7856);
+        assert_eq!(derived.coverage().externally_supplied_bytes, 6400);
+        assert!(derived.build_independently_generated().is_err());
     }
 
+    #[test]
+    fn reference_audit_rejects_wrong_revision_and_modified_generated_bytes() {
+        let mut reference=assemble_with_external_authentication(&vec![0x44;EXTERNAL_AUTH_SIZE]).unwrap();
+        let stats=audit_complete_reference(&reference).unwrap();
+        assert_eq!(stats.original_file_bytes,0x37b0);
+        assert_eq!(stats.independently_generated_file_bytes,7856);
+        assert_eq!(stats.original_oem_authentication_bytes,6400);
+        assert_eq!(stats.matching_file_bytes,0x37b0);
+        assert_eq!(stats.authentication_file_range,0x1138..0x2a38);
+        assert!(audit_complete_reference(&reference[..reference.len()-1]).is_err());
+        reference[0x3000]^=1;
+        assert!(audit_complete_reference(&reference).unwrap_err().contains("byte mismatch"));
+    }
     #[test]
     fn generated_mbn_hashes_track_payload_bytes() {
         let plan = partial_container().unwrap();
@@ -186,7 +191,8 @@ mod tests {
             None,
             Some(&a640_plan::partial_executable().unwrap().build_complete().unwrap()),
         ]).unwrap();
-        let hashes = &plan.regions()[3];
+        let hashes = plan.regions().iter()
+            .find(|r| r.name == "generated ELF segment SHA-384 digests").unwrap();
         let mut bytes = vec![0u8; plan.total_bytes()];
         // compare_known validates generated bytes independently; only a
         // complete signed image can be emitted by build_complete().
