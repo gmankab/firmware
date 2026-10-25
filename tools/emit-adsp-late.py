@@ -33,6 +33,8 @@ FRAGMENTS = {
     'save-control': (TOOLS / 'adsp-late-save-control.S', 0x390D8, 0x24),
     'clear-ready': (TOOLS / 'adsp-late-clear-ready.S', 0x39100, 0x14),
     'callback-registry': (TOOLS / 'adsp-late-callback-registry.S', 0x39120, 0x80),
+    'unregister-registry': (TOOLS / 'adsp-late-unregister-registry.S', 0x391A0, 0x40),
+    'initialize-registry': (TOOLS / 'adsp-late-initialize-registry.S', 0x391E0, 0x50),
 }
 
 class LateAdspError(ValueError):

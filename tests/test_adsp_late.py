@@ -133,9 +133,27 @@ class ADSPExternalsAndCodeTests(unittest.TestCase):
                 built=adsp.compile_source(LLVM_MC,source,size)
                 self.assertEqual(hashlib.sha256(built).hexdigest(),digest)
 
+    @unittest.skipUnless(LLVM_MC,'Hexagon LLVM6 assembler required')
+    def test_registry_lifecycle_functions_byte_layout(self):
+        expected={
+            'unregister-registry':(64,'df9c133d787c1b33d1247520b1aa2dcb6d59296610f0ba1aab9b48bea9d7aa98'),
+            'initialize-registry':(80,'e57c396c397d4e9b9fa49302b8d12226bf8032d7ad73f253d7ed36e82246224e'),
+        }
+        for name,(length,digest) in expected.items():
+            with self.subTest(name=name):
+                source,offset,reported_len=adsp.FRAGMENTS[name]
+                self.assertEqual(reported_len,length)
+                output=adsp.compile_source(LLVM_MC,source,length)
+                self.assertEqual(hashlib.sha256(output).hexdigest(),digest)
+                self.assertNotIn('.word ',source.read_text())
+        self.assertIn('loop0(copy_loop,r4)',
+                      adsp.FRAGMENTS['callback-registry'][0].read_text())
+        self.assertIn('init_registry',
+                      adsp.FRAGMENTS['initialize-registry'][0].read_text())
+
     @unittest.skipUnless(LLVM_MC and REFERENCE,
                          'Hexagon LLVM6 and exact pinned ADSP reference required')
-    def test_all_seven_disjoint_fragments_are_source_identical(self):
+    def test_all_nine_disjoint_fragments_are_source_identical(self):
         original=Path(REFERENCE).read_bytes()
         total=0
         ranges=[]
@@ -145,7 +163,7 @@ class ADSPExternalsAndCodeTests(unittest.TestCase):
                 adsp.verify_slice(built,original,off)
                 total+=len(built)
                 ranges.append((off,off+size))
-        self.assertEqual(total,636)
+        self.assertEqual(total,780)
         ranges.sort()
         self.assertEqual(ranges[0],(0x39000,0x39054))
         self.assertEqual(ranges[-1],(0x3640a8,0x3640f8))
