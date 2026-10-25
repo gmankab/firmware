@@ -141,3 +141,13 @@ python3 tools/build-wlanmdsp-agent13.py /tmp/wlan-prefix-through-27a0.bin \
 - Agent13 code `[file 0x42708,0x43e04)` totals **5,884 independently encoded instruction bytes**. Joined Agent7+13 executable layout `[file 0x40000,0x43e04)` totals **15,876 byte-identical bytes**: **12,100 instruction bytes** + **3,776 separately modeled linker fill**, zero difference from pinned `wlanmdsp.mbn`.
 - `--join-agent07 --reference`, LLVM22 V66 packet assembler, `cargo test --workspace --offline --locked` (**160 passing Rust tests**), Python discovery (**22 passed, 1 optional skip**), release build and `git diff --check` all passed. Fragment sources contain no `.incbin` or opaque opcode-word directives.
 - Next function begins **file `0x43e04` / VMA `0xb0003e04`**. Independent firmware completion and OEM signing remain out of scope; branch is still based on Agent7 `d6104bb`, not checkpoint50.
+
+## Checkpoint 12 — record increment and controller plane processing
+
+- Three complete adjacent Hexagon V66 routines add **888 independently assembled bytes**:
+  - `[file 0x43e04,0x43f54)` = **336 bytes**: increment ring slot, update wide metadata and invoke optional command reporting; four `:mem_noshuf` packets preserve original dependent memory instruction order.
+  - `[file 0x43f54,0x43f88)` = **52 bytes**: controller readiness checks and fast guarded tail call/return.
+  - `[file 0x43f88,0x4417c)` = **500 bytes**: output-plane metadata updates, 64-bit masks and optional control callbacks; three more `:mem_noshuf` groups needed for exact packet ordering.
+- Agent 13's independently assembled instruction count: **6,772** bytes `[file 0x42708,0x4417c)`. Joined Agent7+13 prefix `[file 0x40000,0x4417c)` is **16,764 bytes**, consisting of **12,988 independent Hexagon instructions** and **3,776 noninstruction linker-fill bytes**. Strict pinned-reference comparison reports zero mismatches.
+- LLVM22 V66 reassembly, 160 Rust tests, Python discovery 24 cases (**23 passed, 1 optional skipped**), offline release build, and Git diff checks passed. No original binary byte literals were embedded in the assembly sources.
+- Next full routine begins at file `0x4417c` / VMA `0xb000417c`; Agent13 reservation ends at `0x100000`. Branch is still Agent7-derived and not merged atop checkpoint50; firmware authentication, further code, and hardware execution remain unverified.
