@@ -25,6 +25,14 @@
 - ARM32 `arm32` release crate compiled. The full `cargo build --workspace --release` **did not complete within two separate 120-second execution windows**; report it as unverified, not passed. Full release verification must be repeated on integration.
 - LLVM/Clang independent reassembly of the 188 bytes passed. `git diff --check` passed.
 
+## Checkpoint 02
+
+- Extended exact contiguous interval `[0x69b80,0x69cd8)` = 344 bytes, file `[0x6db80,0x6dcd8)`.
+- Added the converted-color coordinate comparison function `[0x69c3c,0x69cd8)`; it invokes the existing two-record conversion helper, checks six halfword channels and emits one independently identified diagnostic literal word.
+- Exact account: **336 source-generated A32 instruction bytes** (84 words), **8 source-authored data bytes** (two constant words), zero padding and zero original-reference copied bytes.
+- Original firmware and LLVM/Clang reassembly agree on all 344 bytes; SHA-256 `d51923e548fe35b58b93094c31b3705d95bb8fd929e9fb5e0dbc5580f0c16d79`.
+- The dedicated ARM32 immediate post-index `LDRH` encoder is locally implemented and checked; no shared architecture crate was modified.
+
 ## Remaining
 
-Continue from independent routine at ARM `0x69c3c`, then the next at `0x69cd8`; ensure all literal pools are modeled. There is a distinct uncovered seam `[0x68000, 0x69b80)`. The rest of agent 05's exclusive reservation `[0x69c3c, 0xa8000)` is **unimplemented** as of this checkpoint. Byte-identical emission does not constitute semantic equivalence, a whole firmware image, or hardware validation.
+Continue from independent routine at ARM `0x69c3c`, then the next at `0x69cd8`; ensure all literal pools are modeled. There is a distinct uncovered seam `[0x68000, 0x69b80)`. The rest of agent 05's exclusive reservation `[0x69cd8, 0xa8000)` is **unimplemented** as of this checkpoint. Byte-identical emission does not constitute semantic equivalence, a whole firmware image, or hardware validation.

@@ -18,7 +18,7 @@ pub const OWNED_START: usize = 0x68000;
 pub const OWNED_END: usize = 0xa8000;
 pub const FILE_MAPPING_DELTA: usize = 0x4000;
 pub const VERIFIED_START: usize = 0x69b80;
-pub const VERIFIED_END: usize = 0x69c3c;
+pub const VERIFIED_END: usize = 0x69cd8;
 pub const INITIAL_UNCOVERED: usize = VERIFIED_START - OWNED_START;
 
 struct A32 {
@@ -146,12 +146,81 @@ fn emit_scaled_descriptor_init(c: &mut A32) -> Result<(), String> {
     c.check(0x69c38)?;
     const SCALING_FACTOR_Q16: u32 = 0x0001_3333;
     c.emit(SCALING_FACTOR_Q16)?;
-    c.check(VERIFIED_END)
+    c.check(0x69c3c)
+}
+
+/// A32 immediate post-indexed `LDRH Rt, [Rn], #offset`. The architecture's
+/// post-index form has P=0, U derived from the offset, and L=1. Checked
+/// separately because the older shared arm32 crate only exposes STRH here.
+fn load_halfword_postindexed(c:&mut A32, dst:R, base:R, signed_offset:i32)->Result<(),String>{
+    if dst == R::PC || base == R::PC || dst == base || signed_offset.unsigned_abs()>255 {
+        return Err("invalid postindexed A32 halfword load operands".into());
+    }
+    let n=signed_offset.unsigned_abs();
+    c.emit(0xe050_00b0 | if signed_offset>=0 {1<<23} else {0}
+      | (base.number()<<16) | (dst.number()<<12)
+      | ((n & 0xf0)<<4) | (n & 0x0f))
+}
+
+/// Compare two converted six-component color-coordinate records, each
+/// obtained via the existing `0x71e14` conversion service. This preserves
+/// the maximum signed component difference and logs whether it exceeds 160;
+/// the caller's two flag byte-pointers are then assigned from the input IDs.
+fn emit_compare_converted_components(c:&mut A32)->Result<(),String>{
+    let r3=r(3)?; let r4=r(4)?; let r5=r(5)?; let r6=r(6)?;
+    let r7=r(7)?; let r8=r(8)?; let r9=r(9)?;
+    let saved=(4..=9).map(|n|1u16<<n).sum::<u16>()|R::R11.bit()|R::LR.bit();
+    c.check(0x69c3c)?;
+    c.emit(push_registers(C::Al,saved)?)?;
+    imm(c,C::Al,Op::Add,R::R11,R::SP,24)?;
+    imm(c,C::Al,Op::Sub,R::SP,R::SP,24)?;
+    mov(c,C::Al,r6,R::R0)?;
+    imm(c,C::Al,Op::Add,r7,R::SP,12)?;
+    mov(c,C::Al,r9,R::R1)?;
+    mov(c,C::Al,r8,r3)?;
+    mov(c,C::Al,r5,R::R2)?;
+    mov(c,C::Al,R::R0,r7)?;
+    mov(c,C::Al,R::R1,r6)?;
+    c.bl(0x71e14)?;
+    mov(c,C::Al,r4,R::SP)?;
+    mov(c,C::Al,R::R1,r9)?;
+    mov(c,C::Al,R::R2,r5)?;
+    mov(c,C::Al,R::R0,r4)?;
+    c.bl(0x71e14)?;
+    load(c,C::Al,r5,R::R11,8)?;
+    imm(c,C::Al,Op::Mov,R::R0,R::R0,0)?;
+    imm(c,C::Al,Op::Mvn,R::R1,R::R0,0)?;
+    c.check(0x69c88)?;
+    load_halfword_postindexed(c,R::R2,r7,2)?;
+    load_halfword_postindexed(c,r3,r4,2)?;
+    imm(c,C::Al,Op::Add,R::R0,R::R0,1)?;
+    reg(c,C::Al,Op::Sub,R::R2,r3,R::R2,Shift::Lsl,0)?;
+    reg(c,C::Al,Op::Cmp,R::R0,R::R2,R::R1,Shift::Lsl,0)?;
+    mov(c,C::Gt,R::R1,R::R2)?;
+    imm(c,C::Al,Op::Cmp,R::R0,R::R0,6)?;
+    c.b(C::Ne,0x69c88)?;
+    c.lit(R::R2,0x69cd4)?;
+    imm(c,C::Al,Op::Cmp,R::R0,R::R1,160)?;
+    imm(c,C::Al,Op::Mov,R::R1,R::R0,78)?;
+    imm(c,C::Al,Op::Mov,R::R0,R::R0,0)?;
+    imm(c,C::Lt,Op::Mov,R::R0,R::R0,1)?;
+    imm(c,C::Al,Op::Orr,R::R1,R::R1,512)?;
+    c.bl(0x17b0)?;
+    c.emit(transfer_byte(C::Al,false,r6,r8,0)?)?;
+    c.emit(transfer_byte(C::Al,false,r9,r5,0)?)?;
+    imm(c,C::Al,Op::Sub,R::SP,R::R11,24)?;
+    c.emit(transfer_multiple(C::Al,true,R::SP,
+      (saved & !R::LR.bit()) | R::PC.bit(),BlockMode::IncrementAfter,true)?)?;
+    c.check(0x69cd4)?;
+    const BAD_COLOR_DISTANCE: u32=0x000f_2e4c;
+    c.emit(BAD_COLOR_DISTANCE)?;
+    c.check(0x69cd8)
 }
 
 pub fn fragment() -> Result<Vec<u8>,String> {
     let mut c=A32::new(VERIFIED_START)?;
     emit_scaled_descriptor_init(&mut c)?;
+    emit_compare_converted_components(&mut c)?;
     Ok(c.bytes)
 }
 
@@ -162,7 +231,8 @@ pub fn fragment() -> Result<Vec<u8>,String> {
         assert_eq!(output.len(), VERIFIED_END-VERIFIED_START);
         assert_eq!(VERIFIED_START,0x69b80);
         assert_eq!(INITIAL_UNCOVERED,0x1b80);
-        assert_eq!(&output[output.len()-4..], &0x0001_3333u32.to_le_bytes());
+        assert_eq!(&output[0x69c38-VERIFIED_START..0x69c3c-VERIFIED_START], &0x0001_3333u32.to_le_bytes());
+        assert_eq!(&output[output.len()-4..], &0x000f_2e4cu32.to_le_bytes());
     }
     #[test]fn unsigned_multiply_long_uses_valid_regs(){
         let mut c=A32::new(VERIFIED_START).unwrap();
