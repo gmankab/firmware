@@ -412,3 +412,35 @@ file-backed zero region from `0x6c6c` up to its next nonzero byte at
 and must not be appended to `adsp-agent20-rwe.py` output or counted as a
 source-reconstructed routine. The next investigation should first classify
 the nonzero material at `0xff20` before attempting any further code.
+
+## Checkpoint 24: first code after RWE sparse linker regions `[0x10330,0x1034c)`
+
+The pinned original ADSP RWE `PT_LOAD` is *not* continuously executable after
+`0x6c6c`. Its file-backed zero run `[0x6c6c,0xff20)` has **37,556 bytes**;
+`[0xff20,0xffb0)` is **144 nonzero bytes of unclassified data** that are
+**not counted as source-derived metadata or code**; `[0xffb0,0x10330)` is
+another **896 bytes of exact zero fill**. This is a sparse region ledger, not
+permission to insert OEM bytes into a compiler output or count fill as code.
+
+Disjoint source-authored Hexagon packet sequence `[0x10330,0x1034c)` adds
+**28 exact executable bytes**, physical `[0x8be0d330,0x8be0d34c)`, SHA-256
+`8a6aa97426de7b6028e2bcbfc54468c3e387d857694c45412b9838796ae0939a`.
+The two 64-bit GP-relative memory loads (`0xf000d688`, `0xf000d690`) and
+`jumpr LR` are independently LLVM6-assembled. **The `jumpr LR` at `0x10340`
+is a packet-continuation word**; Hexagon's packet includes the next function's
+extended memory load (`0x10344–0x10348`). Splitting at the apparent return
+produces different bytes. Rizin V66 independently decoded the original and
+source-built packet. No privileged opcode replacement was needed.
+
+New emitter and verifier: `tools/adsp-agent20-rwe-sparse.py`, independently
+reconstructing **only** these 28 bytes; the old contiguous emitter remains
+`[0x6030,0x6c6c)` = 3,132 source-built bytes. Their combined executable
+coverage is **3,160 bytes in two disjoint spans**, not a new contiguous
+`[0x6030,0x1034c)` interval. The next unreconstructed instruction is at
+`0x1034c`. Rust 160 tests, Python 162 tests, release build and private ADSP
+reference byte comparison pass.
+
+```sh
+python3 -S tools/adsp-agent20-rwe-sparse.py --llvm-mc "$HEXAGON_LLVM_MC" \
+  --reference "$NABU_ADSP_REFERENCE" --output /tmp/adsp-rwe-10330.bin
+```

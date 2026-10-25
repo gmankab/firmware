@@ -1,0 +1,69 @@
+#!/usr/bin/env python3
+# SPDX-License-Identifier: GPL-3.0-only
+"""Independent, *disjoint* ADSP RWE source-built Hexagon packets after linker fill.
+
+The preceding RWE executable fragment ends at 0x6c6c. The file interval
+[0x6c6c, 0xff20) is zero fill; [0xff20,0xffb0) is nonzero, unclassified
+metadata and [0xffb0,0x10330) is zero. None of these are silently emitted as
+instructions or inferred function bodies. Source reconstruction resumes at
+file 0x10330; one Hexagon packet spans the tail-call boundary at 0x10340.
+"""
+from __future__ import annotations
+import argparse,hashlib,importlib.util,struct,sys
+from pathlib import Path
+TOOLS=Path(__file__).resolve().parent
+SOURCE=TOOLS/'adsp-agent20-rwe-next-getter.S'
+FILE_START=0x10330
+FILE_END=0x1034c
+SIZE=FILE_END-FILE_START
+PHYS_START=0x8be0d330
+SHA256_REFERENCE='4b579e5dc1333d634e5bdc93f3314e357e0e30dab7140833f6cc7aef086b1c1e'
+FILL_START=0x6c6c
+FILL_END=0xff20
+UNKNOWN_RECORD_START=0xff20
+UNKNOWN_RECORD_END=0xffb0
+FILL2_START=0xffb0
+FILL2_END=FILE_START
+
+def base():
+    spec=importlib.util.spec_from_file_location('adsp_original_encoder',TOOLS/'emit-adsp-entry.py')
+    if not spec or not spec.loader:raise RuntimeError('missing verified ELF/Hexagon assembler')
+    module=importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+def render(llvm_mc: str)->bytes:
+    # All seven V66 instructions are independently LLVM6-assembled, with no
+    # reference bytes. The last packet intentionally crosses a C function
+    # boundary, retaining jumpr's continuation parse marker.
+    return base().assemble(llvm_mc,SOURCE,SIZE)
+
+def verify(reference:bytes,built:bytes)->None:
+    if hashlib.sha256(reference).hexdigest()!=SHA256_REFERENCE:
+        raise ValueError('Wrong ADSP reference SHA-256')
+    if len(built)!=SIZE or built!=reference[FILE_START:FILE_END]:
+        raise ValueError('source-generated ADSP RWE code differs')
+    if any(reference[FILL_START:FILL_END]):
+        raise ValueError('expected earlier sparse RWE linker fill is not zero')
+    if any(reference[FILL2_START:FILL2_END]):
+        raise ValueError('expected following sparse RWE linker fill is not zero')
+    # Unknown table is NOT generated from source yet. Reject a missing table
+    # but do not count its bytes as reconstructed or include them in output.
+    table=reference[UNKNOWN_RECORD_START:UNKNOWN_RECORD_END]
+    if len(table)!=0x90 or not any(table):
+        raise ValueError('missing/unexpected unclassified RWE table')
+
+def main()->int:
+    p=argparse.ArgumentParser(description=__doc__)
+    p.add_argument('--llvm-mc',required=True)
+    p.add_argument('--reference',type=Path)
+    p.add_argument('--output',required=True,type=Path)
+    args=p.parse_args()
+    built=render(args.llvm_mc)
+    if args.reference:verify(args.reference.read_bytes(),built)
+    args.output.write_bytes(built)
+    print('ADSP next disjoint V66 fragment:',len(built),'bytes file',hex(FILE_START),hex(FILE_END),
+          'physical',hex(PHYS_START),'SHA256',hashlib.sha256(built).hexdigest(),
+          '; separate from 0x6030..0x6c6c; zero fill and 0xff20 table not source code')
+    return 0
+if __name__=='__main__':sys.exit(main())
