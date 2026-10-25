@@ -107,6 +107,19 @@ pub enum ScalarPacket {
     SubtractRegisters { dst: GeneralRegister, left: GeneralRegister, right: GeneralRegister },
     /// Hexagon `jumpr Rn` (not a return/stack ABI assumption).
     JumpRegister { source: GeneralRegister },
+    /// Exact documented duplex `R0=#0; R3:2=combine(#0,#0)` group.
+    /// LLVM6 encodes it as a single 32-bit duplex word; no generic support
+    /// for duplex operand field layouts is implied.
+    DuplexClearR0AndPair32,
+    /// `P0=cmp.eq(Rleft,Rright)` for register sources, no immediate.
+    PredicateP0EqualsRegisters { left: GeneralRegister, right: GeneralRegister },
+    /// `if (P0.new) jumpr:nt LR` in the same packet as its P0 producer.
+    ReturnIfNewP0NotTaken,
+    /// Direct backward jump counted in bytes from the start of its packet.
+    /// Only short negative packet-aligned Hexagon displacements are supported.
+    JumpBackward { displacement_bytes: i16 },
+    /// `Rd=asl(Rs,#N)` (arithmetic shift left by a 5-bit constant).
+    ArithmeticShiftLeft { dst: GeneralRegister, src: GeneralRegister, amount: u8 },
     /// Cache and instruction synchronization (singleton packets).
     Dckill,
     Ickill,
@@ -274,6 +287,26 @@ impl ScalarPacket {
             }
             Self::JumpRegister { source } =>
                 Ok(0x5280_c000 | (u32::from(source.number()) << 16)),
+            Self::DuplexClearR0AndPair32 => Ok(0x2800_3c01),
+            Self::PredicateP0EqualsRegisters { left, right } => {
+                // Independently LLVM-assembled P0 compares: R0,R5 and R3,R7.
+                Ok(0xf200_c000 | (u32::from(left.number()) << 16)
+                   | (u32::from(right.number()) << 8))
+            }
+            Self::ReturnIfNewP0NotTaken => Ok(0x535f_c800),
+            Self::JumpBackward { displacement_bytes } => {
+                if displacement_bytes >= 0 || displacement_bytes < -0x1000 ||
+                   displacement_bytes % 4 != 0 {
+                    return Err("Hexagon backward jump must be aligned, negative and within -0x1000 bytes".into());
+                }
+                let halves = (i32::from(displacement_bytes) / 2) as u32;
+                Ok(0x59ff_c000 | (halves & 0x3fff))
+            }
+            Self::ArithmeticShiftLeft { dst, src, amount } => {
+                if amount >= 32 { return Err("Hexagon ASL immediate shift must be < 32".into()); }
+                Ok(0x8c00_c040 | (u32::from(src.number()) << 16)
+                   | (u32::from(amount) << 8) | u32::from(dst.number()))
+            }
             Self::Dckill => Ok(0xa200_c000),
             Self::Ickill => Ok(0x56c0_d000),
             Self::Isync => Ok(0x57c0_c002),
@@ -602,6 +635,26 @@ mod tests {
         assert!(ExtractUnsigned{dst:r(4),src:r(3),width:21,offset:20}.encode().is_err());
         assert!(ReverseSubtractImmediate{dst:r(4),src:r(4),value:128}.encode().is_err());
         assert!(LoopOnNotP0New{src:r(2),displacement_bytes:0}.encode().is_err());
+    }
+
+    #[test]
+    fn hexagon_tlb_clear_loop_fields_are_checked_and_llvm_corroborated() {
+        use ScalarPacket::*;
+        let r=|n|GeneralRegister::new(n).unwrap();
+        assert_eq!(DuplexClearR0AndPair32.encode().unwrap(),0x2800_3c01);
+        assert_eq!(PredicateP0EqualsRegisters{left:r(0),right:r(5)}.encode().unwrap(),
+                   0xf200_c500);
+        assert_eq!(PredicateP0EqualsRegisters{left:r(3),right:r(7)}.encode().unwrap(),
+                   0xf203_c700);
+        assert_eq!(ReturnIfNewP0NotTaken.encode().unwrap(),0x535f_c800);
+        assert_eq!(JumpBackward{displacement_bytes:-12}.encode().unwrap(),0x59ff_fffa);
+        assert_eq!(JumpBackward{displacement_bytes:-16}.encode().unwrap(),0x59ff_fff8);
+        assert_eq!(ArithmeticShiftLeft{dst:r(2),src:r(0),amount:3}.encode().unwrap(),0x8c00_c342);
+        assert!(JumpBackward{displacement_bytes:0}.encode().is_err());
+        assert!(JumpBackward{displacement_bytes:4}.encode().is_err());
+        assert!(JumpBackward{displacement_bytes:-5}.encode().is_err());
+        assert!(JumpBackward{displacement_bytes:-0x1004}.encode().is_err());
+        assert!(ArithmeticShiftLeft{dst:r(2),src:r(0),amount:32}.encode().is_err());
     }
 
     #[test]

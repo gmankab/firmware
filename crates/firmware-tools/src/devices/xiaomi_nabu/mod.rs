@@ -106,3 +106,4 @@ mod venus_runtime_interface_lookup;
 pub mod cdsp_boot;
 pub mod cdsp_privilege;
 pub mod cdsp_tlb;
+pub mod cdsp_tlb_extension;

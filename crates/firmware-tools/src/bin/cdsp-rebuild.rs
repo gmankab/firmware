@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-only
 //! CDSP partial reconstruction command. Reference bytes stay outside Git.
-use firmware_tools::devices::xiaomi_nabu::{cdsp_boot as cdsp, cdsp_privilege as privileged, cdsp_tlb as tlb};
+use firmware_tools::devices::xiaomi_nabu::{cdsp_boot as cdsp, cdsp_privilege as privileged, cdsp_tlb as tlb, cdsp_tlb_extension as extension};
 use std::{env, fs};
 
 fn run() -> Result<(), Box<dyn std::error::Error>> {
@@ -25,6 +25,16 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
             println!("Verified {} CDSP Hexagon supervisor-reset bytes at file {:#x}..{:#x}, separate from the entry prefix.",
                 privileged::FUNCTION_SIZE, privileged::FILE_OFFSET,
                 privileged::FILE_OFFSET + privileged::FUNCTION_SIZE);
+        }
+        [action, output] if action == "emit-tlb-extended" => {
+            fs::write(output, extension::build_extended_cluster()?)?;
+            println!("Emitted {} independently reconstructed CDSP supervisor/TLB bytes at 0x3d40–0x3e78; entry is separate.",
+                tlb::COMPLETE_CLUSTER_SIZE+extension::TOTAL_BYTES);
+        }
+        [action, reference] if action == "verify-tlb-extended" => {
+            extension::verify_extended_cluster(&fs::read(reference)?)?;
+            println!("Verified {} contiguous Hexagon V66 supervisor/TLB bytes.",
+                tlb::COMPLETE_CLUSTER_SIZE+extension::TOTAL_BYTES);
         }
         [action, output] if action == "emit-tlb-cluster" => {
             let code=tlb::build_complete_tlb_cluster()?;
