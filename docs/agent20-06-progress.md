@@ -300,3 +300,11 @@ python3 tools/agent20_06_a32_roundtrip.py /private/venus.mbn 0xa8ea0 0xa92c8 \
 - Encodes classification of fourteen controller stream command types, associated error/suspend status conditions, buffer-slot flags and per-record metadata. This larger function is still incomplete at `0xb5600`; its later error branches remain beyond the checkpoint.
 - Optional private-original verification and independent Clang/LLVM assembly (`--data-range 0xb5054:0xb508c`) both report **zero differing bytes** over the new interval and cumulative region. **205 Rust tests and 13 Python tests pass**. The prior checkpoint's data-pool test now checks the original milestone boundary independently of the extending `END` value.
 - Next uncovered ARM runtime `0xb5600` (MBN file `0xb9600`). This remains provisional old-base instruction encoding rather than high-level decompilation, OEM signature recovery or device execution.
+
+## Checkpoint 34 — complete codec stream-classification and controller diagnostics
+
+- Complete cumulative typed Venus region `[0xa8000,0xb60ec)` = **57,580 exactly matching bytes**, original `venus.mbn` file `[0xac000,0xba0ec)`.
+- The new `[0xb5600,0xb60ec)` = **2,796 bytes**: **681 independently typed ARM32 instructions (2,724 bytes)** and **18 explicitly classified non-instruction data words (72 bytes)** in the controller/diagnostic pool `[0xb60a4,0xb60ec)`.
+- Completes the codec stream-classification function begun at `0xb5008`: command-state loops, slot class selection, session event/retry handling and controller buffer status. Its original branch-only terminal path at `0xb60a0` returns to an earlier controller state instead of inventing a new return instruction.
+- Direct Rust verifier and Clang/LLVM independent reconstruction pass with zero differing bytes, using `--data-range 0xb60a4:0xb60ec`. Unit test validates all 18 controller data values separately. **206 Rust and 13 Python tests pass.** Release build not reported as passed here.
+- The next function begins at runtime `0xb60ec` (MBN file `0xba0ec`). Work is still provisional older-base typed ARM32 instruction re-encoding, not a high-level behavioral equivalent, complete OEM-authenticated image or on-device proof.
