@@ -29,3 +29,12 @@ git diff --check
 The fragment is **instruction-level, byte-identical re-encoding**, not proof of full high-level semantic decompilation, a hardware-tested firmware, an OEM-signed image, or completion of the giant first `PT_LOAD`. The reference is kept outside Git; static data pools are clearly classified and never counted as executable instructions.
 
 **Integration ownership:** New `venus_runtime_tail_agent20_06.rs`, unique CLI binary `agent20_06_venus_tail.rs`, progress notes; one explicit export in `devices/xiaomi_nabu/mod.rs`. No edits to Agent 20-01/03/05 source regions or shared MBN/ELF code. Keep module-export change distinct for conflict resolution during the real checkpoint-50 integration.
+
+## Checkpoint 02 — controller allocator and callback table
+
+- Byte-exact ARM32 runtime `[0xa8000,0xa8cbc)`, MBN file `[0xac000,0xaccbc)`, total **3,260 consecutive bytes**.
+- Newly implemented `[0xa83f8,0xa8cbc)` = **2,244 bytes** (499 typed instructions + 62 non-executable literal words).
+- The function starts at `0xa83f8` with its original stack-frame prologue, allocates/initializes controller channel buffers, stores codec callback pointers and routes allocation failures through the original logging/status handling. It returns by `pop {...,pc}` at `0xa8944` and contains branch-only error paths through `0xa8bc0`.
+- Three separate tables/data pools: `[0xa8bc4,0xa8c24)` 24 controller constants; `[0xa8c24,0xa8c90)` 27 callback/global-binding values; `[0xa8c90,0xa8cbc)` 11 diagnostic pointers. **Never count these 62 words as independently reconstructed ARM instructions.**
+- Independent Clang assembly reconstructed mnemonic instructions and explicitly identified data tables; **zero differences** on all 2,244 bytes. The full 3,260-byte Rust fragment also compares equal to original Venus reference.
+- Next uncovered runtime `0xa8cbc` (`venus.mbn` offset `0xaccbc`), exactly a new `push` function prologue.
