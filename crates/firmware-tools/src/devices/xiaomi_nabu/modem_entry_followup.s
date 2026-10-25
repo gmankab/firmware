@@ -215,3 +215,59 @@ modem_wait_for_change:
     r3 = r10
 }
 { jumpr r13 }
+
+// Initialize the controller's DRAM window, write an indexed dispatch marker,
+// reset its state-count limits, and clear the three MMIO completion flags.
+// Absolute device-register addresses are named assembler operands, not
+// imported instruction words; `##` retains the architecture extenders.
+.macro MODEM_MMIO_STORE_WORD absolute, value
+    .if ((\absolute & 3) != 0)
+        .error "modem MMIO register address must be word aligned"
+    .endif
+    { r0 = ##\absolute }
+    { memw(r0+#0) = ##\value }
+.endm
+
+.globl agent11_modem_initialize_mmio
+agent11_modem_initialize_mmio:
+MODEM_MMIO_STORE_WORD 67633688, 541611673
+MODEM_MMIO_STORE_WORD 67633692, 8807
+MODEM_MMIO_STORE_WORD 67633696, 36
+MODEM_MMIO_STORE_WORD 67633676, 0
+MODEM_MMIO_STORE_WORD 67633680, 2053
+MODEM_MMIO_STORE_WORD 67633684, 208
+{ barrier }
+MODEM_MMIO_STORE_WORD 67633700, 0
+MODEM_MMIO_STORE_WORD 67633704, 0
+MODEM_MMIO_STORE_WORD 67633708, 32
+{ barrier }
+
+// Check platform capability status and choose the bootstrap sizes that will
+// be written to its controller dimension registers. Preserve the original
+// 256-bit mask comparison and `.new` predicate forwarding.
+.globl agent11_modem_set_controller_dimensions
+agent11_modem_set_controller_dimensions:
+{ r0 = ##33325056 }
+{ r1 = memw(r0+#0) }
+{ r2 = and(r1,##256) }
+{
+    p0 = cmp.eq(r2,##256)
+    if (p0.new) jump:t modem_initialize_channel_dimensions
+}
+{ jump modem_initialize_channel_dimensions }
+modem_initialize_channel_dimensions:
+{ r14 = ##61 }
+{ r15 = ##68 }
+{ r16 = ##1 }
+{ jump modem_controller_dimension_writes }
+modem_controller_dimension_writes:
+{
+    r0 = ##67633668
+    r1 = r14
+}
+{ memw(r0+#0) = r1 }
+{ barrier }
+{ r0 = ##67633672 }
+{ r1 = r15 }
+{ memw(r0+#0) = r1 }
+{ barrier }

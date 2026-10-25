@@ -23,12 +23,17 @@ class ModemAgent11Tests(unittest.TestCase):
             module.verify_reference(bytes(0x5000),bytes(64))
         self.assertEqual(len(module.EXPECTED_SHA256),64)
 
+    def test_packet_order_normalizer_rejects_unknown_encoding(self):
+        size=0x42c8-module.FILE_START
+        with self.assertRaisesRegex(ValueError,"unexpected Hexagon"):
+            module.restore_original_legal_hexagon_packet_order(bytes(size))
+
     def test_assembler_with_llvm6_when_available(self):
         llvm=os.environ.get("AGENT11_LLVM_MC")
         if not llvm: self.skipTest("set AGENT11_LLVM_MC for external tool verification")
         source=SCRIPT.parent.parent/"crates/firmware-tools/src/devices/xiaomi_nabu/modem_entry_followup.s"
         data=module.assemble(Path(llvm),source)
-        self.assertEqual(len(data),440)
+        self.assertEqual(len(data),696)
         # Structural assertion checks the two adjacent word loads are in
         # one duplex slot and the final instruction is a packet-ending return.
         words=[int.from_bytes(data[n:n+4],"little") for n in range(0,len(data),4)]
@@ -44,5 +49,9 @@ class ModemAgent11Tests(unittest.TestCase):
         self.assertEqual(words[81]&0xc000,0xc000) # fault brkpt at 0x419c
         self.assertEqual(words[-1]&0xc000,0xc000) # status shim jumpr r13
         self.assertEqual(words[95]&0xc000,0xc000) # controller register barrier
+        i=(0x42bc-module.FILE_START)//4
+        self.assertEqual(words[i]&0xc000,0x4000) # extender of compare immediate
+        self.assertEqual(words[i+1]&0xc000,0x4000) # comparison before .new branch
+        self.assertEqual(words[i+2]&0xc000,0xc000) # branch ends packet
 
 if __name__=='__main__':unittest.main()

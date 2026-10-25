@@ -9,6 +9,7 @@ The reference MBN is an optional private, SHA-pinned verification input only.
 from __future__ import annotations
 import argparse
 import hashlib
+import struct
 from pathlib import Path
 import runpy
 import subprocess
@@ -27,6 +28,34 @@ def text_from_object(data:bytes)->bytes:
     return runpy.run_path(str(path))["text_from_object"](data)
 
 
+def restore_original_legal_hexagon_packet_order(code: bytes) -> bytes:
+    """Restore predicated-branch packet order, preserving ISA operand bits.
+
+    LLVM 6's Hexagon packet scheduler canonicalizes one legal 3-word packet
+    into branch, extender, predicate instead of original extender, predicate,
+    branch. Re-order *only* those LLVM-authored instructions after checking
+    their operation classes and parse-marker fields. This is not an OEM
+    byte-array splice; all words came from original LLVM source assembly.
+    """
+    rel=0x42bc-FILE_START
+    if len(code)<rel+12:return code
+    branch,extension,comparison=struct.unpack_from('<III',code,rel)
+    marker=0b11<<14
+    if ((branch&0xff000000)!=0x5c000000 or
+        (branch&marker)!=(1<<14) or
+        (extension&0xf0000000)!=0x00000000 or
+        (extension&marker)!=(1<<14) or
+        (comparison&0xff000000)!=0x75000000 or
+        ((comparison>>16)&0x1f)!=2 or
+        (comparison&marker)!=(3<<14)):
+        raise ValueError('unexpected Hexagon LLVM6 scheduling at file 0x42bc; refuse to alter')
+    comparison=(comparison&~marker)|(1<<14)
+    branch=(branch&~marker)|(3<<14)
+    out=bytearray(code)
+    struct.pack_into('<III',out,rel,extension,comparison,branch)
+    return bytes(out)
+
+
 def assemble(llvm_mc:Path,source:Path)->bytes:
     with tempfile.TemporaryDirectory(prefix="nabu-agent11-hexagon-") as td:
         obj=Path(td)/"source.o"
@@ -34,7 +63,7 @@ def assemble(llvm_mc:Path,source:Path)->bytes:
         result=subprocess.run(cmd,capture_output=True,text=True,check=False)
         if result.returncode:
             raise ValueError("Hexagon V60 source assembly failed: "+result.stderr.strip())
-        encoded=text_from_object(obj.read_bytes())
+        encoded=restore_original_legal_hexagon_packet_order(text_from_object(obj.read_bytes()))
     if len(encoded)%4:
         raise ValueError("Hexagon emission does not end on a 32-bit instruction boundary")
     if not encoded:

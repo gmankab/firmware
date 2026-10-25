@@ -54,3 +54,10 @@ python3 -m unittest discover -s tests -p 'test_*.py'
 - The shim polls a controller-owned word for a change greater than the requested value, then forwards r8/r9/r10 as r1/r2/r3 and tail-jumps via r13. It preserves the multi-instruction `.new` predicate packet before the loop-back branch.
 - LLVM6 reproduces the complete `[0x4058,0x4210)` Agent 11 prefix (**440 bytes**) with zero differences against the SHA-pinned reference; combined with Agent 6 this yields a continuous **4,624-byte** first-load prefix `[0x3000,0x4210)` = **3,412 executable**, 412 source-structured metadata, 800 deterministic alignment.
 - Next first missing modem file address: `0x4210`, physical `0x8e001210`. Authentication and all later mapped firmware remain incomplete.
+
+## Checkpoint 06 — Controller dimensions and MMIO setup
+
+- Another **256 typed Hexagon bytes** at modem `[file 0x4210,0x4310)` (physical `[0x8e001210,0x8e001310)`) write initial register values and reinitialize controller capability sizes based on a protected memory status bit.
+- The first nine fixed device writes use a checked `MODEM_MMIO_STORE_WORD` macro with named **absolute addresses and values**, not any copied instruction encodings; barriers and packet terminators remain explicit.
+- The 3-word controller capability packet at `0x42bc–0x42c8` is assembled by LLVM6 as legal branch/extension/predicate order but the OEM firmware uses extension/predicate/branch. `restore_original_legal_hexagon_packet_order` checks all instruction **classes**, source register, and original parse bits before moving LLVM-authored words and swapping architecture packet-marker fields. Unknown scheduling fails closed. This does **not** splice proprietary bytes.
+- Generated `[0x4058,0x4310)` now totals **696 byte-identical executable bytes** (174 Hexagon words), output SHA-256 `6989f8265e3a1feb6ca33f6b684b883f44745d0489b88e1d75a4a578b5f28261`. Combined Agent 06+11 prefix `[0x3000,0x4310)` is **4,880 bytes**: **3,668 executable** + **412 metadata** + **800 alignment fill**. Next uncovered file offset `0x4310`.
