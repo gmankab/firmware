@@ -364,3 +364,9 @@ Original reference: private `map220v-nabu-firmware/venus.mbn`, SHA-256 `9d4af65d
 - Contiguous source-generated `[0x21c78,0x2f394)` = **55,068 bytes**, newly rebuilt `[0x2efc0,0x2f394)` = **980 bytes** with **232 typed ARM32 instructions** and **13 data words**.
 - Reconstructs two separate ring-buffer request/response routines and their buffer-length validation, copy paths and completion flags. Literal pools at `[0x2f1c8,0x2f1e4)` and `[0x2f37c,0x2f394)` contain 7 and 6 data words, respectively, each following a function's branch/return.
 - Next original function begins at `0x2f394`. Exact A32 machine-code agreement is not high-level behavioral recovery or new OEM firmware authentication.
+
+## Checkpoint 55 — ring buffer counter, descriptor slots and completion
+
+- Contiguous A32 reconstruction `[0x21c78,0x2f5b0)` = **55,608 exact bytes**; added `[0x2f394,0x2f5b0)` = **540 bytes** with **129 typed ARM32 instructions** and **6 non-executable data words**.
+- Includes four short ring-slot/callback routines, and the original single-predicate `BX` fast path. Data pools at `[0x2f3d8,0x2f3dc)` and `[0x2f578,0x2f58c)` are modeled separately.
+- First missing original instruction `0x2f5b0`. No bootable/signed OEM image claimed.
