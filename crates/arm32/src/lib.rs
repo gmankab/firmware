@@ -335,6 +335,17 @@ pub fn signed_multiply_bottom_halves(condition: Condition, rd: Register,
        | (rs.number() << 8) | rm.number())
 }
 
+/// A32 SMULBB: multiply the signed bottom 16 bits of two ARM registers.
+/// This is an architectural DSP instruction, not an OEM opcode constant.
+pub fn signed_multiply_bottom_halves(condition: Condition, rd: Register,
+                                   rm: Register, rs: Register) -> Result<u32,String> {
+    if [rd,rm,rs].contains(&Register::PC) {
+        return Err("ARM32 SMULBB must not use PC".into());
+    }
+    Ok(cond(condition) | 0x0160_0080 | (rd.number()<<16)
+      | (rs.number()<<8) | rm.number())
+}
+
 /// A32 MUL: multiply two general-purpose registers, without accumulate.
 /// The register fields are checked, and older ARM restrictions on using the
 /// destination as the first multiplicand are enforced.
