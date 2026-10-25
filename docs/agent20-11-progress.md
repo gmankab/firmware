@@ -125,3 +125,11 @@ python3 -m unittest discover -s tests -p 'test_*.py'
 - One LLVM6 packet boundary at file `0x4938` seals the `r1=asl(r1,#5)` prematurely. The checked normalizer tests its opcode/register and restores the architecture's packet-continue marker, leaving operand bits unchanged. The full generated fragment matches all original bytes after this correction.
 - Agent11 cumulative `[0x4058,0x4a00)` = **2,472 source-assembled byte-identical bytes**, SHA-256 `d2752a5dc6cfe8c60b477716dbf33c987d3d024c60a2dc771e841c08cc397c56`. Joined with Agent06 `[0x3000,0x4058)`, exact first-load prefix `[0x3000,0x4a00)` = **6,656 bytes** (5,444 executable—including 68 explicit trap bytes—plus 412 source-modeled metadata plus 800 link alignment).
 - The next unimplemented exception handler begins at modem file `0x4a00`, mapped physical `0x8e001a00`. Whole-image byte identity, newly issued OEM signatures and modem-on-device behavior remain unproven.
+
+## Checkpoint 15 — Protected exception-controller setup (partial function)
+
+- Independently encoded `[file 0x4a00,0x4ae8)` = **232 executable bytes**, physical `[0x8e001a00,0x8e001ae8)`, from original modem controller privilege state. The next instructions remain part of the **same function**.
+- Saves/restores system registers S18/S53/S54; checks marker 37 and updates an interrupt-mode word; reads S42 and S27, uses checked physical-word reads for two input addresses, checks a source mask and writes S42/S16, synchronizes and calls the existing GP-base helper at file `0x44f0`. Two terminal branches enter the downstream status handlers at `0x4fb0` and `0x4fc0`.
+- LLVM6 schedules the extended compare/new-predicate branch packet `[0x4a30,0x4a3c)` in branch/extender/compare order; a strictly class-checked normalization produces the reference extender/compare/branch order with unchanged operand bits.
+- Agent 11 cumulative `[0x4058,0x4ae8)` = **2,704 exact Hexagon bytes**, SHA-256 `d1da5fa45e3eb9b9f622503e5b20ab9e8e82971bdb85b49c78e2376ff01fad24`. Combined first-load `[0x3000,0x4ae8)` = **6,888 verified bytes**, decomposed as 5,676 executable, 412 source-modeled metadata and 800 linker fill.
+- Next missing instruction is at modem file `0x4ae8` (physical `0x8e001ae8`), in the protected-mode exception handler. No claim is made about complete executable coverage or OEM signature generation.

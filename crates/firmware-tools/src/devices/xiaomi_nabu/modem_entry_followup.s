@@ -1048,3 +1048,87 @@ agent11_modem_reserved_break_traps:
 .rept 17
 { brkpt }
 .endr
+
+// Protected exception-controller initialization. Configures S18/S53 and
+// S54, updates the controller's interrupt-mode flags and probes two physical
+// page words via the checked Hexagon physical-read operation. This is a
+// strict partial routine: successor setup after modem file 0x4ae8 is left
+// to the next contiguous checkpoint, with cross-boundary jumps symbolic.
+.globl agent11_modem_exception_controller_setup
+agent11_modem_exception_controller_setup:
+.set modem_exception_resume, agent11_modem_exception_controller_setup + 0x5d4
+.set modem_exception_mode_two, agent11_modem_exception_controller_setup + 0x5b0
+.set modem_exception_mode_other, agent11_modem_exception_controller_setup + 0x5c0
+MODEM_SYS_READ 23,18
+MODEM_SYS_WRITE 53,23
+{ r0 = #40 }
+MODEM_SYS_WRITE 18,0
+{ isync }
+MODEM_SYS_READ 23,54
+{ r0 = add(r23,##-1064891264) }
+{
+    r25 = add(r0,#4)
+    r24 = ##37
+}
+{ r0 = memw(r25+#0) }
+{
+    p0 = cmp.eq(r0,##37)
+    if (p0.new) jump:nt modem_exception_resume
+}
+{
+    r0 = add(r23,##-1064890044)
+    memw(r25+#0) = r24
+}
+{
+    r24 = #1
+    memw(r0+#0) = r24.new
+}
+{ r0 = add(r23,##-1064891264) }
+{ r0 = add(r0,#0) }
+{ r24 = memw(r0+#0) }
+{
+    r24 = setbit(r24,#29)
+    memw(r0+#0) = r24.new
+}
+MODEM_SYS_READ 1,42
+{
+    p0 = tstbit(r1,#2)
+    if (!p0.new) jump:t modem_exception_skip_phys_check
+}
+MODEM_SYS_READ 1,27,1
+{ r25 = #0 }
+{ r1 = insert(r25,#12,#20) }
+{
+    r1 = asl(r1,#5)
+    r0 = #8
+}
+MODEM_PHY_WORD_LOAD 1,0,1
+{ r1 = insert(r25,#12,#20) }
+{
+    r1 = asl(r1,#5)
+    r0 = #24
+}
+{ r1 = add(r1,#-256) }
+MODEM_PHY_WORD_LOAD 1,0,1
+{ r24 = memw(r23+##-1061985012) }
+{ r0 = and(r1,r24) }
+{
+    p0 = cmp.eq(r0,#0)
+    if (p0.new) jump:t modem_exception_next_stage
+}
+modem_exception_skip_phys_check:
+{ r1 = #1 }
+MODEM_SYS_WRITE 42,1
+{ isync }
+{ brkpt }
+modem_exception_next_stage:
+{ r1 = add(r23,##-1065346048) }
+MODEM_SYS_WRITE 16,1
+{ call agent11_modem_get_gp_base }
+{ r25 = memw(r23+##-1064935416) }
+{
+    p0 = cmp.eq(r25,#2)
+    p1 = cmp.eq(r25,#0)
+}
+{ if (p0) jump:nt modem_exception_mode_two }
+{ if (!p1) jump:nt modem_exception_mode_other }

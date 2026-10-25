@@ -163,6 +163,23 @@ def restore_original_legal_hexagon_packet_order(code: bytes) -> bytes:
             (shift&marker)!=(3<<14)):
             raise ValueError('unexpected Hexagon S27 shift packet at file 0x4938')
         struct.pack_into('<I',out,rel8,(shift&~marker)|(1<<14))
+    # Exception handler compares an extended magic device word against 37.
+    # LLVM6 legally orders its conditional branch before the extender and
+    # comparison; preserve OEM packet ordering after strict class checking.
+    rel9=0x4a30-FILE_START
+    if len(out)>=rel9+12:
+        branch9,ext9,cmp9=struct.unpack_from('<III',out,rel9)
+        if ((branch9&0xff000000)!=0x5c000000 or
+            (branch9&marker)!=(1<<14) or
+            (ext9&0xf0000000)!=0 or
+            (ext9&marker)!=(1<<14) or
+            (cmp9&0xff000000)!=0x75000000 or
+            ((cmp9>>16)&31)!=0 or
+            (cmp9&marker)!=(3<<14)):
+            raise ValueError('unexpected Hexagon 3-word exception predicate packet at 0x4a30')
+        cmp9=(cmp9&~marker)|(1<<14)
+        branch9=(branch9&~marker)|(3<<14)
+        struct.pack_into('<III',out,rel9,ext9,cmp9,branch9)
     return bytes(out)
 
 
