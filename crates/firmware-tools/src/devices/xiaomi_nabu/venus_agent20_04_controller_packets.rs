@@ -32,14 +32,14 @@ fn unsigned_long_multiply(cond:C,lo:R,hi:R,rm:R,rs:R)->Result<u32,String>{
 }
 
 /// ARM register-offset LDRH, positive preindex, no base writeback.
-fn load_halfword_register(cond:C,rd:R,base:R,index:R)->Result<u32,String>{
+pub(super) fn load_halfword_register(cond:C,rd:R,base:R,index:R)->Result<u32,String>{
     if [rd,base,index].contains(&R::PC){return Err("LDRH register offset forbids PC".into());}
     Ok(((cond as u32)<<28)|0x0190_00b0|
        (base.number()<<16)|(rd.number()<<12)|index.number())
 }
 
 /// ARM register-offset LDRSH, sign-extending the loaded halfword.
-fn load_signed_halfword_register(cond:C,rd:R,base:R,index:R)->Result<u32,String>{
+pub(super) fn load_signed_halfword_register(cond:C,rd:R,base:R,index:R)->Result<u32,String>{
     if [rd,base,index].contains(&R::PC){return Err("LDRSH register offset forbids PC".into());}
     Ok(((cond as u32)<<28)|0x0190_00f0|
        (base.number()<<16)|(rd.number()<<12)|index.number())

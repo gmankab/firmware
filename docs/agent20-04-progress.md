@@ -61,3 +61,10 @@ git diff --check
 - Verified the two executable chunks independently using Clang/LLVM: 381 instructions at `[0x416c0,0x41cb4)` and 505 instructions `[0x41ccc,0x424b0)`. Conditional `BLO`/`BHS` targets must be symbolically resolved in the independent linker; comparing all original instruction bytes now passes.
 - **The five preceding source-built fragments now form one gapless `[0x40a2c,0x4272c)` output of 7,424 bytes**, composed of **1,838 A32 executable instructions** (7,352 bytes) and 18 explicitly classified literal data words (72 bytes). Full concat of generated fragments matches the pinned firmware exactly with zero differences. The fragment at runtime `[0x40000,0x40a2c)` remains unimplemented because the reservation begins inside a prior function.
 - Next confirmed function boundary after this contiguous block is `0x4272c`.
+
+## Checkpoint 06 — codec mode packet writer
+
+- Fully typed, reference-verified source interval `[0x4272c,0x43188)` = **2,652 bytes**, file `[0x4672c,0x47188)`: 658 ARM32 instructions (2,632 bytes), plus five explicitly named non-instruction literal constants `[0x43174,0x43188)`.
+- The original function begins with saved-register prologue, computes codec/controller mode flags and descriptor positions, includes signed-byte and signed-halfword indexed reads and looped packet flag calculation, and returns through `pop {...,pc}` at `0x43170`.
+- Independent Clang/LLVM assembler reconstruction of the 658 original A32 mnemonic instructions reproduces every source-generated instruction byte; five trailing data words were checked independently. `cargo run --example agent20_04_venus_middle -- verify /private/venus.mbn` compares **all six registered fragments** with the pinned reference, with zero mismatches.
+- Contiguous, source-emitted region now `[0x40a2c,0x43188)` = **10,076 bytes**: 2,496 A32 instructions (9,984 bytes) plus 23 literal data words (92 bytes). Remaining reservation prefix `[0x40000,0x40a2c)` is still untouched, since it begins inside an earlier routine. Next verified function begins at `0x43188`.
