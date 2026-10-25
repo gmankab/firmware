@@ -653,3 +653,43 @@ HEX_COPY_MAP_PAIR 264,268,-1064891896,-1064891892
 HEX_COPY_MAP_PAIR 272,276,-1064891888,-1064891884
 HEX_COPY_MAP_PAIR 4096,8192,-1064891880,-1064891876
 HEX_COPY_MAP_PAIR 12288,16384,-1064891872,-1064891868
+// Reinstall controller MPU/page-table registers after copying the selected
+// MMU metadata and enabling the cache state for the relocated modem image.
+{
+ r0 = memw(r25+##-1064821872)
+ r1 = memw(r25+##-1064821888)
+}
+HEX_SYSTEM_WRITE 60,0
+{ r1 = clrbit(r1,#21) }
+HEX_SYSTEM_WRITE 63,1
+{ r0 = memw(r25+##-1064821876) }
+HEX_SYSTEM_WRITE 62,0
+{ r0 = memw(r25+##-1064821860) }
+HEX_SYSTEM_WRITE 61,0
+.set skip_s59_after_snapshot, modem_boot_dispatch+(0x3d20-0x3644)
+{
+ r0 = memw(r25+##-1064821868)
+ if (cmp.eq(r0.new,#0)) jump:t skip_s59_after_snapshot
+}
+HEX_SYSTEM_WRITE 59,0
+skip_s59_after_snapshot:
+.set page_cache_hook, modem_boot_dispatch+(0x3f90-0x3644)
+{
+ call page_cache_hook
+ r0 = #33
+}
+{ r0 = memw(r25+##-1061984980) }
+.set skip_after_cache_flags, modem_boot_dispatch+(0x3d54-0x3644)
+{ p0 = cmp.eq(r0,#0); if (p0.new) jump:nt skip_after_cache_flags }
+{ r0 = or(r0,##-2147483648) }
+{ r2 = memw(r25+##-1061985028) }
+.set commit_page_cache, modem_boot_dispatch+(0x3d50-0x3644)
+{ p0 = cmp.eq(r2,#0); if (p0.new) jump:nt commit_page_cache }
+{ r0 = or(r0,##1073741824) }
+commit_page_cache:
+HEX_SYSTEM_WRITE 35,0
+skip_after_cache_flags:
+HEX_SYSTEM_READ 0,18
+{ r0 = setbit(r0,#1) }
+HEX_SYSTEM_WRITE 18,0
+{ isync }
