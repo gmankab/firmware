@@ -113,3 +113,17 @@ memory from the seven proprietary missing *file* payloads. Tests reject
 unbounded and overlapping memory ranges. Independent file-byte coverage
 remains **3,984 / 34,236 bytes**; this checkpoint adds architectural
 reconstruction and strict memory-map validation, not HALO machine code.
+
+## Checkpoint 08-08 — named DSP coefficient control spans
+
+The 57 independently authored HALO/CSPL/event-logger metadata controls now
+have checked **DSP-relative** memory intervals. 56 controls target X memory;
+the 400-byte `CSPL_UPDATE_PARAMS_CONFIG` block is 100 Y-memory words,
+separate from its XM controls. The framework's highest referenced control
+word is `0xe`, CSPL's highest XM word `0x4d`, and event logger's `0x4b`.
+This code catches duplicate algorithm/control IDs, overlapping address spans,
+non-word-aligned lengths, unknown memory types and unsupported flags. The
+`wmfw-control-ranges` CLI reports relative ranges; it deliberately does NOT
+assert absolute per-algorithm bases from a guessed DSP program. File-byte
+coverage stays **3,984 / 34,236 bytes**, and no HALO opcode reconstruction
+is claimed.

@@ -301,6 +301,16 @@ fn run() -> Result<(), Box<dyn Error>> {
         println!("Extracted seven PRIVATELY HELD proprietary DSP binary inputs (30252 bytes). NEVER commit or redistribute them as independent source.");
         return Ok(());
     }
+    if args.len() == 1 && args[0] == "wmfw-control-ranges" {
+        let reports=firmware_tools::wmfw_control_ranges::coverage()?;
+        for r in reports {
+            println!("HALO algorithm 0x{:x}: XM controls {} words through relative 0x{:x}; YM controls {} words through relative 0x{:x}",
+                r.algorithm_id,r.x_control_words,r.x_highest_word,
+                r.y_control_words,r.y_highest_word);
+        }
+        println!("All 57 named HALO algorithm controls have nonoverlapping memory spans. Algorithm base addresses require the original DSP image or runtime discovery.");
+        return Ok(());
+    }
     if args.len() == 1 && args[0] == "wmfw-memory-map" {
         for layout in firmware_tools::wmfw_memory_map::layouts()? {
             println!("{:?}: {}/{} DSP words initialized by WMFW sections; {} memory gaps",
