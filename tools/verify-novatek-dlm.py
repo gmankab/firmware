@@ -231,6 +231,20 @@ def generated_fragments():
             known=encoded if record<2 else encoded[:1]
             fragments.append((descriptor_start+0x50+record*0x8c,
                               "narrow-schedule-word-link", known))
+    # Reset-compatible state initializers come from explicitly reconstructed
+    # upper-ILM GP stores, not from the observed DLM payload. No credit is
+    # assigned to the adjacent unexplained counter or selector bytes.
+    gp = 0x2d9e0
+    for displacement,name,data in (
+        (-6244, "invalid-frame-counter-initializer", struct.pack("<i",-1)),
+        (-6240, "invalid-input-counter-initializer", struct.pack("<i",-1)),
+        (-6232, "monitor-enabled-initializer", struct.pack("<I",1)),
+        (-6228, "channel-status-invalid-sentinel", b"\xff"),
+    ):
+        file_start = gp+displacement+0x2000
+        if not DLM_START <= file_start < file_start+len(data) <= DLM_END:
+            raise ValueError("GP-mapped initializer outside DLM")
+        fragments.append((file_start,name,data))
     fragments.sort()
     cursor = DLM_START
     for start, _, data in fragments:
@@ -323,11 +337,11 @@ def fragment_metadata(fragment):
 
 EXPECTED_COUNTS = {
     "source_layout_bytes": 35136, "prior_source_executable_bytes": 538,
-    "new_executable_bytes": 0, "source_dlm_data_bytes": 9340,
+    "new_executable_bytes": 0, "source_dlm_data_bytes": 9353,
     "external_metadata_bytes": 1024, "unknown_ilm_bytes": 108054,
-    "unknown_dlm_bytes": 40212, "derived_mirror_bytes": 2304,
+    "unknown_dlm_bytes": 40199, "derived_mirror_bytes": 2304,
     "mirror_from_source_bytes": 648, "mirror_from_external_bytes": 1656,
-    "independent_unique_bytes": 45014, "total_bytes": 196608,
+    "independent_unique_bytes": 45027, "total_bytes": 196608,
     "first_unknown_dlm": DLM_START, "crc_stored_fields_checked": 0,
 }
 

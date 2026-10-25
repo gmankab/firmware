@@ -91,6 +91,17 @@ class PackedScheduleTests(unittest.TestCase):
         mailbox = next((start,name,data) for start,name,data in fragments if name=="controller-idle-mailboxes")
         self.assertEqual(mailbox, (0x2e130,"controller-idle-mailboxes",struct.pack("<II",0x12345678,0x12345678)))
 
+    def test_source_owned_reset_defaults_from_upper_ilm_gp_stores(self):
+        f={start:(name,data) for start,name,data in dlm.generated_fragments()
+           if name.endswith("initializer") or name=="channel-status-invalid-sentinel"}
+        self.assertEqual(sorted(f),[0x2e17c,0x2e180,0x2e188,0x2e18c])
+        self.assertEqual(f[0x2e17c][1],struct.pack("<i",-1))
+        self.assertEqual(f[0x2e180][1],struct.pack("<i",-1))
+        self.assertEqual(f[0x2e188][1],struct.pack("<I",1))
+        self.assertEqual(f[0x2e18c][1],b"\xff")
+        # Controller counter at 0x2e184 and bits 0x2e18d.. are excluded.
+        self.assertNotIn(0x2e184, f)
+
     def test_high_bits_cross_group_boundaries_and_sentinel_is_not_zero(self):
         values = [0] * 50
         values[0], values[9], values[10], values[23] = 0x100, 0x700, 0x300, 0x4a5
@@ -200,8 +211,8 @@ class GaussianAndCrcTests(unittest.TestCase):
 
     def test_fragments_are_disjoint_data_with_frozen_owned_byte_total(self):
         fragments = dlm.generated_fragments()
-        self.assertEqual(len(fragments), 65)
-        self.assertEqual(sum(len(data) for _, _, data in fragments), 9340)
+        self.assertEqual(len(fragments), 69)
+        self.assertEqual(sum(len(data) for _, _, data in fragments), 9353)
         self.assertEqual(sum(len(data) for _, name, data in fragments if name == "gaussian-half-kernel"), 2916)
         self.assertTrue(all(a + len(data) <= b for (a, _, data), (b, _, _) in zip(fragments, fragments[1:])))
         self.assertEqual(sum(max(0, min(start + len(data), 0x22900) - max(start, 0x22000))
@@ -276,7 +287,7 @@ class ManifestTests(unittest.TestCase):
                 (directory / "manifest.json").write_text(json.dumps(changed))
                 with self.assertRaisesRegex(ValueError, "extent/hash"):
                     dlm.check_manifest(directory, fragments)
-            manifest["new_executable_bytes"] = 9340
+            manifest["new_executable_bytes"] = 9353
             (directory / "manifest.json").write_text(json.dumps(manifest))
             with self.assertRaisesRegex(ValueError, "accounting"):
                 dlm.check_manifest(directory, fragments)
@@ -310,7 +321,7 @@ class OptionalReferenceTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             subprocess.run([os.environ["NOVATEK_DLM_BIN"], "emit", tmp], check=True, capture_output=True, text=True)
             report = dlm.verification_report(os.environ["NOVATEK_REFERENCE"], tmp)
-        self.assertEqual(report["independent_data_bytes"], 9340)
+        self.assertEqual(report["independent_data_bytes"], 9353)
         self.assertEqual(report["reference_assisted_descriptor_bytes"], 2940)
         self.assertEqual(report["mismatched_source_bytes"], 0)
         self.assertTrue(report["rust_output_matches"])

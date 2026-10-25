@@ -350,3 +350,72 @@ this command explicitly prints **zero additional source credit**. The
 remaining DLM tables contain irregular tuning/calibration samples for which
 neither authoring algorithms nor hardware calibration measurements were
 provided. A reference-derived match alone must not be counted as source.
+
+## Checkpoint 07 — Reset-compatible DLM state fields corroborated by Agent 18 ILM
+
+Read-only inspection of Agent 18's **separately reconstructed NDS32 upper ILM**
+revealed four reset operations whose typed source semantics establish both
+reset values and GP-relative SRAM destinations. The pinned postmarketOS
+firmware DLM contains *the same values at those startup state addresses*;
+we can generate their initial values without copying an OEM payload.
+
+| ILM typed reset source | GP store | SRAM / DLM file offset | Bytes | Generated value |
+| --- | --- | --- | ---: | --- |
+| `0x155e2: movi55 r0,-1` | `0x155e4: swi.gp r0,-6244` | `0x2c17c` / `0x2e17c` | 4 | `0xffffffff` |
+| `0x14e16: movi55 r0,-1` | `0x14e18: swi.gp r0,-6240` | `0x2c180` / `0x2e180` | 4 | `0xffffffff` |
+| `0x1570a: movi55 r1,1` | `0x15738: swi.gp r1,-6232` | `0x2c188` / `0x2e188` | 4 | `0x00000001` |
+| `0x16dee: movi55 r0,-1` | `0x16df8: sbi.gp r0,-6228` | `0x2c18c` / `0x2e18c` | 1 | `0xff` |
+
+Runtime addresses map through the independently established postmarketOS
+NDS32 GP base `0x2d9e0` and DLM SRAM-to-file delta `0x2000`. For the monitor
+flag, EX9.IT slot **436** is independently generated as `sbi.gp r0,-1691`;
+it does not overwrite `r1=1` between `0x1570a` and `0x15738`. The optional
+read-only checker `tools/verify-agent19-upper-ilm-evidence.py` requires both
+Agent 18's source files, verifies each reset instruction pair and EX9 slot,
+rejects modified register values/destinations, and reports the 13 file bytes.
+It does *not* require or copy Agent 18's executable bytes into this branch.
+
+The adjacent u32 at `[0x2e184,0x2e188)` also starts at `0xffffffff`, but the
+observed consumer reads/increments this counter and does not independently
+establish its original initial value. That word is **not credited**. Nor are
+unexplained bytes `[0x2e18d,0x2e190)`, any calibration samples, or opaque
+controller command words. This is correspondence of static initial values to
+explicit runtime reset semantics; it is not proof that an OEM high-level
+source tree has been recovered or that the complete firmware executes on
+hardware.
+
+The independent Rust/Python source generators now produce **9,353 DLM data
+bytes**, a 13-byte increase over checkpoint 06, from **69 nonoverlapping
+fragments**. The first unknown DLM file byte remains `0x22000`.
+
+| Checkpoint 07 ledger category | Bytes |
+| --- | ---: |
+| Independently generated Agent 19 DLM data | **9,353** |
+| Unresolved DLM | **40,199** |
+| Unique independently generated image coverage (including inherited prefix/layout) | **45,027** |
+| Pre-existing generated NDS32 ILM code credited by this agent | **0 new bytes** |
+| Unknown original ILM, excluding inherited 538-byte prefix | 108,054 |
+| External vector and metadata scalars | 1,024 |
+| DLM dependent mirror (not counted twice) | 2,304 |
+| Reference-assisted bank relocation (0 new source bytes) | 2,940 |
+| Uncredited 40-bit control recurrence | 160 |
+| Uncredited external 5-byte records | 110 |
+
+**Executed validation:** SHA-256-pinned postmarketOS original verified;
+all 69 rebuilt fragments byte-identical (0 mismatches), the 12 CRC fields
+and 2,304-byte mirror pass, independent Python/Decimal checks pass, Rust
+workspace **413 test executions passed**, Python **169 discovered, 117 passed,
+52 skipped** (none of the new 3 cross-agent evidence tests skipped with source
+paths supplied), and the offline locked release build passes with Rust 1.99.1.
+
+Reproduce the cross-agent evidence gate with read-only source paths:
+
+```sh
+python3 tools/verify-agent19-upper-ilm-evidence.py \
+  --upper-ilm-rs /path/to/agent18/novatek_upper_ilm.rs \
+  --upper-ex9-rs /path/to/agent18/novatek_upper_ex9.rs
+```
+
+This branch remains rooted in the **older preview** at `941c805…`, not the
+required checkpoint-50 integration; the contribution must be replayed to the
+current verified merged base before declaring an integrated artifact.
