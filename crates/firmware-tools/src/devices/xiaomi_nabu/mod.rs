@@ -135,3 +135,4 @@ pub mod cdsp_early_system_start;
 // Agent20-09: appended CDSP interrupt/debug gate at 0x4568..0x45c0.
 pub mod cdsp_early_interrupt_debug; // Agent 20-09: 0x43f4 CFGBASE probe, 0x4418..0x4500 structural fill
 pub mod cdsp_early_supervisor_vectors; // Agent 20-09 exception/interrupt vectors to 0x471c
+pub mod cdsp_early_exception_entry; // Agent 20-09 exception thread context start at 0x471c
