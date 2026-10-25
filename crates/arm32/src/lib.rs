@@ -124,6 +124,17 @@ pub fn load_signed_byte(condition: Condition, rd: Register, rn: Register,
         | ((magnitude & 0xf0) << 4) | (magnitude & 0x0f))
 }
 
+/// A32 LDRSB with unshifted positive register offset, preserving signed
+/// extension to a 32-bit destination; PC operands are not supported.
+pub fn load_signed_byte_register(condition: Condition, rd: Register,
+                                 rn: Register, rm: Register) -> Result<u32,String> {
+    if [rd,rn,rm].contains(&Register::PC) {
+        return Err("A32 LDRSB register offset must not use PC".into());
+    }
+    Ok(cond(condition) | 0x0190_00d0 | (rn.number()<<16)
+       | (rd.number()<<12) | rm.number())
+}
+
 /// A32 immediate byte transfer with pre-indexed writeback (`[Rn, #imm]!`).
 /// Rejects ambiguous load-into-base and use of PC as the modified base.
 pub fn transfer_byte_preindexed_writeback(condition: Condition, load: bool,
