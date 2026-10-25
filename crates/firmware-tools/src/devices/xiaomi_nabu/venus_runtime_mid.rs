@@ -8,7 +8,7 @@
 use arm32::{Condition as C, DataOp as Op, Register as R, Shift, BlockMode};
 
 pub const START: usize = 0x21c78;
-pub const END: usize = 0x2d3f4;
+pub const END: usize = 0x2ddfc;
 pub const FILE_BASE:usize = 0x4000;
 pub const FILE_OFFSET:usize=FILE_BASE+START;
 pub const RESERVATION_END:usize=0x40000;
@@ -51,6 +51,15 @@ fn encode_long_multiply(condition:C,signed:bool,rd_lo:R,rd_hi:R,rm:R,rs:R)->Resu
     }
     Ok(((condition as u32)<<28) | if signed {0x00c0_0090} else {0x0080_0090}
        |(rd_hi.number()<<16)|(rd_lo.number()<<12)|(rs.number()<<8)|rm.number())
+}
+
+/// ARMv7 DSP SMULBB using the signed lower halfwords from each operand.
+/// Encodes fields independently of any proprietary instruction word.
+fn encode_smulbb(cond:C,rd:R,rm:R,rs:R)->Result<u32,String>{
+    if [rd,rm,rs].iter().any(|r|r.number()>=13) {
+        return Err("SMULBB requires general-purpose registers r0..r12".into());
+    }
+    Ok(((cond as u32)<<28)|0x0160_0080|(rd.number()<<16)|(rs.number()<<8)|rm.number())
 }
 
 #[path="venus_runtime_mid_initialize.rs"]
@@ -147,6 +156,8 @@ mod request_dispatch;
 mod class_continuation;
 #[path="venus_runtime_mid_resource_access.rs"]
 mod resource_access;
+#[path="venus_runtime_mid_command_registers.rs"]
+mod command_registers;
 
 fn frame_allocation(c:&mut Code)->Result<(),String>{
     c.check(START)?;
@@ -686,6 +697,7 @@ pub fn fragment()->Result<Vec<u8>,String>{
     request_dispatch::emit(&mut code)?;
     class_continuation::emit(&mut code)?;
     resource_access::emit(&mut code)?;
+    command_registers::emit(&mut code)?;
     Ok(code.bytes)
 }
 
@@ -703,9 +715,13 @@ pub fn verify_reference(reference:&[u8])->Result<usize,String>{
 #[cfg(test)] mod tests {
     use super::*;
     #[test] fn generated_region_exact_layout(){
-        assert_eq!(END-START,0xb77c);
+        assert_eq!(END-START,0xc184);
         assert_eq!(fragment().unwrap().len(),END-START);
         assert_eq!(FILE_OFFSET,0x25c78);
+    }
+    #[test] fn smulbb_has_checked_operands_and_architecture_encoding(){
+        assert_eq!(encode_smulbb(C::Al,R::R0,R::R1,R::R0).unwrap(),0xe160_0081);
+        assert!(encode_smulbb(C::Eq,R::PC,R::R0,R::R1).is_err());
     }
     #[test] fn long_multiply_encodings_are_checked(){
         assert_eq!(encode_long_multiply(C::Al,false,R::new(3).unwrap(),R::new(7).unwrap(),R::R1,R::LR).unwrap(),0xe087_3e91);
