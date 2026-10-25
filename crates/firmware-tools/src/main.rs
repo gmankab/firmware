@@ -293,7 +293,7 @@ fn run() -> Result<(), Box<dyn Error>> {
         for region in firmware_tools::wmfw_plan::regions()? {
             let state = match (region.kind, region.file_header_offset) {
                 (0xff, _) => "INDEPENDENT TEXT",
-                (0xf2, 0x76c4) => "INDEPENDENT CONTROL METADATA",
+                (0xf2, _) => "INDEPENDENT CONTROL METADATA",
                 _ => "UNIMPLEMENTED PAYLOAD",
             };
             println!("  {} (0x{:02x}) @ file 0x{:x}, DSP 0x{:06x}: {} bytes, {:?} memory words, {}",

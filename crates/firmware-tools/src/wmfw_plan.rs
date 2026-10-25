@@ -17,7 +17,7 @@ pub const REGION_COUNT: usize = 11;
 /// Human-readable build timestamp as distinct INFO_TEXT region payload.
 /// This is text, not executable HALO code or copied proprietary instructions.
 pub const FIRMWARE_INFO: &str = "Fri 02 Apr 2021 21:03:50 W. Europe Daylight Time";
-pub const INDEPENDENT_METADATA_BYTES: usize = HEADER_SIZE + REGION_COUNT * DESCRIPTOR_SIZE + 48 + 948;
+pub const INDEPENDENT_METADATA_BYTES: usize = HEADER_SIZE + REGION_COUNT * DESCRIPTOR_SIZE + 48 + 948 + 2100 + 760;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct WmfwLayoutRegion {
@@ -89,8 +89,18 @@ pub fn partial_container() -> Result<ImagePlan, String> {
         return Err("WMFW HALO framework metadata has incorrect authored size".into());
     }
     plan.place("HALO framework algorithm metadata", WMFW_REGIONS[8].file_offset + DESCRIPTOR_SIZE, &framework)?;
+    let speaker = wmfw_algorithms::encode_algorithm(&wmfw_algorithms::cspl())?;
+    if speaker.len() != WMFW_REGIONS[9].payload_size as usize {
+        return Err("WMFW CSPL control metadata has incorrect authored size".into());
+    }
+    plan.place("CSPL algorithm controls", WMFW_REGIONS[9].file_offset + DESCRIPTOR_SIZE, &speaker)?;
+    let events = wmfw_algorithms::encode_algorithm(&wmfw_algorithms::event_logger())?;
+    if events.len() != WMFW_REGIONS[10].payload_size as usize {
+        return Err("WMFW EVENT_LOGGER metadata has incorrect authored size".into());
+    }
+    plan.place("event-logging algorithm controls", WMFW_REGIONS[10].file_offset + DESCRIPTOR_SIZE, &events)?;
     assert_eq!(plan.filled_bytes(), INDEPENDENT_METADATA_BYTES);
-    assert_eq!(plan.holes().len(), REGION_COUNT - 2);
+    assert_eq!(plan.holes().len(), REGION_COUNT - 4);
     Ok(plan)
 }
 
@@ -135,6 +145,11 @@ mod tests {
         let framework = wmfw_algorithms::encode_algorithm(&wmfw_algorithms::framework()).unwrap();
         reference[WMFW_REGIONS[8].file_offset+DESCRIPTOR_SIZE..WMFW_REGIONS[9].file_offset]
             .copy_from_slice(&framework);
+        let speaker = wmfw_algorithms::encode_algorithm(&wmfw_algorithms::cspl()).unwrap();
+        reference[WMFW_REGIONS[9].file_offset+DESCRIPTOR_SIZE..WMFW_REGIONS[10].file_offset]
+            .copy_from_slice(&speaker);
+        let events = wmfw_algorithms::encode_algorithm(&wmfw_algorithms::event_logger()).unwrap();
+        reference[WMFW_REGIONS[10].file_offset+DESCRIPTOR_SIZE..FILE_SIZE].copy_from_slice(&events);
         reference
     }
 
@@ -147,11 +162,11 @@ mod tests {
         assert_eq!(rs[6].word_count, Some(1_533));
         assert_eq!(rs[0].name(), "INFO_TEXT");
         let plan = partial_container().unwrap();
-        assert_eq!(plan.filled_bytes(), 1_124);
+        assert_eq!(plan.filled_bytes(), 3_984);
         assert_eq!(plan.total_bytes(), FILE_SIZE);
-        assert_eq!(plan.holes().len(), 9);
+        assert_eq!(plan.holes().len(), 7);
         assert_eq!(plan.holes().first().unwrap(), &(0x68..0xb0));
-        assert_eq!(plan.holes().last().unwrap(), &(0x82c4..0x85bc));
+        assert_eq!(plan.holes().last().unwrap(), &(0x278c..0x76c4));
         assert!(plan.build_complete().unwrap_err().contains("incomplete"));
     }
 

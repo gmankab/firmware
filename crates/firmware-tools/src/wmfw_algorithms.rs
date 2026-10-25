@@ -46,10 +46,6 @@ const fn alias(offset: u16, short: &'static str, suffix: &'static str,
                flags: u16, length: u32) -> ControlSpec {
     ControlSpec { offset, short, suffix, mem_type: 5, flags, length }
 }
-const fn memory(offset: u16, short: &'static str, flags: u16,
-                length: u32, mem_type: u16) -> ControlSpec {
-    ControlSpec { offset, short, suffix: short, mem_type, flags, length }
-}
 
 // Firmware framework controls from the public Halo/CSPL control interface.
 const FRAMEWORK: &[ControlSpec] = &[
@@ -67,8 +63,60 @@ const FRAMEWORK: &[ControlSpec] = &[
     c(0x0d, "MAX_LRCLK_DELAY", 3),
 ];
 
-// A separate CSPL/woofer control manifest is appended in a following agent
-// checkpoint. A firmware image must not be assembled before it is complete.
+// CSPL controls are exposed to the codec firmware host interface. The short
+// strings are the firmware's stable control identifiers; suffix overrides
+// carry descriptive fully-qualified control identifiers.
+const CSPL: &[ControlSpec] = &[
+    c(0x00, "CSPL_ENABLE", 3),
+    c(0x01, "CSPL_COMMAND", 3),
+    c(0x02, "CSPL_STATE", 5),
+    c(0x03, "CSPL_ERRORNO", 5),
+    c(0x04, "CSPL_TEMPERATURE", 5),
+    alias(0x05, "UPDT_PRMS", "HAS_UPDATE_PARAMS", 5, 4),
+    c(0x06, "CAL_R", 0),
+    c(0x07, "CAL_AMBIENT", 3),
+    c(0x08, "CAL_STATUS", 0),
+    c(0x09, "CAL_CHECKSUM", 0),
+    c(0x0a, "CAL_R_SELECTED", 7),
+    c(0x0b, "CAL_SET_STATUS", 7),
+    c(0x0c, "DIAG_F0", 7),
+    c(0x0d, "DIAG_Z_LOW_DIFF", 7),
+    c(0x0e, "DIAG_F0_STATUS", 7),
+    alias(0x0f, "RTLOG_ENABLE", "LOGGER_XM_STRUCT_ENABLE", 3, 4),
+    alias(0x10, "RTLOG_STATE", "LOGGER_XM_STRUCT_STATE", 7, 4),
+    alias(0x11, "RTLOG_COUNT", "LOGGER_XM_STRUCT_COUNT", 3, 4),
+    alias(0x14, "RTLOG_FRMPRWIN", "LOGGER_XM_STRUCT_FRAMESPERCAPTUREWINDOW", 3, 4),
+    alias(0x15, "RTLOG_VARIABLE", "LOGGER_XM_STRUCT_VARIABLE", 3, 60),
+    alias(0x24, "RTLOG_DATA", "LOGGER_XM_STRUCT_DATA", 5, 120),
+    alias(0x42, "BDLOG_MAX_TEMP", "THRESHOLDLOGGER_XM_STRUCT_MAX_TEMP", 7, 4),
+    alias(0x43, "BDLOG_MAX_EXC", "THRESHOLDLOGGER_XM_STRUCT_MAX_EXC", 7, 4),
+    alias(0x44, "BDLOG_OVER_TEMP_COUNT", "THRESHOLDLOGGER_XM_STRUCT_OVER_TEMP_COUNT", 7, 4),
+    alias(0x45, "BDLOG_OVER_EXC_COUNT", "THRESHOLDLOGGER_XM_STRUCT_OVER_EXC_COUNT", 7, 4),
+    alias(0x46, "BDLOG_ABNORMAL_MUTE", "THRESHOLDLOGGER_XM_STRUCT_ABNORMAL_MUTE", 7, 4),
+    alias(0x47, "BDLOG_VMON_LOW_FLAG", "THRESHOLDLOGGER_XM_STRUCT_VMON_LOW_FLAG", 7, 4),
+    c(0x48, "REDUCE_POWER", 3),
+    alias(0x49, "CH_BAL", "CHANNEL_BALANCE", 3, 4),
+    c(0x4a, "ATTENUATION", 3),
+    c(0x4b, "SPK_OUTPUT_POWER", 5),
+    c(0x4c, "ALGO_FRAME_DELAY", 7),
+    ControlSpec {offset:0, short:"CSPL_UPDATE_PARAMS_CONFIG", suffix:"CSPL_UPDATE_PARAMS_CONFIG",
+                 mem_type:6, flags:3, length:400},
+];
+
+const EVENT_LOGGER: &[ControlSpec] = &[
+    alias(0x00, "EVNTLG_ENABLED", "ENABLED", 7, 4),
+    c(0x01, "WAS_DISABLED", 5),
+    c(0x02, "BUFFER", 5),
+    c(0x03, "BUFFER_SIZE", 5),
+    c(0x04, "TRANSFER_COMPLETED", 7),
+    c(0x05, "NUM_LOST_EVENTS", 5),
+    c(0x06, "LOST_EVENT_COUNTER", 5),
+    c(0x07, "TRIGGER_INTERRUPT", 5),
+    c(0x08, "BUFFER_COUNT", 5),
+    c(0x09, "FREE_SLOTS", 5),
+    c(0x0a, "W_PTR", 5),
+    size(0x0b, "EVENTS", 5, 256),
+];
 
 fn authored(id: u32, name: &str, prefix: &str, specs: &[ControlSpec]) -> Algorithm {
     Algorithm {
@@ -85,6 +133,16 @@ fn authored(id: u32, name: &str, prefix: &str, specs: &[ControlSpec]) -> Algorit
 
 pub fn framework() -> Algorithm {
     authored(0x0004_00a4, "FIRMWARE_HALO_CSPL", "FIRMWARE_HALO_CSPL_", FRAMEWORK)
+}
+
+/// Core speaker-protection algorithm and controls (CSPL).
+pub fn cspl() -> Algorithm {
+    authored(0x0000_00cd, "CSPL", "CSPL_", CSPL)
+}
+
+/// Firmware event-logging algorithm controls, separate from CSPL.
+pub fn event_logger() -> Algorithm {
+    authored(0x0000_f20b, "EVENT_LOGGER", "EVENT_LOGGER_", EVENT_LOGGER)
 }
 
 fn append_padded_string(output: &mut Vec<u8>, s: &str, width: usize) -> Result<(), String> {
@@ -207,6 +265,22 @@ mod tests {
         assert_eq!(alg.controls.len(), 12);
         assert_eq!(alg.controls[3].size_bytes, 12);
         assert!(built.windows(10).any(|b|b==b"HALO_STATE"));
+    }
+    #[test]
+    fn cspl_and_event_logger_have_exact_wmfw_v3_layout() {
+        let speaker = cspl();
+        assert_eq!(speaker.controls.len(), 33);
+        assert_eq!(speaker.controls.last().unwrap().memory_type, 6);
+        assert_eq!(speaker.controls.last().unwrap().size_bytes, 400);
+        let speaker_bytes = encode_algorithm(&speaker).unwrap();
+        assert_eq!(speaker_bytes.len(), 2_100);
+        assert_eq!(parse_algorithm(&speaker_bytes).unwrap(), speaker);
+        let events = event_logger();
+        assert_eq!(events.controls.len(), 12);
+        assert_eq!(events.controls.last().unwrap().size_bytes, 256);
+        let event_bytes = encode_algorithm(&events).unwrap();
+        assert_eq!(event_bytes.len(), 760);
+        assert_eq!(parse_algorithm(&event_bytes).unwrap(), events);
     }
     #[test]
     fn v3_parser_rejects_nonzero_padding_and_truncation() {

@@ -45,3 +45,13 @@ it never imports the reference bytes to build output. The bounded parser
 accepts the generated algorithm, rejects truncation and nonzero alignment
 padding. Independent coverage is **1,124 / 34,236 bytes**, with nine region
 payloads still missing.
+
+## Checkpoint 08-04 — CSPL and event logger controls
+
+Added 33 CSPL and 12 event-logger controls as independently authored names,
+register offsets, packed-memory types, access flags and value lengths. The
+WMFW v3 length-prefixed serializer produces exactly the 2,100-byte CSPL
+(`0x7a88–0x82bc`) and 760-byte event metadata (`0x82c4–0x85bc`) regions.
+The host-diagnostic parser validates the records and rejects malformed data.
+**Cumulative independently generated metadata: 3,984 / 34,236 bytes.** Seven
+DSP memory payloads are still missing, including all 20,280 program bytes.
