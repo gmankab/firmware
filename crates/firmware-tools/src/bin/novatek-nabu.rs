@@ -4,18 +4,36 @@
 //! central device `mod.rs` or unrelated firmware subcommands.
 #[path = "../devices/xiaomi_nabu/novatek_layout.rs"]
 mod novatek_layout;
+#[path = "../devices/xiaomi_nabu/novatek_reassemble.rs"]
+mod novatek_reassemble;
 
 use novatek_layout::{NabuNovatekLayout, HEADER_BYTES, IMAGE_LENGTH, RESERVED_TAIL_START, END_MARKER_OFFSET};
 use std::{env, fs, process};
 
 fn run() -> Result<(), String> {
     let args: Vec<String> = env::args().skip(1).collect();
+    if args.first().map(String::as_str) == Some("assemble-structural-unverified") && args.len() == 6 {
+        let meta=fs::read(&args[1]).map_err(|e|e.to_string())?;
+        let layout=NabuNovatekLayout::parse(&meta)?;
+        let ilm=fs::read(&args[2]).map_err(|e|e.to_string())?;
+        let dlm=fs::read(&args[3]).map_err(|e|e.to_string())?;
+        let aux=fs::read(&args[4]).map_err(|e|e.to_string())?;
+        let built=novatek_reassemble::assemble_structural_unverified(&layout,
+            novatek_reassemble::AuthoredPayloads{
+                ilm:Some(&ilm),dlm:Some(&dlm),auxiliary:Some(&aux)
+            })?;
+        fs::write(&args[5],&built.bytes).map_err(|e|e.to_string())?;
+        println!("Wrote {} structural bytes; hardware CRC verified: {}. WARNING: ISA semantics and payload provenance NOT verified; do NOT flash.", built.bytes.len(),built.is_hardware_crc_verified());
+        return Ok(());
+    }
     if args.len() < 2 || args.len() > 3 {
-        return Err("usage: novatek-nabu <inspect|emit-header|emit-padding|emit-tail-padding|emit-marker|verify-header|verify-envelope> <private-reference.bin> [output]".into());
+        return Err("usage: novatek-nabu <inspect|emit-header|emit-padding|emit-tail-padding|emit-marker|verify-header|verify-envelope> <private-reference.bin> [output] | assemble-structural-unverified <private-meta-reference> <independently-authored-ilm> <independently-authored-dlm> <independently-authored-aux> <output>".into());
     }
     let command = &args[0];
     let reference = fs::read(&args[1]).map_err(|e| e.to_string())?;
     let layout = NabuNovatekLayout::parse(&reference)?;
+    // Structural assembly has no implicit fallback to the uploaded reference.
+    // Only the explicit assemble-structural-unverified command supplies parts.
     match command.as_str() {
         "inspect" if args.len() == 2 => {
             let (gap_start, gap_end) = layout.padding_range()?;
@@ -39,8 +57,8 @@ fn run() -> Result<(), String> {
             println!("independently reconstructible envelope bytes: {independent}");
             println!("unreconstructed firmware payload bytes: {unresolved}");
             println!("verified reserved tail: 0x{RESERVED_TAIL_START:x}–0x{END_MARKER_OFFSET:x}");
-            for region in layout.coverage()? { println!("  {:>6} bytes 0x{:05x}..0x{:05x} {:?} {}",
-                region.length(),region.start,region.end,region.kind,region.name); }
+            for region in novatek_reassemble::projected_regions(&layout)? { let range=region.range; println!("  {:>6} bytes 0x{:05x}..0x{:05x} {:?} {}",
+                range.length(),range.start,range.end,range.kind,range.name); }
             println!("CRC calculation and MCU ISA remain unverified; not a flashable reconstructed firmware");
         }
         "emit-header" if args.len() == 3 => {
@@ -65,7 +83,9 @@ fn run() -> Result<(), String> {
             layout.verify_envelope(&reference)?;
             let independent=layout.coverage()?.iter().filter(|r|r.source_independent())
                 .map(|r|r.length()).sum::<usize>();
-            println!("Novatek metadata/envelope verified; {independent} independently constructible bytes; ILM/DLM/auxiliary remain unknown");
+            let projection=novatek_reassemble::projected_regions(&layout)?;
+            let absent=projection.iter().filter(|r|r.bytes.is_none()).count();
+            println!("Novatek metadata/envelope verified; {independent} independently constructible bytes; {absent} ILM/DLM/auxiliary holes remain unknown");
         }
         "verify-header" if args.len() == 2 => {
             if layout.write_header() != reference[..HEADER_BYTES] {

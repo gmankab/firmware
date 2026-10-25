@@ -100,3 +100,58 @@ claiming source-derived ILM instructions, reverse the hardware CRC algorithm
 from firmware and bootloader driver, decode the packed controller configuration
 area, and build a deterministic full image *only* from independently authored
 payload sources and legitimate checksum values.
+
+## Checkpoint 03 — Hole-rejecting structural image builder
+
+Added `novatek_reassemble.rs`, a **Novatek-only** assembler that operates
+from the typed layout and optional *independently authored* payload inputs.
+It makes a full, sparse projection of the seven classified ranges without
+materializing unknown bytes. Three explicit holes are reported in order:
+
+1. ILM `[0x200,0x1ac80)` — 109,184 bytes.
+2. DLM `[0x22000,0x2e190)` — 49,552 bytes.
+3. Auxiliary/calibration `[0x2e190,0x2f900)` — 6,000 bytes.
+
+`assemble_structural_unverified()` **fails on the first missing or wrongly
+sized authored payload**, rejecting any implicit OEM byte copy or zero fill.
+Once all three external source payloads are supplied, it serializes a complete
+image using only the authored buffers, typed metadata fields, independently
+generated padding, and `NVT` suffix. Synthetic tests cover missing ILM/DLM/
+auxiliary, wrong lengths, gapless byte-for-byte assembly, and a permanent
+`is_hardware_crc_verified()==false` status.
+
+The explicit optional CLI `assemble-structural-unverified` requires a metadata
+reference *and three distinct authored payload files*. It is intentionally
+labelled **UNVERIFIED**: no checksum algorithm was independently established,
+and supplying proprietary reference slices would not count as firmware
+decompilation. We have **not** used the original ILM/DLM/auxiliary bytes as
+input to claim a full byte-identical reconstruction. Therefore **independent
+executable coverage remains zero bytes**.
+
+Command syntax:
+
+```sh
+cargo run --offline --locked -p firmware-tools --bin novatek-nabu -- \
+  assemble-structural-unverified /private/novatek_nt36523_fw.bin \
+  /authored/ilm.bin /authored/dlm.bin /authored/auxiliary.bin \
+  /tmp/novatek-structural-unverified.bin
+```
+
+Although test data can pass this structural assembly, **no generated full
+reference firmware is present**: the remaining 164,736 bytes still require
+source implementation and checksum verification.
+
+### ISA investigation
+
+The Nabu touchscreen compatible is `novatek,NVT-ts-spi`, not the separate
+similarly named NT36523 DSI *display panel* driver. The public DTS names
+`novatek,swrst-n8-addr` and the firmware starts with a mixed, primarily
+16-bit-aligned interrupt/vector-pointer array after file offset `0x200`.
+These observations alone do not identify the MCU ISA. Recent Ghidra supports
+NDS32 and an independent NDS32 decode comparison is worth testing, but **the
+firmware's CPU architecture remains unproven** without well-formed code flow
+and vendor corroboration. Do not assert that `N8` implies Andes N8.
+
+Candidate CRC-32 ISO-HDLC, no-XOR, init-0, reversed input, and Adler32
+values do not match both independently stored core CRC fields. The values
+must remain opaque until the exact controller hardware CRC algorithm is known.
