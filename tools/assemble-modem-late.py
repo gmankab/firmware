@@ -40,6 +40,8 @@ AUX_VALIDATOR_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/mod
 AUX_RUNTIME_INIT_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_aux_runtime_init.s"
 AUX_VENEERS_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_aux_control_veneers.s"
 AUX_REGISTRATION_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_aux_controller_registration.s"
+AUX_DIAGNOSTIC_HELPERS_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_aux_diagnostic_helpers.s"
+AUX_SESSION_PREFIX_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_aux_session_prefix.s"
 ATOMIC_START = 0x7C000
 ATOMIC_END = 0x7C040
 SERVICE_START = 0x7C2EC
@@ -84,6 +86,10 @@ AUX_VENEERS_START = 0x446BDC
 AUX_VENEERS_END = 0x446C18
 AUX_REGISTRATION_START = 0x446C18
 AUX_REGISTRATION_END = 0x446E1C
+AUX_DIAGNOSTIC_HELPERS_START = 0x446E1C
+AUX_DIAGNOSTIC_HELPERS_END = 0x446E90
+AUX_SESSION_PREFIX_START = 0x446E90
+AUX_SESSION_PREFIX_END = 0x446EE8
 MARKER_MASK = 3 << 14
 CONTINUE_MARKER = 1 << 14
 END_MARKER = 3 << 14
@@ -595,6 +601,12 @@ def output_fragments(llvm_mc: Path) -> dict[int, bytes]:
     aux_runtime_init = restore_aux_runtime_init_packets(assemble(llvm_mc,AUX_RUNTIME_INIT_SOURCE))
     aux_veneers = compact_aux_controller_veneer_duplex(assemble(llvm_mc,AUX_VENEERS_SOURCE))
     aux_registration = restore_aux_registration_new_value_packet(assemble(llvm_mc,AUX_REGISTRATION_SOURCE))
+    aux_diagnostic_helpers=assemble(llvm_mc,AUX_DIAGNOSTIC_HELPERS_SOURCE)
+    aux_session_prefix=assemble(llvm_mc,AUX_SESSION_PREFIX_SOURCE)
+    if len(aux_diagnostic_helpers)!=AUX_DIAGNOSTIC_HELPERS_END-AUX_DIAGNOSTIC_HELPERS_START:
+        raise ValueError("aux diagnostic helpers must emit 116 bytes")
+    if len(aux_session_prefix)!=AUX_SESSION_PREFIX_END-AUX_SESSION_PREFIX_START:
+        raise ValueError("aux session prefix must emit 88 bytes")
     if len(aux_entry)!=AUX_ENTRY_END-AUX_ENTRY_START:
         raise ValueError("auxiliary entry veneer must compile to 20 bytes")
     if len(aux_dispatch) != AUX_DISPATCH_END-AUX_DISPATCH_START:
@@ -614,7 +626,7 @@ def output_fragments(llvm_mc: Path) -> dict[int, bytes]:
     return {ATOMIC_START: atomic + controller, SERVICE_START: service+service_mmio+service_flags+service_alloc,
             AUX_START: auxiliary, AUX_INIT_START: aux_init,
             AUX_GUARD_START: aux_guard+aux_stage+aux_mmio+aux_heap+aux_worker+aux_lookup,
-            AUX_DISPATCH_START:aux_dispatch+aux_type+aux_notify+aux_entry+aux_validator+aux_runtime_init+aux_veneers+aux_registration}
+            AUX_DISPATCH_START:aux_dispatch+aux_type+aux_notify+aux_entry+aux_validator+aux_runtime_init+aux_veneers+aux_registration+aux_diagnostic_helpers+aux_session_prefix}
 
 
 def executable_segments(reference: bytes) -> dict[int, tuple[int, int, int, int]]:

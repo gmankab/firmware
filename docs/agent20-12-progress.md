@@ -536,3 +536,26 @@ region `[0x446650,0x446e1c)` has reached **1,996 bytes**. The next
 callable helper begins at file `0x446e20`; additional NOP alignment at
 `0x446e1c` remains unclaimed. The rest of the modem payload and OEM
 authentication are not independently reconstructed.
+
+## Checkpoint 20: diagnostic helpers and session-validation prefix
+
+Source-assembled **116 bytes** at modem file `[0x446e1c,0x446e90)`
+(VMA `[0x1e400e1c,0x1e400e90)`), including the preceding one-word
+NOP alignment, a temporary-buffer diagnostic helper and an installed
+callback dispatcher with guarded fallthrough and frame restoration.
+Additionally assembled **88 bytes** at `[0x446e90,0x446ee8)` (VMA
+`[0x1e400e90,0x1e400ee8)`) of a larger session-validity routine,
+which checks the format and input index. Both source fragments assemble
+with stock LLVM6 Hexagon V60 without ANY packet-order correction and
+match the pinned original modem reference byte-for-byte.
+
+The next address `0x446ee8` holds `r3 = framekey`; the LLVM6 MC decoder
+recognizes it but its assembler reports an invalid operand. **Do not**
+substitute the OEM word. This 4-byte ISA blocker separates the prefix
+from later callable code; a verified public encoding or a separately
+reviewed typed encoder is needed to make the function contiguous.
+
+Total later-modem reconstruction: **3,664 independently assembled bytes**
+in six disjoint mapped executable spans; the auxiliary verified contiguous
+segment is `[0x446650,0x446ee8)` (**2,200 bytes**). Whole modem and OEM
+authentication remain outside scope.

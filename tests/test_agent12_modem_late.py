@@ -15,6 +15,15 @@ spec.loader.exec_module(agent12)
 
 
 class ModemLateTests(unittest.TestCase):
+    def test_aux_session_prefix_explicitly_stops_before_framekey(self):
+        self.assertEqual(agent12.AUX_SESSION_PREFIX_END,0x446EE8)
+        source=agent12.AUX_SESSION_PREFIX_SOURCE.read_text()
+        self.assertNotIn('.word',source)
+        self.assertNotIn('framekey',source.split('.text',1)[1])
+        self.assertIn('bitsplit',source)
+        self.assertEqual(agent12.AUX_SESSION_PREFIX_END-agent12.AUX_SESSION_PREFIX_START,88)
+        self.assertEqual(agent12.AUX_DIAGNOSTIC_HELPERS_END-agent12.AUX_DIAGNOSTIC_HELPERS_START,116)
+
     def test_aux_registration_packet_change_rejects_unrelated_ops(self):
         words=[0x7800c000]*129
         i=(0x446D04-agent12.AUX_REGISTRATION_START)//4
@@ -172,6 +181,12 @@ class ModemLateTests(unittest.TestCase):
         self.assertEqual((agent12.AUX_REGISTRATION_START,agent12.AUX_REGISTRATION_END),
                          (0x446C18,0x446E1C))
         self.assertEqual(agent12.AUX_VENEERS_END,agent12.AUX_REGISTRATION_START)
+        self.assertEqual((agent12.AUX_DIAGNOSTIC_HELPERS_START,agent12.AUX_DIAGNOSTIC_HELPERS_END),
+                         (0x446E1C,0x446E90))
+        self.assertEqual(agent12.AUX_REGISTRATION_END,agent12.AUX_DIAGNOSTIC_HELPERS_START)
+        self.assertEqual((agent12.AUX_SESSION_PREFIX_START,agent12.AUX_SESSION_PREFIX_END),
+                         (0x446E90,0x446EE8))
+        self.assertEqual(agent12.AUX_DIAGNOSTIC_HELPERS_END,agent12.AUX_SESSION_PREFIX_START)
 
     def test_atomic_packet_reorder_checks_opcode_class_and_parse_bits(self):
         words = [0x7800C000] * 16  # synthetic A2_tfrsi instruction for surrounding words
