@@ -206,3 +206,11 @@ Agent 20-10 owns only new `cdsp_late_*` sources, its verification tool, focused 
   ```
 
 - Next missing CDSP executable code begins file `0x56320` (physical `0x96cc8320`), a separate RNG/callback routine. Checkpoint-50 integration remains unavailable: this branch still descends from the original Agent05 CDSP checkpoint 17 and is a **provisional portable patch**.
+
+## Checkpoint 17 — controller seed/state-update function prologue, 2,036 executable bytes
+
+- Independently reconstructed `[file 0x56320,0x56364)` = **68 Hexagon V66 executable bytes** (physical `[0x96cc8320,0x96cc8364)`, VMA `[0xc00c8320,0xc00c8364)`). Byte comparison against pinned CDSP reference is exact.
+- The new routine checks a GP-relative initialization pointer at `0xfe0ad660`, sets up a 48-byte stack frame, saves live registers, conditionally initializes three seed-state globals at `0xc0364158`, `0xc0364150`, `0xc0364148`, and branches to exit at physical `0x96cc8438` when already initialized. Full function continues beyond `0x56364` and **is not yet marked complete**.
+- LLVM6 semantic source yields **64 bytes**, while the original uses **68** due to a forced 32-bit GP load and different packet scheduling. Thirteen source instruction encodings match LLVM6 unchanged; this does **not** establish binary-identical LLVM assembly. Rizin V66 independently validates all 17 original-order packet words and the physical pointer/branch targets.
+- Contiguous RWE prefix `[0x56000,0x56364)` = **868 file bytes**, including **836 generated executable bytes and 32 distinct NOP/fill bytes**. The separate complete short controller program `[0x55000,0x554b0)` contributes another **1,200 source-derived executable bytes**, so Agent 20-10 total executable coverage is now **2,036 bytes** across disjoint regions, with no OEM authentication or opaque executable payload counted.
+- Focused checked-operand unit tests reject invalid GP pointers, register numbers, conditional branch locations and unsupported frame sizes. Run `cdsp-late-rng-prologue verify-prefix` with the pinned private MBN, plus `tools/verify-agent20-10-cdsp-rng-prefix.py` with LLVM6 and Rizin V66. Next missing code: file `0x56364` within the same seed-update routine.
