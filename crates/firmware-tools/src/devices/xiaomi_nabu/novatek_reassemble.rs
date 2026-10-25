@@ -3,9 +3,10 @@
 //! ILM/DLM/configuration bytes and known structural constants. Unknown ranges
 //! are never copied from a reference image or implicitly zero-filled.
 //!
-//! This module intentionally **does not** calculate or validate the Novatek
-//! controller's stored CRC fields. Its complete output, when source payloads
-//! are supplied, is a *structural image*, NOT a proven bootable firmware.
+//! The metadata-only assembly path **does not automatically recompute**
+//! CRC-32/MPEG-2. For a separately checksum-verified structural output,
+//! use `novatek_crc::recompute_all_crcs` on caller-authored payloads. Neither
+//! path proves the MCU ISA or generates a proven bootable firmware.
 
 use super::novatek_layout::{CoverageRegion, NabuNovatekLayout, RegionKind};
 use super::novatek_vector::CandidateVectorTable;
@@ -46,7 +47,7 @@ pub fn projected_regions(layout: &NabuNovatekLayout) -> Result<Vec<ProjectedRegi
     let regions = layout.coverage()?;
     Ok(regions.into_iter().map(|range| {
         let bytes = match range.kind {
-            RegionKind::StructuredMetadataWithOpaqueCrc => Some(layout.write_header().to_vec()),
+            RegionKind::StructuredMetadataRecomputableCrc => Some(layout.write_header().to_vec()),
             RegionKind::StructuredVectorsWithOpaqueTargets => None,
             RegionKind::IndependentlyGeneratedZero => Some(vec![0; range.length()]),
             RegionKind::IndependentlyGeneratedMarker => Some(layout.write_marker().to_vec()),
@@ -71,7 +72,8 @@ fn check_supplied<'a>(region: &CoverageRegion, data: Option<&'a [u8]>) -> Result
 
 /// Reconstruct the exact byte layout **only after** a caller has authored all
 /// missing payloads. The function will not accept a reference image, and
-/// cannot substitute any source portion from it. Stored CRCs remain opaque.
+/// cannot substitute any source portion from it. CRC words remain the
+/// externally provided fields until explicitly regenerated.
 ///
 /// Do not use this result for firmware flashing: this function deliberately
 /// does not assert/check any CRC fields, or establish executable authenticity.

@@ -8,6 +8,8 @@ mod novatek_layout;
 mod novatek_reassemble;
 #[path = "../devices/xiaomi_nabu/novatek_vector.rs"]
 mod novatek_vector;
+#[path = "../devices/xiaomi_nabu/novatek_crc.rs"]
+mod novatek_crc;
 
 use novatek_layout::{NabuNovatekLayout, HEADER_BYTES, IMAGE_LENGTH, RESERVED_TAIL_START, END_MARKER_OFFSET, DLM_FILE_END, POST_DLM_PADDING_END};
 use std::{env, fs, process};
@@ -30,7 +32,7 @@ fn run() -> Result<(), String> {
         return Ok(());
     }
     if args.len() < 2 || args.len() > 3 {
-        return Err("usage: novatek-nabu <inspect|verify-dlm-mirror|emit-header|emit-padding|emit-vector|emit-vector-padding|emit-post-dlm-padding|emit-tail-padding|emit-marker|verify-header|verify-envelope|verify-vectors> <private-reference.bin> [output] | assemble-structural-unverified <private-meta-reference> <externally-authored-vector-words> <independently-authored-ilm-after-0x450> <independently-authored-dlm> <output>".into());
+        return Err("usage: novatek-nabu <inspect|verify-dlm-mirror|verify-crcs|emit-recomputed-crc-header|emit-header|emit-padding|emit-vector|emit-vector-padding|emit-post-dlm-padding|emit-tail-padding|emit-marker|verify-header|verify-envelope|verify-vectors> <private-reference.bin> [output] | assemble-structural-unverified <private-meta-reference> <externally-authored-vector-words> <independently-authored-ilm-after-0x450> <independently-authored-dlm> <output>".into());
     }
     let command = &args[0];
     let reference = fs::read(&args[1]).map_err(|e| e.to_string())?;
@@ -64,7 +66,7 @@ fn run() -> Result<(), String> {
             println!("verified reserved tail: 0x{RESERVED_TAIL_START:x}–0x{END_MARKER_OFFSET:x}");
             for region in novatek_reassemble::projected_regions(&layout)? { let range=region.range; println!("  {:>6} bytes 0x{:05x}..0x{:05x} {:?} {}",
                 range.length(),range.start,range.end,range.kind,range.name); }
-            println!("CRC calculation and MCU ISA remain unverified; not a flashable reconstructed firmware");
+            println!("CRC-32/MPEG-2 is understood (verify with verify-crcs); MCU ISA and authored program still missing; not flashable");
         }
         "emit-header" if args.len() == 3 => {
             fs::write(&args[2],layout.write_header()).map_err(|e| e.to_string())?;
@@ -104,6 +106,20 @@ fn run() -> Result<(), String> {
         "emit-marker" if args.len() == 3 => {
             fs::write(&args[2],layout.write_marker()).map_err(|e|e.to_string())?;
             println!("wrote {} fixed suffix bytes",layout.write_marker().len());
+        }
+        "emit-recomputed-crc-header" if args.len() == 3 => {
+            let mut reconstructed = reference.clone();
+            let count=novatek_crc::recompute_all_crcs(&mut reconstructed)?;
+            if reconstructed[..HEADER_BYTES]!=reference[..HEADER_BYTES] {
+                return Err("CRC-derived header differs from the supplied firmware".into());
+            }
+            fs::write(&args[2],&reconstructed[..HEADER_BYTES]).map_err(|e|e.to_string())?;
+            println!("wrote {HEADER_BYTES} structured metadata bytes with {} independently recomputed CRC-32/MPEG-2 fields; ILM/DLM inputs were supplied, NOT decompiled",count.stored_fields());
+        }
+        "verify-crcs" if args.len() == 2 => {
+            let count=novatek_crc::verify_all_crcs(&layout,&reference)?;
+            println!("validated {} CRC-32/MPEG-2 checksum fields ({} logical checks, including duplicated core fields)",
+                count.stored_fields(),count.total_checks());
         }
         "verify-dlm-mirror" if args.len() == 2 => {
             layout.verify_dlm_mirror(&reference)?;

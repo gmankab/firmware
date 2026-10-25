@@ -41,7 +41,8 @@ pub struct CorePartition {
     pub sram_address: u32,
     /// Format stores `length - 1`; this is NOT a byte count.
     pub size_minus_one: u32,
-    /// Stored controller hardware CRC. The CRC algorithm is still unknown.
+    /// Stored CRC-32/MPEG-2. Regenerable from authored payload via
+    /// `novatek_crc::recompute_all_crcs`, but not by this metadata-only parser.
     pub stored_crc: u32,
 }
 
@@ -73,7 +74,8 @@ pub struct DescriptorBank {
     pub options: u32,
     /// Three populated info table entries at relative offsets 0x30..0x5f.
     pub info: [InfoDescriptor; 3],
-    /// Special auxiliary metadata descriptor at offset 0xf0, not executable.
+    /// Bank CRC footer at offset 0xf0. The final `stored_crc` checks the
+    /// preceding 0xfc bytes of this bank; the other three fields are metadata.
     pub auxiliary: InfoDescriptor,
 }
 
@@ -87,11 +89,11 @@ pub struct NabuNovatekLayout {
 
 
 /// Classify provenance, not only whether bytes happen to match a reference.
-/// Metadata is serializable but depends on opaque vendor-provided CRC fields;
-/// zero regions and the literal suffix are independently constructed.
+/// Metadata is serializable; its CRC-32/MPEG-2 fields are computable from
+/// independently authored payloads. Zero ranges and `NVT` are independent.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum RegionKind {
-    StructuredMetadataWithOpaqueCrc,
+    StructuredMetadataRecomputableCrc,
     StructuredVectorsWithOpaqueTargets,
     UnimplementedIlm,
     IndependentlyGeneratedZero,
@@ -215,8 +217,8 @@ impl NabuNovatekLayout {
         }
         let result = Self { ilm, dlm,
             banks: [banks[0], banks[1]], image_len: firmware.len() };
-        // This is a *layout* equality check, not CRC verification. CRC values
-        // are parsed opaque words whose calculation is not yet established.
+        // This checks layout representation only. CRC verification is an
+        // explicit operation in `novatek_crc::verify_all_crcs`.
         if result.write_header() != firmware[..HEADER_BYTES] {
             return Err("Novatek header is not representable by the two-bank layout".into());
         }
@@ -225,7 +227,9 @@ impl NabuNovatekLayout {
 
     /// Write exactly 512 bytes from field values, without reading any vendor
     /// image, making this routine suitable for replacing future source tables.
-    /// The 10 CRC fields are opaque metadata supplied by the caller.
+    /// This metadata-only method copies the supplied scalar CRC values.
+    /// For independent CRC generation call `novatek_crc::recompute_all_crcs`
+    /// on an image assembled from authored ILM and DLM payloads.
     pub fn write_header(&self) -> [u8; HEADER_BYTES] {
         let mut bytes = [0u8; HEADER_BYTES];
         for base in [0, BANK_BYTES] {
@@ -328,9 +332,9 @@ impl NabuNovatekLayout {
             return Err("unsupported Novatek partition geometry".into());
         }
         let regions = vec![
-            CoverageRegion { name: "dual-bank metadata (opaque CRCs)",
+            CoverageRegion { name: "dual-bank metadata (CRC-32/MPEG-2)",
                 start: 0, end: HEADER_BYTES,
-                kind: RegionKind::StructuredMetadataWithOpaqueCrc },
+                kind: RegionKind::StructuredMetadataRecomputableCrc },
             CoverageRegion { name: "candidate interrupt/handler words (externally supplied)",
                 start: HEADER_BYTES, end: CANDIDATE_VECTORS_END,
                 kind: RegionKind::StructuredVectorsWithOpaqueTargets },

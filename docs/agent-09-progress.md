@@ -306,3 +306,50 @@ cargo run --offline --locked -p firmware-tools --bin novatek-nabu -- \
 ```
 
 All 177 Rust and 13 Python tests pass; offline release build succeeds.
+
+## Checkpoint 07 — Resolve all hardware CRC fields
+
+Determined and independently implemented the **CRC-32/MPEG-2** algorithm:
+nonreflected polynomial `0x04c11db7`, initial accumulator `0xffffffff`,
+no final XOR. The published standard input `123456789` produces
+`0x0376e6e7`; this test does not depend on the proprietary firmware.
+
+The 256-byte metadata bank's final 32-bit word at offset `bank+0xfc` is
+**CRC-32/MPEG-2 over the preceding 252 metadata bytes**. The 3 individual
+info-descriptor CRCs in each bank are CRCs of their declared firmware-file
+regions (size field is stored as *length minus one*). The two ILM/DLM
+CRC values are stored twice, once in each bank. This yields **12 physical
+32-bit fields (48 bytes), ten logical checks**, all now derivable without
+OEM-provided CRC scalars when the underlying program/DLM data is authored.
+
+Exact CRC values from the **required postmarketOS reference**:
+
+- ILM `0x232d505d`, DLM `0x341518a9` (each duplicated into bank 1).
+- Bank 0 footer `0xcc25a954`; bank 1 footer `0xf66dc9f8`.
+
+The **separate upstream image** independently verifies the algorithm with
+ILM `0xdf90f936`, DLM `0xe25fc71d`, footer 0 `0x5a9c9b73`, footer 1
+`0x799fc1a9`. All six info CRC words in each image also match. Thus both
+revisions validate all 12 stored fields with **zero mismatches**.
+
+Source code adds `novatek_crc.rs` with independent calculation,
+`verify_all_crcs` and `recompute_all_crcs` over any structurally valid,
+caller-authored Nabu image. The CLI has `verify-crcs` and
+`emit-recomputed-crc-header`; the emitted 512-byte metadata header is
+byte-identical to the correct reference, but the computation necessarily
+reads an externally supplied ILM/DLM payload. **No executable bytes have
+been reconstructed or copied into the source**, and CRC correctness does
+not prove controller code execution or authentic signing.
+
+```sh
+cargo run --offline --locked -p firmware-tools --bin novatek-nabu -- \
+  verify-crcs /private/postmarketos-nabu-firmware/novatek_nt36523_fw.bin
+cargo run --offline --locked -p firmware-tools --bin novatek-nabu -- \
+  emit-recomputed-crc-header /private/postmarketos-nabu-firmware/novatek_nt36523_fw.bin \
+  /tmp/novatek-recomputed-crc-header.bin
+```
+
+Verification: 181 Rust tests, 13 Python tests, offline release build,
+full checksum and envelope checks of both reference revisions, synthetic
+corruption-and-repair tests, and `git diff --check`. Known executable coverage
+remains zero bytes; Novatek MCU ISA still unconfirmed.
