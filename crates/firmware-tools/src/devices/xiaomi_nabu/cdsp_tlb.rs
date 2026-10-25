@@ -119,8 +119,74 @@ pub fn verify_full_tlb_span(reference:&[u8])->Result<(),String> {
     Ok(())
 }
 
+/// CDSP TLB walker at file 0x3d94; matches a 13-instruction Hexagon
+/// sequence ending at the already reconstructed conditional TLB function.
+/// Three grouped instructions initialize a pointer with immext; then a
+/// loop advances a packed entry, builds TLB attributes and returns.
+pub const WALK_OFFSET:usize=0x3d94;
+pub const WALK_SIZE:usize=13*4;
+pub fn build_tlb_walk() -> Result<Vec<u8>,String> {
+    let r=|n|Gpr::new(n);
+    let mut out=Vec::with_capacity(WALK_SIZE);
+    let start=Hexagon::AssignSmallImmediate{dst:r(0)?,value:0};
+    out.extend_from_slice(&Parse::ContinuationA.apply(start.encode()?).to_le_bytes());
+    for ext_word in cdsp_boot::encode_extended_add(r(1)?,r(25)?,-0x1fdb700,true) {
+        out.extend_from_slice(&ext_word.to_le_bytes());
+    }
+    let body=[
+        (Hexagon::LoadDoublePostIncrement{low:r(2)?,base:r(1)?,increment:8},Parse::Final),
+        (Hexagon::ExtractUnsigned{dst:r(4)?,src:r(3)?,width:7,offset:20},Parse::Final),
+        (Hexagon::ReverseSubtractImmediate{dst:r(4)?,src:r(4)?,value:125},Parse::ContinuationA),
+        (Hexagon::BranchOnNewValueNonzero{displacement_bytes:12},Parse::Final),
+        (Hexagon::InsertBitField{dst:r(3)?,src:r(4)?,width:7,offset:20},Parse::Final),
+        (Hexagon::TlbWriteIndexedR0{low:r(2)?},Parse::Final),
+        (Hexagon::LoopOnNotP0New{src:r(2)?,displacement_bytes:-24},Parse::ContinuationA),
+        (Hexagon::AddSmallImmediate{dst:r(0)?,src:r(0)?,value:1},Parse::Final),
+        (Hexagon::Isync,Parse::Final),
+        (Hexagon::JumpRegister{source:r(31)?},Parse::Final),
+    ];
+    for (inst,mark) in body {out.extend_from_slice(&mark.apply(inst.encode()?).to_le_bytes());}
+    if out.len()!=WALK_SIZE {return Err("CDSP TLB walker not 52 bytes".into());}
+    Ok(out)
+}
+
+pub const COMPLETE_CLUSTER_OFFSET:usize=0x3d40;
+pub const COMPLETE_CLUSTER_SIZE:usize=248;
+/// Combine the complete reset+relocator+disable+walker+conditional-TLB+TLB
+/// source-authored span only after explicit adjacency checks.
+pub fn build_complete_tlb_cluster() -> Result<Vec<u8>,String> {
+    use super::cdsp_privilege as privileged;
+    if privileged::FILE_OFFSET+privileged::SUPERVISOR_SPAN_SIZE != WALK_OFFSET ||
+       WALK_OFFSET+WALK_SIZE != CONDITIONAL_OFFSET ||
+       CONDITIONAL_OFFSET+FULL_TLB_SIZE != COMPLETE_CLUSTER_OFFSET+COMPLETE_CLUSTER_SIZE {
+        return Err("CDSP reconstructed supervisor/TLB regions not adjacent".into());
+    }
+    let mut out=privileged::build_supervisor_span()?;
+    out.extend(build_tlb_walk()?);
+    out.extend(build_full_tlb_span()?);
+    if out.len()!=COMPLETE_CLUSTER_SIZE {return Err("CDSP cluster size mismatch".into());}
+    Ok(out)
+}
+
+pub fn verify_complete_tlb_cluster(reference:&[u8])->Result<(),String>{
+    cdsp_boot::validate_reference(reference)?;
+    let actual=build_complete_tlb_cluster()?;
+    let given=reference.get(COMPLETE_CLUSTER_OFFSET..COMPLETE_CLUSTER_OFFSET+COMPLETE_CLUSTER_SIZE)
+        .ok_or("CDSP reference missing TLB cluster")?;
+    if let Some((i,(a,b)))=given.iter().zip(&actual).enumerate().find(|(_,(a,b))|a!=b) {
+        return Err(format!("CDSP cluster byte differs at {:#x}: reference {a:02x}, generated {b:02x}",COMPLETE_CLUSTER_OFFSET+i));
+    }
+    Ok(())
+}
+
 #[cfg(test)]mod tests{
     use super::*;
+    #[test]fn supervisor_tlb_cluster_contains_all_known_adjacent_routines(){
+        let data=build_complete_tlb_cluster().unwrap();
+        assert_eq!(data.len(),COMPLETE_CLUSTER_SIZE);
+        assert_eq!(&data[84..84+WALK_SIZE],build_tlb_walk().unwrap());
+        assert_eq!(&data[84+WALK_SIZE..],build_full_tlb_span().unwrap());
+    }
     #[test]fn conditional_tlb_programs_writes_without_holes(){
         let b=build_conditional_tlb().unwrap();
         assert_eq!(b.len(),CONDITIONAL_SIZE);

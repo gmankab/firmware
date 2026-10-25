@@ -26,6 +26,24 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
                 privileged::FUNCTION_SIZE, privileged::FILE_OFFSET,
                 privileged::FILE_OFFSET + privileged::FUNCTION_SIZE);
         }
+        [action, output] if action == "emit-tlb-cluster" => {
+            let code=tlb::build_complete_tlb_cluster()?;
+            fs::write(output,code)?;
+            println!("Generated {} contiguous supervisor/TLB bytes file {:#x}..{:#x}.",
+                tlb::COMPLETE_CLUSTER_SIZE,tlb::COMPLETE_CLUSTER_OFFSET,
+                tlb::COMPLETE_CLUSTER_OFFSET+tlb::COMPLETE_CLUSTER_SIZE);
+        }
+        [action, input] if action == "verify-tlb-cluster" => {
+            let ref_bytes=fs::read(input)?;
+            tlb::verify_complete_tlb_cluster(&ref_bytes)?;
+            println!("Verified {} contiguous CDSP supervisor/TLB bytes.",tlb::COMPLETE_CLUSTER_SIZE);
+        }
+        [action, output] if action == "emit-tlb-walk" => {
+            let code=tlb::build_tlb_walk()?;
+            fs::write(output,code)?;
+            println!("Generated {} CDSP TLB walk bytes file {:#x}..{:#x}.",
+                tlb::WALK_SIZE,tlb::WALK_OFFSET,tlb::WALK_OFFSET+tlb::WALK_SIZE);
+        }
         [action, output] if action == "emit-tlb-full" => {
             let code=tlb::build_full_tlb_span()?;
             fs::write(output,code)?;
@@ -119,7 +137,7 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
                 cdsp::HEXAGON_ELF_MACHINE, cdsp::CDSP_ELF_FLAGS, cdsp::ENTRY_PHYS,
                 cdsp::START_FILE_OFFSET, cdsp::ENTRY_ELF_VADDR, cdsp::ENTRY_PHYS, cdsp::FIRST_EXECUTABLE_SIZE);
         }
-        _ => return Err("Usage: cargo run -p firmware-tools --bin cdsp-rebuild -- [inspect REFERENCE | verify-entry REFERENCE | emit-entry OUTPUT | verify-init-prefix REFERENCE | emit-init-prefix OUTPUT | emit-syscfg-reset OUTPUT | verify-syscfg-reset REFERENCE | emit-syscfg-disable OUTPUT | verify-syscfg-disable REFERENCE | emit-relocator OUTPUT | verify-relocator REFERENCE | emit-supervisor-span OUTPUT | verify-supervisor-span REFERENCE | emit-tlb-maintenance OUTPUT | verify-tlb-maintenance REFERENCE | emit-tlb-full OUTPUT | verify-tlb-full REFERENCE]".into()),
+        _ => return Err("Usage: cargo run -p firmware-tools --bin cdsp-rebuild -- [inspect REFERENCE | verify-entry REFERENCE | emit-entry OUTPUT | verify-init-prefix REFERENCE | emit-init-prefix OUTPUT | emit-syscfg-reset OUTPUT | verify-syscfg-reset REFERENCE | emit-syscfg-disable OUTPUT | verify-syscfg-disable REFERENCE | emit-relocator OUTPUT | verify-relocator REFERENCE | emit-supervisor-span OUTPUT | verify-supervisor-span REFERENCE | emit-tlb-maintenance OUTPUT | verify-tlb-maintenance REFERENCE | emit-tlb-full OUTPUT | verify-tlb-full REFERENCE | emit-tlb-cluster OUTPUT | verify-tlb-cluster REFERENCE | emit-tlb-walk OUTPUT]".into()),
     }
     Ok(())
 }

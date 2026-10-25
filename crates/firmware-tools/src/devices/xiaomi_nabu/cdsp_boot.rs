@@ -60,6 +60,24 @@ pub enum ScalarPacket {
     WriteSystem { system: SystemRegister, src: GeneralRegister },
     /// Hexagon V66 `Rn = SYSCFG`; only this documented register is supported.
     ReadSyscfg { dst: GeneralRegister },
+    /// `Rdest=add(Rsrc,##signed32)` extended immediate pair. The result
+    /// is TWO Hexagon instruction words; its consumer may be part of a
+    /// larger packet, as in the CDSP initial TLB walker.
+    AddExtendedImmediate { dst: GeneralRegister, src: GeneralRegister, value: i32 },
+    /// Hexagon post-incrementing 64-bit load to an even/odd register pair.
+    LoadDoublePostIncrement { low: GeneralRegister, base: GeneralRegister, increment: u8 },
+    /// `Rd=extractu(Rs,#width,#offset)` using a 32-bit source register.
+    ExtractUnsigned { dst: GeneralRegister, src: GeneralRegister, width: u8, offset: u8 },
+    /// Hexagon reverse subtraction: `Rd=sub(#unsigned_small,Rs)`.
+    ReverseSubtractImmediate { dst: GeneralRegister, src: GeneralRegister, value: u8 },
+    /// Within a two-operation Hexagon packet, branch when producer's new
+    /// register value is nonzero; the .new source is implicit packet state.
+    BranchOnNewValueNonzero { displacement_bytes: u16 },
+    /// `P0=cmp.eq(Rsrc,#0); if (!P0.new) jump:t PC+rel`, a single compound
+    /// 32-bit instruction. Narrow encoder validated against LLVM6 backbranches.
+    LoopOnNotP0New { src: GeneralRegister, displacement_bytes: i16 },
+    /// `Rd=add(Rs,#unsigned_small)` with checked operand/immediate widths.
+    AddSmallImmediate { dst: GeneralRegister, src: GeneralRegister, value: u8 },
     /// `p0=cmp.eq(Rsrc,#0)`; P0 is the only modeled predicate register.
     PredicateP0EqualsZero { src: GeneralRegister },
     /// Conditional new-predicate branch predicted not taken, relative to
@@ -139,6 +157,47 @@ impl ScalarPacket {
                 // destination register in bits 4:0. Rizin V66 confirms it.
                 Ok(0x6e80_c000 | (SystemRegister::Syscfg.opcode_selector() << 16)
                     | u32::from(dst.number()))
+            }
+            Self::AddExtendedImmediate { .. } => Err("Hexagon extended ADD must be emitted as a two-word instruction via encode_extended_add".into()),
+            Self::LoadDoublePostIncrement { low, base, increment } => {
+                if low.number()%2!=0 || low.number()>30 || increment%8!=0 || increment>248 {
+                    return Err("Hexagon MEMD postincrement requires an even pair and 8-byte stride".into());
+                }
+                Ok(0x9bc0_c000 | (u32::from(base.number()) << 16)
+                   | (u32::from(increment) << 2) | u32::from(low.number()))
+            }
+            Self::ExtractUnsigned { dst, src, width, offset } => {
+                if width==0 || width>31 || offset>=32 || u16::from(width)+u16::from(offset)>32 {
+                    return Err("Hexagon EXTRACTU fields exceed 32 bits".into());
+                }
+                Ok(0x8d00_c000 | (u32::from(offset&16)<<18)
+                   | (u32::from(src.number()) << 16)
+                   | (u32::from(width) << 8) | (u32::from(offset&15) << 5)
+                   | u32::from(dst.number()))
+            }
+            Self::ReverseSubtractImmediate { dst, src, value } => {
+                if value>127 {return Err("Hexagon reverse SUB immediate >127".into());}
+                Ok(0x7640_c000 | (u32::from(src.number()) << 16)
+                    | (u32::from(value) << 5) | u32::from(dst.number()))
+            }
+            Self::BranchOnNewValueNonzero { displacement_bytes } => {
+                if displacement_bytes==0 || displacement_bytes>0x1fe || displacement_bytes&1!=0 {
+                    return Err("Hexagon NEW comparison branch outside narrow tested range".into());
+                }
+                Ok(0x2442_e000 | (u32::from(displacement_bytes) >> 1))
+            }
+            Self::LoopOnNotP0New { src, displacement_bytes } => {
+                if src.number()>7 || displacement_bytes>=0 || displacement_bytes < -256 || displacement_bytes&1!=0 {
+                    return Err("Hexagon compound P0 loop requires low src register and backward halfword displacement".into());
+                }
+                let half=i32::from(displacement_bytes)/2;
+                Ok(0x1070_6000 | (u32::from(src.number()) << 16)
+                    | ((half as u32)&0xff))
+            }
+            Self::AddSmallImmediate { dst, src, value } => {
+                if value>127 {return Err("Hexagon add immediate >127".into());}
+                Ok(0xb000_c000 | (u32::from(src.number()) << 16)
+                    | (u32::from(value) << 5) | u32::from(dst.number()))
             }
             Self::PredicateP0EqualsZero { src } => {
                 Ok(0x7500_c000 | (u32::from(src.number()) << 16))
@@ -238,6 +297,19 @@ pub fn encode_extended_assignment(dst: GeneralRegister, value: i32,
     let mut assignment=0x7800_c000 | ((bits & 0x3f) << 5) | u32::from(dst.number());
     if !end_packet { assignment &= !0x8000; }
     [extender,assignment]
+}
+
+/// Construct a two-word extended ADD-immediate, including a shared Hexagon
+/// immext prefix. Caller selects whether the operand body terminates the
+/// packet. Both positive/negative 32-bit immediate split is independently
+/// confirmed by LLVM6.
+pub fn encode_extended_add(dst: GeneralRegister, src: GeneralRegister,
+                           value: i32, end_packet: bool) -> [u32;2] {
+    let bits=value as u32;
+    let ext=((bits>>20)<<16) | ((bits>>6)&0x3fff) | 0x4000;
+    let body=0xb000_c000 | (u32::from(src.number())<<16)
+        | ((bits&0x3f)<<5) |u32::from(dst.number());
+    [ext, if end_packet {body} else {body&!0x8000}]
 }
 
 /// Preserve the parse bits chosen for a multi-instruction Hexagon packet.
@@ -507,6 +579,29 @@ mod tests {
         assert!(JumpIfNewP0NotTaken{displacement_bytes:0}.encode().is_err());
         assert!(JumpIfNewP0NotTaken{displacement_bytes:31}.encode().is_err());
         assert!(JumpIfNewP0NotTaken{displacement_bytes:0x800}.encode().is_err());
+    }
+
+    #[test]
+    fn cdsp_tlb_walker_packet_fields_match_independent_hexagon_llvm() {
+        use ScalarPacket::*;
+        let r=|n|GeneralRegister::new(n).unwrap();
+        assert_eq!(encode_extended_add(r(1),r(25),-0x1fdb700,true),
+                   [0x0fe0_4924,0xb019_c001]);
+        assert_eq!(LoadDoublePostIncrement{low:r(2),base:r(1),increment:8}.encode().unwrap(),
+                   0x9bc1_c022);
+        assert_eq!(ExtractUnsigned{dst:r(4),src:r(3),width:7,offset:20}.encode().unwrap(),
+                   0x8d43_c784);
+        assert_eq!(ReverseSubtractImmediate{dst:r(4),src:r(4),value:125}.encode().unwrap(),
+                   0x7644_cfa4);
+        assert_eq!(PacketMarker::ContinuationA.apply(ReverseSubtractImmediate{
+            dst:r(4),src:r(4),value:125}.encode().unwrap()),0x7644_4fa4);
+        assert_eq!(BranchOnNewValueNonzero{displacement_bytes:12}.encode().unwrap(),0x2442_e006);
+        assert_eq!(LoopOnNotP0New{src:r(2),displacement_bytes:-24}.encode().unwrap(),0x1072_60f4);
+        assert_eq!(AddSmallImmediate{dst:r(0),src:r(0),value:1}.encode().unwrap(),0xb000_c020);
+        assert!(LoadDoublePostIncrement{low:r(3),base:r(1),increment:8}.encode().is_err());
+        assert!(ExtractUnsigned{dst:r(4),src:r(3),width:21,offset:20}.encode().is_err());
+        assert!(ReverseSubtractImmediate{dst:r(4),src:r(4),value:128}.encode().is_err());
+        assert!(LoopOnNotP0New{src:r(2),displacement_bytes:0}.encode().is_err());
     }
 
     #[test]

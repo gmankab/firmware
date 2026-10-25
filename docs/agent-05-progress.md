@@ -230,3 +230,42 @@ python3 tools/verify-cdsp-conditional-tlb.py --llvm-mc /path/to/llvm6/bin/llvm-m
   --rz-asm /path/to/rz-asm --rust-output /tmp/cdsp-conditional-tlb-52.bin \
   --reference /private/cdsp.mbn
 ```
+
+## Checkpoint 08 — contiguous CDSP supervisor and TLB initialization
+
+The missing 13-instruction, 52-byte TLB table walker at file `[0x3d94,0x3dc8)`
+(physical `[0x96c00d94,0x96c00dc8)`) is reconstructed in typed source. It
+initializes a base address using a Hexagon `immext`/extended-ADD packet,
+loads paired TLB words with post-increment, checks a 7-bit field, conditionally
+rewrites it, programs the privileged `tlbw`, loops while entries are present,
+then synchronizes and returns. New checked encodings cover postincrementing
+64-bit loads, extractu, reversed unsigned subtraction, new-value branches,
+compound P0 compare/backbranch, small add immediates, and extended ADD.
+
+This joins **every byte of the independently authored supervisor/TLB region**:
+`[0x3d40,0x3e38)` = **248 contiguous verified executable bytes**. The main
+entry prefix `[0x3000,0x3044)` is separate and remains only 68 bytes.
+**Cumulative independently generated executable coverage is 316 bytes in
+TWO DISJOINT intervals**; the gap `[0x3044,0x3d40)` is still unimplemented.
+
+LLVM6 independently reproduces 48 ordinary instruction bytes in the new
+walker; it cannot assemble privileged `tlbw`. The independent Rizin Hexagon
+V6 decoder confirms the full 13-operation sequence, including the V66 TLB
+write, while Rust output matches the private reference byte-for-byte.
+An assembler-only temporary NOP is used solely to maintain layout for the
+LLVM comparison; the real Rust implementation contains the typed TLB write,
+**no NOP placeholder, no proprietary machine-code byte arrays**.
+
+```sh
+cargo run --offline --locked -p firmware-tools --bin cdsp-rebuild -- \
+  emit-tlb-cluster /tmp/cdsp-tlb-cluster.bin
+cargo run --offline --locked -p firmware-tools --bin cdsp-rebuild -- \
+  verify-tlb-cluster /private/cdsp.mbn
+python3 tools/verify-cdsp-tlb-walk.py --llvm-mc /path/to/llvm-mc \
+  --rz-asm /path/to/rz-asm --rust-output /tmp/cdsp-tlb-walk-52.bin \
+  --reference /private/cdsp.mbn
+```
+
+Unresolved independent reconstruction and authenticated packaging remain;
+checkpoint-50 is still not available locally, so merge only CDSP-specific
+commits into the checkpoint-50 integration branch.
