@@ -11,3 +11,12 @@
 - Original A640 SHA-256: `bb1b61bae977aab5e5a68bd88848f4479c8d156911d96c7de73f7195b674db06`.
 
 All validation results and next missing work should be added below in later checkpoints.
+
+## Checkpoint 02 — hash from generated segments only
+
+- Added `ImagePlan::generated_slice(range)` that fails on the **first missing offset** or any externally imported signature/certificate byte; this prevents an accidental copy of unimplemented OEM bytes from being reported as new source-derived ELF code.
+- Added `sha384_table_from_generated_plan(elf, hash_index, plan)` for generic Qualcomm ELF32/MBNv6 layouts. It uses the parsed program-header order, a zero digest for the selected hash segment and zero-file-size BSS, rejects wrong selected header and impossible PT_LOAD file/memory sizes, and refuses incomplete or externally imported hashed inputs.
+- Refactored A640 `partial_container()` to obtain segment hashes via this generic checked builder **before** placing the generated digest table, rather than passing a manual array of slices.
+- Independently regenerated the A640 ELF32+MBNv6 output and tested against the exact 14,256-byte original using the externally supplied original authentication field kept outside the repository. Byte differences = **0**. SHA-256 of both files = `bb1b61bae977aab5e5a68bd88848f4479c8d156911d96c7de73f7195b674db06`.
+- `tools/verify-mbn-signatures.py`/OpenSSL verified 2 ELF SHA-384 digests, the embedded three-certificate chain, and the RSA-PSS signature against that embedded chain. Embedded root fingerprint = `c924a35f39ce1cdd1b8d5a9f3b8e3c51317930431d7a9dd5a55028cf6965fe65`. This is **embedded-chain consistency, not a hardware-trusted Qualcomm signing root**.
+- Signing/certificate material stays outside Git and is never linked as an output artifact. There is no independently generated valid OEM signature.

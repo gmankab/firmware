@@ -133,6 +133,29 @@ impl ImagePlan {
         holes
     }
 
+    /// Extract a file-backed range only if **every byte is independently
+    /// generated**, rather than unknown or imported as OEM authentication.
+    /// This is the safe input to segment hashing during fresh image assembly.
+    pub fn generated_slice(&self, span: Range<usize>) -> Result<Vec<u8>, String> {
+        if span.start > span.end || span.end > self.contents.len() {
+            return Err("generated slice lies outside the image".into());
+        }
+        let mut covered = vec![false; span.len()];
+        for region in &self.regions {
+            let first = region.offset.max(span.start);
+            let end = (region.offset + region.len).min(span.end);
+            if first >= end { continue; }
+            if region.origin != RegionOrigin::Generated {
+                return Err(format!("cannot hash externally supplied authentication at file offset 0x{first:x}"));
+            }
+            covered[first - span.start..end - span.start].fill(true);
+        }
+        if let Some(index) = covered.iter().position(|is_generated| !is_generated) {
+            return Err(format!("cannot hash unimplemented file byte at 0x{:x}", span.start + index));
+        }
+        Ok(self.contents[span].iter().copied().map(|v| v.expect("generated coverage checked")).collect())
+    }
+
     /// Compare *only* the independently generated regions with a reference.
     /// This does not imply that unimplemented bytes are correct.
     pub fn compare_known(&self, reference: &[u8]) -> Result<(), String> {
@@ -213,6 +236,20 @@ mod tests {
         assert!(plan.build_complete().is_ok());
         assert!(plan.build_independently_generated().unwrap_err().contains("externally supplied"));
         assert!(plan.place_external_authentication("bad overlap", 6, &[0x99]).is_err());
+    }
+    #[test]
+    fn generated_slice_rejects_out_of_bounds_unknown_and_authentication() {
+        let mut p = ImagePlan::new(8).unwrap();
+        p.place("start", 0, &[1, 2]).unwrap();
+        p.place_external_authentication("auth", 2, &[3, 4]).unwrap();
+        p.place("finish", 5, &[6, 7, 8]).unwrap();
+        assert_eq!(p.generated_slice(0..2).unwrap(), vec![1, 2]);
+        assert_eq!(p.generated_slice(0..0).unwrap(), Vec::<u8>::new());
+        assert!(p.generated_slice(2..3).unwrap_err().contains("externally supplied"));
+        assert!(p.generated_slice(4..6).unwrap_err().contains("unimplemented"));
+        assert!(p.generated_slice(8..9).is_err());
+        assert!(p.generated_slice(7..6).is_err());
+        assert!(p.generated_slice(0..8).unwrap_err().contains("externally supplied"));
     }
     #[test]
     fn generated_coverage_can_be_finalized_independently() {

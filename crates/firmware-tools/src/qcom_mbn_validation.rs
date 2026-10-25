@@ -5,7 +5,8 @@
 //! file-backed ELF segments. It does NOT validate a Qualcomm/OEM signature,
 //! establish trust-chain provenance, or authorize deployment on hardware.
 
-use crate::{parse_elf32, qcom_mbn::{sha384_table, V6Header, V6Layout, SHA384_SIZE}};
+use crate::{parse_elf32, ElfHeader, image_plan::ImagePlan,
+    qcom_mbn::{sha384_table, V6Header, V6Layout, SHA384_SIZE}};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct HashAudit {
@@ -16,6 +17,39 @@ pub struct HashAudit {
     pub hash_segment_length: usize,
     pub signed_layout: V6Layout,
     pub has_signatures: bool,
+}
+
+/// Build SHA-384 hashes **only** from independently generated, file-backed
+/// ELF segment bytes. The hash segment and explicit BSS (p_filesz == 0)
+/// produce zero-digest placeholders. Unknown bytes or imported signatures
+/// inside any hashed segment make the build fail with a first-hole error.
+/// This does not authenticate the resulting image or its signer.
+pub fn sha384_table_from_generated_plan(
+    elf: &ElfHeader, hash_segment_index: usize, plan: &ImagePlan,
+) -> Result<Vec<u8>, String> {
+    if elf.program_headers.is_empty() || hash_segment_index >= elf.program_headers.len() {
+        return Err("invalid MBNv6 hash-segment program-header index".into());
+    }
+    let hash_segment = &elf.program_headers[hash_segment_index];
+    if hash_segment.flags & 0x0700_0000 != 0x0200_0000 {
+        return Err("selected ELF program header is not a Qualcomm hash segment".into());
+    }
+    let mut entries = Vec::with_capacity(elf.program_headers.len());
+    for (index, segment) in elf.program_headers.iter().enumerate() {
+        if index == hash_segment_index || segment.file_size == 0 {
+            entries.push(None);
+            continue;
+        }
+        if segment.kind == 1 && segment.file_size > segment.mem_size {
+            return Err(format!("ELF PT_LOAD index {index} has p_filesz greater than p_memsz"));
+        }
+        let start = segment.offset as usize;
+        let end = start.checked_add(segment.file_size as usize)
+            .ok_or("ELF segment offset overflow")?;
+        entries.push(Some(plan.generated_slice(start..end)
+            .map_err(|reason| format!("ELF segment {index}: {reason}"))?));
+    }
+    sha384_table(&entries.iter().map(|entry| entry.as_deref()).collect::<Vec<_>>())
 }
 
 pub fn verify_elf32_mbnv6_hashes(image: &[u8]) -> Result<HashAudit, String> {
@@ -103,6 +137,7 @@ mod tests {
         put32(&mut b, p2, 1);
         put32(&mut b, p2 + 4, 0x200);
         put32(&mut b, p2 + 16, 32);
+        put32(&mut b, p2 + 20, 32);
         put32(&mut b, p2 + 24, 5);
         for i in 0..32 { b[0x200 + i] = (i as u8).wrapping_mul(7).wrapping_add(1); }
         let header = V6Header {
@@ -117,6 +152,32 @@ mod tests {
         b[0x130..0x1c0].copy_from_slice(&hashes);
         b
     }
+    #[test]
+    fn reconstructs_hashes_only_from_source_generated_file_bytes() {
+        let original = fixture();
+        let elf = parse_elf32(&original).unwrap();
+        let mut plan = ImagePlan::new(original.len()).unwrap();
+        plan.place("header", 0, &original[..148]).unwrap();
+        plan.place("generated program", 0x200, &original[0x200..0x220]).unwrap();
+        let rebuilt = sha384_table_from_generated_plan(&elf, 1, &plan).unwrap();
+        assert_eq!(rebuilt, original[0x130..0x1c0]);
+        assert!(sha384_table_from_generated_plan(&elf, 0, &plan).unwrap_err().contains("hash segment"));
+        let mut incomplete = ImagePlan::new(original.len()).unwrap();
+        incomplete.place("partial header", 0, &original[..30]).unwrap();
+        incomplete.place("program", 0x200, &original[0x200..0x220]).unwrap();
+        assert!(sha384_table_from_generated_plan(&elf, 1, &incomplete)
+            .unwrap_err().contains("unimplemented file byte at 0x1e"));
+        let mut external = ImagePlan::new(original.len()).unwrap();
+        external.place_external_authentication("header copied", 0, &original[..148]).unwrap();
+        external.place("program", 0x200, &original[0x200..0x220]).unwrap();
+        assert!(sha384_table_from_generated_plan(&elf, 1, &external)
+            .unwrap_err().contains("externally supplied"));
+        let mut bogus = elf;
+        bogus.program_headers[2].mem_size = 1;
+        assert!(sha384_table_from_generated_plan(&bogus, 1, &plan)
+            .unwrap_err().contains("greater than"));
+    }
+
     #[test]
     fn validates_generic_elf32_mbnv6_and_rejects_changed_payload() {
         let mut firmware = fixture();
