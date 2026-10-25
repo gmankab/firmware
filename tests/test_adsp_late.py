@@ -170,9 +170,9 @@ class ADSPExternalsAndCodeTests(unittest.TestCase):
     @unittest.skipUnless(LLVM_MC,'Hexagon LLVM6 assembler required')
     def test_complete_fragment_inventory_rejects_overlaps(self):
         manifest,regions=adsp.assembled_inventory(LLVM_MC,None)
-        self.assertEqual(len(manifest['fragments']),16)
-        self.assertEqual(manifest['total_independently_assembled_executable_bytes'],1256)
-        self.assertEqual(sum(map(len,regions.values())),1256)
+        self.assertEqual(len(manifest['fragments']),18)
+        self.assertEqual(manifest['total_independently_assembled_executable_bytes'],1364)
+        self.assertEqual(sum(map(len,regions.values())),1364)
         self.assertEqual(manifest['gap_bytes_included_in_generated_executables'],0)
         self.assertFalse(manifest['complete_adsp_image'])
         self.assertEqual(manifest['external_original_code_bytes_in_output'],0)
@@ -235,16 +235,42 @@ class ADSPExternalsAndCodeTests(unittest.TestCase):
             for name in ('buffer-handoff','buffer-publish','conditional-query'))
         self.assertEqual(spans,[(0x394b8,0x39540),(0x39540,0x39568),(0x39568,0x39588)])
 
+    @unittest.skipUnless(LLVM_MC,'Hexagon LLVM6 required')
+    def test_prefix_comparison_and_overlap_copy(self):
+        expected={
+          'byte-prefix-compare':(0x39590,48,'7665e8ac2959a11688d253c68fa8bb5096213c161d25a6b907b21e866fc1d91b'),
+          'bounded-copy':(0x395c0,60,'09e58d0402e5b93a33da381494996e0bff8d9e8bb46fe87b36fa31b9c3792bda'),
+        }
+        for name,(off,size,digest) in expected.items():
+            with self.subTest(name=name):
+                src,begin,count=adsp.FRAGMENTS[name]
+                self.assertEqual((begin,count),(off,size))
+                text=src.read_text()
+                for forbidden in ('.word ','.long ','.byte ','.incbin ','.fill '):
+                    self.assertNotIn(forbidden,text)
+                assembled=adsp.compile_source(LLVM_MC,src,size)
+                self.assertEqual(hashlib.sha256(assembled).hexdigest(),digest)
+        self.assertIn('memb(r3++#1)',adsp.FRAGMENTS['byte-prefix-compare'][0].read_text())
+        cpy=adsp.FRAGMENTS['bounded-copy'][0].read_text()
+        self.assertIn('loop0(copy_bytes,r16)',cpy)
+        self.assertIn('memb(r0++#1) = r2.new',cpy)
+        self.assertIn(':endloop0',cpy)
+        self.assertIn('call platform_overlap_copy',cpy)
+        # The eight-byte pair of NOPs between adjacent callables is not code.
+        self.assertEqual(adsp.FRAGMENTS['conditional-query'][1]+32,0x39588)
+        self.assertEqual(adsp.FRAGMENTS['byte-prefix-compare'][1],0x39590)
+        self.assertEqual(adsp.FRAGMENTS['bounded-copy'][1],0x395c0)
+
     @unittest.skipUnless(LLVM_MC and REFERENCE,
                          'Hexagon LLVM6 and exact pinned ADSP reference required')
     def test_inventory_every_fragment_uses_correct_original(self):
         inventory,_outputs=adsp.assembled_inventory(LLVM_MC,Path(REFERENCE).read_bytes())
         self.assertTrue(all(x['reference_byte_identical'] for x in inventory['fragments']))
-        self.assertEqual(inventory['total_independently_assembled_executable_bytes'],1256)
+        self.assertEqual(inventory['total_independently_assembled_executable_bytes'],1364)
 
     @unittest.skipUnless(LLVM_MC and REFERENCE,
                          'Hexagon LLVM6 and exact pinned ADSP reference required')
-    def test_all_sixteen_disjoint_fragments_are_source_identical(self):
+    def test_all_eighteen_disjoint_fragments_are_source_identical(self):
         original=Path(REFERENCE).read_bytes()
         total=0
         ranges=[]
@@ -254,7 +280,7 @@ class ADSPExternalsAndCodeTests(unittest.TestCase):
                 adsp.verify_slice(built,original,off)
                 total+=len(built)
                 ranges.append((off,off+size))
-        self.assertEqual(total,1256)
+        self.assertEqual(total,1364)
         ranges.sort()
         self.assertEqual(ranges[0],(0x39000,0x39054))
         self.assertEqual(ranges[-1],(0x3640a8,0x3640f8))

@@ -43,6 +43,8 @@ FRAGMENTS = {
     'buffer-handoff': (TOOLS / 'adsp-late-buffer-handoff.S', 0x394B8, 0x88),
     'buffer-publish': (TOOLS / 'adsp-late-buffer-publish.S', 0x39540, 0x28),
     'conditional-query': (TOOLS / 'adsp-late-conditional-query.S', 0x39568, 0x20),
+    'byte-prefix-compare': (TOOLS / 'adsp-late-byte-prefix-compare.S', 0x39590, 0x30),
+    'bounded-copy': (TOOLS / 'adsp-late-bounded-copy.S', 0x395C0, 0x3C),
 }
 
 class LateAdspError(ValueError):

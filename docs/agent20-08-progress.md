@@ -108,3 +108,20 @@ its function context is unknown. **Cumulative independently authored ADSP
 code: 1,256 bytes in 16 tested functions.** Almost all of the two very large
 RX executable `PT_LOAD`s remains unimplemented; matched bytes here do not
 establish a complete source-equivalent or authenticated ADSP image.
+
+
+**Checkpoint 11:** Independently reassembled a 48-byte bounded byte-prefix
+comparison at file `[0x39590,0x395c0)` (SHA-256
+`7665e8ac2959a11688d253c68fa8bb5096213c161d25a6b907b21e866fc1d91b`)
+and a 60-byte short/overlap-aware byte-copy helper at `[0x395c0,0x395fc)`
+(SHA-256 `09e58d0402e5b93a33da381494996e0bff8d9e8bb46fe87b36fa31b9c3792bda`).
+The latter uses the source-authored Hexagon hardware `loop0` / `endloop0`
+instruction packet to move bounded bytes and makes a symbolic call to the
+platform overlap fallback only when needed. Both functions reproduce original
+Hexagon V66 packet bytes via LLVM6 shared-ISA assembly, with independent Rizin
+decoding. The two original NOP alignment words `[0x39588,0x39590)` are
+**excluded** from the independently authored executable count.
+
+**Total: 1,364 independently source-assembled executable bytes in 18 verified
+functions.** The next code begins at `0x39600` after a separate one-word
+alignment NOP `[0x395fc,0x39600)`; no neighboring OEM code is copied.
