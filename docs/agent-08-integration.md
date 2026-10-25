@@ -129,3 +129,14 @@ initialized, while Y and P are fully initialized. The model re-encodes
 No HALO instructions are decoded or generated, and it cannot fill absent
 file payloads without external input. `simulate-halo-wmfw-load` is included
 in the audit script and uses the real reference supplied by the user.
+
+
+## Checkpoint 08-17 — integration byte ledger
+
+The `wmfw-byte-provenance` CLI emits complete JSON provenance covering all
+34,236 source-file bytes, with explicit categories for authored metadata,
+reference-observed zero-run serialization, and external proprietary input.
+No byte is classified as independently decompiled HALO code. The audit
+script validates the ledger and all three repackaging paths. Integration
+should use these counts instead of adding external payloads to the author's
+independent source-derived byte count.

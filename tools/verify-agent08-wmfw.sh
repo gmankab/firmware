@@ -27,6 +27,21 @@ cargo run --offline --locked -q -p firmware-tools -- wmfw-coverage
 cargo run --offline --locked -q -p firmware-tools -- wmfw-memory-map
 cargo run --offline --locked -q -p firmware-tools -- wmfw-cs35l41-bus-map
 cargo run --offline --locked -q -p firmware-tools -- simulate-halo-wmfw-load "$ref"
+cargo run --offline --locked -q -p firmware-tools -- wmfw-byte-provenance > "$work/wmfw-provenance.json"
+python3 - "$work/wmfw-provenance.json" <<'PYPROVENANCE'
+import json,sys
+r=json.load(open(sys.argv[1],encoding='utf-8'))
+assert r['total_bytes']==34236
+assert r['source_authored_metadata_bytes']==3984
+assert r['reference_observed_zero_bytes']==5748
+assert r['external_opaque_dsp_bytes']==24504
+assert r['independently_decompiled_halo_instructions']==0
+spans=r['spans']
+assert spans[0]['start']==0 and spans[-1]['end']==34236
+assert all(a['end']==b['start'] for a,b in zip(spans,spans[1:]))
+assert sum(x['end']-x['start'] for x in spans)==34236
+print('WMFW provenance ledger verified: 34236 categorized bytes, 0 HALO instructions decompiled')
+PYPROVENANCE
 cargo run --offline --locked -q -p firmware-tools -- wmfw-control-ranges
 cargo run --offline --locked -q -p firmware-tools -- inspect-wmfw-program-patterns "$ref"
 

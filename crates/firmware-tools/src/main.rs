@@ -286,6 +286,10 @@ fn run() -> Result<(), Box<dyn Error>> {
         println!("Generated 40-byte WMFW metadata header (NOT DSP firmware)");
         return Ok(());
     }
+    if args.len() == 1 && args[0] == "wmfw-byte-provenance" {
+        print!("{}",firmware_tools::wmfw_provenance::build_ledger()?.to_json());
+        return Ok(());
+    }
     if args.len() == 2 && args[0] == "simulate-halo-wmfw-load" {
         let source=fs::read(&args[1])?;
         let image=firmware_tools::wmfw_loader_image::load_packed_memory(&source)?;

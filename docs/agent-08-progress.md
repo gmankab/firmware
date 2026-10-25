@@ -304,3 +304,29 @@ control of uninitialized ranges, bad region kinds, out-of-range transport
 words, overlapping placements, and invalid DMA span limits. The independent
 metadata/source count remains **3,984**; reference-confirmed zero bytes
 remain **5,748** in the most compact mode, with **24,504 external bytes**.
+
+## Checkpoint 08-17 — machine-readable byte-provenance ledger
+
+`wmfw_provenance.rs` derives a deterministic, complete file-byte ledger from
+the checked WMFW plan and two reference-observed packed Y zero ranges.
+The `wmfw-byte-provenance` command writes a JSON object with 19 maximal
+consecutive spans; it rejects all gaps/overlaps and accounts for every one
+of the **34,236 file bytes** exactly once:
+
+- 3,984 bytes: independently authored typed WMFW header, descriptions and
+  algorithm controls;
+- 5,748 bytes: reference-observed packed Y-memory zero words generated
+  without reading those bytes during assembly, **not source decompilation**;
+- 24,504 bytes: cryptographically pinned, externally supplied opaque DSP
+  input bytes.
+
+The output contains **no proprietary firmware payload or HALO instruction
+bytes**, and explicitly sets `independently_decompiled_halo_instructions=0`.
+The integration audit parses the JSON and asserts that all byte ranges
+are contiguous and each category's totals agree. It is intended to prevent
+a future merger from accidentally reporting external ref-packing as source-
+level firmware reconstruction.
+
+```sh
+cargo run --offline --locked -q -p firmware-tools -- wmfw-byte-provenance > wmfw-provenance.json
+```
