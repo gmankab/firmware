@@ -494,3 +494,25 @@ bytes**, and total independently generated later-modem coverage is **2,884
 bytes across six disjoint executable spans**. The next unclaimed instruction at file `0x446bdc` is the third alignment
 NOP, followed by a standalone helper at `0x446be0`. Whole modem
 executable and OEM authentication remain unimplemented.
+
+## Checkpoint 18: controller MMIO sync and two small veneers
+
+Reconstructed **60 bytes** in modem file `[0x446bdc,0x446c18)`, VMA
+`[0x1e400bdc,0x1e400c18)`, physical `[0x90000bdc,0x90000c18)`.
+The source covers the final alignment NOP from the previous routine, a
+controller MMIO state synchronizer, explicit NOPs, and two tail-call
+wrappers that pass zero scalar/pair arguments to the earlier validator.
+
+LLVM6 expands an extended *duplex* `r3=#0; jump` into two scalar words,
+whereas the target V60 compiler uses its shorter duplex encoding.
+`compact_aux_controller_veneer_duplex` validates the independently
+assembled extender/branch/move classes, destination register, immediates
+and packet bits, then computes the documented duplex's operand fields
+and regroups the following pair's markers. It does not inject an original
+OEM instruction word. Negative tests cover wrong reg, opcode and marker.
+
+The new 60 bytes and the complete **2,944-byte** six-fragment Agent 12
+set are identical to SHA-pinned original modem reference. Auxiliary region
+`[0x446650,0x446c18)` is now **1,480 contiguous bytes**. Next function
+starts at modem file offset `0x446c18`; the full modem image is unfinished
+and no OEM signature material is regenerated.

@@ -15,6 +15,29 @@ spec.loader.exec_module(agent12)
 
 
 class ModemLateTests(unittest.TestCase):
+    def test_aux_duplex_compaction_rejects_nonmatching_semantics(self):
+        words=[0x7f00c000]*16
+        a=0x24//4
+        words[a:a+3]=[0x0fff7ff9,0x58004050,0x7800c003]
+        b=0x38//4  # second pair in 64-byte assembler version
+        words[b:b+2]=[0x59ff7f2c,0x7c00c002]
+        output=agent12.compact_aux_controller_veneer_duplex(struct.pack('<16I',*words))
+        outwords=struct.unpack('<15I',output)
+        self.assertEqual(outwords[a+1],0x1603c050)
+        self.assertEqual(outwords[0x34//4],0x7c004002)
+        self.assertEqual(outwords[0x38//4],0x59ffff2c)
+        bad=words.copy();bad[a+2]=0x7800c004
+        with self.assertRaisesRegex(ValueError,'not r3=#0'):
+            agent12.compact_aux_controller_veneer_duplex(struct.pack('<16I',*bad))
+        bad=words.copy();bad[a+1]=0x78004050
+        with self.assertRaisesRegex(ValueError,'opcode classes'):
+            agent12.compact_aux_controller_veneer_duplex(struct.pack('<16I',*bad))
+        bad=words.copy();bad[b]=0x59ffff2c
+        with self.assertRaisesRegex(ValueError,'packet markers'):
+            agent12.compact_aux_controller_veneer_duplex(struct.pack('<16I',*bad))
+        with self.assertRaisesRegex(ValueError,'64 source-assembled bytes'):
+            agent12.compact_aux_controller_veneer_duplex(bytes(60))
+
     def test_aux_runtime_predicate_and_store_rewrites_fail_closed(self):
         words=[0x7800c000]*93
         first=(0x446a84-agent12.AUX_RUNTIME_INIT_START)//4
@@ -125,6 +148,9 @@ class ModemLateTests(unittest.TestCase):
         self.assertEqual((agent12.AUX_RUNTIME_INIT_START,agent12.AUX_RUNTIME_INIT_END),
                          (0x446A68,0x446BDC))
         self.assertEqual(agent12.AUX_VALIDATOR_END,agent12.AUX_RUNTIME_INIT_START)
+        self.assertEqual((agent12.AUX_VENEERS_START,agent12.AUX_VENEERS_END),
+                         (0x446BDC,0x446C18))
+        self.assertEqual(agent12.AUX_RUNTIME_INIT_END,agent12.AUX_VENEERS_START)
 
     def test_atomic_packet_reorder_checks_opcode_class_and_parse_bits(self):
         words = [0x7800C000] * 16  # synthetic A2_tfrsi instruction for surrounding words

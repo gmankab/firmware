@@ -38,6 +38,7 @@ AUX_NOTIFY_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_
 AUX_ENTRY_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_aux_entry.s"
 AUX_VALIDATOR_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_aux_input_validator.s"
 AUX_RUNTIME_INIT_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_aux_runtime_init.s"
+AUX_VENEERS_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_aux_control_veneers.s"
 ATOMIC_START = 0x7C000
 ATOMIC_END = 0x7C040
 SERVICE_START = 0x7C2EC
@@ -78,6 +79,8 @@ AUX_VALIDATOR_START = 0x446804
 AUX_VALIDATOR_END = 0x446A68
 AUX_RUNTIME_INIT_START = 0x446A68
 AUX_RUNTIME_INIT_END = 0x446BDC
+AUX_VENEERS_START = 0x446BDC
+AUX_VENEERS_END = 0x446C18
 MARKER_MASK = 3 << 14
 CONTINUE_MARKER = 1 << 14
 END_MARKER = 3 << 14
@@ -493,6 +496,46 @@ def restore_aux_runtime_init_packets(assembled: bytes) -> bytes:
     return struct.pack('<'+'I'*len(words),*words)
 
 
+def compact_aux_controller_veneer_duplex(assembled: bytes) -> bytes:
+    """Reassemble a scalar move+jump as one documented Hexagon duplex.
+
+    LLVM6 expands the symbolic extended tail call into an immediate
+    extender, scalar branch, and separate `r3=#0` move. Hexagon V60 also
+    defines a 32-bit duplex encoding of `r3=#0 ; jump`, selected by the
+    target compiler. Validate every instruction class, register and marker
+    before computing the duplex from the SOURCE-assembled operand fields.
+    The following tail-call packet is regrouped only by its parse markers.
+    """
+    if len(assembled) != AUX_VENEERS_END-AUX_VENEERS_START + 4:
+        raise ValueError("auxiliary veneers expect 64 source-assembled bytes")
+    words=list(struct.unpack('<'+'I'*(len(assembled)//4),assembled))
+    # Source offset 0x24: extender, 0x28: scalar branch, 0x2c: scalar r3=#0.
+    a=0x24//4
+    extender,jump,move=words[a:a+3]
+    if extender>>24 != 0x0f or jump>>24 != 0x58 or move>>24 != 0x78:
+        raise ValueError("auxiliary veneer extender/branch/move opcode classes changed")
+    if (extender&MARKER_MASK,jump&MARKER_MASK,move&MARKER_MASK) !=       (CONTINUE_MARKER,CONTINUE_MARKER,END_MARKER):
+        raise ValueError("auxiliary veneer scalar packet markers changed")
+    # A2_tfrsi r3,#0: register is low nibble, immediate and other bits zero.
+    if (move&~MARKER_MASK) != (0x78000000 | 3):
+        raise ValueError("auxiliary veneer source is not r3=#0")
+    duplex=(0x16<<24)|(3<<16)|((jump&0x3fff)|END_MARKER)
+    words[a:a+3]=[extender,duplex]
+    # The second tail-call packet starts at output offset 0x34 after the
+    # four-byte shrink, with a packed `r3:2=combine(0,0)` and branch.
+    b=0x34//4
+    branch,pair=words[b:b+2]
+    if (branch>>24,pair>>24)!=(0x59,0x7c):
+        raise ValueError("auxiliary second veneer opcode classes changed")
+    if (branch&MARKER_MASK,pair&MARKER_MASK)!=(CONTINUE_MARKER,END_MARKER):
+        raise ValueError("auxiliary second veneer packet markers changed")
+    if (pair&~MARKER_MASK)!=0x7c000002:
+        raise ValueError("auxiliary veneer source is not zero pair")
+    words[b:b+2]=[(pair&~MARKER_MASK)|CONTINUE_MARKER,
+                   (branch&~MARKER_MASK)|END_MARKER]
+    return struct.pack('<'+'I'*len(words),*words)
+
+
 def assemble(llvm_mc: Path, source: Path) -> bytes:
     with tempfile.TemporaryDirectory(prefix="nabu-modem-late-") as tmp:
         obj = Path(tmp) / "late.o"
@@ -525,6 +568,7 @@ def output_fragments(llvm_mc: Path) -> dict[int, bytes]:
     aux_entry = assemble(llvm_mc,AUX_ENTRY_SOURCE)
     aux_validator = restore_aux_validator_predicate_packets(assemble(llvm_mc,AUX_VALIDATOR_SOURCE))
     aux_runtime_init = restore_aux_runtime_init_packets(assemble(llvm_mc,AUX_RUNTIME_INIT_SOURCE))
+    aux_veneers = compact_aux_controller_veneer_duplex(assemble(llvm_mc,AUX_VENEERS_SOURCE))
     if len(aux_entry)!=AUX_ENTRY_END-AUX_ENTRY_START:
         raise ValueError("auxiliary entry veneer must compile to 20 bytes")
     if len(aux_dispatch) != AUX_DISPATCH_END-AUX_DISPATCH_START:
@@ -544,7 +588,7 @@ def output_fragments(llvm_mc: Path) -> dict[int, bytes]:
     return {ATOMIC_START: atomic + controller, SERVICE_START: service+service_mmio+service_flags+service_alloc,
             AUX_START: auxiliary, AUX_INIT_START: aux_init,
             AUX_GUARD_START: aux_guard+aux_stage+aux_mmio+aux_heap+aux_worker+aux_lookup,
-            AUX_DISPATCH_START:aux_dispatch+aux_type+aux_notify+aux_entry+aux_validator+aux_runtime_init}
+            AUX_DISPATCH_START:aux_dispatch+aux_type+aux_notify+aux_entry+aux_validator+aux_runtime_init+aux_veneers}
 
 
 def executable_segments(reference: bytes) -> dict[int, tuple[int, int, int, int]]:
