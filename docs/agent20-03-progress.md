@@ -84,3 +84,9 @@ Original reference: private `map220v-nabu-firmware/venus.mbn`, SHA-256 `9d4af65d
 - New functions: indexed codec-mode handler `[0x24f90,0x25118)` (20-entry branch table plus 14 literal words), per-session record synchronization `[0x25118,0x252a8)` (8 data words), and four-output-plane callback dispatcher `[0x252a8,0x253fc)` (6 words).
 - `tools/agent20-03-venus-mid-ranges.json` records all jump-table and constant-data intervals separately. `tools/agent20-03-verify-all.py` uses it to drive independent A32 reassembly; it rejects partial/overlapping pools. It reads original MBN only for independent verification, never for the Rust generator.
 - Next uncovered function begins at `0x253fc`.
+
+## Checkpoint 11 — capture state machine
+
+- Runtime `[0x21c78,0x25700)` contains **14,984 independently source-encoded and byte-identical bytes**; reference file range `[0x25c78,0x29700)`.
+- Totals: **3,505 ARM32 instructions and 241 separately identified data words**, independently rebuilt using Clang/LLD and confirmed against the original MBN.
+- New completed capture-state routine `[0x253fc,0x25700)` contributes 179 checked typed A32 operations and a 14-word diagnostic pool `[0x256c8,0x25700)`, with buffer state transitions, callback conditions and flags. Next routine begins at `0x25700`.
