@@ -64,6 +64,7 @@ FRAGMENTS = {
     'parameter-forward': (TOOLS / 'adsp-late-parameter-forward.S', 0x3BC08, 0x14),
     'parameter-combine': (TOOLS / 'adsp-late-parameter-combine.S', 0x3BE70, 0x10),
     'halfword-order': (TOOLS / 'adsp-late-halfword-order.S', 0x3BE80, 0x1C),
+    'format-constraint': (TOOLS / 'adsp-late-format-constraint.S', 0x3BDD4, 0x9C),
     'buffer-bitfield': (TOOLS / 'adsp-late-buffer-bitfield.S', 0x3BA68, 0x58),
     'descriptor-tag-compare': (TOOLS / 'adsp-late-descriptor-tag-compare.S', 0x3BFB8, 0x14),
     'atomic-event-bit': (TOOLS / 'adsp-late-atomic-event-bit.S', 0x3BFCC, 0x44),

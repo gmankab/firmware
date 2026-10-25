@@ -170,9 +170,9 @@ class ADSPExternalsAndCodeTests(unittest.TestCase):
     @unittest.skipUnless(LLVM_MC,'Hexagon LLVM6 assembler required')
     def test_complete_fragment_inventory_rejects_overlaps(self):
         manifest,regions=adsp.assembled_inventory(LLVM_MC,None)
-        self.assertEqual(len(manifest['fragments']),38)
-        self.assertEqual(manifest['total_independently_assembled_executable_bytes'],2672)
-        self.assertEqual(sum(map(len,regions.values())),2672)
+        self.assertEqual(len(manifest['fragments']),39)
+        self.assertEqual(manifest['total_independently_assembled_executable_bytes'],2828)
+        self.assertEqual(sum(map(len,regions.values())),2828)
         self.assertEqual(manifest['gap_bytes_included_in_generated_executables'],0)
         self.assertFalse(manifest['complete_adsp_image'])
         self.assertEqual(manifest['external_original_code_bytes_in_output'],0)
@@ -339,7 +339,7 @@ class ADSPExternalsAndCodeTests(unittest.TestCase):
     def test_inventory_every_fragment_uses_correct_original(self):
         inventory,_outputs=adsp.assembled_inventory(LLVM_MC,Path(REFERENCE).read_bytes())
         self.assertTrue(all(x['reference_byte_identical'] for x in inventory['fragments']))
-        self.assertEqual(inventory['total_independently_assembled_executable_bytes'],2672)
+        self.assertEqual(inventory['total_independently_assembled_executable_bytes'],2828)
 
     @unittest.skipUnless(LLVM_MC and REFERENCE,
                          'Hexagon LLVM6 and exact pinned ADSP reference required')
@@ -353,7 +353,7 @@ class ADSPExternalsAndCodeTests(unittest.TestCase):
                 adsp.verify_slice(built,original,off)
                 total+=len(built)
                 ranges.append((off,off+size))
-        self.assertEqual(total,2672)
+        self.assertEqual(total,2828)
         ranges.sort()
         self.assertEqual(ranges[0],(0x39000,0x39054))
         self.assertEqual(ranges[-1],(0x3640a8,0x3640f8))
@@ -625,3 +625,28 @@ class ADSPDescriptorAtomicOpsTests(unittest.TestCase):
         assembled=b''.join(adsp.compile_source(LLVM_MC,adsp.FRAGMENTS[name][0],adsp.FRAGMENTS[name][2]) for name in names)
         self.assertEqual(len(assembled),88)
         adsp.verify_slice(assembled,original,0x3bfb8)
+
+
+class FormatConstraintTests(unittest.TestCase):
+    @unittest.skipUnless(LLVM_MC,'Hexagon LLVM6 assembler needed')
+    def test_format_constraints_packet_source(self):
+        source,offset,size=adsp.FRAGMENTS['format-constraint']
+        self.assertEqual((offset,size),(0x3bdd4,156))
+        text=source.read_text()
+        for forbidden in ('.word ','.long ','.byte ','.fill ','.incbin '):
+            self.assertNotIn(forbidden,text)
+        for required in ('vaslw(r19:18,#12)', 'r2 = #7; r5 = r16; r4 = #3',
+                         'apply_alternative:', 'apply_fallback:', 'tstbit(r2,r5)'):
+            self.assertIn(required,text)
+        rebuilt=adsp.compile_source(LLVM_MC,source,size)
+        self.assertEqual(hashlib.sha256(rebuilt).hexdigest(),'80a4e3800a5f851e51271d456ef637b44317fcc331901fba008759cfa541ed01')
+        self.assertEqual(offset+size,adsp.FRAGMENTS['parameter-combine'][1])
+        self.assertEqual(adsp.FRAGMENTS['parameter-combine'][1]+adsp.FRAGMENTS['parameter-combine'][2],
+                         adsp.FRAGMENTS['halfword-order'][1])
+
+    @unittest.skipUnless(LLVM_MC and REFERENCE,'Pinned reference required')
+    def test_200_byte_format_constraints_and_helpers_are_adjacent(self):
+        names=['format-constraint','parameter-combine','halfword-order']
+        assembled=b''.join(adsp.compile_source(LLVM_MC,adsp.FRAGMENTS[name][0],adsp.FRAGMENTS[name][2]) for name in names)
+        self.assertEqual(len(assembled),200)
+        adsp.verify_slice(assembled,Path(REFERENCE).read_bytes(),0x3bdd4)
