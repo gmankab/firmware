@@ -11,6 +11,7 @@ pub mod qcom_mbn;
 pub mod qcom_mbn_validation;
 pub mod qcom_mbn_profiles;
 pub mod mbn_source_builder;
+pub mod mbn_source_slices;
 pub mod mbn_coverage_manifest;
 pub mod elf32_prefix;
 pub mod elf_file_coverage;
