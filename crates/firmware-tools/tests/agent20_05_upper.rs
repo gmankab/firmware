@@ -17,3 +17,17 @@ fn scaled_dimensions_rebuild_and_optional_reference() {
         }
     }
 }
+
+#[path = "../src/devices/xiaomi_nabu/venus_agent20_05_control_flags.rs"]
+mod control_flags;
+
+#[test]
+fn control_flags_fragment_matches_optional_reference(){
+    let bytes=control_flags::fragment().expect("typed control flags");
+    assert_eq!(bytes.len(),control_flags::END-control_flags::START);
+    if let Some(reference)=std::env::var_os("NABU_VENUS_REFERENCE"){
+        let original=std::fs::read(reference).expect("read original");
+        let off=control_flags::START+control_flags::FILE_BASE;
+        assert_eq!(&bytes[..],original.get(off..off+bytes.len()).expect("short original"));
+    }
+}

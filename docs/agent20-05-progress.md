@@ -41,6 +41,15 @@
 - Original Venus reference comparison and LLVM/Clang independent reassembly both passed with **zero differing bytes**. SHA-256 `75eea199e748155332368542b2a01944fc31077f43dd1a6110140bf602623202`.
 - Local checked ARM32 register-offset halfword-load-with-writeback support was added without modifying the shared `arm32` crate.
 
+## Checkpoint 04 — Disjoint controller dirty-flag helpers
+
+- Three independent complete routines at runtime `[0x6b860,0x6b8f4)`; MBN file `[0x6f860,0x6f8f4)`.
+- **148 exact bytes:** 37 source-encoded ARM32 instructions, no literals, padding or vendor byte reuse.
+- Roles: six-word conditional replacement and dirty-bit zero, 16KB allocation quantum with dirty-bit one, two-controller-offset comparison with dirty-bit two.
+- SHA-256 `b9dae335441dd9d351b0bb12f603669ba3c7df8b07d410c69f632cc4e9ac8441`.
+- Verified with direct private-reference comparison and an independent LLVM/Clang assembly round-trip, both with zero differences.
+- **Combined exclusive contribution:** 856 independently rebuilt bytes (840 ARM32 instruction bytes, 16 named data bytes), in two **disjoint** ranges. Do not mistake it for 856 contiguous bytes.
+
 ## Remaining
 
-Continue from independent routine at ARM `0x69c3c`, then the next at `0x69cd8`; ensure all literal pools are modeled. There is a distinct uncovered seam `[0x68000, 0x69b80)`. The rest of agent 05's exclusive reservation `[0x69e44, 0xa8000)` is **unimplemented** as of this checkpoint. Byte-identical emission does not constitute semantic equivalence, a whole firmware image, or hardware validation.
+Continue from independent routine at ARM `0x69c3c`, then the next at `0x69cd8`; ensure all literal pools are modeled. There is a distinct uncovered seam `[0x68000, 0x69b80)`. The intervening runtime `[0x69e44, 0x6b860)` (0x1a1c bytes) and runtime `[0x6b8f4, 0xa8000)` remain unimplemented, in addition to the earlier `[0x68000, 0x69b80)` seam. The next conveniently function-aligned entry is `0x6b8f4`. Byte-identical emission does not constitute semantic equivalence, a whole firmware image, or hardware validation.
