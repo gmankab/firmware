@@ -1132,3 +1132,69 @@ MODEM_SYS_WRITE 16,1
 }
 { if (p0) jump:nt modem_exception_mode_two }
 { if (!p1) jump:nt modem_exception_mode_other }
+
+// Recover the remaining exception-controller exit. Hexagon HexagonV60's
+// S-register pair read and pmu-to-general transfer forms are independently
+// encoded using architectural operand bitfields, not OEM instruction words.
+.macro MODEM_SYS_PAIR_READ low_general, low_special, marker=3
+    .if (\low_general < 0) || (\low_general > 30) || ((\low_general & 1) != 0)
+        .error "bad register pair low-register"
+    .endif
+    .if (\low_special < 0) || (\low_special > 62) || ((\low_special & 1) != 0)
+        .error "bad special-register pair low-register"
+    .endif
+    .word (0x6f000000 | (\low_special << 16) | (\marker << 14) | \low_general)
+.endm
+
+.macro MODEM_START_PROCESS general, marker=3
+    .if (\general < 0) || (\general > 31)
+        .error "bad Hexagon Y4_start register operand"
+    .endif
+    // Hexagon privileged Y4_start instruction selects a general register.
+    .word (0x64600020 | (\general << 16) | (\marker << 14))
+.endm
+
+.globl agent11_modem_exception_restore_vector
+agent11_modem_exception_restore_vector:
+MODEM_SYS_READ 24,52  // S52 PMUEVTCFG
+{ p3:0 = r24 }
+MODEM_SYS_PAIR_READ 0,48
+MODEM_SYS_PAIR_READ 24,44
+MODEM_SYS_READ 29,47
+MODEM_SYS_PAIR_READ 30,50
+{ r23 = ##-1 }
+MODEM_START_PROCESS 23
+{
+    jump modem_exception_handler_entry
+    nop
+    nop
+    nop
+}
+{ nop }
+
+// Hardware-reserved exception-vector padding is explicitly NOP packets, not
+// unknown source code. 14 packets of four NOPs occupy 224 bytes.
+.rept 14
+{
+    nop
+    nop
+    nop
+    nop
+}
+.endr
+
+// The vector entries intentionally self-loop for unhandled modes; a separate
+// first entry branches to the implemented protected exception handler.
+.globl agent11_modem_exception_vector_slots
+agent11_modem_exception_vector_slots:
+{ jump modem_exception_handler_entry }
+modem_reserved_vector_1: { jump modem_reserved_vector_1 }
+modem_reserved_vector_2: { jump modem_reserved_vector_2 }
+modem_reserved_vector_3: { jump modem_reserved_vector_3 }
+modem_reserved_vector_4: { jump modem_reserved_vector_4 }
+modem_reserved_vector_5: { jump modem_reserved_vector_5 }
+modem_reserved_vector_6: { jump modem_reserved_vector_6 }
+
+.globl agent11_modem_exception_handler_entry
+modem_exception_handler_entry:
+agent11_modem_exception_handler_entry:

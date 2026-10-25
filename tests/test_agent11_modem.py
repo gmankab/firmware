@@ -33,7 +33,7 @@ class ModemAgent11Tests(unittest.TestCase):
         if not llvm: self.skipTest("set AGENT11_LLVM_MC for external tool verification")
         source=SCRIPT.parent.parent/"crates/firmware-tools/src/devices/xiaomi_nabu/modem_entry_followup.s"
         data=module.assemble(Path(llvm),source)
-        self.assertEqual(len(data),2704)
+        self.assertEqual(len(data),3012)
         # Structural assertion checks the two adjacent word loads are in
         # one duplex slot and the final instruction is a packet-ending return.
         words=[int.from_bytes(data[n:n+4],"little") for n in range(0,len(data),4)]
@@ -47,7 +47,7 @@ class ModemAgent11Tests(unittest.TestCase):
         self.assertEqual(words[39]&0xc000,0xc000) # predicated update closes packet
         self.assertEqual(words[46]&0xc000,0xc000) # protected S-register setup
         self.assertEqual(words[81]&0xc000,0xc000) # fault brkpt at 0x419c
-        self.assertEqual(words[-1]&0xc000,0xc000) # status shim jumpr r13
+        self.assertEqual(words[(0x4210-module.FILE_START)//4-1]&0xc000,0xc000) # status shim jumpr r13
         self.assertEqual(words[95]&0xc000,0xc000) # controller register barrier
         i=(0x42bc-module.FILE_START)//4
         self.assertEqual(words[i]&0xc000,0x4000) # extender of compare immediate
@@ -60,7 +60,7 @@ class ModemAgent11Tests(unittest.TestCase):
         self.assertEqual(words[(0x4528-module.FILE_START)//4]&0xc000,0xc000)
         self.assertEqual(words[(0x45fc-module.FILE_START)//4]&0xc000,0x4000)
         self.assertEqual(words[(0x4600-module.FILE_START)//4]&0xc000,0xc000)
-        self.assertEqual(words[-1]&0xc000,0xc000) # protected memory-copy return
+        self.assertEqual(words[(0x48a4-module.FILE_START)//4-1]&0xc000,0xc000) # physical copy return
         i=(0x46f4-module.FILE_START)//4
         self.assertEqual([words[i+j]&0xc000 for j in range(4)],
                          [0x4000,0x4000,0x4000,0xc000])
@@ -95,5 +95,26 @@ class ModemAgent11Tests(unittest.TestCase):
         # Invalid controller mode transfers to the existing earlier GP base
         # helper; the actual Hexagon J2_call is assembled from a named label.
         self.assertEqual(words[(0x4acc-module.FILE_START)//4]&0xc000,0xc000)
+        # The exception state transition requires the original R24/P3:0 and
+        # control-register operands, followed by exactly 14 NOP packets.
+        assert len(data) == 0x4c1c-module.FILE_START
+        for offset,sys,reg in [(0x4ae8,52,24),(0x4af8,47,29)]:
+            code=words[(offset-module.FILE_START)//4]
+            self.assertEqual(code & ~(0x7f<<16 | 0x1f),0x6e80c000)
+            self.assertEqual((code>>16)&0x7f,sys)
+            self.assertEqual(code&31,reg)
+        self.assertEqual(words[(0x4b08-module.FILE_START)//4],
+                         0x64600020 | 23<<16 | 3<<14)  # Y4_start(r23)
+        self.assertEqual(words[(0x4b0c-module.FILE_START)//4]&0xc000,0x4000)
+        for packet in range(0x4b20,0x4c00,16):
+            idx=(packet-module.FILE_START)//4
+            self.assertEqual([x&0xc000 for x in words[idx:idx+4]],
+                             [0x4000,0x4000,0x4000,0xc000])
+            self.assertEqual([x&~0xc000 for x in words[idx:idx+4]],
+                             [0x7f000000]*4)
+        for trap in range(0x4c04,0x4c1c,4):
+            w=words[(trap-module.FILE_START)//4]
+            self.assertEqual(w,0x5800c000)  # intentionally self-looping jumps
+
 
 if __name__=='__main__':unittest.main()
