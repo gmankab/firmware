@@ -170,9 +170,9 @@ class ADSPExternalsAndCodeTests(unittest.TestCase):
     @unittest.skipUnless(LLVM_MC,'Hexagon LLVM6 assembler required')
     def test_complete_fragment_inventory_rejects_overlaps(self):
         manifest,regions=adsp.assembled_inventory(LLVM_MC,None)
-        self.assertEqual(len(manifest['fragments']),11)
-        self.assertEqual(manifest['total_independently_assembled_executable_bytes'],1012)
-        self.assertEqual(sum(map(len,regions.values())),1012)
+        self.assertEqual(len(manifest['fragments']),13)
+        self.assertEqual(manifest['total_independently_assembled_executable_bytes'],1048)
+        self.assertEqual(sum(map(len,regions.values())),1048)
         self.assertEqual(manifest['gap_bytes_included_in_generated_executables'],0)
         self.assertFalse(manifest['complete_adsp_image'])
         self.assertEqual(manifest['external_original_code_bytes_in_output'],0)
@@ -180,16 +180,31 @@ class ADSPExternalsAndCodeTests(unittest.TestCase):
         self.assertEqual(bounds[0],(0x39000,0x39054))
         self.assertEqual(bounds[-1],(0x3640a8,0x3640f8))
 
+    @unittest.skipUnless(LLVM_MC,'Hexagon LLVM6 assembler required')
+    def test_indexed_callback_copy_and_atomic_lock_loop(self):
+        for name,expected_size,pattern in [('copy-registry-slot',16,'r2.new'),
+                                           ('atomic-add',20,'memw_locked')]:
+            with self.subTest(fragment=name):
+                src,off,size=adsp.FRAGMENTS[name]
+                self.assertEqual(size,expected_size)
+                self.assertIn(pattern,src.read_text())
+                rebuilt=adsp.compile_source(LLVM_MC,src,size)
+                self.assertEqual(len(rebuilt),size)
+        src=adsp.FRAGMENTS['atomic-add'][0].read_text()
+        self.assertIn('retry:',src)
+        self.assertIn('if (!p0) jump:nt retry',src)
+        self.assertIn('memw_locked(r2,p0) = r4',src)
+
     @unittest.skipUnless(LLVM_MC and REFERENCE,
                          'Hexagon LLVM6 and exact pinned ADSP reference required')
     def test_inventory_every_fragment_uses_correct_original(self):
         inventory,_outputs=adsp.assembled_inventory(LLVM_MC,Path(REFERENCE).read_bytes())
         self.assertTrue(all(x['reference_byte_identical'] for x in inventory['fragments']))
-        self.assertEqual(inventory['total_independently_assembled_executable_bytes'],1012)
+        self.assertEqual(inventory['total_independently_assembled_executable_bytes'],1048)
 
     @unittest.skipUnless(LLVM_MC and REFERENCE,
                          'Hexagon LLVM6 and exact pinned ADSP reference required')
-    def test_all_eleven_disjoint_fragments_are_source_identical(self):
+    def test_all_thirteen_disjoint_fragments_are_source_identical(self):
         original=Path(REFERENCE).read_bytes()
         total=0
         ranges=[]
@@ -199,7 +214,7 @@ class ADSPExternalsAndCodeTests(unittest.TestCase):
                 adsp.verify_slice(built,original,off)
                 total+=len(built)
                 ranges.append((off,off+size))
-        self.assertEqual(total,1012)
+        self.assertEqual(total,1048)
         ranges.sort()
         self.assertEqual(ranges[0],(0x39000,0x39054))
         self.assertEqual(ranges[-1],(0x3640a8,0x3640f8))
