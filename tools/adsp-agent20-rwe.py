@@ -24,7 +24,7 @@ from adsp_hexagon_v66 import (SystemRegister, ControlRegister, read_system_regis
                               write_predicate_group_from_gpr,packet_continuation)
 
 FILE_START=0x6030
-FILE_END=0x64d8
+FILE_END=0x6568
 SIZE=FILE_END-FILE_START
 PADDR=0x8BE03030
 REFERENCE_SHA='4b579e5dc1333d634e5bdc93f3314e357e0e30dab7140833f6cc7aef086b1c1e'
@@ -58,6 +58,8 @@ THREAD_LAUNCH_SOURCE=TOOLS/'adsp-agent20-rwe-thread-launch.S'
 THREAD_LAUNCH_SIZE=0x40
 STATE_READY_SOURCE=TOOLS/'adsp-agent20-rwe-state-ready.S'
 STATE_READY_SIZE=0x24
+RESET_CONTROLLER_SOURCE=TOOLS/'adsp-agent20-rwe-reset-controller.S'
+RESET_CONTROLLER_SIZE=0x90
 
 
 def baseline():
@@ -225,6 +227,30 @@ def thread_launch(llvm_mc:str,previous)->bytes:
     return bytes(out)
 
 
+def reset_controller(llvm_mc:str,previous)->bytes:
+    """Re-enable SSR/SYSCFG with checked V66 register-bank operations."""
+    out=bytearray(previous.assemble(llvm_mc,RESET_CONTROLLER_SOURCE,
+                                    RESET_CONTROLLER_SIZE))
+    final=struct.pack('<I',0x7f00c000)
+    middle=struct.pack('<I',0x7f004000)
+    checks={
+        0x04:(final,read_system_register(0,SystemRegister.SSR)),
+        0x0c:(final,write_system_register(SystemRegister.SSR,0)),
+        0x54:(final,read_system_register(0,SystemRegister.SYSCFG)),
+        0x5c:(final,write_system_register(SystemRegister.SYSCFG,0)),
+        0x60:(middle,packet_continuation(read_system_register(
+            0,SystemRegister.SSR))),
+        0x6c:(final,write_system_register(SystemRegister.SSR,0)),
+    }
+    for at,(source,encoded) in checks.items():
+        if out[at:at+4]!=source:
+            raise previous.AdspError(f'reset controller register slot moved +0x{at:x}')
+        out[at:at+4]=struct.pack('<I',encoded)
+    if any(out[i:i+4] in (final,middle) for i in range(0,len(out),4)):
+        raise previous.AdspError('unresolved reset controller privileged instruction')
+    return bytes(out)
+
+
 def render(llvm_mc:str)->bytes:
     previous=baseline()
     output=bytearray(previous.assemble(llvm_mc,SOURCE,STARTUP_SIZE))
@@ -254,6 +280,7 @@ def render(llvm_mc:str)->bytes:
     output.extend(previous.assemble(llvm_mc,RUNTIME_POLL_SOURCE,RUNTIME_POLL_SIZE))
     output.extend(thread_launch(llvm_mc,previous))
     output.extend(previous.assemble(llvm_mc,STATE_READY_SOURCE,STATE_READY_SIZE))
+    output.extend(reset_controller(llvm_mc,previous))
     if len(output)!=SIZE:
         raise previous.AdspError("RWE source fragments are not contiguous")
     return bytes(output)

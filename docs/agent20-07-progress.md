@@ -159,3 +159,21 @@ RWE source-built code now covers **1,192 consecutive bytes** in file range
 `839bee5dbdc28d7f2f92a96808a57e7a64ce2bb7bcdc9bb2792e869820733679`.
 The next code begins at `0x64d8`, which is separate from the preceding short
 physical-branch trampoline; whole ADSP ELF/auth data remain incomplete.
+
+## Checkpoint 12: controller reset and privileged cache sequence `[0x64d8,0x6568)`
+
+Another **144 exact source-generated Hexagon V66 bytes** initialize the
+controller's `SSR`/`SYSCFG` state, issue sequential platform manager calls,
+set global mode flags, write and clean the hardware event register and return
+to the genuine startup halt loop. LLVM6 assembles 30 original mnemonic
+instruction words and six constrained V66 system-register transfers use named
+operand-field encoders only at checked placeholder locations. The final `jump`
+to itself is real control flow; it is not synthesized alignment or a
+stand-in for missing code.
+
+The continuous ADSP second `RWE` executable fragment grows to **1,336 bytes**,
+file `[0x6030,0x6568)`, physical `[0x8be03030,0x8be03568)`, SHA-256
+`bee69122cab18a7d2e2b1a0c801e2b8044fdf1c1364752be434e503fe0267ab3`.
+Next distinct function starts at `0x6568`. Original 0x30-byte metadata
+before `0x6030`, remaining RWE code and OEM authentication remain outside
+this reconstruction.
