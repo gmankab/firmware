@@ -118,3 +118,9 @@ Original reference: private `map220v-nabu-firmware/venus.mbn`, SHA-256 `9d4af65d
 - New `[0x26014,0x2634c)` = **824 bytes**: **201 ARM32 instructions** and **five literal address/data words** `[0x26338,0x2634c)`.
 - Implemented pending IRQ bit loop, prioritized callback dispatch, repeated state/resource interrogation, and synchronization of controller command status before exiting the dispatcher; data constants are separate from executable instructions.
 - Full interval independent Clang/LLD round-trip verifies **4,217 instructions and 316 data words** in 66 disjoint literal pools, zero byte mismatches. Next uncovered address `0x2634c`.
+
+## Checkpoint 16 — IRQ release, accessor wrappers and controller-line masks
+
+- Contiguous VMA `[0x21c78,0x265e4)` = **18,796 byte-identical typed bytes**, private MBN file `[0x25c78,0x2a5e4)`.
+- Newly encoded `[0x2634c,0x265e4)` = **664 bytes**: **151 A32 instructions and 15 separate non-instruction words** in twelve literal pools. First function releases IRQ channels for six hardware sources; nine regular-index accessor wrappers are emitted from a semantic selector/field table; final two routines initialize paired IRQ lines with conditional channel masks.
+- Cumulative independent mnemonic reassembly matches **4,368 instructions and 331 data words in 78 pools**; all previous code remains byte-identical to pinned `venus.mbn`. Next uncovered routine begins at `0x265e4`.
