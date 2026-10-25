@@ -603,3 +603,22 @@ pinned original modem (`SHA256 6f5cb32bc10e41abb40938d185805e788f5637a41d3ebcef2
 `[file 0x447100,0x447324)` = 548 bytes remain explicitly unfilled.
 Firmware is not complete, authenticated, or flashable. The provisional branch
 is rooted in Agent 06, not checkpoint 50.
+
+## Checkpoint 23 — Controller removal and contiguous 376-byte registry block
+
+A new **84-byte** Hexagon V60 controller-removal routine is source-encoded at
+`[0x4472d0,0x447324)` (VMA `[0x1e4012d0,0x1e401324)`). It unlinks a
+controller from its registry, conditionally clears the previous entry and
+restores its original call frame. LLVM6 compacted an independently assembled
+store/load pair into a 32-bit duplex and reordered a predicated load before
+its corresponding registry store. The source uses separate packets to emit
+both 32-bit instructions, and `restore_aux_remove_controller_packets` is a
+fail-closed ISA-based packet marker and producer-order correction.
+
+Together with the earlier callback/search/release routines this forms a
+**contiguous 376-byte reconstructed block** `[0x4472d0,0x447448)`, with zero
+mismatches against the pinned `modem.mbn`. Total source-generated later-modem
+coverage increases to **4,256 bytes** across eight nonoverlapping intervals.
+The earlier insertion routine `[0x447100,0x4472d0)` (464 bytes) and the
+`framekey` session gap `[0x446ee8,0x447028)` (320 bytes) remain explicitly
+unclaimed. No new OEM signature or complete modem firmware was produced.

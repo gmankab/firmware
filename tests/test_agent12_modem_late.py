@@ -15,6 +15,33 @@ spec.loader.exec_module(agent12)
 
 
 class ModemLateTests(unittest.TestCase):
+    def test_remove_controller_reorders_only_checked_hexagon_ops(self):
+        self.assertEqual((agent12.AUX_REMOVE_CONTROLLER_START,
+                          agent12.AUX_REMOVE_CONTROLLER_END),(0x4472d0,0x447324))
+        source=agent12.AUX_REMOVE_CONTROLLER_SOURCE.read_text()
+        self.assertIn('dealloc_return',source)
+        self.assertNotIn('.word',source)
+        words=[0x7800c000]*21
+        first=(0x447300-agent12.AUX_REMOVE_CONTROLLER_START)//4
+        second=(0x447310-agent12.AUX_REMOVE_CONTROLLER_START)//4
+        words[first:first+2]=[0x3c42c280,0x91ddc010]
+        words[second:second+2]=[0x479044e2,0xa183c204]
+        packed=struct.pack('<21I',*words)
+        out=struct.unpack('<21I',agent12.restore_aux_remove_controller_packets(packed))
+        self.assertEqual(out[first],0x3c424280)
+        self.assertEqual(out[second:second+2],(0xa1834204,0x4790c4e2))
+        for index,bad_word,pattern in [
+            (first,0x7800c000,'opcode classes'),
+            (first,0x3c424280,'packet markers'),
+            (second,0x48004000,'opcode classes'),
+            (second+1,0xa1834204,'packet markers')
+        ]:
+            invalid=words.copy();invalid[index]=bad_word
+            with self.assertRaisesRegex(ValueError,pattern):
+                agent12.restore_aux_remove_controller_packets(struct.pack('<21I',*invalid))
+        with self.assertRaisesRegex(ValueError,'84 source bytes'):
+            agent12.restore_aux_remove_controller_packets(packed[:-4])
+
     def test_late_callback_and_controller_scan_bounds(self):
         self.assertEqual((agent12.AUX_CALLBACK_START,agent12.AUX_CALLBACK_END),
                          (0x447324,0x447388))

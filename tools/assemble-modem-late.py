@@ -44,6 +44,7 @@ AUX_DIAGNOSTIC_HELPERS_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi
 AUX_SESSION_PREFIX_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_aux_session_prefix.s"
 AUX_FIND_FREE_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_aux_find_free_entry.s"
 AUX_RESOLVE_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_aux_resolve_handle.s"
+AUX_REMOVE_CONTROLLER_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_aux_remove_controller.s"
 AUX_CALLBACK_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_aux_register_callback.s"
 AUX_FIND_CONTROLLER_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_aux_find_controller.s"
 AUX_RELEASE_REGISTRY_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_aux_release_registry.s"
@@ -99,6 +100,8 @@ AUX_FIND_FREE_START = 0x447028
 AUX_FIND_FREE_END = 0x447078
 AUX_RESOLVE_START = 0x447078
 AUX_RESOLVE_END = 0x447100
+AUX_REMOVE_CONTROLLER_START = 0x4472D0
+AUX_REMOVE_CONTROLLER_END = 0x447324
 AUX_CALLBACK_START = 0x447324
 AUX_CALLBACK_END = 0x447388
 AUX_FIND_CONTROLLER_START = 0x447388
@@ -582,6 +585,42 @@ def restore_aux_registration_new_value_packet(assembled: bytes) -> bytes:
     return struct.pack('<'+'I'*len(words),*words)
 
 
+def restore_aux_remove_controller_packets(assembled: bytes) -> bytes:
+    """Preserve separate 32-bit store/restore instructions and producer order.
+
+    LLVM6 can compact two source operations into a duplex that the original
+    producer emitted separately. The assembly source intentionally specifies
+    two packets for `memw(r2+#20)=#0` and `r17:16=memd(r29+#0)` to retain their
+    32-bit instruction encodings. Join them with a checked marker change.
+    The predicated load in the later 3-word packet is reordered after the
+    `memw(r3+#16)=r2` producer, restoring original operation ordering. All
+    transformations are constrained to source-generated operation classes.
+    """
+    if len(assembled)!=AUX_REMOVE_CONTROLLER_END-AUX_REMOVE_CONTROLLER_START:
+        raise ValueError("aux remove-controller must emit 84 source bytes")
+    words=list(struct.unpack('<21I',assembled))
+    i=(0x447300-AUX_REMOVE_CONTROLLER_START)//4
+    store,restore=words[i:i+2]
+    if [x>>24 for x in (store,restore)]!=[0x3c,0x91]:
+        raise ValueError("aux remove-controller store/restore opcode classes changed")
+    if [x&MARKER_MASK for x in (store,restore)]!=[END_MARKER,END_MARKER]:
+        raise ValueError("aux remove-controller store/restore packet markers changed")
+    if (store&~MARKER_MASK)!=0x3c420280:
+        raise ValueError("aux remove-controller non-duplex source no longer memw(r2+#20)=#0")
+    words[i]=(store&~MARKER_MASK)|CONTINUE_MARKER
+    j=(0x447310-AUX_REMOVE_CONTROLLER_START)//4
+    predicated_load,list_store=words[j:j+2]
+    if [x>>24 for x in (predicated_load,list_store)]!=[0x47,0xa1]:
+        raise ValueError("aux remove-controller predicated load/store opcode classes changed")
+    if [x&MARKER_MASK for x in (predicated_load,list_store)]!=[
+        CONTINUE_MARKER,END_MARKER
+    ]:
+        raise ValueError("aux remove-controller predicated load/store packet markers changed")
+    words[j:j+2]=[(list_store&~MARKER_MASK)|CONTINUE_MARKER,
+                   (predicated_load&~MARKER_MASK)|END_MARKER]
+    return struct.pack('<21I',*words)
+
+
 def restore_aux_callback_extender_packet(assembled: bytes) -> bytes:
     """Mark a symbolic extended address load as continuing into a duplex.
 
@@ -647,6 +686,9 @@ def output_fragments(llvm_mc: Path) -> dict[int, bytes]:
     aux_session_prefix=assemble(llvm_mc,AUX_SESSION_PREFIX_SOURCE)
     aux_find_free=assemble(llvm_mc,AUX_FIND_FREE_SOURCE)
     aux_resolve=assemble(llvm_mc,AUX_RESOLVE_SOURCE)
+    aux_remove_controller=restore_aux_remove_controller_packets(assemble(llvm_mc,AUX_REMOVE_CONTROLLER_SOURCE))
+    if len(aux_remove_controller)!=AUX_REMOVE_CONTROLLER_END-AUX_REMOVE_CONTROLLER_START:
+        raise ValueError("aux remove-controller length mismatch")
     aux_callback=restore_aux_callback_extender_packet(assemble(llvm_mc,AUX_CALLBACK_SOURCE))
     aux_find_controller=assemble(llvm_mc,AUX_FIND_CONTROLLER_SOURCE)
     aux_release_registry=assemble(llvm_mc,AUX_RELEASE_REGISTRY_SOURCE)
@@ -684,7 +726,7 @@ def output_fragments(llvm_mc: Path) -> dict[int, bytes]:
             AUX_GUARD_START: aux_guard+aux_stage+aux_mmio+aux_heap+aux_worker+aux_lookup,
             AUX_DISPATCH_START:aux_dispatch+aux_type+aux_notify+aux_entry+aux_validator+aux_runtime_init+aux_veneers+aux_registration+aux_diagnostic_helpers+aux_session_prefix,
             AUX_FIND_FREE_START:aux_find_free+aux_resolve,
-            AUX_CALLBACK_START:aux_callback+aux_find_controller+aux_release_registry}
+            AUX_REMOVE_CONTROLLER_START:aux_remove_controller+aux_callback+aux_find_controller+aux_release_registry}
 
 
 def executable_segments(reference: bytes) -> dict[int, tuple[int, int, int, int]]:
