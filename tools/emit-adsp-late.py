@@ -30,6 +30,9 @@ FRAGMENTS = {
     'controller-dispatch': (TOOLS / 'adsp-late-controller-dispatch.S', 0x39060, 0x78),
     'zero-memory': (TOOLS / 'adsp-late-zero-memory.S', 0x3640A8, 0x50),
     'rx-startup': (TOOLS / 'adsp-late-rx-startup.S', 0x364000, 0xA8),
+    'save-control': (TOOLS / 'adsp-late-save-control.S', 0x390D8, 0x24),
+    'clear-ready': (TOOLS / 'adsp-late-clear-ready.S', 0x39100, 0x14),
+    'callback-registry': (TOOLS / 'adsp-late-callback-registry.S', 0x39120, 0x80),
 }
 
 class LateAdspError(ValueError):

@@ -116,6 +116,54 @@ class ADSPExternalsAndCodeTests(unittest.TestCase):
         self.assertEqual(len(composite),248)
         self.assertEqual(hashlib.sha256(composite).hexdigest(),JOINED_STARTUP_DIGEST)
 
+    @unittest.skipUnless(LLVM_MC,'Hexagon LLVM6 assembler required')
+    def test_additional_late_functions_compile_with_correct_digests(self):
+        expected={
+          'save-control':(0x390d8,36,'f5289532abf9a3fcc90a50e1c77615cd07a13dae6e70049739d8a1af46c8387c'),
+          'clear-ready':(0x39100,20,'36e0a7e92392cef26762304bbc9755cb32aa8a9c1086ec5d84992030a041e992'),
+          'callback-registry':(0x39120,128,'47c5dc248bef3234e0de96fd62ffbd04102e5a6f2ec346df1a6180b265e91775'),
+        }
+        for name,(off,size,digest) in expected.items():
+            with self.subTest(fragment=name):
+                source,source_off,source_len=adsp.FRAGMENTS[name]
+                self.assertEqual((off,size),(source_off,source_len))
+                body=source.read_text()
+                for forbidden in ('.word ','.long ','.byte ','.incbin '):
+                    self.assertNotIn(forbidden,body)
+                built=adsp.compile_source(LLVM_MC,source,size)
+                self.assertEqual(hashlib.sha256(built).hexdigest(),digest)
+
+    @unittest.skipUnless(LLVM_MC and REFERENCE,
+                         'Hexagon LLVM6 and exact pinned ADSP reference required')
+    def test_all_seven_disjoint_fragments_are_source_identical(self):
+        original=Path(REFERENCE).read_bytes()
+        total=0
+        ranges=[]
+        for name,(source,off,size) in adsp.FRAGMENTS.items():
+            with self.subTest(fragment=name):
+                built=adsp.compile_source(LLVM_MC,source,size)
+                adsp.verify_slice(built,original,off)
+                total+=len(built)
+                ranges.append((off,off+size))
+        self.assertEqual(total,636)
+        ranges.sort()
+        self.assertEqual(ranges[0],(0x39000,0x39054))
+        self.assertEqual(ranges[-1],(0x3640a8,0x3640f8))
+        self.assertTrue(all(left[1]<=right[0] for left,right in zip(ranges,ranges[1:])))
+        self.assertEqual(original[0x39054:0x39060],b'\0'*12)
+
+    @unittest.skipUnless(LLVM_MC and RIZIN_ASM,'Independent Rizin Hexagon disassembler required')
+    def test_callback_registry_rizin_recognizes_hardware_loop(self):
+        source,_off,size=adsp.FRAGMENTS['callback-registry']
+        built=adsp.compile_source(LLVM_MC,source,size)
+        proc=subprocess.run([RIZIN_ASM,'-a','hexagon','-b','32','-d',built.hex()],
+                           capture_output=True,text=True,check=False)
+        self.assertEqual(proc.returncode,0,proc.stderr)
+        text=proc.stdout.lower()
+        self.assertIn('loop0',text)
+        self.assertIn('memw',text)
+        self.assertIn('dealloc',text)
+
     @unittest.skipUnless(LLVM_MC and REFERENCE,
                          'Hexagon LLVM6 and exact pinned ADSP reference required')
     def test_second_rx_contiguous_bootstrap_and_memory_fill_reference(self):
