@@ -75,3 +75,11 @@ git diff --check
 - Implemented checked module-local ARM32 `LDRSH Rt,[Rn],#imm` postindexed addressing after an initial comparison found one erroneous word. Decoder, Rust emitter and independent Clang/LLVM assembler now agree exactly on every byte, including `BLX`/callback branches.
 - Combined adjacent source-built interval `[0x40a2c,0x43b50)` = **12,580 contiguous byte-identical bytes**, 3,119 A32 instructions (12,476 bytes) and 26 independently identified literal data words (104 bytes). Verified by concatenating each independently generated module and comparing the *entire* result against original pinned `venus.mbn`, with no implicit fill or copied OEM opcode words.
 - First unavailable function starts at runtime `0x43b50`, MBN file `0x47b50`; Agent 04 reservation upper bound remains `0x68000`.
+
+## Checkpoint 07 — complete controller packet-list constructor
+
+- Added separately typed instruction-level A32 function `[0x43b50,0x43ff0)`, corresponding to firmware file `[0x47b50,0x47ff0)`. **1,184 executable bytes = 296 ARM instructions**, without a literal pool or inferred fill.
+- The routine builds controller packet headers from byte-sized codec flags, dispatches multiple Y/UV plane records through the existing `0x3e02c` callback, adjusts command buffer pointers and finishes by emitting 96/100/104/108 control records. The genuine return is the final `pop {...,pc}` at `0x43fec`.
+- Independent Clang/LLVM reassembly of the **296 mnemonics**, with PC-relative branches and external BL targets resolved using expression-relative offsets, reproduces every instruction byte. The typed Rust emitter and the pinned `venus.mbn` also match; no reference OEM instruction array was imported into the Rust module.
+- Combined contiguous typed reconstruction `[0x40a2c,0x43ff0)` is **13,764 bytes**, comprising **3,415 executable A32 instructions = 13,660 bytes** and **26 separately identified literal data words = 104 bytes**. Full original-reference check compares all eight adjacent regions and reports zero differences.
+- Next confirmed function entry at `0x43ff0` (file offset `0x47ff0`), inside Agent 04 reservation `[0x40000,0x68000)`. Prefix `[0x40000,0x40a2c)` remains unimplemented, as previously documented.
