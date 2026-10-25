@@ -50,10 +50,11 @@ CONTROLLER_PRIVILEGED_RESTORE_SOURCE = pathlib.Path(__file__).with_name("adsp-co
 CONTROLLER_RESTORE_PADDING_SOURCE = pathlib.Path(__file__).with_name("adsp-controller-restore-padding.S")
 CONTROLLER_CONTEXT_SAVE_SOURCE = pathlib.Path(__file__).with_name("adsp-controller-context-save.S")
 CONTROLLER_CONTEXT_CAPTURE_SOURCE = pathlib.Path(__file__).with_name("adsp-controller-context-capture.S")
+CONTROLLER_PROCESSOR_STARTUP_SOURCE = pathlib.Path(__file__).with_name("adsp-controller-processor-startup.S")
 FRAGMENTS = {
     "vectors": (ASM_SOURCE, OEM_FILE_OFFSET, GENERATED_LENGTH),
     "boot-prefix": (ASM_SOURCE, OEM_FILE_OFFSET, 0x44),
-    "counter-controller": (CONTROLLER_SOURCE, 0x41e0, 0xd3c),
+    "counter-controller": (CONTROLLER_SOURCE, 0x41e0, 0xdb0),
     "controller-bootstrap": (CONTROLLER_BOOTSTRAP_SOURCE, 0x4980, 0x2c),
     "controller-cache-copy": (CONTROLLER_CACHE_COPY_SOURCE, 0x49ac, 0x5c),
     "controller-physical-copy": (CONTROLLER_PHYSICAL_COPY_SOURCE, 0x4a08, 0x4c),
@@ -67,6 +68,7 @@ FRAGMENTS = {
     "controller-restore-padding": (CONTROLLER_RESTORE_PADDING_SOURCE, 0x4d1c, 0x100),
     "controller-context-save": (CONTROLLER_CONTEXT_SAVE_SOURCE, 0x4e1c, 0x44),
     "controller-context-capture": (CONTROLLER_CONTEXT_CAPTURE_SOURCE, 0x4e60, 0xbc),
+    "controller-processor-startup": (CONTROLLER_PROCESSOR_STARTUP_SOURCE, 0x4f1c, 0x74),
     "tlb-reconcile": (TLB_RECONCILE_SOURCE, 0x48d0, 0xb0),
     "cacheline-copy": (CACHELINE_COPY_SOURCE, 0x4818, 0x78),
     "tlb-flush": (TLB_FLUSH_SOURCE, 0x4788, 0x90),
@@ -605,6 +607,22 @@ def assemble_context_capture(
     return bytes(out)
 
 
+def assemble_processor_startup(
+    llvm_mc: str, source: pathlib.Path = CONTROLLER_PROCESSOR_STARTUP_SOURCE
+) -> bytes:
+    """Rebuild controller state writes and dispatch after context capture."""
+    from adsp_hexagon_v66 import SystemRegister, CacheCommand, read_system_register
+    out = bytearray(assemble(llvm_mc, source, 0x74))
+    for at, typed in (
+        (0x00, int(CacheCommand.INSTRUCTION_CACHE_KILL)),
+        (0x04, read_system_register(23, SystemRegister.S54)),
+    ):
+        if out[at:at+4] != struct.pack("<I", 0x7f00c000):
+            raise AdspError(f"Expected processor startup privilege slot at 0x{at:x}")
+        out[at:at+4] = struct.pack("<I", typed)
+    return bytes(out)
+
+
 def run(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--llvm-mc", required=True,
@@ -645,6 +663,8 @@ def run(argv: list[str] | None = None) -> int:
             out = assemble_context_save(args.llvm_mc, args.source or source)
         elif args.segment == "controller-context-capture":
             out = assemble_context_capture(args.llvm_mc, args.source or source)
+        elif args.segment == "controller-processor-startup":
+            out = assemble_processor_startup(args.llvm_mc, args.source or source)
         elif args.segment == "controller-debug-check":
             out = assemble_controller_debug_check(args.llvm_mc, args.source or source)
         elif args.segment == "controller-startup":
@@ -681,7 +701,8 @@ def run(argv: list[str] | None = None) -> int:
                    assemble_privileged_restore(args.llvm_mc) +
                    assemble(args.llvm_mc, CONTROLLER_RESTORE_PADDING_SOURCE, 0x100) +
                    assemble_context_save(args.llvm_mc) +
-                   assemble_context_capture(args.llvm_mc))
+                   assemble_context_capture(args.llvm_mc) +
+                   assemble_processor_startup(args.llvm_mc))
         else:
             out = assemble(args.llvm_mc, args.source or source, expected_length)
         if len(out) != expected_length:

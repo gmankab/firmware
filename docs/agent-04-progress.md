@@ -626,3 +626,33 @@ python3 -S tools/emit-adsp-entry.py \
   --segment counter-controller --llvm-mc "$HEXAGON_LLVM_MC" \
   --reference "$NABU_ADSP_REFERENCE" --output /tmp/adsp-controller-3388.bin
 ```
+
+## Checkpoint 26: post-context controller initialization and state handoff
+
+Added **116 source-generated executable bytes** at file `[0x4f1c,0x4f90)`
+(physical `[0x8be01f1c,0x8be01f90)`). The controller invalidates its
+instruction cache, reads the `S54` base, computes named platform control
+locations from extended immediate offsets and device state, advances state
+register values `2` and `3`, calls existing initialization routines, then
+conditionally branches to the follow-up controller path. LLVM6 assembles all
+ordinary operations, extended constants, memory writes, relative calls and
+predicate branches. Two v66-specific operations (instruction-cache kill and
+`R23=S54`) are checked before their exact typed architectural encodings
+replace NOP sentinel slots. No reference instruction array is copied.
+
+The joined controller now spans **3,504 bytes** `[0x41e0,0x4f90)`, SHA-256
+`91b82daa43d52cb7b65d143bd846ed3d07e82345583941d312d1218386aa816d`;
+with the disjoint 68-byte boot prefix, **3,572 total bytes** are independently
+reconstructed, including 504 bytes of explicit reset/branch padding. All
+**90 Python tests** pass, with no byte mismatches against the same hashed
+Xiaomi Nabu ADSP firmware. The next unreconstructed controller byte is
+`0x4f90`. This is not a completed or authenticated firmware file.
+
+```sh
+python3 -S tools/emit-adsp-entry.py \
+  --segment controller-processor-startup --llvm-mc "$HEXAGON_LLVM_MC" \
+  --reference "$NABU_ADSP_REFERENCE" --output /tmp/adsp-process-116.bin
+python3 -S tools/emit-adsp-entry.py \
+  --segment counter-controller --llvm-mc "$HEXAGON_LLVM_MC" \
+  --reference "$NABU_ADSP_REFERENCE" --output /tmp/adsp-controller-3504.bin
+```

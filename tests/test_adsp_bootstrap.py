@@ -111,8 +111,9 @@ class ADSPBootstrapTests(unittest.TestCase):
                      adsp.assemble_privileged_restore(LLVM_MC) +
                      adsp.assemble(LLVM_MC, adsp.CONTROLLER_RESTORE_PADDING_SOURCE, 0x100) +
                      adsp.assemble_context_save(LLVM_MC) +
-                     adsp.assemble_context_capture(LLVM_MC))
-        self.assertEqual(len(generated), 0xd3c)
+                     adsp.assemble_context_capture(LLVM_MC) +
+                     adsp.assemble_processor_startup(LLVM_MC))
+        self.assertEqual(len(generated), 0xdb0)
         original = Path(REFERENCE).read_bytes()
         adsp.verify_reference(generated, original, 0x41e0)
         mutated = bytearray(generated)
@@ -365,6 +366,29 @@ class ADSPBootstrapTests(unittest.TestCase):
                 "{ nop } // R23 = HTID", "{ isync } // R23 = HTID",1))
             with self.assertRaisesRegex(adsp.AdspError,"context capture privileged slot"):
                 adsp.assemble_context_capture(LLVM_MC,tampered)
+
+    def test_processor_startup_source_has_controller_state_transitions(self) -> None:
+        src=adsp.CONTROLLER_PROCESSOR_STARTUP_SOURCE.read_text()
+        for item in ("V66 instruction-cache kill", "S54", "call init_controller",
+                     "call check_controller", "if (!p0.new) jump:nt continue_run",
+                     "memw(r0+#0) = r1"):
+            self.assertIn(item,src)
+        self.assertNotIn(".word",src)
+        self.assertNotIn(".incbin",src)
+
+    @unittest.skipUnless(LLVM_MC and REFERENCE,"Reference and LLVM required")
+    def test_processor_startup_matches_reference_and_validates_privilege(self) -> None:
+        actual=adsp.assemble_processor_startup(LLVM_MC)
+        self.assertEqual(len(actual),0x74)
+        adsp.verify_reference(actual,Path(REFERENCE).read_bytes(),0x4f1c)
+        self.assertEqual(actual[:4],struct.pack("<I",0x56c0d000))
+        with tempfile.TemporaryDirectory() as td:
+            bad=Path(td)/"bad-startup.S"
+            bad.write_text(adsp.CONTROLLER_PROCESSOR_STARTUP_SOURCE.read_text().replace(
+                "{ nop } // V66 instruction-cache kill",
+                "{ isync } // V66 instruction-cache kill",1))
+            with self.assertRaisesRegex(adsp.AdspError,"processor startup privilege slot"):
+                adsp.assemble_processor_startup(LLVM_MC,bad)
 
     @unittest.skipUnless(LLVM_MC, "Hexagon-capable llvm-mc unavailable")
     def test_syscfg_handoff_uses_typed_and_source_assembly(self) -> None:
