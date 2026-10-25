@@ -13,14 +13,14 @@ class SparseRwe(unittest.TestCase):
         cls.mc=os.getenv('HEXAGON_LLVM_MC')
         cls.ref=os.getenv('NABU_ADSP_REFERENCE')
     def test_file_layout_is_explicit_and_disjoint(self):
-        self.assertEqual((sparse.FILE_START,sparse.FILE_END,sparse.SIZE),(0x10330,0x104b8,392))
+        self.assertEqual((sparse.FILE_START,sparse.FILE_END,sparse.SIZE),(0x10330,0x10534,516))
         self.assertEqual(sparse.FILL_END-sparse.FILL_START,0xff20-0x6c6c)
         self.assertEqual(sparse.UNKNOWN_RECORD_END-sparse.UNKNOWN_RECORD_START,0x90)
         self.assertEqual(sparse.FILL2_END-sparse.FILL2_START,0x380)
     def test_source_packets_and_strict_reference(self):
         if not self.mc:self.skipTest('HEXAGON_LLVM_MC required')
         result=sparse.render(self.mc)
-        self.assertEqual(len(result),392)
+        self.assertEqual(len(result),516)
         # Function return is not a packet boundary: packet continues with
         # extended GP load from the next function, so no artificial split.
         self.assertEqual((struct.unpack_from('<I',result,0x10)[0]>>14)&3,1)
@@ -75,6 +75,21 @@ class SparseRwe(unittest.TestCase):
                              packet_continuation(read_system_register(0,reg)))
         if self.ref:
             self.assertEqual(generated,Path(self.ref).read_bytes()[0x10460:0x104b8])
+
+    def test_next_controller_phase_uses_checked_isdben_write(self):
+        if not self.mc:self.skipTest('HEXAGON_LLVM_MC required')
+        source=sparse.base().assemble(self.mc,sparse.CONTROLLER_PHASE_SOURCE,
+                                       sparse.CONTROLLER_PHASE_SIZE)
+        self.assertEqual(len(source),124)
+        self.assertEqual(struct.unpack_from('<I',source,0x74)[0],0x7f00c000)
+        from adsp_hexagon_v66 import SystemRegister,write_system_register
+        compiled=sparse.controller_phase(self.mc,sparse.base())
+        self.assertEqual(struct.unpack_from('<I',compiled,0x74)[0],
+                         write_system_register(SystemRegister.ISDBEN,0))
+        self.assertEqual(compiled[-4:],source[-4:])
+        if self.ref:
+            self.assertEqual(compiled,
+                Path(self.ref).read_bytes()[0x104b8:0x10534])
 
     def test_reject_reference_mutation(self):
         if not self.mc or not self.ref:self.skipTest('reference and LLVM6 required')

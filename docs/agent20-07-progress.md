@@ -558,3 +558,20 @@ Together with `[0x6030,0x6c6c)`, that is **3,524 source-derived executable
 bytes** across two intentionally disconnected RWE code spans. The next
 unimplemented instruction is file `0x104b8`. Rust 160 tests, Python 165
 tests, the offline release build and strict ADSP revision comparison pass.
+
+## Checkpoint 30: controller phase startup and ISDBEN shutdown `[0x104b8,0x10534)`
+
+Extended the disjoint controller RWE source interval to `[0x10330,0x10534)`
+(**516 exact executable bytes**), SHA-256
+`bccdc199b0719fca0df25a6248e3d442bb0bf9ad237f384576a4df2d503f7c59`.
+The new **124-byte** phase controller constructs mode-4/mode-5 branches,
+invokes named external physical controller services and records the active
+phase before executing `ISDBEN=R0` and `isync`. LLVM6 assembles 30 ordinary
+instruction words; the single privileged system-register write uses a checked
+`write_system_register(SystemRegister.ISDBEN,0)` replacement at an independently
+source-assembled sentinel. No original instruction bytes were imported.
+
+Together with separate `[0x6030,0x6c6c)` (3,132 bytes), **3,648 bytes** of
+ADSP executable code are now source-assembled across two disjoint intervals.
+The original zero-fill and nonzero 144-byte unclassified table between them are
+excluded. Next missing program instruction starts at `0x10534`.

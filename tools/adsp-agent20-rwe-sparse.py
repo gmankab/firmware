@@ -17,7 +17,7 @@ from adsp_hexagon_v66 import (SystemRegister, read_system_register,
     read_system_register_pair, write_system_register, packet_continuation)
 SOURCE=TOOLS/'adsp-agent20-rwe-next-getter.S'
 FILE_START=0x10330
-FILE_END=0x104b8
+FILE_END=0x10534
 SIZE=FILE_END-FILE_START
 GETTER_SIZE=0x1c
 THREAD_CYCLES_SOURCE=TOOLS/'adsp-agent20-rwe-next-thread-cycles.S'
@@ -30,6 +30,8 @@ CONTROLLER_POLL_SOURCE=TOOLS/'adsp-agent20-rwe-next-status-poll.S'
 CONTROLLER_POLL_SIZE=0x30
 DEBUG_SNAPSHOT_SOURCE=TOOLS/'adsp-agent20-rwe-next-debug-snapshot.S'
 DEBUG_SNAPSHOT_SIZE=0x58
+CONTROLLER_PHASE_SOURCE=TOOLS/'adsp-agent20-rwe-next-controller-phase.S'
+CONTROLLER_PHASE_SIZE=0x7c
 PHYS_START=0x8be0d330
 SHA256_REFERENCE='4b579e5dc1333d634e5bdc93f3314e357e0e30dab7140833f6cc7aef086b1c1e'
 FILL_START=0x6c6c
@@ -94,6 +96,26 @@ def debug_snapshot(llvm_mc:str,previous)->bytes:
     return bytes(b)
 
 
+def controller_phase(llvm_mc:str, previous)->bytes:
+    """Restore controller routing and enter the next codec start phase.
+
+    LLVM6 builds the normal V66 packets from mnemonic source. The privileged
+    ISDBEN=R0 write must replace exactly one independently source-assembled
+    placeholder. This applies checked operand encodings only, never raw OEM
+    instruction bytes.
+    """
+    b=bytearray(previous.assemble(llvm_mc,CONTROLLER_PHASE_SOURCE,
+                                  CONTROLLER_PHASE_SIZE))
+    at=0x74
+    nop=struct.pack('<I',0x7f00c000)
+    if b[at:at+4]!=nop:
+        raise previous.AdspError('V66 controller-phase ISDBEN write slot moved')
+    b[at:at+4]=struct.pack('<I',write_system_register(SystemRegister.ISDBEN,0))
+    if any(b[i:i+4]==nop for i in range(0,len(b),4)):
+        raise previous.AdspError('Unreplaced Hexagon controller-phase placeholder')
+    return bytes(b)
+
+
 def render(llvm_mc: str)->bytes:
     # All seven V66 instructions are independently LLVM6-assembled, with no
     # reference bytes. The first packet sequence crosses a C function
@@ -122,7 +144,8 @@ def render(llvm_mc: str)->bytes:
     return (getter+bytes(trace)+isdb_guard(llvm_mc,b)
             +b.assemble(llvm_mc,SRAM_CLONE_SOURCE,SRAM_CLONE_SIZE)
             +b.assemble(llvm_mc,CONTROLLER_POLL_SOURCE,CONTROLLER_POLL_SIZE)
-            +debug_snapshot(llvm_mc,b))
+            +debug_snapshot(llvm_mc,b)
+            +controller_phase(llvm_mc,b))
 
 def verify(reference:bytes,built:bytes)->None:
     if hashlib.sha256(reference).hexdigest()!=SHA256_REFERENCE:
