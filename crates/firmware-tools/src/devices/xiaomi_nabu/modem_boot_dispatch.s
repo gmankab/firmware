@@ -693,3 +693,64 @@ HEX_SYSTEM_READ 0,18
 { r0 = setbit(r0,#1) }
 HEX_SYSTEM_WRITE 18,0
 { isync }
+// Repeat the architecture probe under the relocated MMU configuration, then
+// publish the translated physical word register and enable S18 bit two.
+.set modem_post_mapping, modem_boot_dispatch+(0x3fb8-0x3644)
+.set modem_secondary_start, modem_boot_dispatch+(0x4058-0x3644)
+{ call modem_post_mapping }
+{ call modem_secondary_start }
+HEX_SYSTEM_READ 10,42
+.set relocated_fault_done, modem_boot_dispatch+(0x3dd4-0x3644)
+{
+ p0 = tstbit(r10,#2)
+ if (!p0.new) jump:t relocated_fault_done
+}
+HEX_SYSTEM_READ 1,27,1
+{ r3 = #0 }
+{ r1 = insert(r3,#12,#20) }
+{
+ r1 = asl(r1,#5)
+ r0 = #8
+}
+HEX_PHYSICAL_WORD_LOAD 1,0,1
+{ r1 = insert(r3,#12,#20) }
+{
+ r1 = asl(r1,#5)
+ r0 = #24
+}
+{ r1 = add(r1,#-256) }
+HEX_PHYSICAL_WORD_LOAD 1,0,1
+{ r2 = memw(r25+##-1061985012) }
+{ r0 = and(r1,r2) }
+{
+ p0 = cmp.eq(r0,#0)
+ if (p0.new) jump:t relocated_fault_done
+ r2 = #1
+}
+HEX_SYSTEM_WRITE 42,2
+{ isync }
+{ r2 = memw(r25+##-1061984924) }
+{ r0 = and(r1,r2) }
+{ p0 = cmp.eq(r0,#0); if (p0.new) jump:t relocated_fault_done }
+{ brkpt }
+relocated_fault_done:
+.set relocated_start_ready, modem_boot_dispatch+(0x3de4-0x3644)
+{
+ r0 = memw(r25+##-1065353148)
+ if (!cmp.eq(r0.new,#0)) jump:t relocated_start_ready
+}
+.set relocated_stall, modem_boot_dispatch+(0x3de0-0x3644)
+{ jump relocated_stall }
+relocated_start_ready:
+.set bootstrap_relative_complete, modem_boot_dispatch+(0x3df8-0x3644)
+{
+ r0 = ##0
+ if (cmp.eq(r0.new,#0)) jump:t bootstrap_relative_complete
+}
+{ r0 = add(r0,r25) }
+{ callr r0 }
+bootstrap_relative_complete:
+HEX_SYSTEM_READ 0,18
+{ r0 = setbit(r0,#2) }
+HEX_SYSTEM_WRITE 18,0
+{ isync }

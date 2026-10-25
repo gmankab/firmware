@@ -150,3 +150,9 @@ The following file interval `[0x3044,0x35c4)` appears to contain a memory-map/tr
 - Typed Hexagon ISA macros encode all privileged register writes. Instruction dependencies are grouped into the exact packet boundaries (`r0=memw` with new-value branch, `call` with immediate argument and adjacent extenders), without embedding original opcode words.
 - The whole contiguous modem initial bootstrap `[0x3000,0x3d64)` is **3,428 bytes**: **2,216 executable Hexagon bytes**, **412 structured metadata bytes**, and **800 explicit padding bytes**. All match the original `modem.mbn` byte-for-byte. SHA-256: `cbf934469e1d2ee4811bff3289077cc6e805160b9fc0bc3f001a20a00bcab6b6`.
 - The next unavailable executable byte is at modem file `0x3d64`, physical `0x8e000d64`. The remaining program and OEM-authentication data are not reconstructed.
+
+## Checkpoint 17: relocated fault status and secondary physical protection probe
+
+- Added 164 independently encoded modem executable bytes at file `[0x3d64,0x3e08)` (physical `[0x8e000d64,0x8e000e08)`). The controller calls the next-stage handlers, probes protected S42/S27 MMU fault state, conditionally clears a fault, blocks on a protected handshake if necessary, dispatches a relative bootstrap callback, and sets/synchronizes the second S18 runtime bit.
+- A checked `HEX_PHYSICAL_WORD_LOAD` encodes the privileged physical read; `HEX_SYSTEM_READ`/`HEX_SYSTEM_WRITE` retain original register semantics. Hexagon packet source groups preserve the original new-value branch relationships (`r0.new`, `p0.new`), including extended immediates, without raw OEM opcode material.
+- Contiguous first-PT_LOAD reconstruction `[0x3000,0x3e08)` is now **3,592 exact bytes**: **2,380 Hexagon executable bytes**, 412 typed metadata, 800 explicit pad bytes, SHA256 `e30a4053333b294930d659a1b6e218bfec64850349ca7ac0e353243839ce9c62`. The next first unimplemented byte is modem file `0x3e08`, physical `0x8e000e08`.
