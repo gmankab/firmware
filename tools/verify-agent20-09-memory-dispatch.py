@@ -1,13 +1,15 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: GPL-3.0-only
 """Independent Hexagon V66 compilation of typed CDSP width dispatcher.
-LLVM6 assembles all 21 instructions, including predicated byte/half/word/double
-memory stores and a duplex return. The source is self-contained and consumes no
-OEM byte literals. Rizin V66 checks semantics at original physical addresses.
+LLVM6 fully matches the first 21 instructions (84 bytes), including
+predicated byte/half/word/double stores and a duplex return, and independently
+reassembles 17 additional tail instruction operands plus the conditional
+branch opcode family. The source contains no OEM byte literals. Rizin V66 checks semantics at original physical addresses.
 """
 from pathlib import Path
 import argparse,importlib.util,subprocess,tempfile,re
-START=0x4b1c;SIZE=84;PHYS=0x96c01b1c
+START=0x4b1c;SIZE=156;PREFIX_BYTES=84;PHYS=0x96c01b1c
+ALIGNMENT_END=0x4bc0
 ASM=''' .text
 .global sample
 sample:
@@ -35,6 +37,45 @@ failure:
 resume:
 { jumpr lr }
 '''
+TAIL_ASM=''' .text
+.global sample
+sample:
+{ p0=cmp.gtu(r1,r0)
+  if(!p0.new) jump:nt done }
+{ r3=or(r1,r0) }
+loop0start:
+{ r2=ct0(r3)
+  r4=sub(#0,r3)
+  r7=add(r1,#-32)
+  if(!cmp.gtu(r2.new,#4)) jump:nt alt }
+alt:
+{ p0=cmp.eq(r0,r7)
+  if(!p0.new) jump:t alt }
+{ r0=add(r0,#32)
+  dczeroa(r0) }
+done:
+{ jumpr lr }
+{ r5=add(##0xfe001b30,mpyi(r2,#12))
+  p1=tstbit(r1,r2)
+  r3=and(r3,r4) }
+{ p0=tstbit(r0,r2)
+  jumpr r5
+  r1=and(r1,~r3)
+  r3:2=combine(#0,#0) }
+'''
+TAIL_EXPECTED={
+    0x4b70:'p0=cmp.gtu(r1,r0);if(!p0.new)jump:nt0x96c01b94',
+    0x4b74:'r3=or(r1,r0)',0x4b78:'r2=ct0(r3)',
+    0x4b7c:'r4=sub(##0x0,r3)',0x4b80:'r7=add(r1,##-0x20)',
+    0x4b84:'if(!cmp.gtu(r2.new,#0x4))jump:nt0x96c01b98',
+    0x4b88:'p0=cmp.eq(r0,r7);if(!p0.new)jump:t0x96c01b88',
+    0x4b8c:'r0=add(r0,##0x20)',0x4b90:'dczeroa(r0)',
+    0x4b94:'jumprlr',0x4b98:'immext(##0xfe001b00)',
+    0x4b9c:'r5=add(##0xfe001b30,mpyi(r2,#0xc))',
+    0x4ba0:'p1=tstbit(r1,r2)',0x4ba4:'r3=and(r3,r4)',
+    0x4ba8:'p0=tstbit(r0,r2)',0x4bac:'jumprr5',
+    0x4bb0:'r1=and(r1,~r3)',0x4bb4:'r3:2=combine(##0x0,#0x0)',
+}
 EXPECTED={
  0x4b1c:'p0=cmp.gtu(r5,#0x3);if(p0.new)jump:nt0x96c01b2c',
  0x4b20:'immext(##0xfe026dc0)',0x4b24:'r7=memw(r5<<#0x2+##0xfe026dc8)',
@@ -65,9 +106,22 @@ def verify(llvm:Path,rz:Path,built:Path,reference:Path):
         source=Path(folder)/'source.s';obj=Path(folder)/'result.o';source.write_text(ASM)
         subprocess.run([str(llvm),'-triple=hexagon','-mcpu=hexagonv60','-filetype=obj','-o',str(obj),str(source)],capture_output=True,text=True,check=True)
         independent=elf_text(obj)
-    if independent[:SIZE]!=b:
-        diffs=[x for x in range(SIZE) if independent[x]!=b[x]]
+        tail_source=Path(folder)/'tail.s';tail_obj=Path(folder)/'tail.o'
+        tail_source.write_text(TAIL_ASM)
+        subprocess.run([str(llvm),'-triple=hexagon','-mcpu=hexagonv60','-filetype=obj','-o',str(tail_obj),str(tail_source)],capture_output=True,text=True,check=True)
+        tail_independent=elf_text(tail_obj)
+    if independent[:PREFIX_BYTES]!=b[:PREFIX_BYTES]:
+        diffs=[x for x in range(PREFIX_BYTES) if independent[x]!=b[x]]
         raise ValueError(f'21 LLVM6 independent instruction words differ at offsets {diffs[:10]}')
+    for i in range(0,SIZE-PREFIX_BYTES,4):
+        actual=int.from_bytes(b[PREFIX_BYTES+i:PREFIX_BYTES+i+4],'little')
+        assembly=int.from_bytes(tail_independent[i:i+4],'little')
+        if i==0x14: # Same new-value GTU branch family, different source-assembly forward label.
+            mask=~0xc0ff
+        else:
+            mask=~0xc000  # LLVM packet scheduler may change parse bits.
+        if (actual&mask)!=(assembly&mask):
+            raise ValueError(f'LLVM6 tail opcode/operand mismatch at file {0x4b70+i:#x}: {actual:#x}!={assembly:#x}')
     decoded=subprocess.run([str(rz),'-a','hexagon','-b','32','-o',hex(PHYS),'-D',b.hex()],capture_output=True,text=True,check=True)
     rows={}
     for line in decoded.stdout.splitlines():
@@ -77,7 +131,12 @@ def verify(llvm:Path,rz:Path,built:Path,reference:Path):
     for offset,want in EXPECTED.items():
         got=rows[PHYS+(offset-START)][0]
         if want not in got:raise ValueError(f'Unexpected Rizin semantic at {offset:#x}: {got}, expected {want}')
-    print('CDSP memory dispatch: 84 source bytes exact; all 21 Rizin V66 words decoded; independent LLVM6 assembly reproduces ALL 84 bytes including duplex and four data widths.')
+    for offset,want in TAIL_EXPECTED.items():
+        got=rows[PHYS+(offset-START)][0]
+        if want not in got:raise ValueError(f'Unexpected Rizin tail at {offset:#x}: {got}, expected {want}')
+    if reference.read_bytes()[START+SIZE:ALIGNMENT_END]!=b'\x00'*8:
+        raise ValueError('CDSP eight-byte structural alignment after memory dispatch is nonzero')
+    print('CDSP memory dispatch: 156 source-exact bytes (39 Rizin V66 words); LLVM6 reproduces all 84 prefix bytes and all 18 tail opcode families (17 complete operands and one branch-family comparison); eight linker zeros excluded.')
 if __name__=='__main__':
     p=argparse.ArgumentParser(description=__doc__)
     for k in ('llvm-mc','rz-asm','rust-output','reference'):p.add_argument('--'+k,type=Path,required=True)

@@ -7,7 +7,7 @@ fn main()->Result<(),Box<dyn Error>>{
     match args[0].as_str(){
         "emit"=>fs::write(&args[1],cfgbase::build_joined()?)?,
         "verify"=>dispatcher::verify_reference(&fs::read(&args[1])?)?,
-        "emit-memory-dispatch"=>fs::write(&args[1],dispatcher::build_dispatch_prefix()?)?,
+        "emit-memory-dispatch"=>fs::write(&args[1],dispatcher::build_full_memory_dispatch()?)?,
         "emit-maintenance"=>fs::write(&args[1],maintenance::build_maintenance_helpers()?)?,
         "emit-phys-dump"=>fs::write(&args[1],dump::build_physical_dump()?)?,
         "emit-cache-publish"=>fs::write(&args[1],dump::build_cache_publish()?)?,

@@ -183,3 +183,12 @@
 - **Independent full comparison:** LLVM6 Hexagon assembler accepts a semantically equivalent packet source and emits exactly the same **21/21 instruction words (84 bytes)**; V66 Rizin independently decodes all 21 words at correct physical addresses. This is stronger evidence than opcode-family-only corroboration, but still not a C-level decompilation or hardware validation.
 - The memory-dispatch function **continues at `0x4b70`** into a cache-line-zeroing loop. This checkpoint does not invent a return or vendor-code padding.
 - Cumulative CDSP source-generated executable `[0x41e0,0x4418)` = **568** and `[0x4500,0x4b70)` = **1,648** = **2,216 bytes**; 232 ELF alignment bytes excluded. Still a portable Agent 05-parented branch, not checkpoint-50 history.
+
+## Checkpoint 22 — Complete width-dispatch and cache-line zeroing through `0x4bb8`
+
+- Source-encoded **72 additional V66 executable bytes** `[0x4b70,0x4bb8)`, physical `[0x96c01b70,0x96c01bb8)`; the preceding `[0x4b1c,0x4b70)` prefix remains byte-identical. Full variable-width memory-dispatch routine is **156** executable bytes.
+- The continuation includes packet-predicated unsigned compare and conditional new-value branches, `ct0`, OR/complemented-AND, signed reverse subtraction, `dczeroa` cache-line zero, a GP-relative x12 dispatch and indirect function-pointer jump.
+- Rizin Hexagon V66 decodes all **39** instruction words. LLVM6 independently reproduces **all 84 prefix bytes** and **all 18 tail instruction opcode families** (17 full operand sets, one equivalent branch-family encoding with different local-label displacement). After fixing a mistaken OR opcode family bit, **all 156 bytes directly match original pinned `cdsp.mbn`**.
+- Eight reference-verified **linker alignment zeros `[0x4bb8,0x4bc0)`** are explicitly excluded from source-encoded executable bytes, like 232 linker alignment zeros at `[0x4418,0x4500)`.
+- Cumulative independently emitted CDSP executable is **2,288 bytes** across `[0x41e0,0x4418)` (568) and `[0x4500,0x4bb8)` (1,720). Total linker zeros tracked separately: 240 bytes. Next executable begins file offset `0x4bc0`, physical `0x96c01bc0`.
+- Shared-source ownership: Agent 09 only; `cdsp_early_memory_dispatch.rs`, its independent verifier, a narrowly changed Agent 09 CLI, and this progress note. Branch still descends from Agent 05, **not** the unavailable checkpoint-50-integrated branch. No vendor firmware embedded or cryptographic signature claimed.
