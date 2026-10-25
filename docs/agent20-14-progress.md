@@ -185,3 +185,75 @@ The emitted file is a code fragment. It is not a complete or flashable firmware
 image. Existing Agent 07 bytes are inherited and are not added to the new Agent
 14 coverage count. Shared CLI, central module registration, generic image
 construction and other agents' address ranges are unchanged.
+
+## Checkpoint 02 — record handling, validation and request lifecycle
+
+Six complete functions add **1,244 executable bytes**, file
+`[0x100528,0x100a04)`, runtime `[0xb00c0528,0xb00c0a04)`. Cumulative Agent
+14 coverage is now **2,112 consecutive bytes**, file `[0x1001c4,0x100a04)`.
+
+| Source stem | File range | Bytes | Recovered operations |
+| --- | --- | ---: | --- |
+| `agent14-late-caller-frame-search.S` | `[0x100528,0x10059c)` | 116 | Use caller-frame data to search context-associated candidate patterns. |
+| `agent14-late-counted-record-collect.S` | `[0x10059c,0x100698)` | 252 | Walk length-prefixed records, collect at most fifteen masked codes, retain a type-zero record, set a conditional flag. |
+| `agent14-late-signature-dispatch.S` | `[0x100698,0x1007c4)` | 300 | Route two type-`0xdd` signatures to distinct child parsers and handle truncated records. |
+| `agent14-late-configuration-check.S` | `[0x1007c4,0x100840)` | 124 | Validate scalar ranges and alignment without changing the input. |
+| `agent14-late-request-submit.S` | `[0x100840,0x10099c)` | 348 | Construct a stack request, submit it, update flags/counters and invoke optional timer-like helpers. |
+| `agent14-late-request-teardown.S` | `[0x10099c,0x100a04)` | 104 | Perform guarded teardown, clear the active flag, reset state and propagate the request result. |
+
+The new span contains 157 packets and 311 encoded words, including 16 extenders
+and 24 duplex words. It adds no literal pool, metadata/data, layout fill or
+copied reference bytes. New-span SHA-256:
+
+```text
+73360393f71fcafebcc45c015c40af23a90e7518ac7636237fde9e505e105334
+```
+
+Cumulative 2,112-byte span SHA-256:
+
+```text
+ed80dc6c8682df0636d2c5d65f629dc4b7578c88b2f1816955bccc69aaeb1527
+```
+
+### Additional semantic findings
+
+The scalar validator accepts an index below the global limit, two ordered
+nonzero 16-bit values, another value with no upper-half bits, a size in
+`{8,16,24,32,40,48,56,64,72,80}`, and a count in `[1,512]`. It returns zero
+when those checks pass and -1 otherwise. No null-pointer check is present.
+
+The signature dispatcher recognizes bytes `00:50:f2:04` and `50:6f:9a:09`
+after type `0xdd`, and passes the remaining payload to separate child functions.
+It initializes each child-result slot to -1 and returns their sum. No protocol
+API name is inferred from those constants alone.
+
+The caller-frame helper has an unusual input contract: after its frame setup,
+`r29+0x20` is the caller's stack pointer. It tests the full word at caller
+`+0x18c` and passes only that word's low eight bits as a candidate count, with
+candidate bytes at caller `+0x164`. A **zero full word returns 1 immediately**.
+A nonzero word whose low byte is zero still performs searches with zero
+candidates, which return zero. The later helper at `0xb00c0e74`, inspected to
+resolve this dependency, is a candidate-pattern search rather than a simple
+equality comparison. The pointless-looking final loop only increments
+registers after the second miss; it does not repeat the external search.
+
+Request submission sets the active flag even when its external helper reports
+nonzero. Teardown clears the flag even when its helper reports nonzero. Both
+behaviors are preserved, not replaced with presumed success-only updates.
+The setup routine retains the full unsigned 64-bit product of its interval
+field and 1000 for the timer-like call; external API identities remain unproven.
+
+Three packets in request setup needed legitimate source-order changes to retain
+the original duplex grouping. LLVM 18/V66 and LLVM 6/V65 emit all six functions
+byte-identically. The combined build rechecks the earlier four functions too.
+
+The latest-registry regression builds every registered function and verifies
+that checkpoint 01 remains an exact prefix. Final checkpoint evidence records
+**160 Rust tests and 83 Python tests passing, 0 skipped**, a passing release
+build, successful complete V66 decoding, zero reference/independent-assembler
+mismatches and `git diff --check`. See
+`docs/evidence/agent20-14/checkpoint-02.json`.
+
+Forward continuation: file `0x100a04`, runtime `0xb00c0a04`. The 452-byte lower
+seam is still uncovered. Build this snapshot with `--through-checkpoint 2`;
+the original `--through-checkpoint 1` output remains reproducible.

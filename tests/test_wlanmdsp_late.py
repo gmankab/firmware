@@ -204,6 +204,18 @@ class WlanLateAssemblyTests(unittest.TestCase):
         repeated, _ = late.build(self.mc, through_checkpoint=1)
         self.assertEqual(repeated, self.fragment)
 
+    def test_latest_source_keeps_the_verified_prefix_and_matches_reference(self):
+        reference_path = os.environ.get("WLANMDSP_REFERENCE")
+        latest, report = late.build(
+            self.mc, reference=Path(reference_path) if reference_path else None,
+            independent_llvm_mc=self.independent_mc, llvm_objdump=self.objdump)
+        self.assertTrue(latest.startswith(self.fragment))
+        self.assertGreaterEqual(len(latest), len(self.fragment))
+        if reference_path:
+            expected = Path(reference_path).read_bytes()[report["file_start"]:report["file_end"]]
+            self.assertEqual(latest, expected)
+            self.assertEqual(report["reference_byte_mismatches"], 0)
+
     def test_wrong_region_digest_rejects_build(self):
         payload = json.loads(REGISTRY.read_text())
         payload["regions"][0]["sha256"] = "0" * 64

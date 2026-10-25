@@ -43,6 +43,66 @@
       "sha256": "9abd11959ebf542b45eeb4e5f413724f849b7f335903aaaccf8f6f562285fd31",
       "checkpoint": 1,
       "classification": "executable"
+    },
+    {
+      "name": "caller-frame-search",
+      "file_start": 1049896,
+      "file_end": 1050012,
+      "source": "sources/xiaomi-nabu/wlanmdsp/agent14-late-caller-frame-search.S",
+      "symbol": "wlan_late_caller_frame_search",
+      "sha256": "6c0e4f7929016de1fff78e0d62e8cc87bf1435a9c21688b2392efd53f7ea9741",
+      "checkpoint": 2,
+      "classification": "executable"
+    },
+    {
+      "name": "counted-record-collect",
+      "file_start": 1050012,
+      "file_end": 1050264,
+      "source": "sources/xiaomi-nabu/wlanmdsp/agent14-late-counted-record-collect.S",
+      "symbol": "wlan_late_counted_record_collect",
+      "sha256": "73a5a0b1ff4fa713aae3825ae1d4d7764972132c5b4e5ba1ccb337c91f2c5da8",
+      "checkpoint": 2,
+      "classification": "executable"
+    },
+    {
+      "name": "signature-dispatch",
+      "file_start": 1050264,
+      "file_end": 1050564,
+      "source": "sources/xiaomi-nabu/wlanmdsp/agent14-late-signature-dispatch.S",
+      "symbol": "wlan_late_signature_dispatch",
+      "sha256": "dfc9e3290d8e03393e197168d6ead53e61d02d70ec4c7a7b0944d4dc5aa53ebe",
+      "checkpoint": 2,
+      "classification": "executable"
+    },
+    {
+      "name": "configuration-check",
+      "file_start": 1050564,
+      "file_end": 1050688,
+      "source": "sources/xiaomi-nabu/wlanmdsp/agent14-late-configuration-check.S",
+      "symbol": "wlan_late_configuration_check",
+      "sha256": "2b31178aedfcb47d63d49d87d5f782d525380c861fc21b27416687a1c3df07ee",
+      "checkpoint": 2,
+      "classification": "executable"
+    },
+    {
+      "name": "request-submit",
+      "file_start": 1050688,
+      "file_end": 1051036,
+      "source": "sources/xiaomi-nabu/wlanmdsp/agent14-late-request-submit.S",
+      "symbol": "wlan_late_request_submit",
+      "sha256": "f5a085b22e05b5b09a7304e76d891570ce889dc6f76be04ca686b2be7fc2bacd",
+      "checkpoint": 2,
+      "classification": "executable"
+    },
+    {
+      "name": "request-teardown",
+      "file_start": 1051036,
+      "file_end": 1051140,
+      "source": "sources/xiaomi-nabu/wlanmdsp/agent14-late-request-teardown.S",
+      "symbol": "wlan_late_request_teardown",
+      "sha256": "9c1a500677386fcbee3665999fc7eed014232ea9bd2ed16ff3c61fbf24474a6a",
+      "checkpoint": 2,
+      "classification": "executable"
     }
   ]
 }
