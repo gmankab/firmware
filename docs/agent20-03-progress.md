@@ -111,3 +111,10 @@ Original reference: private `map220v-nabu-firmware/venus.mbn`, SHA-256 `9d4af65d
 - Newly re-encoded `[0x25d14,0x26014)` = **768 bytes** comprising **176 checked ARM32 instructions** and **16 explicitly classified data words** (13 platform callback addresses/diagnostics `[0x25f90,0x25fc4)`, 1 pending-indicator address at `0x25fe4`, 2 IRQ clear/address fields `[0x2600c,0x26014)`). Covers registration of handler IDs, allocation/rollback, status clearing and callback notification.
 - Full fragment: **4,016 A32 instructions, 311 non-instruction words in 65 named pools**. Clang/LLD independent mnemonic reassembly reproduced every byte. Reference SHA-256 pinned in the earlier checkpoints; OEM signing and hardware behavior remain unverified.
 - Next missing instruction/runtime function starts at `0x26014`, still below the exclusive reservation upper bound `0x40000`.
+
+## Checkpoint 15 — pending-event dispatch and register-state synchronization
+
+- Continuous exact source-generated interval `[0x21c78,0x2634c)` = **18,132 bytes**; MBN file `[0x25c78,0x2a34c)`.
+- New `[0x26014,0x2634c)` = **824 bytes**: **201 ARM32 instructions** and **five literal address/data words** `[0x26338,0x2634c)`.
+- Implemented pending IRQ bit loop, prioritized callback dispatch, repeated state/resource interrogation, and synchronization of controller command status before exiting the dispatcher; data constants are separate from executable instructions.
+- Full interval independent Clang/LLD round-trip verifies **4,217 instructions and 316 data words** in 66 disjoint literal pools, zero byte mismatches. Next uncovered address `0x2634c`.
