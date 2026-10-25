@@ -12,10 +12,10 @@ SPEC.loader.exec_module(modem)
 class DispatchChecks(unittest.TestCase):
     def test_contiguous_size(self):
         self.assertEqual(modem.FILE_START,0x3644)
-        self.assertEqual(modem.FILE_END,0x3ef8)
-        self.assertEqual(modem.LENGTH,2228)
+        self.assertEqual(modem.FILE_END,0x3f90)
+        self.assertEqual(modem.LENGTH,2380)
         self.assertEqual(modem.PREFIX_LENGTH,1604)
-        self.assertEqual(modem.LENGTH+modem.PREFIX_LENGTH,3832)
+        self.assertEqual(modem.LENGTH+modem.PREFIX_LENGTH,3984)
 
     def test_rejects_wrong_revision(self):
         with self.assertRaisesRegex(ValueError,'wrong modem reference'):
@@ -26,6 +26,7 @@ class DispatchChecks(unittest.TestCase):
         self.assertEqual(modem.IMMEDIATE_BEFORE_BRANCH_PACKETS,(0x39a0,))
         self.assertEqual(modem.TLB_LOOP_PACKETS,(0x3aa8,))
         self.assertEqual(modem.TLB_FILL_PACKETS,(0x3e84,))
+        self.assertEqual(modem.LOGIC_AND_EXTENDED_GP_PACKETS,(0x3f64,0x3f70))
         self.assertEqual(modem.PREDICATE_LOOKUP_PACKETS,
                          (0x3710, 0x3758, 0x37a0, 0x37e8))
         self.assertTrue(all(modem.FILE_START <= pc < modem.FILE_END for pc in modem.PREDICATE_LOOKUP_PACKETS))
@@ -61,6 +62,8 @@ class DispatchChecks(unittest.TestCase):
         self.assertIn('initialized_tlb_table_loop:',text)
         self.assertIn('HEX_TLB_WRITE 2,0',text)
         self.assertIn('HEX_ICKILL',text)
+        self.assertIn('HEX_ABS_MEMUB_LOAD 1,0xc0b36524',text)
+        self.assertIn('jumpr r31',text)
         self.assertIn('bootstrap_relative_complete:',text)
         self.assertIn('HEX_COPY_MAP_PAIR 12288,16384', text)
         self.assertIn('physical_snapshot_retry:', text)

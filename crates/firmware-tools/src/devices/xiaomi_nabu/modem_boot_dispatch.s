@@ -107,6 +107,14 @@
     .endif
     .word (0x56c01000 | (\marker << 14))
 .endm
+// Byte-valued GP absolute load with a constant extender (L4_loadrub_gp).
+.macro HEX_ABS_MEMUB_LOAD dst, absolute
+    .if (\dst < 0) || (\dst > 31) || (\absolute < 0) || (\absolute > 0xffffffff)
+        .error "invalid Hexagon absolute unsigned-byte load"
+    .endif
+    .word ((((\absolute >> 20) & 0xfff) << 16) | (1 << 14) | ((\absolute >> 6) & 0x3fff))
+    .word (0x49200000 | (3 << 14) | ((\absolute & 63) << 5) | \dst)
+.endm
 .globl modem_boot_dispatch
 modem_boot_dispatch:
 .set modem_ready_handler, modem_boot_dispatch+0x5c4
@@ -844,3 +852,47 @@ HEX_SYSTEM_WRITE 18,1
 { isync }
 { r2 = ##-1065349384 }
 { jumpr r2 }
+// One-time relocated initialization return and a reusable hardware state
+// callback: switch I-cache mode, reload protected descriptor pointers from
+// extended absolute addresses, update S18, then return through r31.
+.set codec_post_init_handler, modem_boot_dispatch+(0x44f0-0x3644)
+{ call codec_post_init_handler }
+{
+ call modem_maintain_system
+ r0 = #17
+}
+.set codec_finish_main_handler, modem_boot_dispatch+(0x45d8-0x3644)
+{
+ call codec_finish_main_handler
+ r0 = #191
+}
+.set codec_flush_handler, modem_boot_dispatch+(0x4604-0x3644)
+{ call codec_flush_handler }
+{ jump adjust_ptrs_two_done }
+// This callable callback was referenced earlier as vendor_init_callback.
+HEX_SYSTEM_READ 15,18
+{ r10 = clrbit(r15,#1) }
+HEX_SYSTEM_WRITE 18,10
+{ isync }
+HEX_ICKILL
+{ isync }
+{ r15 = setbit(r15,#0) }
+HEX_SYSTEM_WRITE 18,15
+{ isync }
+HEX_ABS_MEMW_LOAD 1,0xc191c004
+HEX_SYSTEM_WRITE 7,1
+HEX_ABS_MEMW_LOAD 1,0xc191c010
+HEX_CONTROL_WRITE 8,1
+HEX_SYSTEM_READ 15,18
+{ r1 = #63 }
+HEX_ABS_MEMW_LOAD 17,0xc0866024
+{ r1 = sub(#-1,r17) }
+{ r15 = and(r15,r1) }
+HEX_ABS_MEMW_LOAD 17,0xc0866020
+{ r15 = or(r15,r17) }
+HEX_ABS_MEMUB_LOAD 1,0xc0b36524
+{ r15 = insert(r1,#3,#16) }
+{ r31 = sub(r31,r25) }
+HEX_SYSTEM_WRITE 18,15
+{ isync }
+{ jumpr r31 }

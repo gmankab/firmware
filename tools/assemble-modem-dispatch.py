@@ -11,7 +11,7 @@ import sys
 import tempfile
 
 FILE_START = 0x3644
-FILE_END = 0x3ef8
+FILE_END = 0x3f90
 CONTIGUOUS_START = 0x3000
 LENGTH = FILE_END - FILE_START
 PREFIX_LENGTH = FILE_START - CONTIGUOUS_START
@@ -28,6 +28,7 @@ PREDICATE_BRANCH_PACKETS = (0x3814,)
 IMMEDIATE_BEFORE_BRANCH_PACKETS = (0x39a0,)
 TLB_LOOP_PACKETS = (0x3aa8,)
 TLB_FILL_PACKETS = (0x3e84,)
+LOGIC_AND_EXTENDED_GP_PACKETS = (0x3f64,0x3f70)
 MARKER_MASK = 3 << 14
 CONTINUE = 1 << 14
 END_PACKET = 3 << 14
@@ -80,6 +81,14 @@ def restore_predicate_order(data: bytes) -> bytes:
         if [w & MARKER_MASK for w in (branch,comparison,increment)]!=[CONTINUE,CONTINUE,END_PACKET]:
             raise ValueError(f'unexpected TLB fill packet markers at {addr:#x}')
         words[at:at+3]=[comparison,branch,increment]
+    for addr in LOGIC_AND_EXTENDED_GP_PACKETS:
+        at=(addr-FILE_START)//4
+        logical, extender, absolute_load = words[at:at+3]
+        if (logical >> 24,extender >> 24,absolute_load >> 24)!=(0xf1,0x0c,0x49):
+            raise ValueError(f'unexpected Hexagon logic/extended-GP packet at {addr:#x}')
+        if [w & MARKER_MASK for w in (logical,extender,absolute_load)]!=[END_PACKET,CONTINUE,END_PACKET]:
+            raise ValueError(f'unexpected logic/extended-GP parse markers at {addr:#x}')
+        words[at] = (logical & ~MARKER_MASK) | CONTINUE
     return struct.pack('<'+'I'*len(words),*words)
 
 def assemble(llvm_mc: Path) -> bytes:
