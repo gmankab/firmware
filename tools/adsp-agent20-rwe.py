@@ -25,7 +25,7 @@ from adsp_hexagon_v66 import (SystemRegister, ControlRegister, InstructionCacheR
                               write_predicate_group_from_gpr,packet_continuation)
 
 FILE_START=0x6030
-FILE_END=0x67e8
+FILE_END=0x6818
 SIZE=FILE_END-FILE_START
 PADDR=0x8BE03030
 REFERENCE_SHA='4b579e5dc1333d634e5bdc93f3314e357e0e30dab7140833f6cc7aef086b1c1e'
@@ -75,6 +75,8 @@ PHYSICAL_CONTROLLER_SOURCE=TOOLS/'adsp-agent20-rwe-physical-controller.S'
 PHYSICAL_CONTROLLER_SIZE=0x3c
 PHYSICAL_SYNC_SOURCE=TOOLS/'adsp-agent20-rwe-physical-sync.S'
 PHYSICAL_SYNC_SIZE=0x40
+PHYSICAL_SCAN_SOURCE=TOOLS/'adsp-agent20-rwe-physical-scan.S'
+PHYSICAL_SCAN_SIZE=0x30
 
 
 def baseline():
@@ -367,6 +369,24 @@ def physical_controller(llvm_mc:str,previous)->bytes:
     return bytes(b)
 
 
+
+def physical_scan(llvm_mc:str,previous)->bytes:
+    """Source-assemble 48 V66 bytes scanning four physical controller words.
+
+    Only the V66 physical read at +0x20 is not supported by LLVM6's mnemonic
+    assembler; encode that one named three-register operation after exact NOP
+    location validation. Both hardware-loop end packet and physical mapping
+    remain source-level, not original word literals.
+    """
+    data=bytearray(previous.assemble(llvm_mc,PHYSICAL_SCAN_SOURCE,
+                                     PHYSICAL_SCAN_SIZE))
+    at=0x20
+    if data[at:at+4]!=struct.pack('<I',0x7f00c000):
+        raise previous.AdspError('physical scan special read marker moved')
+    data[at:at+4]=struct.pack('<I',physical_word_load(3,0,2))
+    return bytes(data)
+
+
 def render(llvm_mc:str)->bytes:
     previous=baseline()
     output=bytearray(previous.assemble(llvm_mc,SOURCE,STARTUP_SIZE))
@@ -403,6 +423,7 @@ def render(llvm_mc:str)->bytes:
     output.extend(previous.assemble(llvm_mc,CACHE_COPY_SOURCE,CACHE_COPY_SIZE))
     output.extend(physical_controller(llvm_mc,previous))
     output.extend(previous.assemble(llvm_mc,PHYSICAL_SYNC_SOURCE,PHYSICAL_SYNC_SIZE))
+    output.extend(physical_scan(llvm_mc,previous))
     if len(output)!=SIZE:
         raise previous.AdspError("RWE source fragments are not contiguous")
     return bytes(output)

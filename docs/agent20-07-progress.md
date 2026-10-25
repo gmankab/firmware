@@ -266,3 +266,19 @@ The following routine begins at `0x67e8`. Tests include packet-boundary,
 physical register-field bounds, direct byte comparison, LLVM6 assembly and an
 independent Rizin V66 decoder check. The input MBN file remains outside Git;
 there is no newly OEM-signed firmware output.
+
+## Checkpoint 17: four-word physical register scan `[0x67e8,0x6818)`
+
+**48 additional exact Hexagon V66 executable bytes** read a cached controller
+configuration, translate the physical register selector, and iterate four
+hardware-register words into a mapped cache buffer. LLVM6 assembles 11 words
+from explicit mnemonic packets; the single `r3=memw_phys(r0,r2)` instruction
+is encoded using checked source/destination/address register fields and
+strictly verified NOP placement. No original firmware opcodes are copied.
+
+Total RWE source-built bytes: **2,024 contiguous**, file `[0x6030,0x6818)`
+physical `[0x8be03030,0x8be03818)`, SHA-256
+`eb2594282616b9c8fe2fd9898c44fa9a5b5e18ab8db9debb856e0d030dce62e3`.
+Independent Rizin reads the same packet boundaries; next routine begins at
+`0x6818`. This remains a provisional Agent04-based branch awaiting an actual
+checkpoint-50 descendant; source-level semantics/hardware trust are unproven.
