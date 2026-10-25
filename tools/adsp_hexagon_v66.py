@@ -301,3 +301,17 @@ def packet_continuation(instruction: int) -> int:
     if (instruction >> 14) & 3 != 3:
         raise HexagonEncodingError("Expected an end-of-packet instruction")
     return (instruction & ~(3 << 14)) | (1 << 14)
+
+
+def tlb_read_pair(destination_even: int, index_register: int) -> int:
+    """Encode Hexagon V66 ``R(d+1):d = tlbr(Rs)`` in one instruction.
+
+    This extends the separately checked fixed-operand TLB read helper to the
+    two documented register fields: low destination in bits 4:0, source index
+    in bits 20:16.  Alignment is required because the destination is 64-bit.
+    The packet end marker is part of this single-instruction form.
+    """
+    if (not isinstance(destination_even, int) or destination_even % 2
+            or not 0 <= destination_even <= 30):
+        raise HexagonEncodingError('TLBR pair destination must be even GPR 0..30')
+    return 0x6C40C000 | (gpr(index_register) << 16) | destination_even
