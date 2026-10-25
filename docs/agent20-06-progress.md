@@ -117,3 +117,10 @@ python3 tools/agent20_06_a32_roundtrip.py /private/venus.mbn 0xa8ea0 0xa92c8 \
 - Handles controller state preparation, DMA parameters, register FIFO sequences, and conditional branches. No original firmware instructions are embedded as data arrays.
 - Independent LLVM/Clang ARM assembler verifies all 1,820 code bytes and 28 data bytes exactly. Full cargo workspace 191 Rust tests, 13 Python tests, release build pass. Next uncovered runtime address: `0xab784` (`venus.mbn` file offset `0xaf784`).
 - The standalone branch is still provisional, descending from older Agent 03, not checkpoint 50. Instruction identity does not establish semantic source reconstruction, emulated behavior, or OEM signing.
+
+## Checkpoint 12 — three codec slot and parameter helpers
+
+- Source-authored typed Venus runtime `[0xa8000,0xaba80)` = **14,976 contiguous byte-identical bytes**, private original MBN offsets `[0xac000,0xafa80)`; SHA-256 `6e69c8e6503313558daf0a4bfecdf29be0b4fd5b65a6c5c3b7b89649a74b5873`.
+- Newly added `[0xab784,0xaba80)` = **764 bytes**: three ARM32 helpers with 189 typed instructions (756 bytes) and two global data-address words (8 bytes) at `[0xab8e4,0xab8ec)`. The helpers remap controller slot pointers, link a selected codec slot by tag and publish mode/parameter defaults. The original returns at `0xab8dc`, `0xab960`, and `0xaba7c`; no synthetic epilogues or filler.
+- Independent Clang/LLVM reconstructed all 756 code and 8 explicitly typed data bytes with zero differences. Full 191 Rust tests, 13 Python tests and release build passed.
+- Next uncovered runtime `0xaba80` (private MBN offset `0xafa80`). Work is still provisional, not based on inaccessible checkpoint 50 and not independently reverse engineered to high-level functional semantics.
