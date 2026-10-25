@@ -24,7 +24,7 @@ from adsp_hexagon_v66 import (SystemRegister, ControlRegister, read_system_regis
                               write_predicate_group_from_gpr,packet_continuation)
 
 FILE_START=0x6030
-FILE_END=0x6568
+FILE_END=0x65f4
 SIZE=FILE_END-FILE_START
 PADDR=0x8BE03030
 REFERENCE_SHA='4b579e5dc1333d634e5bdc93f3314e357e0e30dab7140833f6cc7aef086b1c1e'
@@ -60,6 +60,8 @@ STATE_READY_SOURCE=TOOLS/'adsp-agent20-rwe-state-ready.S'
 STATE_READY_SIZE=0x24
 RESET_CONTROLLER_SOURCE=TOOLS/'adsp-agent20-rwe-reset-controller.S'
 RESET_CONTROLLER_SIZE=0x90
+REGISTER_SNAPSHOT_SOURCE=TOOLS/'adsp-agent20-rwe-register-snapshot.S'
+REGISTER_SNAPSHOT_SIZE=0x8c
 
 
 def baseline():
@@ -251,6 +253,33 @@ def reset_controller(llvm_mc:str,previous)->bytes:
     return bytes(out)
 
 
+
+def register_snapshot(llvm_mc:str, previous)->bytes:
+    """Build a 140-byte codec register snapshot and guarded fallback chain.
+
+    31 ordinary V66 packet words, including original packet extenders, are
+    compiled from symbolic Hexagon assembly. Four checked privilege-bank
+    register transfers replace exact LLVM6 NOP markers; register fields and
+    continuing-packet parse bits are encoded rather than copied from OEM.
+    """
+    output=bytearray(previous.assemble(llvm_mc,REGISTER_SNAPSHOT_SOURCE,
+                                       REGISTER_SNAPSHOT_SIZE))
+    terminating=struct.pack('<I',0x7f00c000)
+    replacements={
+        0x18:read_system_register(1,SystemRegister.SGP0),
+        0x30:read_system_register(9,SystemRegister.SGP0),
+        0x40:write_system_register(SystemRegister.ELR,4),
+        0x58:packet_continuation(read_system_register(3,SystemRegister.HTID)),
+    }
+    for at,word in replacements.items():
+        if output[at:at+4]!=terminating:
+            raise previous.AdspError(f'codec snapshot V66 register marker moved at 0x{at:x}')
+        output[at:at+4]=struct.pack('<I',word)
+    if any(output[i:i+4]==terminating for i in range(0,len(output),4)):
+        raise previous.AdspError('unresolved codec snapshot privileged instruction')
+    return bytes(output)
+
+
 def render(llvm_mc:str)->bytes:
     previous=baseline()
     output=bytearray(previous.assemble(llvm_mc,SOURCE,STARTUP_SIZE))
@@ -281,6 +310,7 @@ def render(llvm_mc:str)->bytes:
     output.extend(thread_launch(llvm_mc,previous))
     output.extend(previous.assemble(llvm_mc,STATE_READY_SOURCE,STATE_READY_SIZE))
     output.extend(reset_controller(llvm_mc,previous))
+    output.extend(register_snapshot(llvm_mc,previous))
     if len(output)!=SIZE:
         raise previous.AdspError("RWE source fragments are not contiguous")
     return bytes(output)

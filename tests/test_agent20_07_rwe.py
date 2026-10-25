@@ -21,9 +21,9 @@ class RweEntryTests(unittest.TestCase):
         cls.ref=os.environ.get('NABU_ADSP_REFERENCE')
     def test_ptload_offset_mapping(self):
         self.assertEqual(module.FILE_START,0x6030)
-        self.assertEqual(module.FILE_END,0x6568)
+        self.assertEqual(module.FILE_END,0x65f4)
         self.assertEqual(module.PADDR,0x8BE03030)
-        self.assertEqual(module.SIZE,1336)
+        self.assertEqual(module.SIZE,1476)
     def test_source_assembler_with_checked_v66_registers(self):
         if not self.mc:self.skipTest('HEXAGON_LLVM_MC missing')
         b=module.render(self.mc)
@@ -157,7 +157,8 @@ class RweEntryTests(unittest.TestCase):
     def test_launch_controller_special_registers_and_handoff(self):
         if not self.mc:self.skipTest('HEXAGON_LLVM_MC missing')
         b=module.render(self.mc)
-        launch_off=(len(b)-module.RESET_CONTROLLER_SIZE-
+        launch_off=(len(b)-module.REGISTER_SNAPSHOT_SIZE-
+                    module.RESET_CONTROLLER_SIZE-
                     module.THREAD_LAUNCH_SIZE-module.STATE_READY_SIZE)
         self.assertEqual(struct.unpack_from('<I',b,launch_off+0x14)[0],
             module.packet_continuation(module.read_system_register(
@@ -173,7 +174,7 @@ class RweEntryTests(unittest.TestCase):
     def test_controller_reset_exact_syscfg_and_ssr_slots(self):
         if not self.mc:self.skipTest('HEXAGON_LLVM_MC missing')
         b=module.render(self.mc)
-        off=len(b)-module.RESET_CONTROLLER_SIZE
+        off=len(b)-module.REGISTER_SNAPSHOT_SIZE-module.RESET_CONTROLLER_SIZE
         checks={0x04:module.read_system_register(0,SystemRegister.SSR),
                 0x0c:module.write_system_register(SystemRegister.SSR,0),
                 0x54:module.read_system_register(0,SystemRegister.SYSCFG),
@@ -183,7 +184,7 @@ class RweEntryTests(unittest.TestCase):
                 0x6c:module.write_system_register(SystemRegister.SSR,0)}
         for offset,word in checks.items():
             self.assertEqual(struct.unpack_from('<I',b,off+offset)[0],word)
-        self.assertEqual(struct.unpack_from('<I',b,len(b)-4)[0],0x5800c000)
+        self.assertEqual(struct.unpack_from('<I',b,off+module.RESET_CONTROLLER_SIZE-4)[0],0x5800c000)
         if self.ref:module.verify(Path(self.ref).read_bytes(),b)
 
     def test_wrong_firmware_is_rejected(self):

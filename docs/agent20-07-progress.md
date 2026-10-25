@@ -177,3 +177,29 @@ file `[0x6030,0x6568)`, physical `[0x8be03030,0x8be03568)`, SHA-256
 Next distinct function starts at `0x6568`. Original 0x30-byte metadata
 before `0x6030`, remaining RWE code and OEM authentication remain outside
 this reconstruction.
+
+## Checkpoint 13: ADSP codec register snapshot and fallback `[0x6568,0x65f4)`
+
+The new **140 executable bytes** use original Hexagon V66 packet boundaries,
+physical-address relative calls and non-reordered instruction extenders.
+Source `tools/adsp-agent20-rwe-register-snapshot.S` models the controller
+frame, chained external service calls, SGP0 mapped descriptor reads, ELR
+snapshot, HTID-based indexing and a guarded error-loop return. LLVM6 source
+assembles **31 of the 35 instruction words**. Four remaining privileged
+transfers (`r1=SGP0`, `r9=SGP0`, `ELR=r4`, and a packet-continuing `r3=HTID`)
+are emitted through checked typed V66 register-field encoders after exact
+LLVM6 placeholder validation; there are no copied OEM opcode slices.
+
+The cumulative RWE instruction fragment is now **1,476 exact bytes**, ADSP
+file `[0x6030,0x65f4)` (physical `[0x8be03030,0x8be035f4)`), SHA-256
+`9c3e5a6a6336700544c6a3fbc572ddc0e488271fc8d23c85f622ff7db0781e75`.
+The next instruction at `0x65f4` is a separate one-word return stub; it
+has not been included in this checkpoint. The 0x30-byte boot metadata at the
+second RWE segment entry remains distinct original data, and the original
+OEM signature/certificate block remains externally authenticated reference.
+
+Verification: LLVM6 mnemonic assembly + checked V66 encoder values; independent
+Rizin hexagon-v66 decoding of the complete 140-byte interval; direct SHA-pinned
+reference byte comparison; workspace offline Rust/Python tests and release build.
+Branch is still rooted in Agent04's older `d7cb8b1…` snapshot, **not** the
+missing checkpoint-50 integration tree.
