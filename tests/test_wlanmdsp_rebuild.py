@@ -165,6 +165,27 @@ class WlanHexagonAssemblyTests(unittest.TestCase):
             self.assertEqual(len(full), fw.THROUGH_RECORD_PREFIX_LENGTH)
             fw.check_reference(full, Path(ref).read_bytes())
 
+    def test_disconnected_import_aliases_are_typed_and_verified_at_own_offset(self):
+        source = fw.IMPORT_ALIASES_SOURCE.read_text()
+        self.assertIn("disjoint executable interval", source)
+        for directive in (".incbin", ".byte", ".word", ".long", ".quad"):
+            self.assertNotIn(directive, source)
+        aliases = fw.assemble(fw.IMPORT_ALIASES_SOURCE, self.mc,
+                              expected_length=fw.IMPORT_ALIASES_LENGTH)
+        self.assertEqual(len(aliases), 24)
+        self.assertEqual(aliases[:4],bytes.fromhex("c37fff0f"))
+        self.assertEqual(aliases[-4:],bytes.fromhex("30c00058"))
+        for cpu in ("hexagonv62",):
+            self.assertEqual(aliases, fw.assemble(fw.IMPORT_ALIASES_SOURCE,
+                self.mc, cpu=cpu, expected_length=fw.IMPORT_ALIASES_LENGTH))
+        ref = os.environ.get("WLANMDSP_REFERENCE")
+        if ref:
+            fw.check_reference(aliases, Path(ref).read_bytes(),
+                               runtime_offset=fw.IMPORT_ALIASES_OFFSET)
+        if ref:
+            with self.assertRaisesRegex(fw.FragmentError,"negative"):
+                fw.check_reference(b"", Path(ref).read_bytes(), runtime_offset=-1)
+
     def test_unresolved_reference_is_rejected(self):
         with tempfile.TemporaryDirectory() as d:
             bad = Path(d) / "unresolved.S"

@@ -21,6 +21,7 @@ SOURCE = ROOT / "sources/xiaomi-nabu/wlanmdsp/wlan-startup.S"
 HOOK_SOURCE = ROOT / "sources/xiaomi-nabu/wlanmdsp/wlan-loader-hooks.S"
 LOOKUP_SOURCE = ROOT / "sources/xiaomi-nabu/wlanmdsp/wlan-config-lookup.S"
 RECORD_PREFIX_SOURCE = ROOT / "sources/xiaomi-nabu/wlanmdsp/wlan-record-consumer-prefix.S"
+IMPORT_ALIASES_SOURCE = ROOT / "sources/xiaomi-nabu/wlanmdsp/wlan-import-aliases.S"
 FILE_OFFSET = 0x40000
 VADDR = 0xB0000000
 TEXT_LENGTH = 0x154
@@ -37,6 +38,8 @@ CONFIG_LOOKUP_LENGTH = 0x9c
 THROUGH_CONFIG_LOOKUP_LENGTH = THROUGH_LOADER_HOOKS_LENGTH + CONFIG_LOOKUP_LENGTH
 RECORD_CONSUMER_PREFIX_LENGTH = 0x12c
 THROUGH_RECORD_PREFIX_LENGTH = THROUGH_CONFIG_LOOKUP_LENGTH + RECORD_CONSUMER_PREFIX_LENGTH
+IMPORT_ALIASES_OFFSET = 0x1fa8
+IMPORT_ALIASES_LENGTH = 0x18
 # Identified uniform gap immediately following _init up to the linker PLT.
 # Treat this as layout fill, NEVER as independently reconstructed code.
 LINKER_GAP_WORD = 0x00c0007f
@@ -101,7 +104,7 @@ def read_resolved_text(obj: bytes, expected_length: int = TEXT_LENGTH) -> bytes:
     return obj[offset:offset + length]
 
 
-def check_reference(fragment: bytes, firmware: bytes) -> None:
+def check_reference(fragment: bytes, firmware: bytes, runtime_offset: int = 0) -> None:
     if hashlib.sha256(firmware).hexdigest() != FIRMWARE_SHA256:
         raise FragmentError("wrong WLAN firmware revision (SHA-256 differs)")
     if firmware[:6] != b"\x7fELF\x01\x01" or len(firmware) < 52:
@@ -118,15 +121,17 @@ def check_reference(fragment: bytes, firmware: bytes) -> None:
                 for i in range(count)]
     candidates = [p for p in programs if p[0] == 1 and p[1] == FILE_OFFSET
                   and p[2] == VADDR and (p[6] & 5) == 5]
-    if len(candidates) != 1 or candidates[0][4] < len(fragment):
-        raise FragmentError("WLAN executable PT_LOAD not found at file 0x40000")
-    expected = firmware[FILE_OFFSET:FILE_OFFSET + len(fragment)]
+    if runtime_offset < 0:
+        raise FragmentError("negative executable runtime offset")
+    if len(candidates) != 1 or candidates[0][4] < runtime_offset + len(fragment):
+        raise FragmentError("WLAN executable PT_LOAD does not cover requested fragment")
+    expected = firmware[FILE_OFFSET + runtime_offset:FILE_OFFSET + runtime_offset + len(fragment)]
     if len(expected) != len(fragment):
         raise FragmentError("reference executable truncated")
     for at, (got, want) in enumerate(zip(fragment, expected)):
         if got != want:
-            raise FragmentError(f"first mismatch at ELF file offset 0x{FILE_OFFSET+at:x}, "
-                                f"vaddr 0x{VADDR+at:x}: built 0x{got:02x}, reference 0x{want:02x}")
+            raise FragmentError(f"first mismatch at ELF file offset 0x{FILE_OFFSET+runtime_offset+at:x}, "
+                                f"vaddr 0x{VADDR+runtime_offset+at:x}: built 0x{got:02x}, reference 0x{want:02x}")
 
 
 def plt_assembly() -> str:
@@ -230,10 +235,19 @@ def main() -> None:
                     help="include the 156-byte table lookup and descriptor extractor")
     ap.add_argument("--with-record-prefix", action="store_true",
                     help="append the 300-byte record-consumer entry and initial checks; partial function")
+    ap.add_argument("--import-aliases-only", action="store_true",
+                    help="emit three separately verified Hexagon tail aliases at runtime offset 0x1fa8")
     ap.add_argument("--emit-plt-assembly", type=Path,
                     help="write independently generated PLT source for inspection")
     args = ap.parse_args()
-    fragment = assemble(args.source, args.llvm_mc, args.cpu)
+    if args.import_aliases_only and (args.with_plt or args.with_loader_hooks
+                                    or args.with_config_lookup or args.with_record_prefix):
+        raise FragmentError("disjoint import aliases cannot be combined with contiguous prefix")
+    runtime_offset = IMPORT_ALIASES_OFFSET if args.import_aliases_only else 0
+    fragment = (assemble(IMPORT_ALIASES_SOURCE, args.llvm_mc, args.cpu,
+                         expected_length=IMPORT_ALIASES_LENGTH)
+                if args.import_aliases_only
+                else assemble(args.source, args.llvm_mc, args.cpu))
     if args.emit_plt_assembly is not None:
         args.emit_plt_assembly.parent.mkdir(parents=True, exist_ok=True)
         args.emit_plt_assembly.write_text(plt_assembly())
@@ -246,12 +260,12 @@ def main() -> None:
     if args.with_record_prefix:
         fragment = emit_with_record_prefix(fragment, args.llvm_mc, args.cpu)
     if args.reference is not None:
-        check_reference(fragment, args.reference.read_bytes())
+        check_reference(fragment, args.reference.read_bytes(), runtime_offset=runtime_offset)
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_bytes(fragment)
     digest = hashlib.sha256(fragment).hexdigest()
-    report = {"firmware": "wlanmdsp.mbn", "file_offset": FILE_OFFSET,
-              "vaddr": VADDR, "verified_bytes": len(fragment) if args.reference else None,
+    report = {"firmware": "wlanmdsp.mbn", "file_offset": FILE_OFFSET+runtime_offset,
+              "vaddr": VADDR+runtime_offset, "verified_bytes": len(fragment) if args.reference else None,
               "generated_bytes": len(fragment), "sha256": digest,
               "complete_firmware": False,
               "independently_encoded_startup_bytes": TEXT_LENGTH,
@@ -260,13 +274,15 @@ def main() -> None:
               "independently_encoded_loader_hook_bytes": LOADER_HOOKS_LENGTH if (args.with_loader_hooks or args.with_config_lookup or args.with_record_prefix) else 0,
               "independently_encoded_config_lookup_bytes": CONFIG_LOOKUP_LENGTH if (args.with_config_lookup or args.with_record_prefix) else 0,
               "independently_encoded_record_prefix_bytes": RECORD_CONSUMER_PREFIX_LENGTH if args.with_record_prefix else 0,
+              "independently_encoded_import_alias_bytes": IMPORT_ALIASES_LENGTH if args.import_aliases_only else 0,
+              "separate_disconnected_executable_region": bool(args.import_aliases_only),
               "provenance": "independently assembled Hexagon source; no OEM instruction bytes embedded"}
     if args.manifest is not None:
         args.manifest.parent.mkdir(parents=True, exist_ok=True)
         args.manifest.write_text(json.dumps(report, sort_keys=True, indent=2) + "\n")
     print(f"WLAN Hexagon partial executable: {len(fragment)} layout bytes "
-          f"(file 0x{FILE_OFFSET:x}–0x{FILE_OFFSET + len(fragment):x}; "
-          f"vaddr 0x{VADDR:x}–0x{VADDR+len(fragment):x})")
+          f"(file 0x{FILE_OFFSET+runtime_offset:x}–0x{FILE_OFFSET + runtime_offset + len(fragment):x}; "
+          f"vaddr 0x{VADDR+runtime_offset:x}–0x{VADDR+runtime_offset+len(fragment):x})")
     if args.reference is not None:
         print("Exact byte identity against SHA-256-verified reference.")
     print("Partial executable fragment only; NOT a complete, authenticated firmware image.")
