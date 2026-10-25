@@ -292,3 +292,11 @@ python3 tools/agent20_06_a32_roundtrip.py /private/venus.mbn 0xa8ea0 0xa92c8 \
 - Rebuilt record-index compaction, active-record registration, two plane/line byte-count helpers, controller flush, and stream-feedback state updates. Branches into previous routines and the original return paths are preserved.
 - Direct `agent20_06_venus_tail verify` and independent Clang/LLVM `tools/agent20_06_a32_roundtrip.py` with the **three declared data ranges** both report **zero differing bytes**. Full offline Rust suite **204 tests**, Python suite **13 tests** pass; release-build status not claimed here.
 - Next uncovered ARM runtime is `0xb5008` (reference file offset `0xb9008`), beginning another controller routine. The branch remains provisional old-base A32 instruction-level reconstruction, not genuine high-level semantic decompilation, newly signed OEM firmware, on-device execution, or a checkpoint-50-rooted integration.
+
+## Checkpoint 33 — controller stream-class jump table and first record checks
+
+- Cumulative reference-exact ARM runtime `[0xa8000,0xb5600)` = **54,784 contiguous bytes**, source MBN file `[0xac000,0xb9600)`.
+- Newly reconstructed `[0xb5008,0xb5600)` = **1,528 bytes**: **368 typed A32 instructions (1,472 bytes)** plus **14 explicitly classified jump-table words (56 bytes)** at `[0xb5054,0xb508c)`. The table repeats the five target handler addresses exactly, and the original computed `LDR PC,[R7,R6]` at `0xb5050` remains a register-indexed PC destination rather than being rewritten as an ordinary load.
+- Encodes classification of fourteen controller stream command types, associated error/suspend status conditions, buffer-slot flags and per-record metadata. This larger function is still incomplete at `0xb5600`; its later error branches remain beyond the checkpoint.
+- Optional private-original verification and independent Clang/LLVM assembly (`--data-range 0xb5054:0xb508c`) both report **zero differing bytes** over the new interval and cumulative region. **205 Rust tests and 13 Python tests pass**. The prior checkpoint's data-pool test now checks the original milestone boundary independently of the extending `END` value.
+- Next uncovered ARM runtime `0xb5600` (MBN file `0xb9600`). This remains provisional old-base instruction encoding rather than high-level decompilation, OEM signature recovery or device execution.
