@@ -21,12 +21,18 @@ ROOT = Path(__file__).resolve().parents[1]
 ATOMIC_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_atomic.s"
 AUX_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_aux_boot.s"
 CONTROL_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_control.s"
+AUX_INIT_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_aux_init.s"
+AUX_GUARD_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_aux_guard.s"
 ATOMIC_START = 0x7C000
 ATOMIC_END = 0x7C040
 CONTROL_START = 0x7C040
 CONTROL_END = 0x7C0A0
 AUX_START = 0x446000
 AUX_END = 0x4460D8
+AUX_INIT_START = 0x446200
+AUX_INIT_END = 0x446254
+AUX_GUARD_START = 0x446260
+AUX_GUARD_END = 0x446278
 MARKER_MASK = 3 << 14
 CONTINUE_MARKER = 1 << 14
 END_MARKER = 3 << 14
@@ -107,6 +113,25 @@ def restore_controller_packet_order(assembled: bytes) -> bytes:
     return struct.pack("<"+"I"*len(words),*words)
 
 
+def restore_aux_init_packet(assembled: bytes) -> bytes:
+    """Join one scalar R2 init with its immediately following duplex packet.
+
+    LLVM6 ends the scalar instruction packet; the architectural source
+    specifies the same three zero register writes in one packet. The duplex
+    uses the Hexagon 00 parse form, so only the scalar parse marker changes.
+    """
+    if len(assembled) != AUX_INIT_END - AUX_INIT_START:
+        raise ValueError("modem auxiliary initializer must be 84 bytes")
+    words = list(struct.unpack("<" + "I" * (len(assembled) // 4), assembled))
+    scalar, duplex = words[0x18//4 : 0x20//4]
+    if scalar >> 24 != 0x78 or duplex >> 24 != 0x28:
+        raise ValueError("auxiliary startup scalar/duplex instruction class mismatch")
+    if (scalar & MARKER_MASK) != END_MARKER or (duplex & MARKER_MASK) != 0:
+        raise ValueError("auxiliary startup packet marker mismatch")
+    words[0x18//4] = (scalar & ~MARKER_MASK) | CONTINUE_MARKER
+    return struct.pack("<" + "I" * len(words), *words)
+
+
 def assemble(llvm_mc: Path, source: Path) -> bytes:
     with tempfile.TemporaryDirectory(prefix="nabu-modem-late-") as tmp:
         obj = Path(tmp) / "late.o"
@@ -124,7 +149,12 @@ def output_fragments(llvm_mc: Path) -> dict[int, bytes]:
     auxiliary = assemble(llvm_mc, AUX_SOURCE)
     if len(auxiliary) != AUX_END - AUX_START:
         raise ValueError(f"auxiliary boot source emitted {len(auxiliary)} instead of {AUX_END-AUX_START} bytes")
-    return {ATOMIC_START: atomic + controller, AUX_START: auxiliary}
+    aux_init = restore_aux_init_packet(assemble(llvm_mc,AUX_INIT_SOURCE))
+    aux_guard = assemble(llvm_mc, AUX_GUARD_SOURCE)
+    if len(aux_guard) != AUX_GUARD_END - AUX_GUARD_START:
+        raise ValueError("auxiliary guard instruction block has invalid length")
+    return {ATOMIC_START: atomic + controller, AUX_START: auxiliary,
+            AUX_INIT_START: aux_init, AUX_GUARD_START: aux_guard}
 
 
 def executable_segments(reference: bytes) -> dict[int, tuple[int, int, int, int]]:
@@ -164,8 +194,11 @@ def verify_reference(original: bytes, fragments: dict[int, bytes]) -> None:
         if actual is None or actual[:3] != (vma, pma, min_filesz):
             raise ValueError(f"unexpected mapped executable segment {start:#x}: {actual}")
     for start, rebuilt in fragments.items():
-        vma, pma, filesz, memsz = segments[start]
-        if len(rebuilt) > filesz:
+        covering = [(s, p) for s, p in segments.items() if s <= start < s + p[2]]
+        if len(covering) != 1:
+            raise ValueError(f"fragment at {start:#x} is not wholly in exactly one executable segment")
+        segment_start, (vma, pma, filesz, memsz) = covering[0]
+        if start + len(rebuilt) > segment_start + filesz:
             raise ValueError(f"generated fragment at {start:#x} exceeds executable p_filesz")
         expected = original[start : start + len(rebuilt)]
         if expected != rebuilt:
@@ -190,7 +223,8 @@ def main() -> int:
     for start, blob in fragments.items():
         print(f"Hexagon V60 independent source: file [{start:#x},{start+len(blob):#x}) "
               f"= {len(blob)} bytes, SHA256={hashlib.sha256(blob).hexdigest()}")
-    print(f"Total generated {sum(len(x) for x in fragments.values())} DISJOINT partial modem bytes; "
+    print(f"Total generated {sum(len(x) for x in fragments.values())} PARTIAL modem bytes in "
+          f"{len(fragments)} verified fragments; "
           f"original reference {'matched' if args.reference else 'not supplied'}; "
           "NOT complete, not new OEM authentication")
     return 0
