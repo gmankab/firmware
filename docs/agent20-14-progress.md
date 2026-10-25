@@ -1,10 +1,10 @@
 # Agent 20-14 — WLAN late Hexagon reconstruction
 
-Latest checkpoint: **13**, with **11,592 contiguous executable bytes**
-and **496 independently generated dispatch-table data bytes**, for **12,088**
-source-derived bytes in disjoint intervals. Checkpoint 13 adds **572**
-Hexagon instruction bytes across two adjacent functions at
-`[0x102cd0,0x102f0c)`. The next function begins at `0x102f0c`. The
+Latest checkpoint: **14**, with **12,108 contiguous executable bytes**
+and **496 independently generated dispatch-table data bytes**, for **12,604**
+source-derived bytes in disjoint intervals. Checkpoint 14 adds **516**
+Hexagon instruction bytes from a complete routine at
+`[0x102f0c,0x103110)`. The next function begins at `0x103110`. The
 Agent 13 leading seam `[0x100000,0x1001c4)` remains unimplemented here.
 
 ## Assignment and provenance
@@ -750,3 +750,27 @@ tests passed, 110 Python tests discovered (88 executed successfully, 22
 skipped for optional external dependencies), and release build passed.
 The next function starts at `0x102f0c`. Code encoding equivalence is not
 proof of original high-level semantics or hardware boot.
+
+
+## Checkpoint 14 — interface status construction
+
+The 516-byte source fragment `[0x102f0c,0x103110)` constructs an interface
+status record from packed fields, serializes record lengths and copies
+hardware address data, invokes external checksum/copy helpers, and dispatches
+normal response vs controller error. The external checksum helper is a
+call target; a local checksum hardware-loop body is **not** present in this
+function. These semantics are inferred from packet dataflow, not proven
+original source API names.
+
+An explicit `jump ##1976456` constant extender is required to reproduce
+the original error branch; a non-extended jump would shorten the function
+and shift local branch destinations. LLVM 22/V66 and LLVM 6/V65 emit
+identical **516 bytes** with zero reference mismatches. The complete source
+emits **12,108 executable bytes** contiguously `[0x1001c4,0x103110)` plus
+**496 source-generated data-table bytes** in a separate original address
+range, total **12,604** source-derived bytes. No proprietary opcode or
+OEM payload bytes are copied into compiled fragments.
+
+All 160 Rust tests passed; Python discovered 112 tests with 90 executed
+and passed, 22 skipped for optional external capabilities. The release build
+passed. The next complete function begins at file `0x103110`.

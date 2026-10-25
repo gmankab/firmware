@@ -509,6 +509,16 @@
           "fixture": "sources/xiaomi-nabu/wlanmdsp/agent14-late-status-frame-duplex.S"
         }
       ]
+    },
+    {
+      "name": "interface-status-construct",
+      "file_start": 1060620,
+      "file_end": 1061136,
+      "source": "sources/xiaomi-nabu/wlanmdsp/agent14-late-interface-status-construct.S",
+      "symbol": "agent14_late_interface_status_construct",
+      "sha256": "4501722c33d77c0b336d4366209cf4e025437b8c36be9ab91838cfd4abdc7857",
+      "checkpoint": 14,
+      "classification": "executable"
     }
   ]
 }
