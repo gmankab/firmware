@@ -155,3 +155,60 @@ and vendor corroboration. Do not assert that `N8` implies Andes N8.
 Candidate CRC-32 ISO-HDLC, no-XOR, init-0, reversed input, and Adler32
 values do not match both independently stored core CRC fields. The values
 must remain opaque until the exact controller hardware CRC algorithm is known.
+
+## Checkpoint 04 — Candidate interrupt/handler vectors and ILM start
+
+Compared the correct postmarketOS image and the incorrect upstream revision:
+**both** contain a 128-word, little-endian array at file `[0x200,0x400)`
+followed by **80 independently reconstructible zero bytes** at
+`[0x400,0x450)`. Nonzero instruction-like words start at `0x450`.
+The first table word is a controller-specific value (`0xa2010048` in the
+reference); the remaining 127 words are opaque candidate vector/descriptors.
+Some are *odd* (`0x4ddd`) while others are even (`0xc5ea`). They must
+**not** be interpreted blindly as executable branch destinations or proof
+of Thumb/NDS32/RISC-V. Each candidate address is bounded by ILM SRAM; the
+first control word is explicitly excluded from that check.
+
+`novatek_vector.rs` creates a **typed 512-byte candidate-vector table** from
+externally supplied address scalars, validates bounds, and reserializes it;
+the resulting output matches the correct reference byte-for-byte. It remains
+**opaque vendor address data**, not independently authored executable code.
+The `novatek-nabu` utility adds `emit-vector`, `verify-vectors`, and
+`emit-vector-padding` to independently emit/verify the 80 zero bytes.
+The strict image-builder source plan now additionally requires an external
+vector table and separately authored ILM code/data beginning at `0x450`.
+
+Revised provenance partitions (all file offsets):
+
+| Region | Bytes | Provenance |
+|---|---:|---|
+| `[0x00000,0x00200)` | 512 | Typed metadata, external CRC values |
+| `[0x00200,0x00400)` | 512 | Typed candidate vector metadata, external targets |
+| `[0x00400,0x00450)` | 80 | Independently emitted zeros |
+| `[0x00450,0x1ac80)` | 108,592 | Unimplemented ILM instruction/data |
+| `[0x1ac80,0x22000)` | 29,568 | Independently emitted zeros |
+| `[0x22000,0x2e190)` | 49,552 | Unimplemented DLM |
+| `[0x2e190,0x2f900)` | 6,000 | Unimplemented auxiliary config/trailer |
+| `[0x2f900,0x2fffd)` | 1,789 | Independently emitted zeros |
+| `[0x2fffd,0x30000)` | 3 | Independently emitted constant `NVT` marker |
+
+**31,440 bytes** independently derived from layout/constants,
+**1,024 typed metadata bytes** still requiring reference-specific scalar
+inputs, and **164,144 unknown executable/config bytes**. The generated and
+reference bytes match exactly for all externally supplied metadata and all
+independently generated regions. **ISA identification and hardware CRC
+computation are unresolved.**
+
+Verification:
+
+```sh
+cargo run --offline --locked -p firmware-tools --bin novatek-nabu -- verify-vectors /private/novatek_nt36523_fw.bin
+cargo run --offline --locked -p firmware-tools --bin novatek-nabu -- emit-vector /private/novatek_nt36523_fw.bin /tmp/novatek-vectors.bin
+cargo run --offline --locked -p firmware-tools --bin novatek-nabu -- emit-vector-padding /private/novatek_nt36523_fw.bin /tmp/novatek-vectors-zeros.bin
+cargo run --offline --locked -p firmware-tools --bin novatek-nabu -- verify-envelope /private/novatek_nt36523_fw.bin
+```
+
+The complete build route additionally requires an externally authored
+512-byte vector table, separately authored post-`0x450` ILM, DLM and
+auxiliary payloads. It remains explicitly **structural-unverified** until
+controller CRC fields and authenticity can be independently validated.

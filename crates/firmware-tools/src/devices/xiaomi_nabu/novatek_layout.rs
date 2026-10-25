@@ -14,6 +14,10 @@
 pub const IMAGE_LENGTH: usize = 0x30000;
 pub const HEADER_BYTES: usize = 0x200;
 pub const BANK_BYTES: usize = 0x100;
+/// The Nabu ILM starts with 128 opaque 32-bit vector/descriptors, then 80
+/// reserved zeros before the first probable executable words.
+pub const CANDIDATE_VECTORS_END: usize = 0x400;
+pub const ILM_CODE_START: usize = 0x450;
 /// Nabu's observed all-zero reserved tail; this is specific to the pinned
 /// 196,608-byte firmware layout, not a general Novatek-family assumption.
 pub const RESERVED_TAIL_START: usize = 0x2f900;
@@ -77,6 +81,7 @@ pub struct NabuNovatekLayout {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum RegionKind {
     StructuredMetadataWithOpaqueCrc,
+    StructuredVectorsWithOpaqueTargets,
     UnimplementedIlm,
     IndependentlyGeneratedZero,
     UnimplementedDlm,
@@ -99,7 +104,8 @@ impl CoverageRegion {
                   | RegionKind::IndependentlyGeneratedMarker)
     }
     pub fn is_unimplemented(&self) -> bool {
-        matches!(self.kind, RegionKind::UnimplementedIlm
+        matches!(self.kind, RegionKind::StructuredVectorsWithOpaqueTargets |
+                  RegionKind::UnimplementedIlm
                   | RegionKind::UnimplementedDlm
                   | RegionKind::UnimplementedAuxiliary)
     }
@@ -267,7 +273,13 @@ impl NabuNovatekLayout {
             CoverageRegion { name: "dual-bank metadata (opaque CRCs)",
                 start: 0, end: HEADER_BYTES,
                 kind: RegionKind::StructuredMetadataWithOpaqueCrc },
-            CoverageRegion { name: "ILM instruction/data", start: HEADER_BYTES,
+            CoverageRegion { name: "candidate interrupt/handler words (externally supplied)",
+                start: HEADER_BYTES, end: CANDIDATE_VECTORS_END,
+                kind: RegionKind::StructuredVectorsWithOpaqueTargets },
+            CoverageRegion { name: "ILM candidate-vector reserved zeros",
+                start: CANDIDATE_VECTORS_END, end: ILM_CODE_START,
+                kind: RegionKind::IndependentlyGeneratedZero },
+            CoverageRegion { name: "ILM instruction/data", start: ILM_CODE_START,
                 end: ilm_end, kind: RegionKind::UnimplementedIlm },
             CoverageRegion { name: "ILM–DLM gap", start: ilm_end,
                 end: dlm_begin, kind: RegionKind::IndependentlyGeneratedZero },
@@ -291,6 +303,7 @@ impl NabuNovatekLayout {
         if self.write_header().as_slice() != &reference[..HEADER_BYTES] {
             return Err("metadata does not match fields".into());
         }
+        require_zero(reference,CANDIDATE_VECTORS_END,ILM_CODE_START)?;
         let (start, end) = self.padding_range()?;
         if self.write_padding(reference)? != reference[start..end] {
             return Err("ILM–DLM padding mismatch".into());
@@ -311,7 +324,7 @@ mod tests {
     use super::*;
     fn synthetic() -> Vec<u8> {
         let ilm = CorePartition { file_offset: 0x200, sram_address: 0,
-            size_minus_one: 15, stored_crc: 0x0123_4567 };
+            size_minus_one: 0x3ff, stored_crc: 0x0123_4567 };
         let dlm = CorePartition { file_offset: 0x1000, sram_address: 0x20000,
             size_minus_one: 7, stored_crc: 0x7654_3210 };
         let info = InfoDescriptor { sram_address: 0x20200, size_minus_one: 0,
@@ -333,8 +346,8 @@ mod tests {
         let raw = synthetic();
         let parsed = NabuNovatekLayout::parse(&raw).unwrap();
         assert_eq!(&parsed.write_header(), &raw[..HEADER_BYTES]);
-        assert_eq!(parsed.padding_range().unwrap(), (0x210,0x1000));
-        assert_eq!(parsed.write_padding(&raw).unwrap().len(), 0xdf0);
+        assert_eq!(parsed.padding_range().unwrap(), (0x600,0x1000));
+        assert_eq!(parsed.write_padding(&raw).unwrap().len(), 0xa00);
     }
     #[test]
     fn rejects_wrong_variant_and_modified_padding() {
@@ -345,7 +358,7 @@ mod tests {
         raw[0x80] = 1;
         assert!(NabuNovatekLayout::parse(&raw).is_err());
         let mut raw = synthetic();
-        raw[0x210] = 1;
+        raw[0x600] = 1;
         let parsed = NabuNovatekLayout::parse(&raw).unwrap();
         assert!(parsed.write_padding(&raw).is_err());
     }
@@ -354,14 +367,15 @@ mod tests {
         let raw = synthetic();
         let layout = NabuNovatekLayout::parse(&raw).unwrap();
         let regions = layout.coverage().unwrap();
-        assert_eq!(regions.len(), 7);
+        assert_eq!(regions.len(), 9);
         assert_eq!(regions.first().unwrap().start, 0);
         assert_eq!(regions.last().unwrap().end, IMAGE_LENGTH);
         assert_eq!(regions.iter().map(CoverageRegion::length).sum::<usize>(), IMAGE_LENGTH);
-        assert_eq!(regions.iter().filter(|r|r.is_unimplemented()).count(),3);
+        assert_eq!(regions.iter().filter(|r|r.is_unimplemented()).count(),4);
         let independents: usize = regions.iter().filter(|r| r.source_independent())
             .map(CoverageRegion::length).sum();
-        assert_eq!(independents, 0xdf0 + (END_MARKER_OFFSET-RESERVED_TAIL_START) + 3);
+        assert_eq!(independents, (ILM_CODE_START-CANDIDATE_VECTORS_END)
+            + 0xa00 + (END_MARKER_OFFSET-RESERVED_TAIL_START) + 3);
     }
     #[test]
     fn suffix_and_reserved_padding_can_be_rebuilt_independently() {
@@ -380,11 +394,19 @@ mod tests {
         let mut layout = NabuNovatekLayout::parse(&raw).unwrap();
         layout.dlm.file_offset = 0x1ffff; // ILM gap no longer aligned with actual bytes
         let regions = layout.coverage().unwrap();
-        assert_eq!(regions[2].end, 0x1ffff);
+        assert_eq!(regions[4].end, 0x1ffff);
         layout.dlm.file_offset = 0x30001;
         assert!(layout.coverage().is_err());
         raw[END_MARKER_OFFSET] = 0;
         assert!(NabuNovatekLayout::parse(&raw).is_err());
+    }
+    #[test]
+    fn reserved_vector_padding_must_be_zero() {
+        let mut raw = synthetic();
+        let layout = NabuNovatekLayout::parse(&raw).unwrap();
+        layout.verify_envelope(&raw).unwrap();
+        raw[0x414] = 0xa5;
+        assert!(layout.verify_envelope(&raw).is_err());
     }
     #[test]
     fn rejects_invalid_magic_and_truncated_header() {

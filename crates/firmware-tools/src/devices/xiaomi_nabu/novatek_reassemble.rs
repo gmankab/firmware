@@ -8,12 +8,15 @@
 //! are supplied, is a *structural image*, NOT a proven bootable firmware.
 
 use super::novatek_layout::{CoverageRegion, NabuNovatekLayout, RegionKind};
+use super::novatek_vector::CandidateVectorTable;
 
 /// Caller-authored executable/data bytes. `None` means source is missing and
 /// MUST prevent complete generation (even if that region is zeros in an OEM
 /// reference). Lengths are independently checked against the layout.
 #[derive(Debug, Clone, Copy, Default)]
 pub struct AuthoredPayloads<'a> {
+    pub vector_table: Option<&'a CandidateVectorTable>,
+    /// Authored ILM program/data after the 512-byte vector and 80-byte gap.
     pub ilm: Option<&'a [u8]>,
     pub dlm: Option<&'a [u8]>,
     pub auxiliary: Option<&'a [u8]>,
@@ -45,6 +48,7 @@ pub fn projected_regions(layout: &NabuNovatekLayout) -> Result<Vec<ProjectedRegi
     Ok(regions.into_iter().map(|range| {
         let bytes = match range.kind {
             RegionKind::StructuredMetadataWithOpaqueCrc => Some(layout.write_header().to_vec()),
+            RegionKind::StructuredVectorsWithOpaqueTargets => None,
             RegionKind::IndependentlyGeneratedZero => Some(vec![0; range.length()]),
             RegionKind::IndependentlyGeneratedMarker => Some(layout.write_marker().to_vec()),
             RegionKind::UnimplementedIlm | RegionKind::UnimplementedDlm |
@@ -82,7 +86,15 @@ pub fn assemble_structural_unverified(
         if result.len()!=region.range.start {
             return Err(format!("noncontiguous layout at 0x{:x}",region.range.start));
         }
+        if region.range.kind == RegionKind::StructuredVectorsWithOpaqueTargets {
+            let words=authored.vector_table.ok_or_else(||format!(
+                "cannot assemble firmware: missing externally authored candidate vector table [0x{:x},0x{:x})",
+                region.range.start,region.range.end))?;
+            result.extend_from_slice(&words.write());
+            continue;
+        }
         let part = match region.range.kind {
+            RegionKind::StructuredVectorsWithOpaqueTargets => unreachable!("handled above"),
             RegionKind::UnimplementedIlm => check_supplied(&region.range,authored.ilm)?,
             RegionKind::UnimplementedDlm => check_supplied(&region.range,authored.dlm)?,
             RegionKind::UnimplementedAuxiliary => check_supplied(&region.range,authored.auxiliary)?,
@@ -105,7 +117,7 @@ mod tests {
     use super::super::novatek_layout::{CorePartition,InfoDescriptor,DescriptorBank,IMAGE_LENGTH,HEADER_BYTES};
 
     fn sample_layout() -> NabuNovatekLayout {
-        let ilm=CorePartition{file_offset:0x200,sram_address:0,size_minus_one:15,stored_crc:0x12345678};
+        let ilm=CorePartition{file_offset:0x200,sram_address:0,size_minus_one:0x3ff,stored_crc:0x12345678};
         let dlm=CorePartition{file_offset:0x1000,sram_address:0x20000,size_minus_one:7,stored_crc:0xabcd4321};
         let info=InfoDescriptor{sram_address:0x20000,size_minus_one:0,file_offset:0x1000,stored_crc:0};
         NabuNovatekLayout{ilm,dlm,image_len:IMAGE_LENGTH,
@@ -116,42 +128,53 @@ mod tests {
     fn initial_projection_exposes_all_holes_without_filling_them() {
         let layout=sample_layout();
         let projection=projected_regions(&layout).unwrap();
-        assert_eq!(projection.len(),7);
-        assert_eq!(projection.iter().filter(|x|x.bytes.is_none()).count(),3);
+        assert_eq!(projection.len(),9);
+        assert_eq!(projection.iter().filter(|x|x.bytes.is_none()).count(),4);
         assert_eq!(projection[0].bytes.as_ref().unwrap().len(),HEADER_BYTES);
-        assert_eq!(projection[2].bytes.as_ref().unwrap().len(),0xdf0);
-        assert_eq!(projection[5].bytes.as_ref().unwrap().len(),1789);
-        assert_eq!(projection[6].bytes.as_ref().unwrap(),b"NVT");
+        assert_eq!(projection[2].bytes.as_ref().unwrap().len(),0x50);
+        assert_eq!(projection[4].bytes.as_ref().unwrap().len(),0xa00);
+        assert_eq!(projection[7].bytes.as_ref().unwrap().len(),1789);
+        assert_eq!(projection[8].bytes.as_ref().unwrap(),b"NVT");
         let e=assemble_structural_unverified(&layout,AuthoredPayloads::default()).unwrap_err();
-        assert!(e.contains("missing independently authored ILM"),"{e}");
+        assert!(e.contains("missing externally authored candidate vector table"),"{e}");
     }
     #[test]
     fn refuses_missing_dlm_and_aux_even_when_other_payloads_exist() {
         let layout=sample_layout();
-        let ilm=vec![3;16]; let dlm=vec![2;8];
-        let e=assemble_structural_unverified(&layout,AuthoredPayloads{ilm:Some(&ilm),..Default::default()}).unwrap_err();
+        let vectors=CandidateVectorTable{initial_control_word:0,
+            opaque_slots:[0;127]};
+        let ilm=vec![3;0x600-0x450]; let dlm=vec![2;8];
+        let e=assemble_structural_unverified(&layout,AuthoredPayloads{
+            vector_table:Some(&vectors),ilm:Some(&ilm),..Default::default()}).unwrap_err();
         assert!(e.contains("DLM"));
-        let e=assemble_structural_unverified(&layout,AuthoredPayloads{ilm:Some(&ilm),dlm:Some(&dlm),auxiliary:None}).unwrap_err();
+        let e=assemble_structural_unverified(&layout,AuthoredPayloads{
+            vector_table:Some(&vectors),ilm:Some(&ilm),dlm:Some(&dlm),auxiliary:None}).unwrap_err();
         assert!(e.contains("auxiliary"));
     }
     #[test]
     fn refuses_payloads_of_wrong_lengths_before_finalizing() {
         let layout=sample_layout();
+        let vectors=CandidateVectorTable{initial_control_word:0,opaque_slots:[0;127]};
         let incorrect=vec![0;17];
-        let e=assemble_structural_unverified(&layout,AuthoredPayloads{ilm:Some(&incorrect),..Default::default()}).unwrap_err();
-        assert!(e.contains("length 17 != required 16"));
+        let e=assemble_structural_unverified(&layout,AuthoredPayloads{
+            vector_table:Some(&vectors),ilm:Some(&incorrect),..Default::default()}).unwrap_err();
+        assert!(e.contains("length 17 != required 432"),"{e}");
     }
     #[test]
     fn assembles_synthetic_complete_image_but_crc_remains_unverified() {
         let layout=sample_layout();
-        let ilm=vec![0xa5;16]; let dlm=vec![0x55;8];
+        let ilm=vec![0xa5;0x600-0x450]; let dlm=vec![0x55;8];
+        let vectors=CandidateVectorTable{initial_control_word:0x41020304,
+            opaque_slots:[0x0480;127]};
         let auxiliary=vec![0x35; 0x2f900-0x1008];
         let img=assemble_structural_unverified(&layout,AuthoredPayloads{
-            ilm:Some(&ilm),dlm:Some(&dlm),auxiliary:Some(&auxiliary)}).unwrap();
+            vector_table:Some(&vectors),ilm:Some(&ilm),dlm:Some(&dlm),auxiliary:Some(&auxiliary)}).unwrap();
         assert_eq!(img.bytes.len(),IMAGE_LENGTH);
         assert_eq!(&img.bytes[0..HEADER_BYTES],&layout.write_header());
-        assert_eq!(&img.bytes[0x200..0x210],&ilm);
-        assert!(img.bytes[0x210..0x1000].iter().all(|&x|x==0));
+        assert_eq!(&img.bytes[0x200..0x400],&vectors.write());
+        assert!(img.bytes[0x400..0x450].iter().all(|&x|x==0));
+        assert_eq!(&img.bytes[0x450..0x600],&ilm);
+        assert!(img.bytes[0x600..0x1000].iter().all(|&x|x==0));
         assert_eq!(&img.bytes[0x1000..0x1008],&dlm);
         assert_eq!(&img.bytes[0x1008..0x2f900],&auxiliary);
         assert!(img.bytes[0x2f900..0x2fffd].iter().all(|&x|x==0));
