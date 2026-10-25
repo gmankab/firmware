@@ -58,6 +58,24 @@ fn run() -> Result<(), String> {
             bytes.len(),novatek_nds32::FIRST_HANDLER_OFFSET,novatek_nds32::FIRST_HANDLER_END);
         return Ok(());
     }
+    if args.first().map(String::as_str) == Some("emit-nds32-extra-paths") && args.len()==2 {
+        let bytes=novatek_nds32::additional_interrupt_paths()?;
+        fs::write(&args[1],&bytes).map_err(|e|e.to_string())?;
+        println!("Independently generated {} further NDS32 executable bytes at 0x{:x}..0x{:x}",
+            bytes.len(),novatek_nds32::FIRST_HANDLER_END,novatek_nds32::EXTRA_INTERRUPTS_END);
+        return Ok(());
+    }
+    if args.first().map(String::as_str) == Some("verify-nds32-extra-paths") && args.len()==2 {
+        let input=fs::read(&args[1]).map_err(|e|e.to_string())?;
+        let layout=NabuNovatekLayout::parse(&input)?;
+        if layout.ilm.end()? < novatek_nds32::EXTRA_INTERRUPTS_END {
+            return Err("NDS32 extra paths outside ILM partition".into());
+        }
+        novatek_nds32::verify_additional_interrupt_paths(&input)?;
+        println!("NDS32: {} more source-derived executable bytes exactly verified; remaining ILM/DLM unknown",
+            novatek_nds32::EXTRA_INTERRUPTS_END - novatek_nds32::FIRST_HANDLER_END);
+        return Ok(());
+    }
     if args.first().map(String::as_str) == Some("verify-nds32-isr") && args.len()==2 {
         let input=fs::read(&args[1]).map_err(|e|e.to_string())?;
         let layout=NabuNovatekLayout::parse(&input)?;
@@ -70,7 +88,7 @@ fn run() -> Result<(), String> {
         return Ok(());
     }
     if args.len() < 2 || args.len() > 3 {
-        return Err("usage: novatek-nabu <emit-nds32-isr out.bin|verify-nds32-isr reference.bin> | <inspect|verify-dlm-mirror|verify-crcs|emit-recomputed-crc-header|emit-header|emit-padding|emit-vector|emit-vector-padding|emit-post-dlm-padding|emit-tail-padding|emit-marker|verify-header|verify-envelope|verify-vectors> <private-reference.bin> [output] | assemble-structural-unverified <private-meta-reference> <externally-authored-vector-words> <independently-authored-ilm-after-0x4aa> <independently-authored-dlm> <output> | assemble-crc-validated <private-meta-reference> <authored-vector-words> <authored-ilm> <authored-dlm> <output>".into());
+        return Err("usage: novatek-nabu <emit-nds32-isr out.bin|verify-nds32-isr reference.bin|emit-nds32-extra-paths out.bin|verify-nds32-extra-paths reference.bin> | <inspect|verify-dlm-mirror|verify-crcs|emit-recomputed-crc-header|emit-header|emit-padding|emit-vector|emit-vector-padding|emit-post-dlm-padding|emit-tail-padding|emit-marker|verify-header|verify-envelope|verify-vectors> <private-reference.bin> [output] | assemble-structural-unverified <private-meta-reference> <externally-authored-vector-words> <independently-authored-ilm-after-0x4aa> <independently-authored-dlm> <output> | assemble-crc-validated <private-meta-reference> <authored-vector-words> <authored-ilm> <authored-dlm> <output>".into());
     }
     let command = &args[0];
     let reference = fs::read(&args[1]).map_err(|e| e.to_string())?;

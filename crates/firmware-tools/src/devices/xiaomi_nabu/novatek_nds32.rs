@@ -13,6 +13,8 @@
 
 pub const FIRST_HANDLER_OFFSET: usize = 0x450;
 pub const FIRST_HANDLER_END: usize = 0x4aa;
+/// Two related full context save/return paths using a narrower GPR range.
+pub const EXTRA_INTERRUPTS_END:usize=0x544;
 
 /// General-purpose NDS32 register number (0–31), using ABI conventional names.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -23,6 +25,8 @@ impl Gpr {
     pub const A2: Self = Self(2);
     pub const A3: Self = Self(3);
     pub const A5: Self = Self(5);
+    pub const TA: Self = Self(15);
+    pub const P1: Self = Self(27);
     pub const SP: Self = Self(31);
     pub const fn number(self) -> u32 { self.0 as u32 }
     pub fn new(n: u8) -> Result<Self, String> {
@@ -37,6 +41,7 @@ pub struct SavedSpecials(u8);
 impl SavedSpecials {
     pub const NONE: Self = Self(0);
     pub const ALL: Self = Self(15);
+    pub const LINK: Self = Self(2);
     #[allow(dead_code)] // Public checked constructor; current source uses named masks.
     pub fn new(mask: u8) -> Result<Self, String> {
         if mask & !15 != 0 { return Err("invalid LMW/SMW specials mask".into()); }
@@ -157,6 +162,14 @@ pub fn load_word_indexed(rt:Gpr, base:Gpr, index:Gpr,shift:u8) -> Result<u32,Str
         |(index.number()<<10)|((shift as u32)<<8)|0b00000010)
 }
 
+/// 16-bit `subi45`: decrement one of a0..s8/ta registers by a 5-bit value.
+pub fn subtract_reg_small(rt:Gpr,amount:u8)->Result<u16,String>{
+    if rt.number()>15 || amount>31 {
+        return Err("subi45 requires a0..ta and unsigned five-bit immediate".into());
+    }
+    Ok(0x8000|(0b000111<<9)|((rt.number() as u16)<<5)|amount as u16)
+}
+
 pub fn subtract_small_immediate(rt:Gpr,src:Gpr,value:u8)->Result<u16,String>{
     if rt.number()>7 || src.number()>7 || value>7 {
         return Err("subi333 uses a0..s1 and unsigned three-bit immediate".into());
@@ -226,6 +239,83 @@ pub fn initial_interrupt_handler()->Result<Vec<u8>,String>{
     Ok(v)
 }
 
+/// Reconstruct two further ILM interrupt entry/return paths without copying
+/// firmware bytes. The first saves ta..p1 plus lp and a0..a5; the second
+/// additionally saves IPC/IPSW and manages the PSW global-interrupt bit.
+/// The 16-bit branches target 0x510 and 0x55e respectively; the latter is
+/// outside this span and will be handled in later reconstruction.
+pub fn additional_interrupt_paths()->Result<Vec<u8>,String>{
+    use AddressUpdate::{AfterDecrement as Ad,BeforeIncrement as Bi};
+    use MemoryDirection::{Load as L,Store as S};
+    let (a0,a1,a2,a3,a5,sp,ta,p1)=(Gpr::A0,Gpr::A1,Gpr::A2,Gpr::A3,Gpr::A5,Gpr::SP,Gpr::TA,Gpr::P1);
+    let (none,link)=(SavedSpecials::NONE,SavedSpecials::LINK);
+    let mut v=Vec::with_capacity(EXTRA_INTERRUPTS_END-FIRST_HANDLER_END);
+    // Entry 0x4aa: secondary interrupt branch; saves caller and link state.
+    be32(&mut v,multiple_words(S,ta,sp,p1,link,Ad,true)?);
+    be32(&mut v,multiple_words(S,a0,sp,a5,none,Ad,true)?);
+    be32(&mut v,user_register(a1,UserSpecial::IfcLp,false));
+    be32(&mut v,multiple_words(S,a1,sp,a2,none,Ad,true)?);
+    be32(&mut v,system_register(a0,SystemRegister::Csr099,false));
+    be16(&mut v,shift_right_immediate(a0,5)?);
+    be16(&mut v,extract_low_bits(a0,6)?);
+    be32(&mut v,move_immediate(a2,300)?);
+    be32(&mut v,load_word_indexed(a2,a2,a0,2)?);
+    be16(&mut v,subtract_reg_small(a0,9)?);
+    be16(&mut v,branch_not_equal_to_a5(0x4cc,a5,0x510)?);
+    be32(&mut v,multiple_words(L,a1,sp,a2,none,Bi,true)?);
+    be32(&mut v,user_register(a1,UserSpecial::IfcLp,true));
+    be32(&mut v,multiple_words(L,a0,sp,a5,none,Bi,true)?);
+    be32(&mut v,multiple_words(L,ta,sp,p1,link,Bi,true)?);
+    be32(&mut v,interrupt_return());
+    if v.len()!=0x4e2-FIRST_HANDLER_END {
+        return Err(format!("secondary NDS32 handler length {} != 56",v.len()));
+    }
+    // Entry 0x4e2: similar ISR, with explicit IPC and IPSW state.
+    be32(&mut v,multiple_words(S,ta,sp,p1,link,Ad,true)?);
+    be32(&mut v,multiple_words(S,a0,sp,a5,none,Ad,true)?);
+    be32(&mut v,user_register(a1,UserSpecial::IfcLp,false));
+    be32(&mut v,multiple_words(S,a1,sp,a2,none,Ad,true)?);
+    be32(&mut v,system_register(a1,SystemRegister::Ipc,false));
+    be32(&mut v,system_register(a2,SystemRegister::Ipsw,false));
+    be32(&mut v,multiple_words(S,a1,sp,a2,none,Ad,true)?);
+    be32(&mut v,system_register(a0,SystemRegister::Csr099,false));
+    be16(&mut v,shift_right_immediate(a0,5)?);
+    be16(&mut v,extract_low_bits(a0,6)?);
+    be32(&mut v,move_immediate(a2,300)?);
+    be32(&mut v,load_word_indexed(a2,a2,a0,2)?);
+    be16(&mut v,subtract_reg_small(a0,9)?);
+    be32(&mut v,system_register(a3,SystemRegister::Psw,false));
+    be16(&mut v,subtract_small_immediate(a3,a3,1)?);
+    be32(&mut v,system_register(a3,SystemRegister::Psw,true));
+    be16(&mut v,branch_not_equal_to_a5(0x51a,a5,0x55e)?);
+    be32(&mut v,disable_global_interrupts());
+    be32(&mut v,data_synchronization_barrier());
+    be32(&mut v,multiple_words(L,a1,sp,a2,none,Bi,true)?);
+    be32(&mut v,system_register(a1,SystemRegister::Ipc,true));
+    be32(&mut v,system_register(a2,SystemRegister::Ipsw,true));
+    be32(&mut v,multiple_words(L,a1,sp,a2,none,Bi,true)?);
+    be32(&mut v,user_register(a1,UserSpecial::IfcLp,true));
+    be32(&mut v,multiple_words(L,a0,sp,a5,none,Bi,true)?);
+    be32(&mut v,multiple_words(L,ta,sp,p1,link,Bi,true)?);
+    be32(&mut v,interrupt_return());
+    if v.len()!=EXTRA_INTERRUPTS_END-FIRST_HANDLER_END {
+        return Err(format!("NDS32 additional interrupts produced {} bytes, expected {}",
+            v.len(),EXTRA_INTERRUPTS_END-FIRST_HANDLER_END));
+    }
+    Ok(v)
+}
+
+pub fn verify_additional_interrupt_paths(firmware:&[u8])->Result<(),String>{
+    if firmware.len()<EXTRA_INTERRUPTS_END {return Err("firmware too short for extra ISRs".into());}
+    let bytes=additional_interrupt_paths()?;
+    let candidate=&firmware[FIRST_HANDLER_END..EXTRA_INTERRUPTS_END];
+    if let Some(offset)=(0..bytes.len()).find(|&i|bytes[i]!=candidate[i]) {
+        return Err(format!("NDS32 extra ISR mismatch at file offset 0x{:x}: built 0x{:02x} reference 0x{:02x}",
+            FIRST_HANDLER_END+offset,bytes[offset],candidate[offset]));
+    }
+    Ok(())
+}
+
 /// Confirm the independently built ISR *path* matches the provided *private*
 /// reference, and that it is physically inside the pinned ILM partition.
 pub fn verify_first_handler(firmware:&[u8])->Result<(),String>{
@@ -252,6 +342,7 @@ pub fn verify_first_handler(firmware:&[u8])->Result<(),String>{
         assert!(move_immediate(Gpr::A0,-524289).is_err());
         assert!(load_word_indexed(Gpr::A0,Gpr::A1,Gpr::A2,4).is_err());
         assert!(subtract_small_immediate(Gpr::A0,Gpr::A1,8).is_err());
+        assert!(subtract_reg_small(Gpr::SP,3).is_err());
         assert!(branch_not_equal_to_a5(0x483,Gpr::A5,0x4c8).is_err());
         assert!(branch_not_equal_to_a5(0x484,Gpr::A5,0x684).is_err());
     }
@@ -263,6 +354,7 @@ pub fn verify_first_handler(firmware:&[u8])->Result<(),String>{
         assert_eq!(user_register(Gpr::A1,UserSpecial::IfcLp,true),0x421e8021);
         assert_eq!(mov55(Gpr::A1,Gpr::SP),0x803f);
         assert_eq!(shift_right_immediate(Gpr::A0,5).unwrap(),0x9205);
+        assert_eq!(subtract_reg_small(Gpr::A0,9).unwrap(),0x8e09);
         assert_eq!(extract_low_bits(Gpr::A0,6).unwrap(),0x9637);
         assert_eq!(move_immediate(Gpr::A2,300).unwrap(),0x4420012c);
         assert_eq!(load_word_indexed(Gpr::A2,Gpr::A2,Gpr::A0,2).unwrap(),0x38210202);
@@ -270,6 +362,21 @@ pub fn verify_first_handler(firmware:&[u8])->Result<(),String>{
         assert_eq!(disable_global_interrupts(),0x64020043);
         assert_eq!(data_synchronization_barrier(),0x64000008);
         assert_eq!(interrupt_return(),0x64000004);
+    }
+    #[test]fn reconstructs_two_more_paths_without_vendor_opcode_arrays() {
+        let second=additional_interrupt_paths().unwrap();
+        assert_eq!(second.len(),154);
+        assert_eq!(&second[..4],&multiple_words(
+            MemoryDirection::Store,Gpr::TA,Gpr::SP,Gpr::P1,
+            SavedSpecials::LINK,AddressUpdate::AfterDecrement,true).unwrap().to_be_bytes());
+        assert_eq!(&second[52..56],&interrupt_return().to_be_bytes());
+        assert_eq!(&second[second.len()-4..],&interrupt_return().to_be_bytes());
+        let mut candidate=vec![0;EXTRA_INTERRUPTS_END];
+        candidate[FIRST_HANDLER_END..EXTRA_INTERRUPTS_END].copy_from_slice(&second);
+        verify_additional_interrupt_paths(&candidate).unwrap();
+        candidate[0x4d8]^=1;
+        assert!(verify_additional_interrupt_paths(&candidate)
+            .unwrap_err().contains("0x4d8"));
     }
     #[test]fn reconstructs_full_isr_without_raw_firmware_bytes(){
         let built=initial_interrupt_handler().unwrap();

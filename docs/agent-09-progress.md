@@ -482,3 +482,29 @@ recommendation. The strict source emitter still rejects absent ILM/DLM.
 Full Rust tests (189) and Python tests (13) pass, as does the offline release
 build. Source-derived executable completion is still **90 / 108,592** ILM
 bytes; DLM has no independently emitted instructions yet.
+
+## Checkpoint 11 — Two more source-derived NDS32 interrupt paths
+
+The same checked NDS32 encoder independently reconstructs the next
+**154 executable bytes** at `[0x4aa,0x544)`, comprising two additional
+interrupt entry/return paths. They use typed `smw.adm`/`lmw.bim` with
+`ta..p1` and the `lp` special-register flag; `mfusr`/`mtusr`, `mfsr`/`mtsr`,
+16-bit `srli45`, `fexti33`, `subi45` and conditional branches; and `IRET`.
+These paths have branch destinations `0x510` and `0x55e`; the latter is not
+inside the currently reconstructed prefix and is **not** claimed done.
+
+Commands (source bytes are never taken from the reference by the emitter):
+
+```sh
+cargo run --offline --locked -p firmware-tools --bin novatek-nabu -- \
+  emit-nds32-extra-paths /tmp/novatek-extra-isr-154.bin
+cargo run --offline --locked -p firmware-tools --bin novatek-nabu -- \
+  verify-nds32-extra-paths /private/novatek_nt36523_fw.bin
+```
+
+The 154 new executable bytes exactly match both the postmarketOS reference
+and the upstream alternative with **zero mismatches**. Combined with the
+previous 90-byte path this proves **244 byte-identical, source-generated
+executable bytes** at `[0x450,0x544)`. These extra 154 bytes are not yet
+inserted into the structural assembler's generated prefix; they will be
+integrated next so callers need supply ILM only after `0x544`.
