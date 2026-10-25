@@ -53,6 +53,35 @@ def restore_original_legal_hexagon_packet_order(code: bytes) -> bytes:
     branch=(branch&~marker)|(3<<14)
     out=bytearray(code)
     struct.pack_into('<III',out,rel,extension,comparison,branch)
+    # LLVM6 also canonicalizes the compact compare-and-branch packet at
+    # 0x4578 from branch/predicate to predicate/branch. Both orderings are
+    # legal on Hexagon, but the source-reference packet's parse bits differ.
+    rel2=0x4578-FILE_START
+    if len(out)>=rel2+8:
+        branch2,comparison2=struct.unpack_from('<II',out,rel2)
+        if ((branch2&0xff000000)!=0x5c000000 or
+            (branch2&marker)!=(1<<14) or
+            (comparison2&0xff000000)!=0x75000000 or
+            ((comparison2>>16)&0x1f)!=25 or
+            (comparison2&marker)!=(3<<14)):
+            raise ValueError('unexpected Hexagon compact predicate packet at 0x4578')
+        comparison2=(comparison2&~marker)|(1<<14)
+        branch2=(branch2&~marker)|(3<<14)
+        struct.pack_into('<II',out,rel2,comparison2,branch2)
+    # LLVM6 also emits the valid increment-and-loop-back packet at 0x45fc
+    # as branch/increment; retain the OEM source packet's increment/branch
+    # ordering without changing any branch displacement or operand fields.
+    rel3=0x45fc-FILE_START
+    if len(out)>=rel3+8:
+        branch3,increment=struct.unpack_from('<II',out,rel3)
+        if ((branch3&0xff000000)!=0x59000000 or
+            (branch3&marker)!=(1<<14) or
+            (increment&0xff000000)!=0xb0000000 or
+            (increment&marker)!=(3<<14)):
+            raise ValueError('unexpected Hexagon increment/branch packet at 0x45fc')
+        increment=(increment&~marker)|(1<<14)
+        branch3=(branch3&~marker)|(3<<14)
+        struct.pack_into('<II',out,rel3,increment,branch3)
     return bytes(out)
 
 

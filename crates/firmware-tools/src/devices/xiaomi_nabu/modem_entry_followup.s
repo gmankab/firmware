@@ -474,3 +474,155 @@ MODEM_SYS_READ 15,18,3
 MODEM_SYS_WRITE 18,15
 { isync }
 { jumpr lr }
+
+// Walk a sequence of TLB records from protected DDR, write each entry and
+// synchronize before returning. The original loop tracks the entry count in
+// r0 and terminates when the memory-loaded pair ends the linked table.
+.globl agent11_modem_write_tlb_records
+agent11_modem_write_tlb_records:
+{
+    r0 = #0
+    r1 = add(r25,##-1064894464)
+}
+modem_read_tlb_record:
+{ r3:2 = memd(r1++#8) }
+// Hexagon Y2_tlbw transfers pair r3:2 to translation index r0.
+.macro MODEM_TLB_WRITE pairlow, index, marker=3
+    .if (\pairlow < 0) || (\pairlow > 30) || ((\pairlow & 1) != 0) || (\index < 0) || (\index > 31)
+        .error "invalid Hexagon TLB pair/index"
+    .endif
+    .word (0x6c000000 | (\pairlow << 16) | (\marker << 14) | (\index << 8))
+.endm
+MODEM_TLB_WRITE 2,0
+{
+    p0 = cmp.eq(r2,#0)
+    if (!p0.new) jump:t modem_read_tlb_record
+    r0 = add(r0,#1)
+}
+{ isync }
+{ jumpr lr }
+
+// Install TLB index 191 for the active register-mapped descriptor. Uses
+// two 16-bit source fields packed into a translation descriptor pair.
+.globl agent11_modem_install_tlb191
+agent11_modem_install_tlb191:
+{
+    p0 = cmp.eq(r25,#0)
+    if (p0.new) jump:nt modem_tlb191_exit
+}
+{
+    r2 = lsr(r24,#11)
+    r3 = lsr(r24,#12)
+    r4 = #1984
+    r5 = #3072
+}
+{
+    r2 = insert(r4,#11,#21)
+    r3 = insert(r5,#12,#20)
+}
+{
+    r2 = setbit(r2,#1)
+    r0 = #191
+}
+MODEM_TLB_WRITE 2,0
+{ isync }
+modem_tlb191_exit:
+{ jumpr lr }
+
+// Alternate TLB descriptor uses high-halfword of r26 and index 190.
+.globl agent11_modem_install_tlb190
+agent11_modem_install_tlb190:
+{
+    r2 = lsr(r24,#11)
+    r3 = lsr(r26,#12)
+    r4 = #1984
+    r5 = #3072
+}
+{
+    r2 = insert(r4,#11,#21)
+    r3 = insert(r5,#12,#20)
+}
+{
+    r2 = setbit(r2,#1)
+    r0 = #190
+}
+MODEM_TLB_WRITE 2,0
+{ isync }
+{ jumpr lr }
+
+// Invalid TLB map entries intentionally write a zero pair to index zero.
+.globl agent11_modem_zero_tlb_pair
+agent11_modem_zero_tlb_pair:
+{ r3:2 = combine(#0,#0) }
+MODEM_TLB_WRITE 2,0
+{ isync }
+{ jumpr lr }
+
+// Iterate translation slot 191 until the CPU fault predicate is set.
+.globl agent11_modem_zero_contiguous_tlb_entries
+agent11_modem_zero_contiguous_tlb_entries:
+{
+    r5 = #191
+    r0 = #0
+    r3:2 = combine(#0,#0)
+}
+modem_zero_tlb_next:
+{
+    p0 = cmp.eq(r0,r5)
+    if (p0.new) jumpr:nt lr
+}
+MODEM_TLB_WRITE 2,0
+{
+    r0 = add(r0,#1)
+    jump modem_zero_tlb_next
+}
+
+// Lookup translation entry 191 from a relative protected table and commit it.
+.globl agent11_modem_restore_tlb191
+agent11_modem_restore_tlb191:
+{
+    r0 = #191
+    r1 = ##-1064894464
+}
+{ r2 = asl(r0,#3) }
+{ r1 = add(r1,r2) }
+{
+    r0 = #191
+    r3:2 = memd(r1++#0)
+}
+MODEM_TLB_WRITE 2,0
+{ jumpr lr }
+
+// Walk protected table A, writing TLB descriptors until the descriptor's
+// low 32-bit word is zero. Each memory pair is loaded in source order.
+.globl agent11_modem_reload_tlb_table_a
+agent11_modem_reload_tlb_table_a:
+{
+    r1 = add(r25,##-1064885576)
+    r0 = #0
+}
+modem_reload_tlb_a_next:
+{ r3:2 = memd(r1++#8) }
+{
+    p0 = cmp.eq(r2,#0)
+    if (p0.new) jump:t modem_reload_tlb_a_complete
+}
+MODEM_TLB_WRITE 2,0
+{ r0 = add(r0,#1) }
+{ jump modem_reload_tlb_a_next }
+modem_reload_tlb_a_complete:
+// Same loop for protected table B. The final linked slot exits via r31.
+.globl agent11_modem_reload_tlb_table_b
+agent11_modem_reload_tlb_table_b:
+{ r1 = add(r25,##-1064885512) }
+modem_reload_tlb_b_next:
+{ r3:2 = memd(r1++#8) }
+{
+    p0 = cmp.eq(r2,#0)
+    if (p0.new) jump:t modem_reload_tlb_b_complete
+}
+MODEM_TLB_WRITE 2,0
+{ r0 = add(r0,#1) }
+{ jump modem_reload_tlb_b_next }
+modem_reload_tlb_b_complete:
+{ jumpr lr }

@@ -85,3 +85,13 @@ python3 -m unittest discover -s tests -p 'test_*.py'
 - LLVM6 emits all standard operations; the sole private system opcode template is public Hexagon Y2_ickill with checked packet markers. A pair of extended-immediate and register-add operations is deliberately combined in one packet to preserve the reference parse field.
 - Agent 11 cumulative verified `[file 0x4058,0x4554)` = **1,276 independently encoded executable bytes**; SHA-256 `2e8c65771d770a8814051ad1a95c452faa847cf41c634f2ea641b08d30cafdf5`. Combined Agent 06+11 initial modem `[0x3000,0x4554)` = **5,460 exact bytes** (4,248 source-encoded executable, 412 metadata, 800 linker fill).
 - Next uncovered file instruction begins at `0x4554` (physical `0x8e001554`). The whole modem MBN remains incomplete and cannot be newly signed.
+
+## Checkpoint 10 — Translation entry helpers and zero/TLB reload loops
+
+- Extended the independently assembled file-backed executable with `[0x4554,0x4668)` = **276 byte-identical Hexagon V60 instruction bytes**, physical `[0x8e001554,0x8e001668)`.
+- `agent11_modem_write_tlb_records`: protected `r3:2` pair memory iteration and checked TLB-write operation until a low-word zero condition.
+- `agent11_modem_install_tlb191` and `...tlb190`: derive TLB keys from source halfwords and insert/setbit operations, then write to the indexed hardware TLB.
+- `agent11_modem_zero_tlb_pair` and `agent11_modem_zero_contiguous_tlb_entries`: clear a selected TLB pair or iterate through 191 zero entries using packet-local `p0.new` early exit.
+- `agent11_modem_restore_tlb191`, `agent11_modem_reload_tlb_table_a` and `...table_b`: restore packed 64-bit translations from two adjacent protected sources. LLVM6 emits one legal packet in branch/increment order, while the OEM source orders increment/branch at `[0x45fc,0x4604)`. The checked normalizer validates opcode classes and only restores the original packet order and parse bits; no reference opcode bytes are used.
+- **Agent 11 cumulative:** `[file 0x4058,0x4668)` = **1,552 exact executable bytes** (SHA-256 `698071272a21c13c81a32ae06c10c266159c57d16d36887158d6017aedb1ecd5`). With Agent 06, the verified first-`PT_LOAD` layout is `[0x3000,0x4668)` = **5,736 bytes**: **4,524 source-encoded Hexagon executable**, **412 metadata**, **800 fixed alignment**.
+- First missing modem instruction at file `0x4668` (physical `0x8e001668`). This does not complete the modem firmware or its OEM authentication.
