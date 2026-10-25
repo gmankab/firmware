@@ -1,0 +1,990 @@
+{
+  "checkpoint": "agent20-19-checkpoint-01",
+  "date": "2026-10-25",
+  "branch": "agents20/19-novatek-dlm",
+  "parent_sha": "941c805f8510c88344133687a77722ace386504e",
+  "base_status": "portable contribution on verified older-base preview; checkpoint 50 absent",
+  "toolchain": "rustc 1.90.0 (1159e78c4 2025-09-14)",
+  "rust": {
+    "test_executions_passed": 398,
+    "failed": 0,
+    "ignored": 0,
+    "new_regressions": 27,
+    "inherited_tests_repeated_by_standalone_bin": 32,
+    "offline_locked_release_build": "passed"
+  },
+  "python": {
+    "test_methods_run": 158,
+    "test_methods_passed": 107,
+    "test_methods_skipped": 51,
+    "class_setups_skipped": 1,
+    "reported_skips": 52,
+    "new_agent19_tests_passed": 15,
+    "skipped": [
+      {
+        "test": "test_alignment_and_startup_match_reference (test_adsp_bootstrap.ADSPBootstrapTests.test_alignment_and_startup_match_reference)",
+        "reason": "Assembler and reference required"
+      },
+      {
+        "test": "test_cache_copy_assembles_exactly_to_reference (test_adsp_bootstrap.ADSPBootstrapTests.test_cache_copy_assembles_exactly_to_reference)",
+        "reason": "Assembler and reference required"
+      },
+      {
+        "test": "test_cfgbase_helper_generates_36_reference_bytes (test_adsp_bootstrap.ADSPBootstrapTests.test_cfgbase_helper_generates_36_reference_bytes)",
+        "reason": "Assembler and reference required"
+      },
+      {
+        "test": "test_combined_v66_boot_prefix (test_adsp_bootstrap.ADSPBootstrapTests.test_combined_v66_boot_prefix)",
+        "reason": "Hexagon assembler and exact Nabu ADSP reference required"
+      },
+      {
+        "test": "test_compiler_emits_nine_original_instructions (test_adsp_bootstrap.ADSPBootstrapTests.test_compiler_emits_nine_original_instructions)",
+        "reason": "Hexagon-capable llvm-mc unavailable"
+      },
+      {
+        "test": "test_complete_tlb_region_matches_reference (test_adsp_bootstrap.ADSPBootstrapTests.test_complete_tlb_region_matches_reference)",
+        "reason": "Exact ADSP reference required"
+      },
+      {
+        "test": "test_context_capture_matches_original_and_rejects_bad_privileged_slot (test_adsp_bootstrap.ADSPBootstrapTests.test_context_capture_matches_original_and_rejects_bad_privileged_slot)",
+        "reason": "Exact reference required"
+      },
+      {
+        "test": "test_context_save_byte_identity_and_checked_sentinel (test_adsp_bootstrap.ADSPBootstrapTests.test_context_save_byte_identity_and_checked_sentinel)",
+        "reason": "Hexagon assembler and reference required"
+      },
+      {
+        "test": "test_controller_bootstrap_roundtrips_full_original (test_adsp_bootstrap.ADSPBootstrapTests.test_controller_bootstrap_roundtrips_full_original)",
+        "reason": "Source assembler and exact Nabu reference required"
+      },
+      {
+        "test": "test_controller_compiles_without_unresolved_relocations (test_adsp_bootstrap.ADSPBootstrapTests.test_controller_compiles_without_unresolved_relocations)",
+        "reason": "Hexagon-capable llvm-mc unavailable"
+      },
+      {
+        "test": "test_controller_control_save_byte_identity_and_sentinels (test_adsp_bootstrap.ADSPBootstrapTests.test_controller_control_save_byte_identity_and_sentinels)",
+        "reason": "Hexagon source and reference required"
+      },
+      {
+        "test": "test_controller_is_byte_identical_to_original (test_adsp_bootstrap.ADSPBootstrapTests.test_controller_is_byte_identical_to_original)",
+        "reason": "Hexagon assembler and exact Nabu ADSP reference required"
+      },
+      {
+        "test": "test_debug_guard_has_six_checked_unsupported_slots (test_adsp_bootstrap.ADSPBootstrapTests.test_debug_guard_has_six_checked_unsupported_slots)",
+        "reason": "Assembler and reference required"
+      },
+      {
+        "test": "test_independently_assembled_tlb_flush_matches_original (test_adsp_bootstrap.ADSPBootstrapTests.test_independently_assembled_tlb_flush_matches_original)",
+        "reason": "Exact ADSP reference required"
+      },
+      {
+        "test": "test_l2_global_recreates_privileged_operations_exactly (test_adsp_bootstrap.ADSPBootstrapTests.test_l2_global_recreates_privileged_operations_exactly)",
+        "reason": "Hexagon assembler and reference required"
+      },
+      {
+        "test": "test_match_original_and_reject_altered_entry (test_adsp_bootstrap.ADSPBootstrapTests.test_match_original_and_reject_altered_entry)",
+        "reason": "Hexagon assembler and exact Nabu ADSP reference required"
+      },
+      {
+        "test": "test_memory_copy_source_matches_reference_and_loop_packet (test_adsp_bootstrap.ADSPBootstrapTests.test_memory_copy_source_matches_reference_and_loop_packet)",
+        "reason": "Exact ADSP reference and Hexagon assembler required"
+      },
+      {
+        "test": "test_nested_cacheline_copy_assembles_identically (test_adsp_bootstrap.ADSPBootstrapTests.test_nested_cacheline_copy_assembles_identically)",
+        "reason": "Exact ADSP reference and Hexagon assembler required"
+      },
+      {
+        "test": "test_physical_comparison_assembles_with_only_one_special_opcode (test_adsp_bootstrap.ADSPBootstrapTests.test_physical_comparison_assembles_with_only_one_special_opcode)",
+        "reason": "Assembler and reference required"
+      },
+      {
+        "test": "test_physical_copy_uses_one_checked_unsupported_slot (test_adsp_bootstrap.ADSPBootstrapTests.test_physical_copy_uses_one_checked_unsupported_slot)",
+        "reason": "Assembler and reference required"
+      },
+      {
+        "test": "test_physical_tlb_copy_source_and_special_words_match_exactly (test_adsp_bootstrap.ADSPBootstrapTests.test_physical_tlb_copy_source_and_special_words_match_exactly)",
+        "reason": "Assembler and reference required"
+      },
+      {
+        "test": "test_privileged_restore_reconstructs_every_word (test_adsp_bootstrap.ADSPBootstrapTests.test_privileged_restore_reconstructs_every_word)",
+        "reason": "Hexagon assembler and reference required"
+      },
+      {
+        "test": "test_processor_startup_matches_reference_and_validates_privilege (test_adsp_bootstrap.ADSPBootstrapTests.test_processor_startup_matches_reference_and_validates_privilege)",
+        "reason": "Reference and LLVM required"
+      },
+      {
+        "test": "test_reject_relocations_and_malformed_section_offsets (test_adsp_bootstrap.ADSPBootstrapTests.test_reject_relocations_and_malformed_section_offsets)",
+        "reason": "Hexagon-capable llvm-mc unavailable"
+      },
+      {
+        "test": "test_release_and_stop_dispatch_matches_original (test_adsp_bootstrap.ADSPBootstrapTests.test_release_and_stop_dispatch_matches_original)",
+        "reason": "Assembler and reference required"
+      },
+      {
+        "test": "test_reset_padding_keeps_trap_vector_packet_structure (test_adsp_bootstrap.ADSPBootstrapTests.test_reset_padding_keeps_trap_vector_packet_structure)",
+        "reason": "Hexagon assembler and reference required"
+      },
+      {
+        "test": "test_startup_poll_byte_identity_and_three_privilege_guards (test_adsp_bootstrap.ADSPBootstrapTests.test_startup_poll_byte_identity_and_three_privilege_guards)",
+        "reason": "Assembler and reference required"
+      },
+      {
+        "test": "test_syscfg_handoff_matches_reference_and_rejects_wrong_revision (test_adsp_bootstrap.ADSPBootstrapTests.test_syscfg_handoff_matches_reference_and_rejects_wrong_revision)",
+        "reason": "Hexagon assembler and exact Nabu ADSP reference required"
+      },
+      {
+        "test": "test_syscfg_handoff_uses_typed_and_source_assembly (test_adsp_bootstrap.ADSPBootstrapTests.test_syscfg_handoff_uses_typed_and_source_assembly)",
+        "reason": "Hexagon-capable llvm-mc unavailable"
+      },
+      {
+        "test": "test_syscfg_update_matches_reference_and_rejects_modified_sentinel (test_adsp_bootstrap.ADSPBootstrapTests.test_syscfg_update_matches_reference_and_rejects_modified_sentinel)",
+        "reason": "Hexagon assembler and reference required"
+      },
+      {
+        "test": "test_tlb_flush_sentinels_are_replaced_and_guarded (test_adsp_bootstrap.ADSPBootstrapTests.test_tlb_flush_sentinels_are_replaced_and_guarded)",
+        "reason": "Hexagon-capable llvm-mc unavailable"
+      },
+      {
+        "test": "test_tlb_placeholder_replacement_is_exact_and_guarded (test_adsp_bootstrap.ADSPBootstrapTests.test_tlb_placeholder_replacement_is_exact_and_guarded)",
+        "reason": "Hexagon-capable llvm-mc unavailable"
+      },
+      {
+        "test": "test_tlb_reconciliation_matches_exact_adsp_reference (test_adsp_bootstrap.ADSPBootstrapTests.test_tlb_reconciliation_matches_exact_adsp_reference)",
+        "reason": "Exact Nabu ADSP reference and assembler required"
+      },
+      {
+        "test": "test_tlb_reconciliation_replaces_exactly_seven_privileged_slots (test_adsp_bootstrap.ADSPBootstrapTests.test_tlb_reconciliation_replaces_exactly_seven_privileged_slots)",
+        "reason": "Hexagon-capable llvm-mc unavailable"
+      },
+      {
+        "test": "test_vector_handoff_emits_exact_original_branches (test_adsp_bootstrap.ADSPBootstrapTests.test_vector_handoff_emits_exact_original_branches)",
+        "reason": "Assembler and reference required"
+      },
+      {
+        "test": "test_cfgbase_decoder_agrees_across_four_sites (test_adsp_v66.V66BootstrapTests.test_cfgbase_decoder_agrees_across_four_sites)",
+        "reason": "ADSP reference required"
+      },
+      {
+        "test": "test_context_capture_register_fields_and_packet_positions (test_adsp_v66.V66BootstrapTests.test_context_capture_register_fields_and_packet_positions)",
+        "reason": "Exact Nabu reference required"
+      },
+      {
+        "test": "test_control_save_interrupt_masks_and_system_registers (test_adsp_v66.V66BootstrapTests.test_control_save_interrupt_masks_and_system_registers)",
+        "reason": "Exact reference required"
+      },
+      {
+        "test": "test_debug_control_encodings_match_multiple_calls (test_adsp_v66.V66BootstrapTests.test_debug_control_encodings_match_multiple_calls)",
+        "reason": "Original reference required"
+      },
+      {
+        "test": "test_evb_assignments_at_two_assembler_independent_sites (test_adsp_v66.V66BootstrapTests.test_evb_assignments_at_two_assembler_independent_sites)",
+        "reason": "Exact reference required"
+      },
+      {
+        "test": "test_fixed_tlb_encoding_repeats_at_independent_call_sites (test_adsp_v66.V66BootstrapTests.test_fixed_tlb_encoding_repeats_at_independent_call_sites)",
+        "reason": "ADSP reference required"
+      },
+      {
+        "test": "test_global_l2_opcodes_match_distinct_locations (test_adsp_v66.V66BootstrapTests.test_global_l2_opcodes_match_distinct_locations)",
+        "reason": "Exact firmware reference required"
+      },
+      {
+        "test": "test_htid_register_reads_at_distinct_boot_sites (test_adsp_v66.V66BootstrapTests.test_htid_register_reads_at_distinct_boot_sites)",
+        "reason": "Exact firmware reference required"
+      },
+      {
+        "test": "test_instructions_match_two_independent_adsp_call_sites (test_adsp_v66.V66BootstrapTests.test_instructions_match_two_independent_adsp_call_sites)",
+        "reason": "ADSP reference required"
+      },
+      {
+        "test": "test_physical_tlb_copy_uses_selected_address_registers (test_adsp_v66.V66BootstrapTests.test_physical_tlb_copy_uses_selected_address_registers)",
+        "reason": "Exact firmware reference required"
+      },
+      {
+        "test": "test_poll_read_register_variants_match_three_sites (test_adsp_v66.V66BootstrapTests.test_poll_read_register_variants_match_three_sites)",
+        "reason": "Nabu firmware required"
+      },
+      {
+        "test": "test_privileged_restore_instructions_at_all_seven_offsets (test_adsp_v66.V66BootstrapTests.test_privileged_restore_instructions_at_all_seven_offsets)",
+        "reason": "Exact reference required"
+      },
+      {
+        "test": "test_privileged_tlb_ops_match_original_distinct_positions (test_adsp_v66.V66BootstrapTests.test_privileged_tlb_ops_match_original_distinct_positions)",
+        "reason": "ADSP reference required"
+      },
+      {
+        "test": "test_three_physical_load_sites_match_reference (test_adsp_v66.V66BootstrapTests.test_three_physical_load_sites_match_reference)",
+        "reason": "Exact ADSP reference required"
+      },
+      {
+        "test": "test_v66_privileged_controller_registers_match_reference (test_adsp_v66.V66BootstrapTests.test_v66_privileged_controller_registers_match_reference)",
+        "reason": "Original ADSP required"
+      },
+      {
+        "test": "test_v66_stop_opcode_reference_and_loop_back (test_adsp_v66.V66BootstrapTests.test_v66_stop_opcode_reference_and_loop_back)",
+        "reason": "Exact firmware reference required"
+      },
+      {
+        "test": "setUpClass (test_wlanmdsp_rebuild.WlanHexagonAssemblyTests)",
+        "reason": "Hexagon-capable llvm-mc is not installed"
+      }
+    ]
+  },
+  "rust_reference_verification": {
+    "schema": "agent20-19-novatek-dlm-v1",
+    "profile": "postmarketos-nabu",
+    "reference_sha256": "8b845514621ebfd95759a0919f3aa3d825314abb478a7cad1c3fb4c6872b70b5",
+    "reference_verified": true,
+    "flashable": false,
+    "source_layout_bytes": 35136,
+    "prior_source_executable_bytes": 538,
+    "new_executable_bytes": 0,
+    "source_dlm_data_bytes": 9252,
+    "external_metadata_bytes": 1024,
+    "unknown_ilm_bytes": 108054,
+    "unknown_dlm_bytes": 40300,
+    "derived_mirror_bytes": 2304,
+    "mirror_from_source_bytes": 648,
+    "mirror_from_external_bytes": 1656,
+    "independent_unique_bytes": 44926,
+    "total_bytes": 196608,
+    "first_unknown_dlm": 139264,
+    "crc_stored_fields_checked": 12,
+    "mismatched_source_bytes": 0,
+    "fragments": [
+      {
+        "name": "gaussian-half-kernel",
+        "file": "novatek-dlm-022488-02252a.bin",
+        "file_start": 140424,
+        "file_end": 140586,
+        "sram_start": 132232,
+        "bytes": 162,
+        "sha256": "f617cbc116db9520772534c6b7a24dd78eb58bd6d379cbd8d7ff077b1acf63c1",
+        "evidence": "Gaussian density scaled by 400000; integer-tenths sigma; x=80..0; rounded u16"
+      },
+      {
+        "name": "gaussian-half-kernel",
+        "file": "novatek-dlm-02252a-0225cc.bin",
+        "file_start": 140586,
+        "file_end": 140748,
+        "sram_start": 132394,
+        "bytes": 162,
+        "sha256": "4acf4ef3aaed0529f22d3395b0960096b68468e3ea9c64ea0bb82ad9b563002d",
+        "evidence": "Gaussian density scaled by 400000; integer-tenths sigma; x=80..0; rounded u16"
+      },
+      {
+        "name": "gaussian-half-kernel",
+        "file": "novatek-dlm-0225cc-02266e.bin",
+        "file_start": 140748,
+        "file_end": 140910,
+        "sram_start": 132556,
+        "bytes": 162,
+        "sha256": "4604d159edb788f23575efd64a99de4362b9fc0213ac2a813f47e3ee392f7b99",
+        "evidence": "Gaussian density scaled by 400000; integer-tenths sigma; x=80..0; rounded u16"
+      },
+      {
+        "name": "gaussian-half-kernel",
+        "file": "novatek-dlm-02266e-022710.bin",
+        "file_start": 140910,
+        "file_end": 141072,
+        "sram_start": 132718,
+        "bytes": 162,
+        "sha256": "f617cbc116db9520772534c6b7a24dd78eb58bd6d379cbd8d7ff077b1acf63c1",
+        "evidence": "Gaussian density scaled by 400000; integer-tenths sigma; x=80..0; rounded u16"
+      },
+      {
+        "name": "initial-index-walks",
+        "file": "novatek-dlm-024904-024fc4.bin",
+        "file_start": 149764,
+        "file_end": 151492,
+        "sram_start": 141572,
+        "bytes": 1728,
+        "sha256": "3334fb3103ab9b8d2bcf523f54bfdc73ebf8306b64a256eca5a6375b755d1472",
+        "evidence": "50x11-bit records: linear, paired, modulo-1535 and 6x8 index walks"
+      },
+      {
+        "name": "narrow-index-walks",
+        "file": "novatek-dlm-025d4c-0262ec.bin",
+        "file_start": 154956,
+        "file_end": 156396,
+        "sram_start": 146764,
+        "bytes": 1440,
+        "sha256": "30a5163c5ebc28dc9cef29b5ff2ca5db051e35e3ae83f43bc146c44cc5283171",
+        "evidence": "50x11-bit records: modulo-1439 walks with explicit sentinel masks"
+      },
+      {
+        "name": "translated-wide-index-walks",
+        "file": "novatek-dlm-028904-028fc4.bin",
+        "file_start": 166148,
+        "file_end": 167876,
+        "sram_start": 157956,
+        "bytes": 1728,
+        "sha256": "6615a39f08da955508e152b4000bb201408b2797dc211d7e8817a8e83202a0bc",
+        "evidence": "wide index walks with 16-index translation of live ring slots"
+      },
+      {
+        "name": "translated-narrow-index-walks",
+        "file": "novatek-dlm-029d4c-02a2ec.bin",
+        "file_start": 171340,
+        "file_end": 172780,
+        "sram_start": 163148,
+        "bytes": 1440,
+        "sha256": "e268842a3907eda0c9f0f80a41a1edbaeec64d7fd0f3d6365ee83daaeebe9283",
+        "evidence": "50x11-bit records: modulo-1439 walks translated by 15 with explicit sentinel masks"
+      },
+      {
+        "name": "gaussian-half-kernel",
+        "file": "novatek-dlm-02d7f4-02d896.bin",
+        "file_start": 186356,
+        "file_end": 186518,
+        "sram_start": 178164,
+        "bytes": 162,
+        "sha256": "11521f9ab7105a38aaaf403bcb27270a901173bf0d650190ecb733117e024635",
+        "evidence": "Gaussian density scaled by 400000; integer-tenths sigma; x=80..0; rounded u16"
+      },
+      {
+        "name": "gaussian-half-kernel",
+        "file": "novatek-dlm-02d896-02d938.bin",
+        "file_start": 186518,
+        "file_end": 186680,
+        "sram_start": 178326,
+        "bytes": 162,
+        "sha256": "11521f9ab7105a38aaaf403bcb27270a901173bf0d650190ecb733117e024635",
+        "evidence": "Gaussian density scaled by 400000; integer-tenths sigma; x=80..0; rounded u16"
+      },
+      {
+        "name": "gaussian-half-kernel",
+        "file": "novatek-dlm-02d938-02d9da.bin",
+        "file_start": 186680,
+        "file_end": 186842,
+        "sram_start": 178488,
+        "bytes": 162,
+        "sha256": "11521f9ab7105a38aaaf403bcb27270a901173bf0d650190ecb733117e024635",
+        "evidence": "Gaussian density scaled by 400000; integer-tenths sigma; x=80..0; rounded u16"
+      },
+      {
+        "name": "gaussian-half-kernel",
+        "file": "novatek-dlm-02d9da-02da7c.bin",
+        "file_start": 186842,
+        "file_end": 187004,
+        "sram_start": 178650,
+        "bytes": 162,
+        "sha256": "4acf4ef3aaed0529f22d3395b0960096b68468e3ea9c64ea0bb82ad9b563002d",
+        "evidence": "Gaussian density scaled by 400000; integer-tenths sigma; x=80..0; rounded u16"
+      },
+      {
+        "name": "gaussian-half-kernel",
+        "file": "novatek-dlm-02da7c-02db1e.bin",
+        "file_start": 187004,
+        "file_end": 187166,
+        "sram_start": 178812,
+        "bytes": 162,
+        "sha256": "11521f9ab7105a38aaaf403bcb27270a901173bf0d650190ecb733117e024635",
+        "evidence": "Gaussian density scaled by 400000; integer-tenths sigma; x=80..0; rounded u16"
+      },
+      {
+        "name": "gaussian-half-kernel",
+        "file": "novatek-dlm-02db1e-02dbc0.bin",
+        "file_start": 187166,
+        "file_end": 187328,
+        "sram_start": 178974,
+        "bytes": 162,
+        "sha256": "e607aacbb816241b8c0f348af5273060b6e28e42ef110cdecd29d5ded04d25f6",
+        "evidence": "Gaussian density scaled by 400000; integer-tenths sigma; x=80..0; rounded u16"
+      },
+      {
+        "name": "gaussian-half-kernel",
+        "file": "novatek-dlm-02dbc0-02dc62.bin",
+        "file_start": 187328,
+        "file_end": 187490,
+        "sram_start": 179136,
+        "bytes": 162,
+        "sha256": "4f4c7ed4112d9f58e7cb58f6f6044472078a4b5d4ee92a3626519fe02bffdb23",
+        "evidence": "Gaussian density scaled by 400000; integer-tenths sigma; x=80..0; rounded u16"
+      },
+      {
+        "name": "gaussian-half-kernel",
+        "file": "novatek-dlm-02dc62-02dd04.bin",
+        "file_start": 187490,
+        "file_end": 187652,
+        "sram_start": 179298,
+        "bytes": 162,
+        "sha256": "11521f9ab7105a38aaaf403bcb27270a901173bf0d650190ecb733117e024635",
+        "evidence": "Gaussian density scaled by 400000; integer-tenths sigma; x=80..0; rounded u16"
+      },
+      {
+        "name": "gaussian-half-kernel",
+        "file": "novatek-dlm-02dd04-02dda6.bin",
+        "file_start": 187652,
+        "file_end": 187814,
+        "sram_start": 179460,
+        "bytes": 162,
+        "sha256": "4f4c7ed4112d9f58e7cb58f6f6044472078a4b5d4ee92a3626519fe02bffdb23",
+        "evidence": "Gaussian density scaled by 400000; integer-tenths sigma; x=80..0; rounded u16"
+      },
+      {
+        "name": "gaussian-half-kernel",
+        "file": "novatek-dlm-02dda6-02de48.bin",
+        "file_start": 187814,
+        "file_end": 187976,
+        "sram_start": 179622,
+        "bytes": 162,
+        "sha256": "4f4c7ed4112d9f58e7cb58f6f6044472078a4b5d4ee92a3626519fe02bffdb23",
+        "evidence": "Gaussian density scaled by 400000; integer-tenths sigma; x=80..0; rounded u16"
+      },
+      {
+        "name": "gaussian-half-kernel",
+        "file": "novatek-dlm-02de48-02deea.bin",
+        "file_start": 187976,
+        "file_end": 188138,
+        "sram_start": 179784,
+        "bytes": 162,
+        "sha256": "4f4c7ed4112d9f58e7cb58f6f6044472078a4b5d4ee92a3626519fe02bffdb23",
+        "evidence": "Gaussian density scaled by 400000; integer-tenths sigma; x=80..0; rounded u16"
+      },
+      {
+        "name": "gaussian-half-kernel",
+        "file": "novatek-dlm-02deea-02df8c.bin",
+        "file_start": 188138,
+        "file_end": 188300,
+        "sram_start": 179946,
+        "bytes": 162,
+        "sha256": "4f4c7ed4112d9f58e7cb58f6f6044472078a4b5d4ee92a3626519fe02bffdb23",
+        "evidence": "Gaussian density scaled by 400000; integer-tenths sigma; x=80..0; rounded u16"
+      },
+      {
+        "name": "gaussian-half-kernel",
+        "file": "novatek-dlm-02df98-02e03a.bin",
+        "file_start": 188312,
+        "file_end": 188474,
+        "sram_start": 180120,
+        "bytes": 162,
+        "sha256": "e7963f760dad5b8964c6478b932efce2c087d2fbf5ad80f8aedbd62b96392ef2",
+        "evidence": "Gaussian density scaled by 400000; integer-tenths sigma; x=80..0; rounded u16"
+      },
+      {
+        "name": "gaussian-half-kernel",
+        "file": "novatek-dlm-02e03a-02e0dc.bin",
+        "file_start": 188474,
+        "file_end": 188636,
+        "sram_start": 180282,
+        "bytes": 162,
+        "sha256": "e555625e94625304302b2345ac10e8c051598fced02af2964d53443bf3f3bb08",
+        "evidence": "Gaussian density scaled by 400000; integer-tenths sigma; x=80..0; rounded u16"
+      }
+    ],
+    "regions": [
+      {
+        "file_start": 0,
+        "file_end": 512,
+        "kind": "external_metadata",
+        "evidence": "dual-bank metadata scalars; CRCs recomputable from payload"
+      },
+      {
+        "file_start": 512,
+        "file_end": 1024,
+        "kind": "external_metadata",
+        "evidence": "candidate vector words with externally supplied target scalars"
+      },
+      {
+        "file_start": 1024,
+        "file_end": 1104,
+        "kind": "source_layout",
+        "evidence": "verified vector-to-code zero padding"
+      },
+      {
+        "file_start": 1104,
+        "file_end": 1642,
+        "kind": "source_executable",
+        "evidence": "prior Agent 09 typed NDS32 boot/reset prefix"
+      },
+      {
+        "file_start": 1642,
+        "file_end": 109696,
+        "kind": "unknown_ilm",
+        "evidence": "ILM remainder owned by Agents 17 and 18"
+      },
+      {
+        "file_start": 109696,
+        "file_end": 139264,
+        "kind": "source_layout",
+        "evidence": "verified ILM-to-DLM zero padding"
+      },
+      {
+        "file_start": 139264,
+        "file_end": 140424,
+        "kind": "unknown_dlm",
+        "evidence": "DLM payload not independently reconstructed"
+      },
+      {
+        "file_start": 140424,
+        "file_end": 140586,
+        "kind": "source_dlm_data",
+        "evidence": "Gaussian density scaled by 400000; integer-tenths sigma; x=80..0; rounded u16"
+      },
+      {
+        "file_start": 140586,
+        "file_end": 140748,
+        "kind": "source_dlm_data",
+        "evidence": "Gaussian density scaled by 400000; integer-tenths sigma; x=80..0; rounded u16"
+      },
+      {
+        "file_start": 140748,
+        "file_end": 140910,
+        "kind": "source_dlm_data",
+        "evidence": "Gaussian density scaled by 400000; integer-tenths sigma; x=80..0; rounded u16"
+      },
+      {
+        "file_start": 140910,
+        "file_end": 141072,
+        "kind": "source_dlm_data",
+        "evidence": "Gaussian density scaled by 400000; integer-tenths sigma; x=80..0; rounded u16"
+      },
+      {
+        "file_start": 141072,
+        "file_end": 149764,
+        "kind": "unknown_dlm",
+        "evidence": "DLM payload not independently reconstructed"
+      },
+      {
+        "file_start": 149764,
+        "file_end": 151492,
+        "kind": "source_dlm_data",
+        "evidence": "50x11-bit records: linear, paired, modulo-1535 and 6x8 index walks"
+      },
+      {
+        "file_start": 151492,
+        "file_end": 154956,
+        "kind": "unknown_dlm",
+        "evidence": "DLM payload not independently reconstructed"
+      },
+      {
+        "file_start": 154956,
+        "file_end": 156396,
+        "kind": "source_dlm_data",
+        "evidence": "50x11-bit records: modulo-1439 walks with explicit sentinel masks"
+      },
+      {
+        "file_start": 156396,
+        "file_end": 166148,
+        "kind": "unknown_dlm",
+        "evidence": "DLM payload not independently reconstructed"
+      },
+      {
+        "file_start": 166148,
+        "file_end": 167876,
+        "kind": "source_dlm_data",
+        "evidence": "wide index walks with 16-index translation of live ring slots"
+      },
+      {
+        "file_start": 167876,
+        "file_end": 171340,
+        "kind": "unknown_dlm",
+        "evidence": "DLM payload not independently reconstructed"
+      },
+      {
+        "file_start": 171340,
+        "file_end": 172780,
+        "kind": "source_dlm_data",
+        "evidence": "50x11-bit records: modulo-1439 walks translated by 15 with explicit sentinel masks"
+      },
+      {
+        "file_start": 172780,
+        "file_end": 186356,
+        "kind": "unknown_dlm",
+        "evidence": "DLM payload not independently reconstructed"
+      },
+      {
+        "file_start": 186356,
+        "file_end": 186518,
+        "kind": "source_dlm_data",
+        "evidence": "Gaussian density scaled by 400000; integer-tenths sigma; x=80..0; rounded u16"
+      },
+      {
+        "file_start": 186518,
+        "file_end": 186680,
+        "kind": "source_dlm_data",
+        "evidence": "Gaussian density scaled by 400000; integer-tenths sigma; x=80..0; rounded u16"
+      },
+      {
+        "file_start": 186680,
+        "file_end": 186842,
+        "kind": "source_dlm_data",
+        "evidence": "Gaussian density scaled by 400000; integer-tenths sigma; x=80..0; rounded u16"
+      },
+      {
+        "file_start": 186842,
+        "file_end": 187004,
+        "kind": "source_dlm_data",
+        "evidence": "Gaussian density scaled by 400000; integer-tenths sigma; x=80..0; rounded u16"
+      },
+      {
+        "file_start": 187004,
+        "file_end": 187166,
+        "kind": "source_dlm_data",
+        "evidence": "Gaussian density scaled by 400000; integer-tenths sigma; x=80..0; rounded u16"
+      },
+      {
+        "file_start": 187166,
+        "file_end": 187328,
+        "kind": "source_dlm_data",
+        "evidence": "Gaussian density scaled by 400000; integer-tenths sigma; x=80..0; rounded u16"
+      },
+      {
+        "file_start": 187328,
+        "file_end": 187490,
+        "kind": "source_dlm_data",
+        "evidence": "Gaussian density scaled by 400000; integer-tenths sigma; x=80..0; rounded u16"
+      },
+      {
+        "file_start": 187490,
+        "file_end": 187652,
+        "kind": "source_dlm_data",
+        "evidence": "Gaussian density scaled by 400000; integer-tenths sigma; x=80..0; rounded u16"
+      },
+      {
+        "file_start": 187652,
+        "file_end": 187814,
+        "kind": "source_dlm_data",
+        "evidence": "Gaussian density scaled by 400000; integer-tenths sigma; x=80..0; rounded u16"
+      },
+      {
+        "file_start": 187814,
+        "file_end": 187976,
+        "kind": "source_dlm_data",
+        "evidence": "Gaussian density scaled by 400000; integer-tenths sigma; x=80..0; rounded u16"
+      },
+      {
+        "file_start": 187976,
+        "file_end": 188138,
+        "kind": "source_dlm_data",
+        "evidence": "Gaussian density scaled by 400000; integer-tenths sigma; x=80..0; rounded u16"
+      },
+      {
+        "file_start": 188138,
+        "file_end": 188300,
+        "kind": "source_dlm_data",
+        "evidence": "Gaussian density scaled by 400000; integer-tenths sigma; x=80..0; rounded u16"
+      },
+      {
+        "file_start": 188300,
+        "file_end": 188312,
+        "kind": "unknown_dlm",
+        "evidence": "DLM payload not independently reconstructed"
+      },
+      {
+        "file_start": 188312,
+        "file_end": 188474,
+        "kind": "source_dlm_data",
+        "evidence": "Gaussian density scaled by 400000; integer-tenths sigma; x=80..0; rounded u16"
+      },
+      {
+        "file_start": 188474,
+        "file_end": 188636,
+        "kind": "source_dlm_data",
+        "evidence": "Gaussian density scaled by 400000; integer-tenths sigma; x=80..0; rounded u16"
+      },
+      {
+        "file_start": 188636,
+        "file_end": 188816,
+        "kind": "unknown_dlm",
+        "evidence": "DLM payload not independently reconstructed"
+      },
+      {
+        "file_start": 188816,
+        "file_end": 192512,
+        "kind": "source_layout",
+        "evidence": "verified post-DLM zero padding"
+      },
+      {
+        "file_start": 192512,
+        "file_end": 193672,
+        "kind": "derived_mirror",
+        "evidence": "DLM payload not independently reconstructed",
+        "source_file_start": 139264,
+        "source_file_end": 140424,
+        "source_independent": false
+      },
+      {
+        "file_start": 193672,
+        "file_end": 193834,
+        "kind": "derived_mirror",
+        "evidence": "Gaussian density scaled by 400000; integer-tenths sigma; x=80..0; rounded u16",
+        "source_file_start": 140424,
+        "source_file_end": 140586,
+        "source_independent": true
+      },
+      {
+        "file_start": 193834,
+        "file_end": 193996,
+        "kind": "derived_mirror",
+        "evidence": "Gaussian density scaled by 400000; integer-tenths sigma; x=80..0; rounded u16",
+        "source_file_start": 140586,
+        "source_file_end": 140748,
+        "source_independent": true
+      },
+      {
+        "file_start": 193996,
+        "file_end": 194158,
+        "kind": "derived_mirror",
+        "evidence": "Gaussian density scaled by 400000; integer-tenths sigma; x=80..0; rounded u16",
+        "source_file_start": 140748,
+        "source_file_end": 140910,
+        "source_independent": true
+      },
+      {
+        "file_start": 194158,
+        "file_end": 194320,
+        "kind": "derived_mirror",
+        "evidence": "Gaussian density scaled by 400000; integer-tenths sigma; x=80..0; rounded u16",
+        "source_file_start": 140910,
+        "source_file_end": 141072,
+        "source_independent": true
+      },
+      {
+        "file_start": 194320,
+        "file_end": 194816,
+        "kind": "derived_mirror",
+        "evidence": "DLM payload not independently reconstructed",
+        "source_file_start": 141072,
+        "source_file_end": 141568,
+        "source_independent": false
+      },
+      {
+        "file_start": 194816,
+        "file_end": 196605,
+        "kind": "source_layout",
+        "evidence": "verified reserved tail zero padding"
+      },
+      {
+        "file_start": 196605,
+        "file_end": 196608,
+        "kind": "source_layout",
+        "evidence": "constant NVT image terminator"
+      }
+    ]
+  },
+  "independent_python_verification": {
+    "reference_sha256": "8b845514621ebfd95759a0919f3aa3d825314abb478a7cad1c3fb4c6872b70b5",
+    "reference_verified": true,
+    "independent_data_bytes": 9252,
+    "fragment_count": 22,
+    "schedule_records": 88,
+    "gaussian_tables": 18,
+    "gaussian_coefficients": 1458,
+    "decimal_precision": 80,
+    "minimum_half_integer_distance": "0.00158300894155768450331021647076544962426097926540643769610043356663972225891",
+    "closest_sigma_tenths": 400,
+    "closest_sample_x": 72,
+    "crc_stored_fields_checked": 12,
+    "mirror_bytes_checked": 2304,
+    "mismatched_source_bytes": 0,
+    "rust_output_matches": true,
+    "concatenated_fragment_sha256": "5c9bc1b5833d9417e494da1db5f8113723f1c2561fcc73e072448da19628cd2f",
+    "fragments": [
+      {
+        "name": "gaussian-half-kernel",
+        "file": "novatek-dlm-022488-02252a.bin",
+        "file_start": 140424,
+        "file_end": 140586,
+        "sram_start": 132232,
+        "bytes": 162,
+        "sha256": "f617cbc116db9520772534c6b7a24dd78eb58bd6d379cbd8d7ff077b1acf63c1"
+      },
+      {
+        "name": "gaussian-half-kernel",
+        "file": "novatek-dlm-02252a-0225cc.bin",
+        "file_start": 140586,
+        "file_end": 140748,
+        "sram_start": 132394,
+        "bytes": 162,
+        "sha256": "4acf4ef3aaed0529f22d3395b0960096b68468e3ea9c64ea0bb82ad9b563002d"
+      },
+      {
+        "name": "gaussian-half-kernel",
+        "file": "novatek-dlm-0225cc-02266e.bin",
+        "file_start": 140748,
+        "file_end": 140910,
+        "sram_start": 132556,
+        "bytes": 162,
+        "sha256": "4604d159edb788f23575efd64a99de4362b9fc0213ac2a813f47e3ee392f7b99"
+      },
+      {
+        "name": "gaussian-half-kernel",
+        "file": "novatek-dlm-02266e-022710.bin",
+        "file_start": 140910,
+        "file_end": 141072,
+        "sram_start": 132718,
+        "bytes": 162,
+        "sha256": "f617cbc116db9520772534c6b7a24dd78eb58bd6d379cbd8d7ff077b1acf63c1"
+      },
+      {
+        "name": "initial-index-walks",
+        "file": "novatek-dlm-024904-024fc4.bin",
+        "file_start": 149764,
+        "file_end": 151492,
+        "sram_start": 141572,
+        "bytes": 1728,
+        "sha256": "3334fb3103ab9b8d2bcf523f54bfdc73ebf8306b64a256eca5a6375b755d1472"
+      },
+      {
+        "name": "narrow-index-walks",
+        "file": "novatek-dlm-025d4c-0262ec.bin",
+        "file_start": 154956,
+        "file_end": 156396,
+        "sram_start": 146764,
+        "bytes": 1440,
+        "sha256": "30a5163c5ebc28dc9cef29b5ff2ca5db051e35e3ae83f43bc146c44cc5283171"
+      },
+      {
+        "name": "translated-wide-index-walks",
+        "file": "novatek-dlm-028904-028fc4.bin",
+        "file_start": 166148,
+        "file_end": 167876,
+        "sram_start": 157956,
+        "bytes": 1728,
+        "sha256": "6615a39f08da955508e152b4000bb201408b2797dc211d7e8817a8e83202a0bc"
+      },
+      {
+        "name": "translated-narrow-index-walks",
+        "file": "novatek-dlm-029d4c-02a2ec.bin",
+        "file_start": 171340,
+        "file_end": 172780,
+        "sram_start": 163148,
+        "bytes": 1440,
+        "sha256": "e268842a3907eda0c9f0f80a41a1edbaeec64d7fd0f3d6365ee83daaeebe9283"
+      },
+      {
+        "name": "gaussian-half-kernel",
+        "file": "novatek-dlm-02d7f4-02d896.bin",
+        "file_start": 186356,
+        "file_end": 186518,
+        "sram_start": 178164,
+        "bytes": 162,
+        "sha256": "11521f9ab7105a38aaaf403bcb27270a901173bf0d650190ecb733117e024635"
+      },
+      {
+        "name": "gaussian-half-kernel",
+        "file": "novatek-dlm-02d896-02d938.bin",
+        "file_start": 186518,
+        "file_end": 186680,
+        "sram_start": 178326,
+        "bytes": 162,
+        "sha256": "11521f9ab7105a38aaaf403bcb27270a901173bf0d650190ecb733117e024635"
+      },
+      {
+        "name": "gaussian-half-kernel",
+        "file": "novatek-dlm-02d938-02d9da.bin",
+        "file_start": 186680,
+        "file_end": 186842,
+        "sram_start": 178488,
+        "bytes": 162,
+        "sha256": "11521f9ab7105a38aaaf403bcb27270a901173bf0d650190ecb733117e024635"
+      },
+      {
+        "name": "gaussian-half-kernel",
+        "file": "novatek-dlm-02d9da-02da7c.bin",
+        "file_start": 186842,
+        "file_end": 187004,
+        "sram_start": 178650,
+        "bytes": 162,
+        "sha256": "4acf4ef3aaed0529f22d3395b0960096b68468e3ea9c64ea0bb82ad9b563002d"
+      },
+      {
+        "name": "gaussian-half-kernel",
+        "file": "novatek-dlm-02da7c-02db1e.bin",
+        "file_start": 187004,
+        "file_end": 187166,
+        "sram_start": 178812,
+        "bytes": 162,
+        "sha256": "11521f9ab7105a38aaaf403bcb27270a901173bf0d650190ecb733117e024635"
+      },
+      {
+        "name": "gaussian-half-kernel",
+        "file": "novatek-dlm-02db1e-02dbc0.bin",
+        "file_start": 187166,
+        "file_end": 187328,
+        "sram_start": 178974,
+        "bytes": 162,
+        "sha256": "e607aacbb816241b8c0f348af5273060b6e28e42ef110cdecd29d5ded04d25f6"
+      },
+      {
+        "name": "gaussian-half-kernel",
+        "file": "novatek-dlm-02dbc0-02dc62.bin",
+        "file_start": 187328,
+        "file_end": 187490,
+        "sram_start": 179136,
+        "bytes": 162,
+        "sha256": "4f4c7ed4112d9f58e7cb58f6f6044472078a4b5d4ee92a3626519fe02bffdb23"
+      },
+      {
+        "name": "gaussian-half-kernel",
+        "file": "novatek-dlm-02dc62-02dd04.bin",
+        "file_start": 187490,
+        "file_end": 187652,
+        "sram_start": 179298,
+        "bytes": 162,
+        "sha256": "11521f9ab7105a38aaaf403bcb27270a901173bf0d650190ecb733117e024635"
+      },
+      {
+        "name": "gaussian-half-kernel",
+        "file": "novatek-dlm-02dd04-02dda6.bin",
+        "file_start": 187652,
+        "file_end": 187814,
+        "sram_start": 179460,
+        "bytes": 162,
+        "sha256": "4f4c7ed4112d9f58e7cb58f6f6044472078a4b5d4ee92a3626519fe02bffdb23"
+      },
+      {
+        "name": "gaussian-half-kernel",
+        "file": "novatek-dlm-02dda6-02de48.bin",
+        "file_start": 187814,
+        "file_end": 187976,
+        "sram_start": 179622,
+        "bytes": 162,
+        "sha256": "4f4c7ed4112d9f58e7cb58f6f6044472078a4b5d4ee92a3626519fe02bffdb23"
+      },
+      {
+        "name": "gaussian-half-kernel",
+        "file": "novatek-dlm-02de48-02deea.bin",
+        "file_start": 187976,
+        "file_end": 188138,
+        "sram_start": 179784,
+        "bytes": 162,
+        "sha256": "4f4c7ed4112d9f58e7cb58f6f6044472078a4b5d4ee92a3626519fe02bffdb23"
+      },
+      {
+        "name": "gaussian-half-kernel",
+        "file": "novatek-dlm-02deea-02df8c.bin",
+        "file_start": 188138,
+        "file_end": 188300,
+        "sram_start": 179946,
+        "bytes": 162,
+        "sha256": "4f4c7ed4112d9f58e7cb58f6f6044472078a4b5d4ee92a3626519fe02bffdb23"
+      },
+      {
+        "name": "gaussian-half-kernel",
+        "file": "novatek-dlm-02df98-02e03a.bin",
+        "file_start": 188312,
+        "file_end": 188474,
+        "sram_start": 180120,
+        "bytes": 162,
+        "sha256": "e7963f760dad5b8964c6478b932efce2c087d2fbf5ad80f8aedbd62b96392ef2"
+      },
+      {
+        "name": "gaussian-half-kernel",
+        "file": "novatek-dlm-02e03a-02e0dc.bin",
+        "file_start": 188474,
+        "file_end": 188636,
+        "sram_start": 180282,
+        "bytes": 162,
+        "sha256": "e555625e94625304302b2345ac10e8c051598fced02af2964d53443bf3f3bb08"
+      }
+    ]
+  },
+  "diff_check": "passed",
+  "reference_firmware_in_git": false,
+  "complete_independent_firmware": false,
+  "hardware_validation_performed": false
+}

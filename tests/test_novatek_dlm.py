@@ -1,0 +1,233 @@
+# SPDX-License-Identifier: GPL-3.0-only
+"""Agent 19 synthetic checks; real firmware and Rust binary are opt-in inputs."""
+from decimal import Decimal
+import importlib.util
+import json
+import os
+from pathlib import Path
+import struct
+import subprocess
+import tempfile
+import unittest
+
+ROOT = Path(__file__).resolve().parents[1]
+SPEC = importlib.util.spec_from_file_location("novatek_dlm_check", ROOT / "tools/verify-novatek-dlm.py")
+dlm = importlib.util.module_from_spec(SPEC)
+SPEC.loader.exec_module(dlm)
+
+
+def repair_checksums(image):
+    """Synthetic-fixture helper; write payload checks before dependent footers."""
+    for base in (0, 0x100):
+        for field, start, end in ((0x18, 0x200, 0x1ac80), (0x1c, 0x22000, 0x2e190)):
+            struct.pack_into("<I", image, base + field, dlm.crc32_mpeg2(image[start:end]))
+        for entry in range(base + 0x30, base + 0x60, 16):
+            length, start = struct.unpack_from("<II", image, entry + 4)
+            struct.pack_into("<I", image, entry + 12, dlm.crc32_mpeg2(image[start:start + length + 1]))
+    for base in (0, 0x100):
+        struct.pack_into("<I", image, base + 0xfc, dlm.crc32_mpeg2(image[base:base + 0xfc]))
+
+
+def synthetic_envelope():
+    image = bytearray(0x30000)
+    for bank, offsets in enumerate(((0, 0xa00, 0x3200), (0, 0x4a00, 0x7200))):
+        base = 0x100 * bank
+        struct.pack_into("<6I", image, base, 0x200, 0, 0x1aa7f, 0x22000, 0x20000, 0xc18f)
+        struct.pack_into("<II", image, base + 0x20, 3 if bank == 0 else 1,
+                         0x538110e0 if bank == 0 else 0)
+        for index, offset in enumerate(offsets):
+            struct.pack_into("<3I", image, base + 0x30 + 16 * index, 0x20000 + offset, 0, 0x22000 + offset)
+        struct.pack_into("<3I", image, base + 0xf0, 0x2c190 + base, 0xff, base)
+    struct.pack_into("<I", image, 0x200, 0x01020304)  # synthetic controller scalar
+    image[0x22000] = image[0x2f000] = 0x41
+    image[-3:] = b"NVT"
+    repair_checksums(image)
+    return image
+
+
+class PackedScheduleTests(unittest.TestCase):
+    def test_high_bits_cross_group_boundaries_and_sentinel_is_not_zero(self):
+        values = [0] * 50
+        values[0], values[9], values[10], values[23] = 0x100, 0x700, 0x300, 0x4a5
+        raw = dlm.pack_record(values)
+        self.assertEqual(struct.unpack_from("<5I", raw, 52), (0x38000001, 3, 0x800, 0, 0))
+        self.assertEqual(raw[23], 0xa5)
+        self.assertEqual(dlm.unpack_record(raw), values)
+        disabled = dlm.pack_record([dlm.SENTINEL] * 50)
+        self.assertEqual(disabled[:50], bytes([255]) * 50)
+        self.assertEqual(disabled[50:52], bytes(2))
+        self.assertEqual(struct.unpack_from("<5I", disabled, 52), (0x3fffffff,) * 5)
+
+    def test_invalid_widths_alignment_and_reserved_high_bits_fail(self):
+        for values in ([0] * 49, [2048] * 50, [-1] * 50, [True] * 50):
+            with self.assertRaises(ValueError):
+                dlm.pack_record(values)
+        for length in (0, 71, 73):
+            with self.assertRaises(ValueError):
+                dlm.unpack_record(bytes(length))
+        for offset, value in ((50, 1), (55, 0x40), (71, 0x80)):
+            malformed = bytearray(72)
+            malformed[offset] = value
+            with self.assertRaises(ValueError):
+                dlm.unpack_record(malformed)
+
+    def test_ring_walks_and_translations_preserve_explicit_disable_masks(self):
+        self.assertEqual(dlm.wide_schedule(7)[:5], [99, 67, 35, 3, 1506])
+        for row in range(24):
+            for a, b in zip(dlm.wide_schedule(row), dlm.wide_schedule(row, True)):
+                self.assertEqual(b, a + 16 if 7 <= row < 18 and a != dlm.SENTINEL else a)
+        for row in range(3, 18):
+            for a, b in zip(dlm.narrow_schedule(row), dlm.narrow_schedule(row, True)):
+                self.assertEqual(b, a + 15 if a != dlm.SENTINEL else a)
+        self.assertEqual([dlm.narrow_schedule(row).count(dlm.SENTINEL) for row in (14, 16, 17)], [12, 28, 38])
+        self.assertEqual(dlm.wide_schedule(21), [dlm.SENTINEL] * 30 + [0] * 20)
+        with self.assertRaises(ValueError):
+            dlm.narrow_schedule(20)
+        with self.assertRaises(ValueError):
+            dlm.wide_schedule(-1)
+
+
+class GaussianAndCrcTests(unittest.TestCase):
+    def test_machin_pi_decimal_density_and_rounding_margin(self):
+        self.assertTrue(str(dlm.decimal_pi()).startswith("3.14159265358979323846264338327950288419716939937510"))
+        raw, margin, x = dlm.gaussian_kernel(400)
+        samples = struct.unpack("<81H", raw)
+        self.assertEqual(samples[-1], 3989)
+        self.assertEqual(list(samples), sorted(samples))
+        self.assertEqual(x, 72)
+        self.assertGreater(margin, Decimal("0.001583"))
+        self.assertLess(margin, Decimal("0.001584"))
+        self.assertEqual(struct.unpack("<81H", dlm.gaussian_kernel(800)[0])[-1], 1995)
+
+    def test_invalid_gaussian_width_and_u16_overflow_are_rejected(self):
+        for sigma in (0, -1, 1, 24, 65536, 25.2, True):
+            with self.assertRaises(ValueError):
+                dlm.gaussian_kernel(sigma)
+        self.assertEqual(len(dlm.gaussian_kernel(25)[0]), 162)
+
+    def test_table_crc_public_vectors_and_zero_residue(self):
+        self.assertEqual(dlm.crc32_mpeg2(b""), 0xffffffff)
+        self.assertEqual(dlm.crc32_mpeg2(b"123456789"), 0x0376e6e7)
+        payload = bytes(range(256)) + b"synthetic CRC residue"
+        checksum = dlm.crc32_mpeg2(payload)
+        self.assertEqual(dlm.crc32_mpeg2(payload + struct.pack(">I", checksum)), 0)
+
+    def test_fragments_are_disjoint_data_with_frozen_owned_byte_total(self):
+        fragments = dlm.generated_fragments()
+        self.assertEqual(len(fragments), 22)
+        self.assertEqual(sum(len(data) for _, _, data in fragments), 9252)
+        self.assertEqual(sum(len(data) for _, name, data in fragments if name == "gaussian-half-kernel"), 2916)
+        self.assertTrue(all(a + len(data) <= b for (a, _, data), (b, _, _) in zip(fragments, fragments[1:])))
+        self.assertEqual(sum(max(0, min(start + len(data), 0x22900) - max(start, 0x22000))
+                             for start, _, data in fragments), 648)
+
+
+class EnvelopeTests(unittest.TestCase):
+    def test_all_twelve_physical_crc_fields_and_external_mirror(self):
+        image = synthetic_envelope()
+        checks = dlm.check_envelope(image)
+        self.assertEqual(len(checks), 12)
+        self.assertEqual(len({offset for offset, _ in checks}), 12)
+        image[0x2f001] ^= 1
+        with self.assertRaisesRegex(ValueError, "mirror"):
+            dlm.check_envelope(image)
+
+    def test_malformed_descriptor_and_vector_rejected_despite_valid_checksums(self):
+        for offset, value, error in ((0x38, 0x22001, "profile scalar"), (0x204, 0xdeadbeef, "vector")):
+            image = synthetic_envelope()
+            struct.pack_into("<I", image, offset, value)
+            repair_checksums(image)
+            with self.assertRaisesRegex(ValueError, error):
+                dlm.check_envelope(image)
+
+    def test_payload_corruption_marker_padding_and_truncation_fail(self):
+        image = synthetic_envelope()
+        for offset in (0x700, 0x2e000, 0x1ac80, 0x2fffe):
+            mutated = bytearray(image)
+            mutated[offset] ^= 1
+            with self.assertRaises(ValueError):
+                dlm.check_envelope(mutated)
+        for length in (0, 511, 196607):
+            with self.assertRaises(ValueError):
+                dlm.check_envelope(image[:length])
+        with self.assertRaisesRegex(ValueError, "SHA-256"):
+            dlm.verify_reference(image, dlm.generated_fragments())
+
+
+class ManifestTests(unittest.TestCase):
+    def write_emitted_fixture(self, directory):
+        fragments = dlm.generated_fragments()
+        manifest = {"schema": "agent20-19-novatek-dlm-v1", "profile": "postmarketos-nabu",
+                    "reference_sha256": dlm.REFERENCE_SHA256, "reference_verified": False,
+                    "flashable": False, "mismatched_source_bytes": None, **dlm.EXPECTED_COUNTS,
+                    "fragments": [dlm.fragment_metadata(fragment) for fragment in fragments],
+                    "regions": [dict(row, evidence="synthetic fixture") for row in dlm.expected_regions(fragments)]}
+        for fragment, metadata in zip(fragments, manifest["fragments"]):
+            (directory / metadata["file"]).write_bytes(fragment[2])
+        (directory / "manifest.json").write_text(json.dumps(manifest))
+        return fragments, manifest
+
+    def test_changed_output_bytes_cannot_pass_on_manifest_hash_alone(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            directory = Path(tmp)
+            fragments, manifest = self.write_emitted_fixture(directory)
+            dlm.check_manifest(directory, fragments)
+            path = directory / manifest["fragments"][0]["file"]
+            changed = bytearray(path.read_bytes())
+            changed[-1] ^= 1
+            path.write_bytes(changed)
+            with self.assertRaisesRegex(ValueError, "byte mismatch"):
+                dlm.check_manifest(directory, fragments)
+
+    def test_manifest_extent_path_and_provenance_changes_are_rejected(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            directory = Path(tmp)
+            fragments, manifest = self.write_emitted_fixture(directory)
+            for key, value in (("file_end", manifest["fragments"][0]["file_end"] + 1),
+                               ("file", "../outside.bin"), ("sha256", "0" * 64)):
+                changed = json.loads(json.dumps(manifest))
+                changed["fragments"][0][key] = value
+                (directory / "manifest.json").write_text(json.dumps(changed))
+                with self.assertRaisesRegex(ValueError, "extent/hash"):
+                    dlm.check_manifest(directory, fragments)
+            manifest["new_executable_bytes"] = 9252
+            (directory / "manifest.json").write_text(json.dumps(manifest))
+            with self.assertRaisesRegex(ValueError, "accounting"):
+                dlm.check_manifest(directory, fragments)
+
+    def test_unchanged_totals_cannot_hide_false_region_credit_overlap_or_mirror_dependency(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            directory = Path(tmp)
+            fragments, manifest = self.write_emitted_fixture(directory)
+            dlm.check_manifest(directory, fragments)
+            unknown = next(i for i, row in enumerate(manifest["regions"]) if row["kind"] == "unknown_dlm")
+            mirror = next(i for i, row in enumerate(manifest["regions"]) if row["kind"] == "derived_mirror")
+            for index, key, value in ((unknown, "kind", "source_dlm_data"),
+                                      (unknown, "file_start", manifest["regions"][unknown]["file_start"] - 1),
+                                      (mirror, "source_independent", True)):
+                changed = json.loads(json.dumps(manifest))
+                changed["regions"][index][key] = value
+                (directory / "manifest.json").write_text(json.dumps(changed))
+                with self.assertRaisesRegex(ValueError, "regional partition/provenance"):
+                    dlm.check_manifest(directory, fragments)
+
+
+class OptionalReferenceTests(unittest.TestCase):
+    @unittest.skipUnless(os.environ.get("NOVATEK_REFERENCE"), "NOVATEK_REFERENCE not supplied")
+    def test_pinned_reference_matches_independent_recipes_and_crc(self):
+        image = Path(os.environ["NOVATEK_REFERENCE"]).read_bytes()
+        self.assertEqual(len(dlm.verify_reference(image, dlm.generated_fragments())), 12)
+
+    @unittest.skipUnless(os.environ.get("NOVATEK_REFERENCE") and os.environ.get("NOVATEK_DLM_BIN"),
+                         "NOVATEK_REFERENCE and NOVATEK_DLM_BIN not both supplied")
+    def test_rust_emission_matches_decimal_verifier_and_pinned_reference(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            subprocess.run([os.environ["NOVATEK_DLM_BIN"], "emit", tmp], check=True, capture_output=True, text=True)
+            report = dlm.verification_report(os.environ["NOVATEK_REFERENCE"], tmp)
+        self.assertEqual(report["independent_data_bytes"], 9252)
+        self.assertEqual(report["mismatched_source_bytes"], 0)
+        self.assertTrue(report["rust_output_matches"])
+
+
+if __name__ == "__main__":
+    unittest.main()
