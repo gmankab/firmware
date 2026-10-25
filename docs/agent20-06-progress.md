@@ -194,3 +194,12 @@ python3 tools/agent20_06_a32_roundtrip.py /private/venus.mbn 0xa8ea0 0xa92c8 \
 - Implements codec parameter extraction, 8-way format-to-controller-code mapping, reverse codec format lookup, scaling prediction and a bounded allocator helper. All functions preserve their actual `BX LR` or `POP ... PC` return instructions and conditional error branches.
 - Independent LLVM/Clang round-trip with all three `--data-range`s reconstructs exactly 1,052 instruction and 52 data bytes; **zero byte differences**.
 - Rust/Python tests pass; next uncovered address `0xaf6e0` (original file `0xb36e0`). Checkpoint remains provisionally based on older Agent 03 rather than checkpoint-50 merge, and demonstrates ISA-level byte identity, not semantic or OEM-signed firmware rebuild.
+
+## Checkpoint 21 — codec command buffer publication and diagnostics
+
+- Cumulative independently source-encoded Venus runtime `[0xa8000,0xb02b0)` = **33,456 contiguous byte-identical bytes**, original MBN file `[0xac000,0xb42b0)`.
+- Newly reconstructed `[0xaf6e0,0xb02b0)` = 3,024 bytes comprising **746 typed ARM32 instructions** (2,984 bytes), followed by **ten explicitly classified literal/data words** (40 bytes) `[0xb0288,0xb02b0)`.
+- The routine prepares and publishes codec controller command packets and serialized buffer accounting, including error dispatch, optional message callbacks and hardware status updates. Its original `POP {...,pc}` returns at `0xb0284` before the literal data pool. No proprietary machine-opcode slices are pasted into Rust.
+- Independent Clang/LLVM reconstruction of `[0xaf6e0,0xb02b0)`, with `--data-range 0xb0288:0xb02b0`, matches the reference *exactly*; the whole generated fragment also compares equal. A Rust regression test now asserts the literal-pool words and their order.
+- Next unimplemented runtime address `0xb02b0` (original file offset `0xb42b0`), a new small controller helper.
+- The branch remains provisional, rooted in older Agent 03 history. This is typed instruction-level reassembly, **not** high-level source recovery, OEM signing, or working hardware validation.
