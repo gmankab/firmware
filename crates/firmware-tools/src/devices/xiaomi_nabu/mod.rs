@@ -141,3 +141,4 @@ pub mod cdsp_early_exception_setup; // Agent20-09 controller setup through 0x486
 pub mod cdsp_early_exception_transition; // Agent20-09 transition through 0x48a4
 pub mod cdsp_early_exception_wait; // Agent20-09 MODECTL status/retry loop to 0x48e8
 pub mod cdsp_early_exception_finalize; // Agent20-09 SYSCFG initialization to 0x495c
+pub mod cdsp_early_context_snapshot; // CDSP read privileged state into exception frame to 0x4a08
