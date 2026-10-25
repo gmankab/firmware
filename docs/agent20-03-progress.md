@@ -261,3 +261,10 @@ Original reference: private `map220v-nabu-firmware/venus.mbn`, SHA-256 `9d4af65d
 - Exact A32 region `[0x21c78,0x2aad8)` = **36,448 contiguous bytes** (MBN file `[0x25c78,0x2ead8)`). New `[0x2a878,0x2aad8)` = **608 bytes**, containing **146 typed instructions** and **six non-executable data words**.
 - First routine selects an active frame descriptor, clamps/forwards the stream to the shared codec packet builder, and returns through a tail branch to `0x2a198`. Second group prepares buffers and frees codec capture resources, including host callbacks and explicit diagnostic data.
 - Literal pools `[0x2a98c,0x2a990)` and `[0x2aac4,0x2aad8)` are never decoded as instructions. First missing routine begins at `0x2aad8`. This is instruction-level reconstruction only; no new OEM authentication or hardware behavior has been established.
+
+## Checkpoint 37 — nine-way control-message dispatcher
+
+- Strict source-emitted A32 `[0x21c78,0x2b13c)` = **38,084 byte-identical bytes** (MBN `[0x25c78,0x2f13c)`). New `[0x2aad8,0x2b13c)` = **1,636 bytes** consisting of **367 ARM32 instructions** and **42 structured data words**.
+- Dispatcher has a nine-way branch table `[0x2ab50,0x2ab74)` with repeated route targets, plus 33 separate MMIO pointers, diagnostic addresses and controller state words `[0x2b0b8,0x2b13c)`.
+- Handles command messages, controller synchronization, callback/clock state transitions and error reporting. This is typed instruction-level re-encoding only; no claim of independent source-language equivalence, OEM authentication or hardware execution.
+- Next missing code starts `0x2b13c`.
