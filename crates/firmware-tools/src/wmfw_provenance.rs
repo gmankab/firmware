@@ -54,7 +54,7 @@ pub fn build_ledger()->Result<CoverageLedger,String>{
     for region in independently_generated.regions() {
         mark(&mut map,region.offset,region.len,ByteOrigin::AuthoredContainerMetadata)?;
     }
-    let ym_offset=wmfw_compact_y::ZERO_RUNS;
+    let ym_byte_ranges=wmfw_compact_y::ZERO_BYTE_RANGES;
     let mut opaque_count=0;
     for region in wmfw_external_payload::OPAQUE_REGIONS {
         if region.kind!=0x12 {
@@ -64,9 +64,7 @@ pub fn build_ledger()->Result<CoverageLedger,String>{
         }
         let first=region.file_offset;
         let mut cursor=0;
-        for (start_word,end_word) in ym_offset {
-            let start_byte=start_word.checked_mul(3).ok_or("sparse Y offset overflow")?;
-            let end_byte=end_word.checked_mul(3).ok_or("sparse Y end overflow")?;
+        for (start_byte,end_byte) in ym_byte_ranges {
             if start_byte<cursor || end_byte<=start_byte || end_byte>region.size {
                 return Err("invalid sparse Y provenance interval".into());
             }

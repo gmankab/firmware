@@ -93,6 +93,11 @@ pub fn resolved_controls_to_bus(controls: &[ResolvedControl]) -> Result<Vec<Reso
 /// Resolve the 57 independently named control records using per-algorithm
 /// DSP word bases from a real, caller-supplied unpacked runtime registry.
 pub fn resolve_control_bus_spans(registry: &HaloRuntimeRegistry) -> Result<Vec<ResolvedControlBusSpan>, String> {
+    // Retain device-capacity validation for manually constructed registries,
+    // including allocation tails that contain no named control.
+    let x_capacity=(XM_UNPACK24_LAST-XM_UNPACK24_BASE)/REGISTER_BYTES_PER_DSP_WORD+1;
+    let y_capacity=(YM_UNPACK24_LAST-YM_UNPACK24_BASE)/REGISTER_BYTES_PER_DSP_WORD+1;
+    wmfw_halo_registry::validate_runtime_registry(registry,x_capacity,y_capacity)?;
     let controls=wmfw_halo_registry::resolve_named_controls(registry)?;
     resolved_controls_to_bus(&controls)
 }
@@ -102,10 +107,11 @@ mod tests {
     use super::*;
     use crate::wmfw_halo_registry::parse_runtime_registry;
 
-    fn synthetic_three_algorithm_directory() -> Vec<u8> {
-        let header:[u32;10]=[4,1,1,0x400a4,0x010203,0,0x5ac,0,0x7fc,3];
-        let algs:[[u32;6];3]=[[0x400a4,0x010203,0x20,0x20,0,0],
-                  [0xcd,0x010203,0x100,0x100,0x100,0x100],
+    fn synthetic_firmware_and_two_algorithm_directory() -> Vec<u8> {
+        // Synthetic values only: firmware controls resolve from the header,
+        // and two separate algorithm records follow it, as in the Linux ABI.
+        let header:[u32;10]=[4,1,1,0x400a4,0x010203,0x20,0x20,0,0,2];
+        let algs:[[u32;6];2]=[[0xcd,0x010203,0x100,0x100,0x100,0x100],
                   [0xf20b,0x010203,0x300,0x100,0x300,0]];
         let mut output=Vec::new();
         for v in header {output.extend(v.to_be_bytes());}
@@ -115,7 +121,7 @@ mod tests {
 
     #[test]
     fn resolves_all_named_controls_in_linux_unpacked24_ahb_windows() {
-        let raw=synthetic_three_algorithm_directory();
+        let raw=synthetic_firmware_and_two_algorithm_directory();
         let registry=parse_runtime_registry(&raw,0x5ac,0x7fc).unwrap();
         let bus=resolve_control_bus_spans(&registry).unwrap();
         assert_eq!(bus.len(),57);
@@ -170,5 +176,15 @@ mod tests {
         assert_eq!(permitted.len(),2);
         assert_eq!(permitted[0].register_span,0x0280_0400..0x0280_040c);
         assert_eq!(permitted[1].register_span,0x0340_0408..0x0340_041c);
+    }
+
+    #[test]
+    fn rejects_out_of_device_allocation_even_when_named_controls_would_fit() {
+        let raw=synthetic_firmware_and_two_algorithm_directory();
+        let mut registry=parse_runtime_registry(&raw,0x5ac,0x7fc).unwrap();
+        // The event-logger's named controls still end at 0x34b, but the
+        // modified allocation extends beyond the hardware XM window.
+        registry.algorithms[1].xm_size=0x1000;
+        assert!(resolve_control_bus_spans(&registry).unwrap_err().contains("exceeds"));
     }
 }

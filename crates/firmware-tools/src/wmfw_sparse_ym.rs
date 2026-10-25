@@ -6,9 +6,11 @@
 //! determined by inspecting the exact reference. It is not a recovery of
 //! HALO source code or proof that the Y-memory segment is semantically BSS.
 //! 3,984 bytes, not 3,984 + 5,445, remains the conservative count of
-//! genuinely independently authored firmware metadata.
+//! source-authored firmware metadata.
 //!
-//! In this firmware's packed Y payload, DSP words 223..2038 are all zero.
+//! Bytes 669..6114 within the packed Y payload are observed zero bytes.
+//! These are transport byte offsets, not logical DSP word indices: packed
+//! XM/YM uses interleaved lanes across three 32-bit registers per four words.
 //! The 669-byte prefix and 18-byte suffix are *opaque external inputs*,
 //! cryptographically pinned alongside the other six opaque DSP payloads.
 use crate::{wmfw_external_payload, wmfw_plan, wmfw_sha256};
@@ -17,12 +19,12 @@ use std::{fs, path::Path};
 /// The Y-memory region starts at file offset 0xf90, after the WMFW descriptor.
 pub const YM_FILE_START: usize = 0x0f90;
 pub const YM_WORD_COUNT: usize = 2044;
-pub const YM_BYTES_PER_WORD: usize = 3;
-pub const ZERO_FIRST_WORD: usize = 223;
-pub const ZERO_END_WORD: usize = 2038;
-pub const ZERO_BYTES: usize = (ZERO_END_WORD-ZERO_FIRST_WORD)*YM_BYTES_PER_WORD;
-pub const PREFIX_BYTES: usize = ZERO_FIRST_WORD*YM_BYTES_PER_WORD;
-pub const SUFFIX_BYTES: usize = (YM_WORD_COUNT-ZERO_END_WORD)*YM_BYTES_PER_WORD;
+pub const YM_PAYLOAD_BYTES: usize = (YM_WORD_COUNT/4)*12;
+pub const ZERO_FIRST_BYTE: usize = 669;
+pub const ZERO_END_BYTE: usize = 6114;
+pub const ZERO_BYTES: usize = ZERO_END_BYTE-ZERO_FIRST_BYTE;
+pub const PREFIX_BYTES: usize = ZERO_FIRST_BYTE;
+pub const SUFFIX_BYTES: usize = YM_PAYLOAD_BYTES-ZERO_END_BYTE;
 pub const SPARSE_EXTERNAL_SOURCE_BYTES: usize = wmfw_external_payload::EXTERNAL_SOURCE_BYTES - ZERO_BYTES;
 
 const PREFIX_NAME: &str = "region-0f90-prefix.bin";
@@ -69,16 +71,17 @@ fn validate_manifest() -> Result<(), String> {
     }
     let ym=wmfw_external_payload::OPAQUE_REGIONS.iter().find(|x|x.kind==0x12)
         .ok_or("missing Y-memory region")?;
-    if ym.file_offset!=YM_FILE_START || ym.size!=YM_WORD_COUNT*YM_BYTES_PER_WORD ||
-       PREFIX_BYTES+ZERO_BYTES+SUFFIX_BYTES!=ym.size || ZERO_END_WORD>YM_WORD_COUNT {
+    if ym.file_offset!=YM_FILE_START || ym.size!=YM_PAYLOAD_BYTES ||
+       PREFIX_BYTES+ZERO_BYTES+SUFFIX_BYTES!=ym.size ||
+       ZERO_FIRST_BYTE>=ZERO_END_BYTE || ZERO_END_BYTE>YM_PAYLOAD_BYTES {
         return Err("packed Y-memory zero-run is out of bounds".into());
     }
     Ok(())
 }
 
 /// Build a WMFW from exact-version external original bytes for five X regions,
-/// one PM region, and two small Y fragments, plus the typed zero-init range.
-/// The two independent inputs are tested before the zero run is generated.
+/// one PM region, and two small Y fragments, plus the observed byte zero range.
+/// The two external Y inputs are tested before the zero run is generated.
 /// Opaque memory data remains opaque even when a subrange is all zero.
 pub fn build_with_sparse_y<X,Y>(mut read_opaque:X,mut read_y:Y)->Result<Vec<u8>,String>
 where X:FnMut(wmfw_external_payload::OpaqueRegion)->Result<Vec<u8>,String>,
@@ -112,7 +115,7 @@ where X:FnMut(wmfw_external_payload::OpaqueRegion)->Result<Vec<u8>,String>,
     if imported_bytes!=SPARSE_EXTERNAL_SOURCE_BYTES {
         return Err("sparse external byte count mismatch".into());
     }
-    plan.place("reference-verified zero-initialized Y-memory words 223..2038",
+    plan.place("reference-verified packed Y-memory zero bytes 669..6114",
                YM_FILE_START+PREFIX_BYTES,&vec![0u8;ZERO_BYTES])?;
     let assembled=plan.build_complete()?;
     if wmfw_sha256::hex_digest(&assembled)!=wmfw_external_payload::REFERENCE_SHA256 {
@@ -162,7 +165,7 @@ pub fn extract_private_sparse_inputs(reference:&[u8],dir:&Path)->Result<(),Strin
     let zero=reference.get(YM_FILE_START+PREFIX_BYTES..YM_FILE_START+PREFIX_BYTES+ZERO_BYTES)
         .ok_or("reference zero range outside file")?;
     if zero.iter().any(|x|*x!=0) {
-        return Err("reference packed Y-memory zero words are not all zero".into());
+        return Err("reference packed Y-memory byte range is not all zero".into());
     }
     wmfw_external_payload::write_private_region_directory(dir,&entries)
 }

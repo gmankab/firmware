@@ -49,13 +49,15 @@ cargo run --offline --locked -q -p firmware-tools -- inspect-wmfw-program-patter
 # parsing without guessing a live device's algorithm bases from packed WMFW.
 python3 - "$work/synthetic-halo-unpacked-registry.bin" <<'PYHALO'
 import struct, sys
-head=[4,1,1,0x400a4,0x010203,0,0x5ac,0,0x7fc,3]
-algs=[(0x400a4,0x010203,0x20,0x20,0,0),
-      (0xcd,0x010203,0x100,0x100,0x100,0x100),
+# The firmware's own region is in the header, not a duplicate table entry.
+# These disjoint addresses are synthetic and are not measurements of Nabu.
+head=[4,1,1,0x400a4,0x010203,0x20,0x20,0,0,2]
+algs=[(0xcd,0x010203,0x100,0x100,0x100,0x100),
       (0xf20b,0x010203,0x300,0x100,0x300,0)]
 with open(sys.argv[1],'wb') as f:
     f.write(struct.pack('!10I', *head))
     for alg in algs: f.write(struct.pack('!6I', *alg))
+    f.write(struct.pack('!I', 0x00bedead))
 PYHALO
 cargo run --offline --locked -q -p firmware-tools -- \
   inspect-halo-runtime-registry "$work/synthetic-halo-unpacked-registry.bin" \
@@ -69,8 +71,8 @@ cargo run --offline --locked -q -p firmware-tools -- assemble-wmfw-with-external
 cmp "$ref" "$work/repacked.wmfw"
 sha256sum "$work/repacked.wmfw"
 
-# Alternative source footprint: packed Y-memory contains one 1815-word
-# reference-confirmed all-zero range. No zero bytes are extracted, and the
+# Alternative source footprint: packed Y-memory bytes 669..6114 contain a
+# reference-confirmed 5445-byte zero range. No zero bytes are extracted, and the
 # remaining 24807 proprietary bytes are still hash-validated external inputs.
 cargo run --offline --locked -q -p firmware-tools -- extract-wmfw-sparse-y-inputs "$ref" "$work/sparse-y-external"
 cargo run --offline --locked -q -p firmware-tools -- assemble-wmfw-with-sparse-y "$work/sparse-y-external" "$work/repacked-sparse.wmfw"
@@ -79,7 +81,8 @@ sha256sum "$work/repacked-sparse.wmfw"
 [ "$(find "$work/sparse-y-external" -type f | wc -l)" -eq 8 ]
 [ "$(wc -c < "$work/repacked-sparse.wmfw")" -eq 34236 ]
 
-# More compact Y representation, with two source-confirmed zero intervals.
+# More compact Y representation, with two reference-confirmed byte intervals:
+# [45,348) and [669,6114) relative to the packed Y payload, not DSP word indices.
 cargo run --offline --locked -q -p firmware-tools -- extract-wmfw-compact-y-inputs "$ref" "$work/compact-y-external"
 cargo run --offline --locked -q -p firmware-tools -- assemble-wmfw-with-compact-y "$work/compact-y-external" "$work/repacked-compact-y.wmfw"
 cmp "$ref" "$work/repacked-compact-y.wmfw"

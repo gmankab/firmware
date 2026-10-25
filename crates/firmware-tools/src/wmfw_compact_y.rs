@@ -3,20 +3,22 @@
 //! packed Y-memory image of this exact Cirrus CS35L41 WMFW revision.
 //!
 //! This is a strict *source-file compaction* format, not HALO executable
-//! decompilation. The positions of zero-valued words were learned by
+//! decompilation. The positions of zero-valued bytes were learned by
 //! inspecting the original. Firmware is rebuilt from source-authored WMFW
 //! metadata + a declarative zero-run map + hash-pinned opaque inputs.
+//! These are transport byte intervals, not logical DSP word ranges; 24-bit
+//! XM/YM values use interleaved lanes in complete 12-byte register groups.
 //!
 //! The earlier single-run importer in wmfw_sparse_ym remains supported.
 use crate::{wmfw_external_payload,wmfw_plan,wmfw_sha256,wmfw_sparse_ym};
 use std::{fs,path::Path};
 
-pub const ZERO_RUNS:[(usize,usize);2]=[(15,116),(223,2038)];
-pub const ZERO_WORDS:usize=101+1815;
-pub const GENERATED_ZERO_BYTES:usize=ZERO_WORDS*3;
+pub const ZERO_BYTE_RANGES:[(usize,usize);2]=[(45,348),(669,6114)];
+pub const GENERATED_ZERO_BYTES:usize=(ZERO_BYTE_RANGES[0].1-ZERO_BYTE_RANGES[0].0)
+    +(ZERO_BYTE_RANGES[1].1-ZERO_BYTE_RANGES[1].0);
 pub const EXTERNAL_SOURCE_BYTES:usize=wmfw_external_payload::EXTERNAL_SOURCE_BYTES-GENERATED_ZERO_BYTES;
 const YM_START:usize=wmfw_sparse_ym::YM_FILE_START;
-const YM_LENGTH:usize=wmfw_sparse_ym::YM_WORD_COUNT*3;
+const YM_LENGTH:usize=wmfw_sparse_ym::YM_PAYLOAD_BYTES;
 const YM_PARTS:[YPart;3]=[
     YPart { name:"region-0f90-head.bin",byte_offset:0,length:45,
         sha256:"8114718468f0f5cbea4e82347d86d57391f5bfe729e50d35af8e171b048b687b" },
@@ -35,16 +37,16 @@ pub struct YPart {
 }
 
 fn check_layout()->Result<(),String> {
-    let zero_word_count=ZERO_RUNS.iter().try_fold(0usize,|a,(from,to)|
-        if from>=to || *to>wmfw_sparse_ym::YM_WORD_COUNT { Err("bad zero run bounds") }
+    let zero_byte_count=ZERO_BYTE_RANGES.iter().try_fold(0usize,|a,(from,to)|
+        if from>=to || *to>YM_LENGTH { Err("bad zero run bounds") }
         else {a.checked_add(to-from).ok_or("zero count overflow")} )?;
-    if zero_word_count != ZERO_WORDS {return Err("wrong total zero count".into());}
+    if zero_byte_count != GENERATED_ZERO_BYTES {return Err("wrong total zero byte count".into());}
     let mut fragments=Vec::new();
-    for &(a,b) in &ZERO_RUNS {
-        fragments.push((3*a,3*b));
+    for &(a,b) in &ZERO_BYTE_RANGES {
+        fragments.push((a,b));
     }
     for part in YM_PARTS {
-        if part.byte_offset%3!=0 || part.length%3!=0 ||
+        if part.length==0 ||
             part.byte_offset.checked_add(part.length).ok_or("Y extent overflow")?>YM_LENGTH {
             return Err("invalid sparse-Y fragment extent".into());
         }
@@ -99,10 +101,10 @@ where F:FnMut(wmfw_external_payload::OpaqueRegion)->Result<Vec<u8>,String>,
         imported+=bytes.len();
     }
     if imported!=EXTERNAL_SOURCE_BYTES {return Err("compact-Y external input accounting mismatch".into());}
-    for (a,b) in ZERO_RUNS {
-        let offset=YM_START+a*3;
-        let size=(b-a)*3;
-        plan.place(&format!("reference-verified zero packed Y word range {a}..{b}"),offset,&vec![0;size])?;
+    for (a,b) in ZERO_BYTE_RANGES {
+        let offset=YM_START+a;
+        let size=b-a;
+        plan.place(&format!("reference-verified zero packed Y byte range {a}..{b}"),offset,&vec![0;size])?;
     }
     let out=plan.build_complete()?;
     if wmfw_sha256::hex_digest(&out)!=wmfw_external_payload::REFERENCE_SHA256 {
@@ -119,7 +121,7 @@ pub fn assemble_directory(dir:&Path)->Result<Vec<u8>,String> {
 }
 
 /// Extract only opaque external bytes, atomically and privately. Independent
-/// zero runs are NOT read into new output files.
+/// metadata and reference-observed zero runs are not read into output files.
 pub fn extract_inputs(reference:&[u8],dir:&Path)->Result<(),String> {
     check_layout()?;
     if wmfw_sha256::hex_digest(reference)!=wmfw_external_payload::REFERENCE_SHA256 {
@@ -142,9 +144,9 @@ pub fn extract_inputs(reference:&[u8],dir:&Path)->Result<(),String> {
         check_part(part,data)?;
         external.push((part.name.to_string(),data.to_vec()));
     }
-    for (a,b) in ZERO_RUNS {
-        let offset=YM_START+a*3;
-        let bytes=reference.get(offset..offset+(b-a)*3).ok_or("truncated Y zero run")?;
+    for (a,b) in ZERO_BYTE_RANGES {
+        let offset=YM_START+a;
+        let bytes=reference.get(offset..offset+(b-a)).ok_or("truncated Y zero run")?;
         if bytes.iter().any(|v|*v!=0) {return Err("nonzero byte in declared Y zero run".into());}
     }
     wmfw_external_payload::write_private_region_directory(dir,&external)
@@ -156,7 +158,7 @@ mod tests {
     #[test]
     fn compact_y_layout_covers_every_byte_exactly_once() {
         check_layout().unwrap();
-        assert_eq!(ZERO_WORDS,1916);
+        assert_eq!(ZERO_BYTE_RANGES,[(45,348),(669,6114)]);
         assert_eq!(GENERATED_ZERO_BYTES,5748);
         assert_eq!(EXTERNAL_SOURCE_BYTES,24504);
         assert_eq!(YM_PARTS.iter().map(|x|x.length).sum::<usize>(),384);

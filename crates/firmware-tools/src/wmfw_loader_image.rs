@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: GPL-3.0-only
 //! Checked HALO packed-memory *loading model*, not a DSP interpreter.
 //!
-//! A static WMFW image supplies sparse memory writes. Each packed 24-/40-bit
-//! transport word is placed at its declared DSP *word* address; absent XM
+//! A static WMFW image supplies sparse memory writes. XM/YM host-register
+//! groups decode to logical 24-bit DSP data words at their declared word
+//! addresses. PM remains a 40-bit transport-only representation. Absent XM
 //! regions remain unknown rather than becoming silently initialized zeros.
 //! The model validates register-mapped transfer extents (CS35L41 AHB bases),
 //! and proves every serialized word can be recovered byte-for-byte from the
@@ -61,6 +62,9 @@ fn insert_region(img:&mut PackedMemoryImage,r:&WmfwLayoutRegion,data:&[u8])
         return Err("packed memory kind does not match WMFW section".into());
     }
     if data.len()!=r.payload_length{return Err("packed DSP section length mismatch".into());}
+    if img.kind!=HaloMemoryKind::PackedProgram && r.dsp_address%4!=0 {
+        return Err("packed XM/YM section must begin on a four-word group boundary".into());
+    }
     let decoded=wmfw_halo_memory::unpack_words(img.kind,data)?;
     let begin=usize::try_from(r.dsp_address).map_err(|_|"DSP word offset overflow")?;
     let end=begin.checked_add(decoded.len()).ok_or("DSP packed extent overflow")?;
@@ -111,6 +115,9 @@ pub fn load_packed_memory(wmfw:&[u8])->Result<LoadImage,String>{
 /// cannot be read as if it contained zeroes; this catches invalid routing.
 pub fn extract_packed_region(img:&LoadImage,region:&WmfwLayoutRegion)->Result<Vec<u8>,String>{
     let kind=HaloMemoryKind::from_wmfw_type(region.kind)?;
+    if kind!=HaloMemoryKind::PackedProgram && region.dsp_address%4!=0 {
+        return Err("packed XM/YM section must begin on a four-word group boundary".into());
+    }
     let space=img.memory(kind);
     let start=region.dsp_address as usize;
     let count=region.word_count.ok_or("WMFW section has no word count")?;
@@ -236,5 +243,25 @@ mod tests {
         image.pm.words[0]=Some(1<<40);
         let pm=wmfw_plan::regions().unwrap()[7].clone();
         assert!(extract_packed_region(&image,&pm).unwrap_err().contains("exceeds"));
+    }
+
+    #[test]
+    fn places_logical_x_y_words_from_register_lanes_and_preserves_sparse_holes() {
+        let mut source=synthetic_wmfw();
+        let first=wmfw_plan::regions().unwrap()[1].clone();
+        let packed=[0x66,0x11,0x22,0x33,0x88,0x99,0x44,0x55,0xaa,0xbb,0xcc,0x77];
+        source[first.payload_offset..first.payload_offset+12].copy_from_slice(&packed);
+        let image=load_packed_memory(&source).unwrap();
+        assert_eq!(image.xm.words[..4],
+            [Some(0x112233),Some(0x445566),Some(0x778899),Some(0xaabbcc)]);
+        assert_eq!(image.xm.words[0x18],None);
+        assert_eq!(&extract_packed_region(&image,&first).unwrap()[..12],&packed);
+        let mut unaligned=first;
+        unaligned.dsp_address=1;
+        assert!(extract_packed_region(&image,&unaligned).unwrap_err().contains("boundary"));
+        let mut target=new_space(HaloMemoryKind::PackedX,0x5ac).unwrap();
+        assert!(insert_region(&mut target,&unaligned,
+            &source[unaligned.payload_offset..unaligned.end()]).unwrap_err().contains("boundary"));
+        assert_eq!(target.initialized(),0);
     }
 }
