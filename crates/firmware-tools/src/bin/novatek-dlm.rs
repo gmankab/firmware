@@ -12,6 +12,7 @@
 #[path = "../devices/xiaomi_nabu/novatek_dlm_state_defaults.rs"] mod novatek_dlm_state_defaults;
 #[path = "../devices/xiaomi_nabu/novatek_dlm_bank_transform.rs"] mod novatek_dlm_bank_transform;
 #[path = "../devices/xiaomi_nabu/novatek_dlm_control_candidates.rs"] mod novatek_dlm_control_candidates;
+#[path = "../devices/xiaomi_nabu/novatek_dlm_calibration_alias.rs"] mod novatek_dlm_calibration_alias;
 #[path = "../devices/xiaomi_nabu/novatek_dlm_envelope.rs"] mod novatek_dlm_envelope;
 #[path = "../devices/xiaomi_nabu/novatek_dlm_provenance.rs"] mod novatek_dlm_provenance;
 
@@ -108,6 +109,7 @@ fn verify_reference(image:&[u8],parts:&[DataFragment])->Result<(),String> {
     // Validation of a reference-assisted cross-bank transform does not promote
     // any of the dependent descriptor bytes to independently authored source.
     novatek_dlm_bank_transform::verify_against_supplied_reference(image)?;
+    novatek_dlm_calibration_alias::verify_reference_assisted_copy(image)?;
     for part in parts {
         let reference=image.get(part.file_start..part.file_end()).ok_or("DLM fragment outside reference")?;
         if let Some(index)=part.bytes.iter().zip(reference).position(|(a,b)|a!=b) {
@@ -140,6 +142,17 @@ fn run()->Result<(),String> {
             let (mirrored,classified)=novatek_dlm_control_candidates::verify_reference_assisted_candidates(&image)?;
             println!("Two candidate 40-bit recurrences match {mirrored} plus {classified} reference bytes; transferred fields show 0x190 strides and selectors. ZERO new source-authored DLM credit; the controller operation bits and payload semantics remain unproven.");
         }
+        Some("verify-calibration-alias") if args.len()==2 => {
+            let image=fs::read(&args[1]).map_err(|e|e.to_string())?;
+            if hex_digest(&image)!=REFERENCE_SHA256 {return Err("reference SHA-256 mismatch".into());}
+            let bytes=novatek_dlm_calibration_alias::verify_reference_assisted_copy(&image)?;
+            let primary=image.get(novatek_dlm_calibration_alias::PRIMARY_FILE_START..
+                novatek_dlm_calibration_alias::PRIMARY_FILE_END).ok_or("missing primary calibration")?;
+            let headers=novatek_dlm_calibration_alias::observed_headers(primary)?;
+            println!("Verified {bytes} dependent calibration bytes at 0x{:x}–0x{:x}; profile headers {:?}. Source credit remains ZERO until original values are independently reconstructed.",
+                novatek_dlm_calibration_alias::MIRROR_FILE_START,
+                novatek_dlm_calibration_alias::MIRROR_FILE_END,headers);
+        }
         Some("check-envelope") if args.len()==2 => {
             let image=fs::read(&args[1]).map_err(|e|e.to_string())?;
             let a=novatek_dlm_envelope::verify_envelope(&image)?;
@@ -157,7 +170,7 @@ fn run()->Result<(),String> {
             println!("Emitted {} data fragments ({} bytes), with explicit holes retained in the provenance manifest.",
                 parts.len(),parts.iter().map(|part|part.bytes.len()).sum::<usize>());
         }
-        _=>return Err("usage: novatek-dlm ledger | emit <directory> | verify-reference <pinned-image.bin> | check-envelope <image.bin> | verify-bank-pairs <pinned-image.bin> | inspect-control-candidates <pinned-image.bin>".into()),
+        _=>return Err("usage: novatek-dlm ledger | emit <directory> | verify-reference <pinned-image.bin> | check-envelope <image.bin> | verify-bank-pairs <pinned-image.bin> | verify-calibration-alias <pinned-image.bin> | inspect-control-candidates <pinned-image.bin>".into()),
     }
     Ok(())
 }
