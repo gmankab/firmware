@@ -82,6 +82,22 @@ class V66BootstrapTests(unittest.TestCase):
             with self.subTest(offset=hex(offset)):
                 self.assertEqual(struct.unpack_from("<I", original, offset)[0], word)
 
+    def test_hexagon_v66_physical_word_load_register_fields(self) -> None:
+        self.assertEqual(v66.physical_word_load(5,0,4),0x9200E405)
+        self.assertEqual(v66.physical_word_load(5,3,4),0x9203E405)
+        self.assertEqual(v66.physical_word_load(2,0,1),0x9200E102)
+        for reg in (-1,32,99,"r5"):
+            with self.assertRaises(v66.HexagonEncodingError):
+                v66.physical_word_load(reg,0,4)
+
+    @unittest.skipUnless(REFERENCE,"Exact ADSP reference required")
+    def test_three_physical_load_sites_match_reference(self) -> None:
+        data=Path(REFERENCE).read_bytes()
+        for offset,regs in ((0x4a44,(5,0,4)),(0x4ac0,(5,3,4)),(0x4af4,(2,0,1))):
+            with self.subTest(offset=hex(offset)):
+                self.assertEqual(struct.unpack_from("<I",data,offset)[0],
+                                 v66.physical_word_load(*regs))
+
     def test_fixed_operand_hexagon_tlb_write_encoding(self) -> None:
         self.assertEqual(v66.tlb_write_pair_r3_r2_index_r0(), 0x6c02c000)
         self.assertEqual((v66.tlb_write_pair_r3_r2_index_r0() >> 14) & 3, 3)

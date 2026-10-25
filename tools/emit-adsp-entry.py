@@ -32,12 +32,14 @@ CACHELINE_COPY_SOURCE = pathlib.Path(__file__).with_name("adsp-cacheline-copy.S"
 TLB_RECONCILE_SOURCE = pathlib.Path(__file__).with_name("adsp-tlb-reconcile.S")
 CONTROLLER_BOOTSTRAP_SOURCE = pathlib.Path(__file__).with_name("adsp-controller-bootstrap.S")
 CONTROLLER_CACHE_COPY_SOURCE = pathlib.Path(__file__).with_name("adsp-controller-cache-copy.S")
+CONTROLLER_PHYSICAL_COPY_SOURCE = pathlib.Path(__file__).with_name("adsp-controller-physical-copy.S")
 FRAGMENTS = {
     "vectors": (ASM_SOURCE, OEM_FILE_OFFSET, GENERATED_LENGTH),
     "boot-prefix": (ASM_SOURCE, OEM_FILE_OFFSET, 0x44),
-    "counter-controller": (CONTROLLER_SOURCE, 0x41e0, 0x828),
+    "counter-controller": (CONTROLLER_SOURCE, 0x41e0, 0x874),
     "controller-bootstrap": (CONTROLLER_BOOTSTRAP_SOURCE, 0x4980, 0x2c),
     "controller-cache-copy": (CONTROLLER_CACHE_COPY_SOURCE, 0x49ac, 0x5c),
+    "controller-physical-copy": (CONTROLLER_PHYSICAL_COPY_SOURCE, 0x4a08, 0x4c),
     "tlb-reconcile": (TLB_RECONCILE_SOURCE, 0x48d0, 0xb0),
     "cacheline-copy": (CACHELINE_COPY_SOURCE, 0x4818, 0x78),
     "tlb-flush": (TLB_FLUSH_SOURCE, 0x4788, 0x90),
@@ -314,6 +316,30 @@ def assemble_tlb_reconcile(
     return bytes(output)
 
 
+def assemble_physical_copy(
+    llvm_mc: str, source: pathlib.Path = CONTROLLER_PHYSICAL_COPY_SOURCE
+) -> bytes:
+    """Assemble a 76-byte physical address copy routine.
+
+    LLVM6 reconstructs the branch encodings, one hardware loop and all
+    integer/GP addressing instructions from Hexagon source. Its v65 backend
+    lacks the v66 privileged `memw_phys` instruction, so one `nop` sentinel
+    marks its slot. We validate that single sentinel before substituting the
+    checked v66 ISA field encoder, not a reference byte sequence.
+    """
+    from adsp_hexagon_v66 import physical_word_load
+
+    compiled = bytearray(assemble(llvm_mc, source, 0x4c))
+    offset = 0x4a44 - 0x4a08
+    placeholder = struct.pack("<I", 0x7F00C000)
+    if compiled[offset:offset + 4] != placeholder:
+        raise AdspError("Expected one unsupported physical-load sentinel at 0x4a44")
+    compiled[offset:offset + 4] = struct.pack("<I", physical_word_load(5, 0, 4))
+    if any(compiled[i:i + 4] == placeholder for i in range(0, len(compiled), 4)):
+        raise AdspError("Unresolved physical-load placeholder")
+    return bytes(compiled)
+
+
 def run(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--llvm-mc", required=True,
@@ -346,11 +372,13 @@ def run(argv: list[str] | None = None) -> int:
             out = assemble_tlb_map(args.llvm_mc, args.source or source)
         elif args.segment == "tlb-flush":
             out = assemble_tlb_flush(args.llvm_mc, args.source or source)
+        elif args.segment == "controller-physical-copy":
+            out = assemble_physical_copy(args.llvm_mc, args.source or source)
         elif args.segment == "tlb-reconcile":
             out = assemble_tlb_reconcile(args.llvm_mc, args.source or source)
         elif args.segment == "counter-controller":
             # Compile the ISA-common controller and its V66-only tails
-            # independently, then emit a strictly adjacent 0x828-byte span.
+            # independently, then emit a strictly adjacent 0x874-byte span.
             if args.source is not None:
                 raise AdspError("--source override is not supported for the combined controller")
             out = (assemble(args.llvm_mc, CONTROLLER_SOURCE, 0x4c0) +
@@ -361,7 +389,8 @@ def run(argv: list[str] | None = None) -> int:
                    assemble(args.llvm_mc, MEMORY_COPY_SOURCE, 0x40) +
                    assemble_tlb_reconcile(args.llvm_mc) +
                    assemble(args.llvm_mc, CONTROLLER_BOOTSTRAP_SOURCE, 0x2c) +
-                   assemble(args.llvm_mc, CONTROLLER_CACHE_COPY_SOURCE, 0x5c))
+                   assemble(args.llvm_mc, CONTROLLER_CACHE_COPY_SOURCE, 0x5c) +
+                   assemble_physical_copy(args.llvm_mc))
         else:
             out = assemble(args.llvm_mc, args.source or source, expected_length)
         if len(out) != expected_length:

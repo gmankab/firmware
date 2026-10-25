@@ -297,3 +297,37 @@ python3 -S tools/emit-adsp-entry.py \
   --segment counter-controller --llvm-mc "$HEXAGON_LLVM_MC" \
   --reference "$NABU_ADSP_REFERENCE" --output /tmp/adsp-controller-2088.bin
 ```
+
+## Checkpoint 17: physical-addressed DSP controller copying
+
+Extended the same contiguous controller region with **76 source-authored
+bytes** at file offsets `[0x4a08,0x4a54)`, physical
+`[0x8be01a08,0x8be01a54)`. `tools/adsp-controller-physical-copy.S` loads
+input/output locations and lengths through independently assembled GP-relative
+operations, checks for null/short inputs, and copies four-byte words through
+a `loop0` counted hardware loop. The source defines all packet grouping and
+branch labels; the generated buffer is directly matched to the full-SHA-
+validated original ADSP image.
+
+The only instruction not accepted by the available LLVM6 Hexagon v65 backend
+is the privileged `r5=memw_phys(r0,r4)`. A temporary one-word `nop` assembler
+sentinel is checked at the unique instruction location and replaced with a
+**typed v66 physical-load encoding**. The narrow field formula validates
+all three operands and also matches two other ADSP sites with distinct
+register assignments (`0x4ac0`, `0x4af4`). These three sites are independently
+identified by Rizin. The substitution never reads bytes from the original.
+
+The controller span now covers **2,164 contiguous bytes** at
+`[0x41e0,0x4a54)`. With the disjoint 68-byte boot prefix, **2,232 executable
+bytes** have been independently rebuilt. All 56 Python tests pass with no
+skips; zero bytes differ in either the standalone physical-copy or the full
+combined controller. The next missing contiguous controller byte is `0x4a54`.
+
+```sh
+python3 -S tools/emit-adsp-entry.py \
+  --segment controller-physical-copy --llvm-mc "$HEXAGON_LLVM_MC" \
+  --reference "$NABU_ADSP_REFERENCE" --output /tmp/adsp-physical-76.bin
+python3 -S tools/emit-adsp-entry.py \
+  --segment counter-controller --llvm-mc "$HEXAGON_LLVM_MC" \
+  --reference "$NABU_ADSP_REFERENCE" --output /tmp/adsp-controller-2164.bin
+```

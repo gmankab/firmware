@@ -153,3 +153,16 @@ def syscfg_handoff_steps() -> tuple[tuple[str, int | str, int], ...]:
         ("asm", "{ isync }", 4),
         ("asm", "{ jumpr lr }", 4),
     )
+
+
+def physical_word_load(destination: int, physical_address: int, page_selector: int) -> int:
+    """Encode one v66 `Rd = memw_phys(Ra,Rb)` packet-ending instruction.
+
+    This is a *narrow single-operation* Hexagon v66 encoder: the chosen
+    operands are independent 5-bit fields. The reconstruction verifies the
+    model against three differently allocated original call sites and the
+    separate Rizin decoder. It must not be confused with an unprivileged
+    `memw` load, or with a generic packet scheduler.
+    """
+    return (0x9200E000 | (gpr(physical_address) << 16) |
+            (gpr(page_selector) << 8) | gpr(destination))

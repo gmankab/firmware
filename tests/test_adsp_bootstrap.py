@@ -100,8 +100,9 @@ class ADSPBootstrapTests(unittest.TestCase):
                      adsp.assemble(LLVM_MC, adsp.MEMORY_COPY_SOURCE, 0x40) +
                      adsp.assemble_tlb_reconcile(LLVM_MC) +
                      adsp.assemble(LLVM_MC, adsp.CONTROLLER_BOOTSTRAP_SOURCE, 0x2c) +
-                     adsp.assemble(LLVM_MC, adsp.CONTROLLER_CACHE_COPY_SOURCE, 0x5c))
-        self.assertEqual(len(generated), 0x828)
+                     adsp.assemble(LLVM_MC, adsp.CONTROLLER_CACHE_COPY_SOURCE, 0x5c) +
+                     adsp.assemble_physical_copy(LLVM_MC))
+        self.assertEqual(len(generated), 0x874)
         original = Path(REFERENCE).read_bytes()
         adsp.verify_reference(generated, original, 0x41e0)
         mutated = bytearray(generated)
@@ -142,6 +143,27 @@ class ADSPBootstrapTests(unittest.TestCase):
         out=adsp.assemble(LLVM_MC, adsp.CONTROLLER_CACHE_COPY_SOURCE,0x5c)
         adsp.verify_reference(out,Path(REFERENCE).read_bytes(),0x49ac)
         self.assertEqual(len(out),92)
+
+    def test_physical_copy_uses_hexagon_hardware_loop(self) -> None:
+        src=adsp.CONTROLLER_PHYSICAL_COPY_SOURCE.read_text()
+        self.assertIn("loop0(physical_loop,r2)",src)
+        self.assertIn("memw_phys(r0,r4)",src)
+        self.assertIn("memw(r1++#4) = r5",src)
+        self.assertIn(":endloop0",src)
+        self.assertNotIn(".incbin",src)
+        self.assertNotIn(".word",src)
+
+    @unittest.skipUnless(LLVM_MC and REFERENCE,"Assembler and reference required")
+    def test_physical_copy_uses_one_checked_unsupported_slot(self) -> None:
+        output=adsp.assemble_physical_copy(LLVM_MC)
+        self.assertEqual(len(output),0x4c)
+        adsp.verify_reference(output,Path(REFERENCE).read_bytes(),0x4a08)
+        with tempfile.TemporaryDirectory() as td:
+            bad=Path(td)/"invalid-physical-load.S"
+            bad.write_text(adsp.CONTROLLER_PHYSICAL_COPY_SOURCE.read_text().replace(
+                "{ nop } // V66", "{ isync } // V66",1))
+            with self.assertRaisesRegex(adsp.AdspError,"physical-load sentinel"):
+                adsp.assemble_physical_copy(LLVM_MC,bad)
 
     @unittest.skipUnless(LLVM_MC, "Hexagon-capable llvm-mc unavailable")
     def test_syscfg_handoff_uses_typed_and_source_assembly(self) -> None:
