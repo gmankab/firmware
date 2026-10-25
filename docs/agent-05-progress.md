@@ -49,3 +49,27 @@ The LLVM 6 Hexagon `llvm-mc -mcpu=hexagonv60` provides independent encoding veri
 2. Supply x86-64 libc++/libc++abi/libunwind compatible with LLVM 22 or an alternative V66-capable Hexagon disassembler. Identify real packet lengths, extender/new-value dependencies and instruction semantics.
 3. Reconstruct the V66-only encodings starting at **file offset `0x3024`**, then produce function-aligned, contiguous independently encoded CDSP code, preserving the distinction between `p_vaddr` and `p_paddr`.
 4. Build an additive strict coverage plan and refuse complete firmware until all referenced byte ranges and authentication material have explicit sources. Never embed raw original payloads or claim independent signing.
+
+## Checkpoint 02 — privileged Hexagon V66 initialization
+
+An additional eight **typed** four-byte packets reconstruct file offsets `0x3024–0x3044`, extending the independently generated CDSP prefix to **68 consecutive bytes** (`0x3000–0x3044`). The instructions are `SSR=R0`, `R0=SYSCFG`, two `setbit` operations, `SYSCFG=R0`, `dckill`, `ickill`, and a direct branch to runtime physical address `0x96c00144`. The prefix SHA-256 is `860bcbbac78fe0282fe36b704c621acddd2bdeb66623b3720c2c5a784cd15715`.
+
+The two V66 special-register forms are reconstructed from checked system-register selector and general-register fields. LLVM 6 assembles the first nine packets and the two `setbit` instructions but **cannot assemble/decode all special-register or cache-operation forms**. The separately supplied Rizin Hexagon V6 decoder identifies **all seventeen packets**, their privilege/cache semantics, packet flags and exact branch targets; see `tools/verify-cdsp-v66-init.py`. This is decoder corroboration, **not an independent second-assembler round-trip for all 68 bytes**. Comparing the typed Rust output directly to the private original verifies all 68 bytes without copying reference instructions into the emitter.
+
+Reproduction:
+
+```sh
+cargo run --offline --locked -p firmware-tools --bin cdsp-rebuild -- \
+  emit-init-prefix /tmp/cdsp-init-prefix.bin
+cargo run --offline --locked -p firmware-tools --bin cdsp-rebuild -- \
+  verify-init-prefix /private/qcom/sm8150/Xiaomi/nabu/cdsp.mbn
+
+# Set LD_LIBRARY_PATH if using the staged Ubuntu 24 Rizin runtime:
+# export LD_LIBRARY_PATH=/path/to/ubuntu-runtime/usr/lib/x86_64-linux-gnu
+python3 tools/verify-cdsp-v66-init.py \
+  --rz-asm /path/to/rizin-staged/opt/nabu-rizin/bin/rz-asm \
+  --rust-output /tmp/cdsp-init-prefix.bin \
+  --reference /private/qcom/sm8150/Xiaomi/nabu/cdsp.mbn
+```
+
+The **first uncovered word remains at `0x3044`**. The reference contains `0x00000000` there and the independent decoder treats it as invalid code, while decoded instructions resume at `0x3048`. Whether it is padding, deliberate invalid opcode, or a special-use word must be established before counting or generating it. The branch at `0x3040` points into later code that is not reconstructed, so this prefix cannot execute in isolation.

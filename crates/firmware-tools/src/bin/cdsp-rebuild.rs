@@ -12,6 +12,18 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
             println!("Emitted {} independently encoded CDSP Hexagon entry bytes, file offsets {:#x}..{:#x}; partial firmware only.",
                 cdsp::REBUILT_LEN, cdsp::START_FILE_OFFSET, cdsp::START_FILE_OFFSET + cdsp::REBUILT_LEN);
         }
+        [action, output] if action == "emit-init-prefix" => {
+            let bytes = cdsp::build_init_prefix()?;
+            fs::write(output, bytes)?;
+            println!("Emitted {} independently encoded CDSP initialization bytes, file offsets {:#x}..{:#x}; partial firmware only.",
+                cdsp::INIT_PREFIX_LEN, cdsp::START_FILE_OFFSET, cdsp::START_FILE_OFFSET + cdsp::INIT_PREFIX_LEN);
+        }
+        [action, original] if action == "verify-init-prefix" => {
+            let image = fs::read(original)?;
+            cdsp::verify_init_prefix(&image)?;
+            println!("Verified {} CDSP Hexagon entry/privileged packets at file offsets {:#x}..{:#x}; V66 privilege instructions decoded separately.",
+                cdsp::INIT_PREFIX_LEN, cdsp::START_FILE_OFFSET, cdsp::START_FILE_OFFSET + cdsp::INIT_PREFIX_LEN);
+        }
         [action, original] if action == "verify-entry" => {
             let image = fs::read(original)?;
             cdsp::verify_reference(&image)?;
@@ -25,7 +37,7 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
                 cdsp::HEXAGON_ELF_MACHINE, cdsp::CDSP_ELF_FLAGS, cdsp::ENTRY_PHYS,
                 cdsp::START_FILE_OFFSET, cdsp::ENTRY_ELF_VADDR, cdsp::ENTRY_PHYS, cdsp::FIRST_EXECUTABLE_SIZE);
         }
-        _ => return Err("Usage: cargo run -p firmware-tools --bin cdsp-rebuild -- [inspect REFERENCE | verify-entry REFERENCE | emit-entry OUTPUT]".into()),
+        _ => return Err("Usage: cargo run -p firmware-tools --bin cdsp-rebuild -- [inspect REFERENCE | verify-entry REFERENCE | emit-entry OUTPUT | verify-init-prefix REFERENCE | emit-init-prefix OUTPUT]".into()),
     }
     Ok(())
 }

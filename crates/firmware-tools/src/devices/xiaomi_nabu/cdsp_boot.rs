@@ -1,10 +1,12 @@
 // SPDX-License-Identifier: GPL-3.0-only
 //! Independently encoded Qualcomm CDSP Hexagon entry vectors.
 //!
-//! This module emits *only* the nine decoded, four-byte instruction packets
+//! This module emits the first 17 decoded, four-byte instruction packets
 //! beginning at the reference's first executable PT_LOAD, file offset 0x3000.
-//! The next opcode in the OEM image is not understood by the available LLVM 6
-//! backend; neither that opcode nor any OEM bytes are embedded here.
+//! Some privileged V66 system-register opcodes are outside the available LLVM
+//! 6 assembler, and are reconstructed with checked architecture bitfields
+//! corroborated by the Rizin Hexagon decoder. No OEM instruction bytes are
+//! imported as literal arrays.
 //!
 //! All direct-jump displacements are relative to the instruction's address
 //! and counted in **bytes**. The Hexagon immediate stores halfword units.
@@ -16,6 +18,8 @@ use crate::parse_elf32;
 
 pub const START_FILE_OFFSET: usize = 0x3000;
 pub const REBUILT_LEN: usize = 9 * 4;
+/// Entry jump vectors and the entire following supervisor configuration.
+pub const INIT_PREFIX_LEN: usize = 0x44;
 pub const ENTRY_PHYS: u32 = 0x96c0_0000;
 pub const ENTRY_ELF_VADDR: u32 = 0xfe00_0000;
 pub const FIRST_EXECUTABLE_SIZE: u32 = 0x37b34;
@@ -37,9 +41,9 @@ impl GeneralRegister {
     pub fn number(self) -> u8 { self.0 }
 }
 
-/// Two proved scalar instructions: direct packet-relative jump and small
-/// signed-independent (nonnegative) integer assignment. No packet bundling
-/// or duplex-instruction support is implied by these constructors.
+/// Independently evidenced scalar instructions, restricted to operand forms
+/// whose bit fields have been cross-checked against LLVM or the Hexagon
+/// decoder. No duplex-instruction support is implied by these constructors.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ScalarPacket {
     /// One four-byte instruction packet, `jump` with a relative byte offset.
@@ -51,6 +55,29 @@ pub enum ScalarPacket {
     /// Only the 7-bit subset independently checked against the assembler is
     /// accepted; no sign extension is inferred from the original firmware.
     AssignSmallImmediate { dst: GeneralRegister, value: u8 },
+    /// Hexagon V66 special-register write (`SSR=Rn` or `SYSCFG=Rn`).
+    /// The selectors were independently decoded with Rizin's Hexagon backend.
+    WriteSystem { system: SystemRegister, src: GeneralRegister },
+    /// Hexagon V66 `Rn = SYSCFG`; only this documented register is supported.
+    ReadSyscfg { dst: GeneralRegister },
+    /// Hexagon `Rd = setbit(Rs,#index)`, 0 <= index < 32.
+    SetBit { dst: GeneralRegister, src: GeneralRegister, position: u8 },
+    /// Two no-operand cache-maintenance instructions confirmed by Hexagon V6 decoding.
+    Dckill,
+    Ickill,
+}
+
+/// V66 system register IDs *as used by this exact instruction family*.
+/// Unsupported special registers must not be guessed from their numbers.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SystemRegister {
+    Ssr,
+    Syscfg,
+}
+impl SystemRegister {
+    fn opcode_selector(self) -> u32 {
+        match self { Self::Ssr => 6, Self::Syscfg => 18 }
+    }
 }
 
 impl ScalarPacket {
@@ -72,6 +99,30 @@ impl ScalarPacket {
                 }
                 Ok(0x7800_c000 | (u32::from(value) << 5) | u32::from(dst.number()))
             }
+            Self::WriteSystem { system, src } => {
+                // `SSR=R0` and `SYSCFG=R0` use instruction family 0x67.
+                // Source general-register number occupies bits 20:16;
+                // destination system-register selector occupies bits 4:0.
+                Ok(0x6700_c000 | (u32::from(src.number()) << 16)
+                    | system.opcode_selector())
+            }
+            Self::ReadSyscfg { dst } => {
+                // The observed SYSCFG selector is 0x12 in bits 20:16,
+                // destination register in bits 4:0. Rizin V66 confirms it.
+                Ok(0x6e80_c000 | (SystemRegister::Syscfg.opcode_selector() << 16)
+                    | u32::from(dst.number()))
+            }
+            Self::SetBit { dst, src, position } => {
+                if position >= 32 {
+                    return Err(format!("Hexagon setbit position out of range: {position}"));
+                }
+                // Confirmed against LLVM 6's independent Hexagon assembler
+                // with distinct source/destination registers and bit indices.
+                Ok(0x8cc0_c000 | (u32::from(src.number()) << 16)
+                    | (u32::from(position) << 8) | u32::from(dst.number()))
+            }
+            Self::Dckill => Ok(0xa200_c000),
+            Self::Ickill => Ok(0x56c0_d000),
         }
     }
 }
@@ -105,6 +156,48 @@ pub fn build_entry() -> Result<Vec<u8>, String> {
         return Err("CDSP entry emitter produced an incorrect length".into());
     }
     Ok(output)
+}
+
+/// Extend the verified nine-packet entry with eight system-init packets.
+/// These privilege-state and cache-control operations were independently
+/// *decoded* with the Rizin Hexagon V6 backend; LLVM 6 cannot assemble the
+/// special-register forms, so the emitted bytes are not claimed to have a
+/// complete second-toolchain assembler round-trip. Nothing after 0x3044
+/// (including the reference's invalid/reserved 0x3044 word) is filled in.
+pub fn build_init_prefix() -> Result<Vec<u8>, String> {
+    use ScalarPacket::*;
+    let r0 = GeneralRegister::new(0)?;
+    let mut output = build_entry()?;
+    let privileged = [
+        WriteSystem { system: SystemRegister::Ssr, src: r0 },
+        ReadSyscfg { dst: r0 },
+        SetBit { dst: r0, src: r0, position: 3 },
+        SetBit { dst: r0, src: r0, position: 5 },
+        WriteSystem { system: SystemRegister::Syscfg, src: r0 },
+        Dckill,
+        Ickill,
+        JumpRelative { displacement_bytes: 0x104 },
+    ];
+    for packet in privileged {
+        output.extend_from_slice(&packet.encode()?.to_le_bytes());
+    }
+    if output.len() != INIT_PREFIX_LEN {
+        return Err("CDSP initialization emitter produced an incorrect length".into());
+    }
+    Ok(output)
+}
+
+pub fn verify_init_prefix(image: &[u8]) -> Result<(), String> {
+    validate_reference(image)?;
+    let generated = build_init_prefix()?;
+    let expected = &image[START_FILE_OFFSET..START_FILE_OFFSET + INIT_PREFIX_LEN];
+    if let Some((i, (original, built))) = expected.iter().zip(&generated)
+        .enumerate().find(|(_, (a, b))| a != b)
+    {
+        return Err(format!("CDSP initialization differs at file {:#x}: expected {original:02x}, built {built:02x}",
+            START_FILE_OFFSET + i));
+    }
+    Ok(())
 }
 
 /// Check that the user's private reference is the expected CDSP ELF32 image,
@@ -184,6 +277,43 @@ mod tests {
         }
         assert_eq!(entry_packets().unwrap().len(), 9);
     }
+    #[test]
+    fn privileged_system_operations_use_checked_hexagon_fields() {
+        use ScalarPacket::*;
+        let r0 = GeneralRegister::new(0).unwrap();
+        let r15 = GeneralRegister::new(15).unwrap();
+        assert_eq!(WriteSystem { system: SystemRegister::Ssr, src: r0 }.encode().unwrap(), 0x6700_c006);
+        assert_eq!(WriteSystem { system: SystemRegister::Syscfg, src: r0 }.encode().unwrap(), 0x6700_c012);
+        assert_eq!(WriteSystem { system: SystemRegister::Syscfg, src: r15 }.encode().unwrap(), 0x670f_c012);
+        assert_eq!(ReadSyscfg { dst: r0 }.encode().unwrap(), 0x6e92_c000);
+        assert_eq!(Dckill.encode().unwrap(), 0xa200_c000);
+        assert_eq!(Ickill.encode().unwrap(), 0x56c0_d000);
+    }
+
+    #[test]
+    fn bit_instruction_is_encoded_independently_of_registers() {
+        use ScalarPacket::SetBit;
+        let r0 = GeneralRegister::new(0).unwrap();
+        let r1 = GeneralRegister::new(1).unwrap();
+        let r5 = GeneralRegister::new(5).unwrap();
+        let r7 = GeneralRegister::new(7).unwrap();
+        assert_eq!(SetBit { dst: r0, src: r0, position: 3 }.encode().unwrap(), 0x8cc0_c300);
+        assert_eq!(SetBit { dst: r5, src: r7, position: 2 }.encode().unwrap(), 0x8cc7_c205);
+        assert_eq!(SetBit { dst: r1, src: r1, position: 3 }.encode().unwrap(), 0x8cc1_c301);
+        assert!(SetBit { dst: r0, src: r0, position: 32 }.encode().is_err());
+    }
+
+    #[test]
+    fn privileged_initialization_has_exact_packet_coverage() {
+        let b = build_init_prefix().unwrap();
+        assert_eq!(b.len(), INIT_PREFIX_LEN);
+        assert_eq!(&b[..REBUILT_LEN], build_entry().unwrap().as_slice());
+        for word in b.chunks_exact(4) {
+            assert_eq!(u32::from_le_bytes(word.try_into().unwrap()) & 0xc000, 0xc000);
+        }
+        assert_eq!(u32::from_le_bytes(b[64..68].try_into().unwrap()), 0x5800_c082);
+    }
+
     #[test]
     fn rejects_wrong_reference_header() {
         assert!(validate_reference(&vec![0; 36]).is_err());
