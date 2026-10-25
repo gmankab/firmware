@@ -28,6 +28,7 @@ AUX_MMIO_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_la
 SERVICE_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_service_probe.s"
 SERVICE_MMIO_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_service_mmio.s"
 SERVICE_FLAGS_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_service_flags.s"
+SERVICE_ALLOC_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_service_alloc.s"
 ATOMIC_START = 0x7C000
 ATOMIC_END = 0x7C040
 SERVICE_START = 0x7C2EC
@@ -36,6 +37,8 @@ SERVICE_MMIO_START = 0x7C324
 SERVICE_MMIO_END = 0x7C3A8
 SERVICE_FLAGS_START = 0x7C3A8
 SERVICE_FLAGS_END = 0x7C40C
+SERVICE_ALLOC_START = 0x7C40C
+SERVICE_ALLOC_END = 0x7C4B0
 CONTROL_START = 0x7C040
 CONTROL_END = 0x7C0A0
 AUX_START = 0x446000
@@ -244,6 +247,30 @@ def restore_service_flag_packets(assembled: bytes) -> bytes:
     return struct.pack("<25I", *words)
 
 
+def restore_service_alloc_return_packet(assembled: bytes) -> bytes:
+    """Preserve source-ordered return register move in compound frame restore.
+
+    LLVM6 terminates an otherwise valid standalone `r0=r16` packet before
+    the following 64-bit frame-load and `dealloc_return`. Target Hexagon V60
+    uses the scalar move as a continuation instead. Check both instruction
+    classes and source parse markers before changing this *single* field.
+    Neither external OEM bytes nor any replacement instruction are used.
+    """
+    if len(assembled) != SERVICE_ALLOC_END-SERVICE_ALLOC_START:
+        raise ValueError("service allocator requires exactly 164 source bytes")
+    words = list(struct.unpack("<41I", assembled))
+    index=0x98//4
+    move, load_pair, ret=words[index:index+3]
+    if [x>>24 for x in (move,load_pair,ret)]!=[0x70,0x3e,0x96]:
+        raise ValueError("service allocator return instruction classes changed")
+    if [x&MARKER_MASK for x in (move,load_pair,ret)]!=[
+        END_MARKER,0,END_MARKER
+    ]:
+        raise ValueError("service allocator return packet markers changed")
+    words[index]=(move & ~MARKER_MASK)|CONTINUE_MARKER
+    return struct.pack("<41I", *words)
+
+
 def assemble(llvm_mc: Path, source: Path) -> bytes:
     with tempfile.TemporaryDirectory(prefix="nabu-modem-late-") as tmp:
         obj = Path(tmp) / "late.o"
@@ -273,8 +300,10 @@ def output_fragments(llvm_mc: Path) -> dict[int, bytes]:
     service = restore_service_probe_packets(assemble(llvm_mc,SERVICE_SOURCE))
     service_mmio = restore_service_mmio_packets(assemble(llvm_mc,SERVICE_MMIO_SOURCE))
     service_flags = restore_service_flag_packets(assemble(llvm_mc,SERVICE_FLAGS_SOURCE))
+    service_alloc = restore_service_alloc_return_packet(assemble(llvm_mc,SERVICE_ALLOC_SOURCE))
     assert SERVICE_END == SERVICE_MMIO_START and SERVICE_MMIO_END == SERVICE_FLAGS_START
-    return {ATOMIC_START: atomic + controller, SERVICE_START: service+service_mmio+service_flags,
+    assert SERVICE_FLAGS_END == SERVICE_ALLOC_START
+    return {ATOMIC_START: atomic + controller, SERVICE_START: service+service_mmio+service_flags+service_alloc,
             AUX_START: auxiliary, AUX_INIT_START: aux_init,
             AUX_GUARD_START: aux_guard+aux_stage+aux_mmio}
 
