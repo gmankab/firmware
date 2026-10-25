@@ -33,6 +33,7 @@ AUX_HEAP_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_la
 AUX_WORKER_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_aux_worker.s"
 AUX_LOOKUP_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_aux_registry_lookup.s"
 AUX_DISPATCH_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_aux_dispatch_helpers.s"
+AUX_TYPE_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_aux_type_config.s"
 ATOMIC_START = 0x7C000
 ATOMIC_END = 0x7C040
 SERVICE_START = 0x7C2EC
@@ -63,6 +64,8 @@ AUX_LOOKUP_START = 0x446420
 AUX_LOOKUP_END = 0x446488
 AUX_DISPATCH_START = 0x446650
 AUX_DISPATCH_END = 0x446694
+AUX_TYPE_START = 0x446694
+AUX_TYPE_END = 0x4467A0
 MARKER_MASK = 3 << 14
 CONTINUE_MARKER = 1 << 14
 END_MARKER = 3 << 14
@@ -362,6 +365,30 @@ def restore_aux_lookup_return_packet(assembled: bytes) -> bytes:
     return struct.pack("<26I",*words)
 
 
+def restore_aux_type_return_packets(assembled: bytes) -> bytes:
+    """Join error-return constants with following Hexagon frame restorations.
+
+    Two codec format branches return -1 after a failed allocation. LLVM6
+    marks the immediate move as a complete packet, whereas the original
+    target scheduler uses it as a continuation preceding a duplex
+    memory-restore/dealloc return. Validate both instruction pairs and
+    reconstruct only the parse-marker bits; the three trailing `nop`
+    instructions are explicit source and are retained as alignment code.
+    """
+    if len(assembled) != AUX_TYPE_END-AUX_TYPE_START:
+        raise ValueError("aux codec-type routine must produce 268 bytes")
+    words=list(struct.unpack('<67I',assembled))
+    for at in (0x34,0x80):
+        i=at//4
+        scalar,restore=words[i:i+2]
+        if (scalar>>24,restore>>24)!=(0x78,0x3e):
+            raise ValueError(f"aux codec-type early return opcode classes changed at {at:#x}")
+        if (scalar&MARKER_MASK,restore&MARKER_MASK)!=(END_MARKER,0):
+            raise ValueError(f"aux codec-type early return packet markers changed at {at:#x}")
+        words[i]=(scalar&~MARKER_MASK)|CONTINUE_MARKER
+    return struct.pack('<67I',*words)
+
+
 def assemble(llvm_mc: Path, source: Path) -> bytes:
     with tempfile.TemporaryDirectory(prefix="nabu-modem-late-") as tmp:
         obj = Path(tmp) / "late.o"
@@ -389,8 +416,10 @@ def output_fragments(llvm_mc: Path) -> dict[int, bytes]:
     aux_worker = restore_aux_worker_packets(assemble(llvm_mc,AUX_WORKER_SOURCE))
     aux_lookup = restore_aux_lookup_return_packet(assemble(llvm_mc,AUX_LOOKUP_SOURCE))
     aux_dispatch = assemble(llvm_mc,AUX_DISPATCH_SOURCE)
+    aux_type = restore_aux_type_return_packets(assemble(llvm_mc,AUX_TYPE_SOURCE))
     if len(aux_dispatch) != AUX_DISPATCH_END-AUX_DISPATCH_START:
         raise ValueError("aux callback dispatcher must emit exactly 68 bytes")
+    assert AUX_DISPATCH_END == AUX_TYPE_START
     if len(aux_mmio) != AUX_MMIO_END-AUX_MMIO_START:
         raise ValueError("auxiliary MMIO initialization source has invalid length")
     assert AUX_GUARD_END == AUX_STAGE_START and AUX_STAGE_END == AUX_MMIO_START
@@ -405,7 +434,7 @@ def output_fragments(llvm_mc: Path) -> dict[int, bytes]:
     return {ATOMIC_START: atomic + controller, SERVICE_START: service+service_mmio+service_flags+service_alloc,
             AUX_START: auxiliary, AUX_INIT_START: aux_init,
             AUX_GUARD_START: aux_guard+aux_stage+aux_mmio+aux_heap+aux_worker+aux_lookup,
-            AUX_DISPATCH_START:aux_dispatch}
+            AUX_DISPATCH_START:aux_dispatch+aux_type}
 
 
 def executable_segments(reference: bytes) -> dict[int, tuple[int, int, int, int]]:
