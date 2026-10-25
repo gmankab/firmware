@@ -4,10 +4,10 @@
 
 use super::{novatek_upper_ex9 as ex9, novatek_upper_ilm as ilm,
     novatek_upper_log_data as logarithm, novatek_upper_math_data as math,
-    novatek_upper_allocations as allocations, novatek_upper_boundary as boundary};
+    novatek_upper_allocations as allocations, novatek_upper_boundary as boundary, novatek_upper_aux_tables as aux};
 
-pub const GENERATED_BYTES: usize = 39_640;
-pub const UNRESOLVED_BYTES: usize = 4_520;
+pub const GENERATED_BYTES: usize = 40_176;
+pub const UNRESOLVED_BYTES: usize = 3_984;
 
 #[derive(Debug)]
 pub struct Fragment {
@@ -45,6 +45,11 @@ pub fn fragments() -> Result<Vec<Fragment>, String> {
         file: allocations::FILE_START, bytes: allocations::emit()?,
         instructions: 0, executable: 0, data: allocations::GENERATED_BYTES, fill: 0,
     });
+    for (file, bytes) in aux::emit()? {
+        all.push(Fragment { name:"reference-decoded structured lookup and calibration tables",
+            file, bytes, instructions:0, executable:0,
+            data:if file==aux::LOOKUPS_START {aux::LOOKUP_BYTES} else {aux::PROFILE_BYTES}, fill:0 });
+    }
     for (file, bytes) in math::emit()? {
         let fill = if file >= math::SINE_FILE { 2 } else { 0 };
         let data = bytes.len() - fill;
@@ -124,11 +129,10 @@ mod tests {
         let f = fragments().unwrap();
         assert_eq!(f.iter().map(|f| f.bytes.len()).sum::<usize>(), GENERATED_BYTES);
         assert_eq!(f.iter().map(|f| f.executable).sum::<usize>(), 34_172);
-        assert_eq!(f.iter().map(|f| f.data).sum::<usize>(), 5_459);
+        assert_eq!(f.iter().map(|f| f.data).sum::<usize>(), 5_995);
         assert_eq!(f.iter().map(|f| f.fill).sum::<usize>(), 9);
         let holes = gaps(&f).unwrap();
-        assert_eq!(holes, vec![(0x18620,0x195b0),
-            (0x196f8,0x198dc), (0x19bbc,0x19bf0)]);
+        assert_eq!(holes, vec![(0x18620,0x195b0)]);
         assert_eq!(holes.iter().map(|(s,e)| (e-s) as usize).sum::<usize>(), UNRESOLVED_BYTES);
         assert_eq!(GENERATED_BYTES + UNRESOLVED_BYTES, (ilm::RESERVED_END-ilm::RESERVED_START) as usize);
     }

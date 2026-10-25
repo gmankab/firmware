@@ -29,17 +29,21 @@ EXPECTED_SPANS = [
     (0x19614,0x19678,0,100,0,0),
     (0x19678,0x196b8,0,64,0,0),
     (0x196b8,0x196f8,0,64,0,0),
+    (0x196f8,0x198dc,0,484,0,0),
     (0x198dc,0x19994,0,182,2,0),
     (0x19994,0x19a4c,0,182,2,0),
     (0x19a4c,0x19b04,0,182,2,0),
     (0x19b04,0x19bbc,0,182,2,0),
+    (0x19bbc,0x19bf0,0,52,0,0),
     (0x19bf0,0x1ac80,0,4240,0,0),
 ]
-EXPECTED_GAPS = [(0x18620,0x195b0),(0x196f8,0x198dc),(0x19bbc,0x19bf0)]
+EXPECTED_GAPS = [(0x18620,0x195b0)]
 EXPECTED_HASHES = {
     0x10016: "6b78bd0f2cd788b7c82a65119859a5e70111dd496f986b1727daed13e6f2aab4",
     0x17dc0: "a58613094f4ce93767d70120205520453bc193fea1c7f0fcaf7f1f0cb124a23c",
     0x185c0: "74f24e4c3557fc128a16f3e76414fd1856327262f3dd49e937c54edf6a755637",
+    0x196f8: "ce5d00f0e32f44773f87376cda87b5bd40c84f6788482d1e41d8e7c28f726b5a",
+    0x19bbc: "3411d81186eb7802dee4c92f041dea90726a8d2e0b6a75612520a5080b6ebe09",
     0x19bf0: "c26af2ad9c57bf0b64d2d1b93b1e911170e63c39d7bf69bfe423b9e8770a8f4c",
 }
 
@@ -77,8 +81,8 @@ def validate_manifest(manifest):
         raise ValueError("unresolved gaps were changed or silently filled")
     if any(g["bytes"] != g["file_end"]-g["file_start"] for g in manifest["unresolved"]):
         raise ValueError("incorrect gap byte count")
-    for field,expected in [("covered_bytes",39640),("executable_bytes",34172),
-                           ("data_bytes",5459),("layout_fill_bytes",9)]:
+    for field,expected in [("covered_bytes",40176),("executable_bytes",34172),
+                           ("data_bytes",5995),("layout_fill_bytes",9)]:
         if manifest[field] != expected:
             raise ValueError(f"incorrect {field}")
     if manifest["complete_image"] or manifest["checkpoint50_integration"]:
@@ -164,7 +168,17 @@ def main():
         spec.loader.exec_module(boundary_module)
         seam_bytes=boundary_module.emit()
         compare(generated[0x10000],seam_bytes,"independent NDS32 bitfield suffix",0x10000)
-        if set(independent) != set(generated)-{0x10000,0x10016,0x17dc0,0x185c0}:
+        auxiliary_path = Path(__file__).with_name("verify_agent20_18_aux_tables.py")
+        spec = importlib.util.spec_from_file_location("agent18_independent_auxiliary_tables",auxiliary_path)
+        auxiliary_module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(auxiliary_module)
+        auxiliary_bytes = auxiliary_module.independent_fragments()
+        if set(auxiliary_bytes) != {0x196f8,0x19bbc}:
+            raise ValueError("missing independent auxiliary table source generators")
+        for start,content in auxiliary_bytes.items():
+            compare(generated[start],content,"independent structured table",start)
+            compare(reference[start:start+len(content)],content,"pinned original structured table",start)
+        if set(independent) != set(generated)-{0x10000,0x10016,0x17dc0,0x185c0,0x196f8,0x19bbc}:
             raise ValueError("independent data validator does not cover exactly the declared data spans")
         for start,content in independent.items():
             compare(generated[start],content,"independent data",start)
@@ -181,22 +195,25 @@ def main():
                 raise ValueError("synthetic ISA matrix unexpectedly changed length")
             matrix_bytes=len(matrix)
         report={
-            "agent":"20-18","checkpoint":4,
+            "agent":"20-18","checkpoint":5,
             "git_head":run("git","-C",root,"rev-parse","HEAD"),
             "actual_parent":BASE_COMMIT,"checkpoint50_integration":False,
             "reference_sha256":PINNED_SHA256,"reference_size":len(reference),
             "reserved_file_start":0x10000,"reserved_file_end":0x1ac80,
             "ordinary_instructions":11506,"ex9_instructions":512,
-            "executable_bytes":34172,"data_bytes":5459,"layout_fill_bytes":9,
-            "covered_bytes":39640,"uncovered_bytes":4520,
+            "executable_bytes":34172,"data_bytes":5995,"layout_fill_bytes":9,
+            "covered_bytes":40176,"uncovered_bytes":3984,
             "reference_payload_bytes_embedded":0,"byte_mismatches":0,
             "first_uncovered_file":0x18620,"first_uncovered_data_file":0x18620,
             "reference_decoded_absolute_metadata_bytes":96,
+            "reference_decoded_auxiliary_lookup_bytes":sum(map(len,auxiliary_bytes.values())),
             "cross_boundary_owned_instruction_suffix_bytes":22,
             "independent_seam_bitfield_bytes":len(seam_bytes),
             "gnu_assembled_bytes_this_run":gnu_bytes,
             "gnu_checks_explicitly_skipped":args.source_only,
             "independently_generated_data_and_alignment_bytes":sum(map(len,independent.values())),
+            "independently_reproduced_structured_metadata_bytes":sum(map(len,auxiliary_bytes.values())),
+            "calibration_data_still_unresolved":3984,
             "synthetic_isa_variants_this_run":0 if args.source_only else 161,
             "synthetic_isa_bytes_this_run":matrix_bytes,
             "rust_version":run(args.rustc,"--version"),
