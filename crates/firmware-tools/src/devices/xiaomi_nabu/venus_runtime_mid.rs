@@ -8,7 +8,7 @@
 use arm32::{Condition as C, DataOp as Op, Register as R, Shift, BlockMode};
 
 pub const START: usize = 0x21c78;
-pub const END: usize = 0x2fbc4;
+pub const END: usize = 0x2fcbc;
 pub const FILE_BASE:usize = 0x4000;
 pub const FILE_OFFSET:usize=FILE_BASE+START;
 pub const RESERVATION_END:usize=0x40000;
@@ -185,6 +185,8 @@ mod dma_initialize;
 mod mmio_poll;
 #[path="venus_runtime_mid_irq_banks.rs"]
 mod irq_banks;
+#[path="venus_runtime_mid_irq_router.rs"]
+mod irq_router;
 
 fn frame_allocation(c:&mut Code)->Result<(),String>{
     c.check(START)?;
@@ -734,6 +736,7 @@ pub fn fragment()->Result<Vec<u8>,String>{
     dma_initialize::emit(&mut code)?;
     mmio_poll::emit(&mut code)?;
     irq_banks::emit(&mut code)?;
+    irq_router::emit(&mut code)?;
     Ok(code.bytes)
 }
 
@@ -751,7 +754,7 @@ pub fn verify_reference(reference:&[u8])->Result<usize,String>{
 #[cfg(test)] mod tests {
     use super::*;
     #[test] fn generated_region_exact_layout(){
-        assert_eq!(END-START,0xdf4c);
+        assert_eq!(END-START,0xe044);
         assert_eq!(fragment().unwrap().len(),END-START);
         assert_eq!(FILE_OFFSET,0x25c78);
     }
