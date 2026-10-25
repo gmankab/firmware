@@ -97,6 +97,52 @@ class V66BootstrapTests(unittest.TestCase):
             with self.subTest(offset=hex(off)):
                 self.assertEqual(struct.unpack_from("<I",ref,off)[0],encoded)
 
+    def test_hexagon_control_bank_fields_and_pair_width(self) -> None:
+        expected={
+            v66.ControlRegister.P3_0:0x6a04c002,
+            v66.ControlRegister.GP:0x6a0bc002,
+        }
+        for ctrl,word in expected.items():
+            self.assertEqual(v66.read_control_register(2,ctrl),word)
+        self.assertEqual(v66.read_control_register(3,v66.ControlRegister.USR),0x6a08c003)
+        self.assertEqual(v66.read_control_register(3,v66.ControlRegister.UGP),0x6a0ac003)
+        for ctr,word in ((v66.ControlRegisterPair.LC0_SA0,0x6800c002),
+                         (v66.ControlRegisterPair.LC1_SA1,0x6802c002),
+                         (v66.ControlRegisterPair.M1_0,0x6806c002),
+                         (v66.ControlRegisterPair.CS1_0,0x680cc002)):
+            self.assertEqual(v66.read_control_register_pair(2,ctr),word)
+        for bad_dest in [-1,1,31,32,"R0"]:
+            with self.assertRaises(v66.HexagonEncodingError):
+                v66.read_control_register_pair(bad_dest,v66.ControlRegisterPair.M1_0)
+        for bad in [3,"P3_0",v66.ControlRegisterPair.CS1_0]:
+            with self.assertRaises(v66.HexagonEncodingError):
+                v66.read_control_register(0,bad)
+        for bad in [3,"M1_0",v66.ControlRegister.USR]:
+            with self.assertRaises(v66.HexagonEncodingError):
+                v66.read_control_register_pair(0,bad)
+
+    @unittest.skipUnless(REFERENCE,"Exact Nabu reference required")
+    def test_context_capture_register_fields_and_packet_positions(self) -> None:
+        b=Path(REFERENCE).read_bytes()
+        variants={
+            0x4e9c:v66.packet_continuation(v66.read_control_register(2,v66.ControlRegister.P3_0)),
+            0x4ea8:v66.packet_continuation(v66.read_control_register(3,v66.ControlRegister.USR)),
+            0x4eb4:v66.packet_continuation(v66.read_control_register(2,v66.ControlRegister.GP)),
+            0x4ec0:v66.packet_continuation(v66.read_control_register(3,v66.ControlRegister.UGP)),
+            0x4ecc:v66.packet_continuation(v66.read_control_register_pair(2,v66.ControlRegisterPair.LC0_SA0)),
+            0x4ed4:v66.packet_continuation(v66.read_control_register_pair(2,v66.ControlRegisterPair.LC1_SA1)),
+            0x4edc:v66.packet_continuation(v66.read_control_register_pair(2,v66.ControlRegisterPair.M1_0)),
+            0x4ee8:v66.read_control_register_pair(2,v66.ControlRegisterPair.CS1_0),
+            0x4eec:v66.packet_continuation(v66.read_system_register(2,v66.SystemRegister.CCR)),
+            0x4ef4:v66.packet_continuation(v66.read_system_register(3,v66.SystemRegister.SSR)),
+            0x4efc:v66.read_system_register(2,v66.SystemRegister.ELR),
+            0x4f00:v66.packet_continuation(v66.read_system_register(2,v66.SystemRegister.BADVA)),
+            0x4f08:v66.read_system_register(3,v66.SystemRegister.STID),
+        }
+        for loc,ins in variants.items():
+            with self.subTest(offset=hex(loc)):
+                self.assertEqual(struct.unpack_from("<I",b,loc)[0],ins)
+
     def test_near_jump_alignment_and_range(self) -> None:
         self.assertEqual(v66.jump_near(0x40, 0x63c), 0x5800C2FE)
         with self.assertRaises(v66.HexagonEncodingError):

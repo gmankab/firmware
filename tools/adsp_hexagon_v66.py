@@ -31,6 +31,10 @@ class SystemRegister(IntEnum):
     PMUEVTCFG = 52
     S47 = 47
     HTID = 8
+    CCR = 7
+    ELR = 3
+    BADVA = 9
+    STID = 2
 
 
 class CacheCommand(IntEnum):
@@ -70,6 +74,43 @@ def read_system_register_pair(destination_even: int, system_even: int) -> int:
             or not 0 <= system_even <= 62):
         raise HexagonEncodingError("System-pair source must be even S register 0..62")
     return 0x6F00C000 | (system_even << 16) | destination_even
+
+
+class ControlRegister(IntEnum):
+    """Special control registers exported through the Hexagon control bank."""
+    P3_0 = 4
+    USR = 8
+    GP = 11
+    UGP = 10
+
+
+class ControlRegisterPair(IntEnum):
+    """Even starting indices for 64-bit control-register reads."""
+    LC0_SA0 = 0
+    LC1_SA1 = 2
+    M1_0 = 6
+    CS1_0 = 12
+
+
+def read_control_register(destination: int, source: ControlRegister) -> int:
+    """Hexagon ``Rd = CR``; control register encoded in bits 20:16.
+
+    The caller owns packet boundaries; use ``packet_continuation`` for a
+    control-register read occurring before two or more stores in one packet.
+    """
+    if not isinstance(source, ControlRegister):
+        raise HexagonEncodingError("Expected named Hexagon control register")
+    return 0x6A00C000 | (int(source) << 16) | gpr(destination)
+
+
+def read_control_register_pair(destination_even: int, source: ControlRegisterPair) -> int:
+    """Hexagon ``R(d+1):d = CR(s+1):s``; exact paired control bank."""
+    if (not isinstance(destination_even,int) or destination_even % 2
+            or not 0 <= destination_even <= 30):
+        raise HexagonEncodingError("Control pair destination must be even GPR 0..30")
+    if not isinstance(source, ControlRegisterPair):
+        raise HexagonEncodingError("Expected named Hexagon control pair")
+    return 0x6800C000 | (int(source) << 16) | destination_even
 
 
 def write_predicate_group_from_gpr(source: int) -> int:

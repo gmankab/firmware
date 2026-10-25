@@ -110,8 +110,9 @@ class ADSPBootstrapTests(unittest.TestCase):
                      adsp.assemble_vector_handoff(LLVM_MC) +
                      adsp.assemble_privileged_restore(LLVM_MC) +
                      adsp.assemble(LLVM_MC, adsp.CONTROLLER_RESTORE_PADDING_SOURCE, 0x100) +
-                     adsp.assemble_context_save(LLVM_MC))
-        self.assertEqual(len(generated), 0xc80)
+                     adsp.assemble_context_save(LLVM_MC) +
+                     adsp.assemble_context_capture(LLVM_MC))
+        self.assertEqual(len(generated), 0xd3c)
         original = Path(REFERENCE).read_bytes()
         adsp.verify_reference(generated, original, 0x41e0)
         mutated = bytearray(generated)
@@ -341,6 +342,29 @@ class ADSPBootstrapTests(unittest.TestCase):
                 "{ nop } // V66 r23 = HTID", "{ isync } // V66 r23 = HTID",1))
             with self.assertRaisesRegex(adsp.AdspError,"context save placeholder"):
                 adsp.assemble_context_save(LLVM_MC,bad)
+
+    def test_context_capture_source_models_register_packets(self) -> None:
+        src=adsp.CONTROLLER_CONTEXT_CAPTURE_SOURCE.read_text()
+        for string in ("memd(sp+#0x78) = lr:fp", "memd(sp+#0xa8)",
+                       "LC0:SA0", "P3:0", "r23 = HTID", "S54",
+                       "cmp.eq(r23,#0)", "jump other_thread"):
+            self.assertIn(string.lower(),src.lower())
+        self.assertNotIn(".incbin",src)
+        self.assertNotIn(".word",src)
+
+    @unittest.skipUnless(LLVM_MC and REFERENCE,"Exact reference required")
+    def test_context_capture_matches_original_and_rejects_bad_privileged_slot(self) -> None:
+        b=adsp.assemble_context_capture(LLVM_MC)
+        self.assertEqual(len(b),0xbc)
+        adsp.verify_reference(b,Path(REFERENCE).read_bytes(),0x4e60)
+        self.assertEqual(b[0x3c:0x40],struct.pack("<I",0x6a044002))
+        self.assertEqual(b[0x88:0x8c],struct.pack("<I",0x680cc002))
+        with tempfile.TemporaryDirectory() as td:
+            tampered=Path(td)/"tampered-capture.S"
+            tampered.write_text(adsp.CONTROLLER_CONTEXT_CAPTURE_SOURCE.read_text().replace(
+                "{ nop } // R23 = HTID", "{ isync } // R23 = HTID",1))
+            with self.assertRaisesRegex(adsp.AdspError,"context capture privileged slot"):
+                adsp.assemble_context_capture(LLVM_MC,tampered)
 
     @unittest.skipUnless(LLVM_MC, "Hexagon-capable llvm-mc unavailable")
     def test_syscfg_handoff_uses_typed_and_source_assembly(self) -> None:
