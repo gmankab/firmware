@@ -26,6 +26,7 @@ REFERENCE = os.environ.get('NABU_ADSP_REFERENCE')
 RIZIN_ASM = os.environ.get('RZ_HEXAGON_ASM')
 EXPECTED_DIGEST = 'cc93ab6de47bc8514f946f427a059bc279975b4e99b9cfdc0be450f9d559a233'
 ZERO_MEMORY_DIGEST = 'd8c1f7e013d349af5011c3a1a99db6e19689d99bb2fb7c459ed346625f550f1c'
+CONTROLLER_DIGEST = '2b6f8caaaded06ece47aadd8e97090ca9269ac2f7f7e16242e21094f128aadbf'
 
 
 class ADSPExternalsAndCodeTests(unittest.TestCase):
@@ -80,6 +81,31 @@ class ADSPExternalsAndCodeTests(unittest.TestCase):
         raw=adsp.compile_source(LLVM_MC,source,0x50)
         self.assertEqual(hashlib.sha256(raw).hexdigest(),ZERO_MEMORY_DIGEST)
         self.assertEqual(len(raw),80)
+
+    @unittest.skipUnless(LLVM_MC,'Hexagon LLVM6 assembler required')
+    def test_controller_dispatch_source_and_assembler(self):
+        source,start,length=adsp.FRAGMENTS['controller-dispatch']
+        text=source.read_text()
+        for token in ('memw(##0xf02cb68c) = r3','memd(r29+#-8) = r1:0',
+                      'call begin_controller','trap:', 'jumpr lr',
+                      '.set seventh_controller'):
+            self.assertIn(token,text)
+        self.assertNotIn('.word ',text)
+        self.assertNotIn('.incbin ',text)
+        result=adsp.compile_source(LLVM_MC,source,length)
+        self.assertEqual(hashlib.sha256(result).hexdigest(),CONTROLLER_DIGEST)
+        self.assertEqual(length,120)
+
+    @unittest.skipUnless(LLVM_MC and REFERENCE,
+                         'Hexagon LLVM6 and exact pinned ADSP reference required')
+    def test_controller_dispatch_exact_reference_bytes(self):
+        source,start,length=adsp.FRAGMENTS['controller-dispatch']
+        rebuilt=adsp.compile_source(LLVM_MC,source,length)
+        reference=Path(REFERENCE).read_bytes()
+        adsp.verify_slice(rebuilt,reference,start)
+        mutated=bytearray(rebuilt);mutated[0x68]^=0x01
+        with self.assertRaisesRegex(adsp.LateAdspError,'Mismatch'):
+            adsp.verify_slice(bytes(mutated),reference,start)
 
     @unittest.skipUnless(LLVM_MC and REFERENCE,
                          'Hexagon LLVM6 and exact pinned ADSP reference required')
