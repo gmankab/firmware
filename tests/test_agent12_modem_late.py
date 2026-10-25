@@ -15,6 +15,41 @@ spec.loader.exec_module(agent12)
 
 
 class ModemLateTests(unittest.TestCase):
+    def test_late_callback_and_controller_scan_bounds(self):
+        self.assertEqual((agent12.AUX_CALLBACK_START,agent12.AUX_CALLBACK_END),
+                         (0x447324,0x447388))
+        self.assertEqual((agent12.AUX_FIND_CONTROLLER_START,
+                          agent12.AUX_FIND_CONTROLLER_END),(0x447388,0x447410))
+        self.assertEqual((agent12.AUX_RELEASE_REGISTRY_START,
+                          agent12.AUX_RELEASE_REGISTRY_END),(0x447410,0x447448))
+        sources=[agent12.AUX_CALLBACK_SOURCE,agent12.AUX_FIND_CONTROLLER_SOURCE,
+                 agent12.AUX_RELEASE_REGISTRY_SOURCE]
+        for path in sources:
+            text=path.read_text()
+            self.assertNotIn('.word',text)
+            self.assertIn('dealloc_return',text)
+        self.assertIn('loop0',agent12.AUX_FIND_CONTROLLER_SOURCE.read_text())
+
+    def test_callback_extender_duplex_rewrite_rejects_unrelated_source(self):
+        words=[0x7800c000]*25
+        i=(0x447340-agent12.AUX_CALLBACK_START)//4
+        words[i-1:i+2]=[0x01e44630,0x7800c086,0x48050124]
+        packed=struct.pack('<25I',*words)
+        built=struct.unpack('<25I',agent12.restore_aux_callback_extender_packet(packed))
+        self.assertEqual(built[i],0x78004086)
+        self.assertEqual(built[:i],tuple(words[:i]))
+        self.assertEqual(built[i+1:],tuple(words[i+1:]))
+        for change,expected in [
+            ((i-1,0x7e004000),'opcode classes'),
+            ((i,0x7800c087),'operand'),
+            ((i+1,0x4805c124),'packet markers'),
+        ]:
+            bad=words.copy();bad[change[0]]=change[1]
+            with self.assertRaisesRegex(ValueError,expected):
+                agent12.restore_aux_callback_extender_packet(struct.pack('<25I',*bad))
+        with self.assertRaisesRegex(ValueError,'100 source-assembled bytes'):
+            agent12.restore_aux_callback_extender_packet(packed[:-4])
+
     def test_aux_table_scanners_are_independent_source_functions(self):
         find=agent12.AUX_FIND_FREE_SOURCE.read_text()
         resolve=agent12.AUX_RESOLVE_SOURCE.read_text()

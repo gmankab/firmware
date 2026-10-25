@@ -579,3 +579,27 @@ the pinned original modem MBN (zero mismatches). The gap
 bytes are `r3=framekey` unsupported by LLVM6's assembler, and the rest
 is an unintegrated suffix of that partially reconstructed session function.
 This is *not* complete firmware or an OEM-authenticated image.
+
+## Checkpoint 22 — Controller callback registration and lookup
+
+Added three independently source-assembled Hexagon V60 routines in the later
+modem auxiliary ELF executable segment (`vaddr = file - 0x446000 + 0x1e400000`):
+
+- `[file 0x447324, 0x447388)` (100 bytes): bounded callback registration and
+  lookup in the MMIO controller registry. LLVM6 constructs the scalar `r6`
+  absolute address and `r5/r4` duplex in two packets; a checked, fail-closed
+  ISA transformation rejoins them through the register's packet parse marker
+  without injecting source OEM instruction words.
+- `[file 0x447388, 0x447410)` (136 bytes): linked controller search with
+  hardware `loop0`, guarded diagnostics and original stack restoration.
+- `[file 0x447410, 0x447448)` (56 bytes): controller release/recursive
+  cleanup when refcount reaches zero.
+
+The new contiguous 292-byte span is source built and verified against the
+pinned original modem (`SHA256 6f5cb32bc10e41abb40938d185805e788f5637a41d3ebcef278e4e169fc36782`).
+**Total independently generated later-modem executable bytes: 4,172**, in
+8 disjoint regions. The unclaimed session-validation gap
+`[file 0x446ee8,0x447028)` = 320 bytes and later insertion gap
+`[file 0x447100,0x447324)` = 548 bytes remain explicitly unfilled.
+Firmware is not complete, authenticated, or flashable. The provisional branch
+is rooted in Agent 06, not checkpoint 50.
