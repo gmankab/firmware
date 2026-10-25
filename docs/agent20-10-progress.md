@@ -77,3 +77,12 @@ Agent 20-10 owns only new `cdsp_late_*` sources, its verification tool, focused 
 - Packet-marker bit grouping is critical: `sub(-1,R5)` and the following `memw` load share a two-word packet; separate AND, OR and MMIO store instructions each terminate their own packets. This was verified against **independent LLVM6 assembly of all 108 bytes** and checked by Rizin V66 decoding all 27 four-byte instruction words.
 - The next missing bytes are `[0x55408,0x554b0)` (168 bytes remaining in this executable `PT_LOAD`).
 - Test and release build status: all offline workspace Rust and Python tests and release build pass. This remains a provisional Agent-05-descended branch, not checkpoint-50 Git ancestry, and not an authenticated/flashable CDSP image.
+
+## Checkpoint 08 — entire short CDSP controller `R E` segment, 1,200 bytes
+
+- Fully reconstructed **all 1,200 independently encoded Hexagon instruction bytes** in `cdsp.mbn` file `[0x55000,0x554b0)`. VMA `[0xc00c7000,0xc00c74b0)`, physical `[0x96cc7000,0x96cc74b0)`. This exact length matches the `PT_LOAD` executable section's `p_filesz`, not merely a function fragment.
+- Added the final **168 bytes** `[0x55408,0x554b0)`: update controller register `0x0830002c`, mask out bits `0x71f`, combine DSP state from R16 with `0x200`, update controller bit at `0x08300028`, poll P0.new until ready, write `0` to the three mailbox/IRQ registers at `0x083a0040`, `+4`, `+8`, barrier and `jumpr LR`.
+- Strict checked helpers model `R3=asl(R16,#0)` and `P0=cmp.eq(R3,R2); if(P0.new)jump:t -8`. The `ASL` operation and `R2=##0x200` share one packet. Independently authored LLVM6 source `tools/agent20-10-cdsp-controller-tail.s` reproduces **all 42 four-byte instruction words exactly**, including the parse marker; Rizin V66 decodes all 42 and confirms the branch target and MMIO instruction semantics.
+- Entire 1,200-byte executable segment compares exactly to the original CDSP reference, with **zero mismatches**. This **does not** imply completion of the other, much larger CDSP `PT_LOAD` segments, bootability or new OEM signature creation.
+- Next independent code to reconstruct is in `RWE` file segment starting at **`0x56000`**, VMA `0xc00c8000`, physical `0x96cc8000`. The `[0x554b0,0x56000)` gap between ELF loads is not executable reconstruction; it must remain structural layout.
+- Git base caveat unchanged: still a portable branch from Agent 05 `a02618f…`; checkpoint50's integrated SHA was unavailable in the supplied materials.

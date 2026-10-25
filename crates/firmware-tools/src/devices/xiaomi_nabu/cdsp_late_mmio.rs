@@ -31,6 +31,9 @@ pub const ENABLE_AND_WAIT_END:usize=0x5539c;
 pub const ENABLE_AND_WAIT_LEN:usize=ENABLE_AND_WAIT_END-FILE_OFFSET;
 pub const FEATURE_SPIN_END:usize=0x55408;
 pub const FEATURE_SPIN_LEN:usize=FEATURE_SPIN_END-FILE_OFFSET;
+pub const SHORT_CODE_SEGMENT_END:usize=0x554b0;
+pub const SHORT_CODE_SEGMENT_LEN:usize=SHORT_CODE_SEGMENT_END-FILE_OFFSET;
+
 
 
 /// Checked Hexagon `memw(Rbase + #offset) = ##value` with an immediate extender.
@@ -457,6 +460,91 @@ pub fn build_feature_spin_and_cache_updates()->Result<Vec<u8>,String>{
     Ok(out)
 }
 
+/// This Hexagon scalar operation copies R16 by shifting it left zero bits
+/// into R3. The scheduling/parse-marker bits are separate from the opcode;
+/// LLVM6 confirms the independently assembled scalar encoding.
+pub fn encode_asl_high_gpr_identity(dst:GeneralRegister,src:GeneralRegister,
+                                    amount:u8)->Result<u32,String>{
+    if dst.number()!=3 || src.number()!=16 || amount!=0{
+        return Err("Only proven R3=asl(R16,#0) format is supported".into());
+    }
+    Ok(0x8c10_c043)
+}
+
+/// Hexagon new predicate equals compare followed by a taken backwards branch.
+/// The encoded signed displacement is expressed as halfword units and is
+/// constrained to the independently proven [-32,-2] byte window.
+pub fn encode_p0_eq_new_short_back_branch(left:GeneralRegister,right:GeneralRegister,
+                                         displacement_bytes:i16)->Result<u32,String>{
+    if displacement_bytes>=0 || displacement_bytes < -32 || displacement_bytes%2!=0{
+        return Err("Hexagon new P0 equals branch must be negative, even and <= 32 bytes".into());
+    }
+    Ok(0x1430_e000|(u32::from(left.number())<<16)
+       |(u32::from(right.number())<<8)
+       |(((i32::from(displacement_bytes)/2) as u32)&0xff))
+}
+
+/// Commit controller channel selection and stop all three DSP mailbox/IRQ
+/// registers before returning to the caller. This is the final 168 bytes of
+/// the 1200-byte executable CDSP ELF segment at file 0x55000..0x554b0.
+pub fn build_final_controller_mmio_and_return()->Result<Vec<u8>,String>{
+    let r=|n|GeneralRegister::new(n);
+    let mut out=Vec::with_capacity(0xa8);
+    // Controller status register 0x0830002c: clear mask 0x71f then set 0x200
+    // and preserve the DSP output field from R16.
+    for word in cdsp_boot::encode_extended_assignment(r(0)?,0x0830_002c,true){push_word(&mut out,word);}
+    push_word(&mut out,encode_word_load_immediate(r(1)?,r(0)?,0)?);
+    let two=cdsp_boot::encode_extended_assignment(r(2)?,0x700,true);
+    push_word(&mut out,two[0]);
+    push_word(&mut out,PacketMarker::ContinuationA.apply(two[1]));
+    for word in cdsp_boot::encode_extended_assignment(r(3)?,0x1f,true){push_word(&mut out,word);}
+    push_word(&mut out,encode_register_logic(RegisterLogic::Or,r(2)?,r(2)?,r(3)?));
+    push_word(&mut out,encode_not_via_sub_neg1(r(2)?,r(2)?));
+    push_word(&mut out,encode_register_logic(RegisterLogic::And,r(1)?,r(1)?,r(2)?));
+    push_word(&mut out,PacketMarker::ContinuationA.apply(encode_asl_high_gpr_identity(r(3)?,r(16)?,0)?));
+    for word in cdsp_boot::encode_extended_assignment(r(2)?,0x200,true){push_word(&mut out,word);}
+    push_word(&mut out,encode_register_logic(RegisterLogic::Or,r(2)?,r(2)?,r(3)?));
+    push_word(&mut out,encode_register_logic(RegisterLogic::Or,r(1)?,r(1)?,r(2)?));
+    push_word(&mut out,encode_word_store_register(r(0)?,r(1)?));
+    push_word(&mut out,0xa800_c000); // barrier
+    // Enable controller status bit and wait until the MMIO bit clears.
+    for word in cdsp_boot::encode_extended_assignment(r(0)?,0x0830_0028,true){push_word(&mut out,word);}
+    push_word(&mut out,encode_word_load_immediate(r(1)?,r(0)?,0)?);
+    for word in cdsp_boot::encode_extended_assignment(r(2)?,1,true){push_word(&mut out,word);}
+    push_word(&mut out,encode_register_logic(RegisterLogic::Or,r(1)?,r(1)?,r(2)?));
+    push_word(&mut out,encode_word_store_register(r(0)?,r(1)?));
+    push_word(&mut out,0xa800_c000);
+    push_word(&mut out,encode_word_load_immediate(r(1)?,r(0)?,0)?);
+    push_word(&mut out,encode_register_logic(RegisterLogic::And,r(3)?,r(1)?,r(2)?));
+    push_word(&mut out,encode_p0_eq_new_short_back_branch(r(3)?,r(2)?,-8)?);
+    // Three independently generated immediate stores disable the mailbox
+    // source registers. Reference signature and source bytes aren't embedded.
+    for address in [0x083a_0040_u32,0x083a_0044,0x083a_0048]{
+        for word in cdsp_boot::encode_extended_assignment(r(0)?,address as i32,true){push_word(&mut out,word);}
+        for word in encode_extended_word_store_immediate(r(0)?,0,0)?{push_word(&mut out,word);}
+    }
+    push_word(&mut out,0xa800_c000);
+    push_word(&mut out,ScalarPacket::JumpRegister{source:r(31)?}.encode()?);
+    if out.len()!=0xa8 {return Err("Final Hexagon controller MMIO should be 168 bytes".into());}
+    Ok(out)
+}
+
+pub fn build_full_short_controller_segment()->Result<Vec<u8>,String>{
+    let mut out=build_feature_spin_and_cache_updates()?;
+    out.extend(build_final_controller_mmio_and_return()?);
+    if out.len()!=SHORT_CODE_SEGMENT_LEN {return Err("Full short Hexagon ELF executable PT_LOAD coverage must equal p_filesz".into());}
+    Ok(out)
+}
+
+pub fn verify_full_short_controller_segment(reference:&[u8])->Result<(),String>{
+    cdsp_boot::validate_reference(reference)?;
+    let expected=build_full_short_controller_segment()?;
+    if reference.get(FILE_OFFSET..SHORT_CODE_SEGMENT_END)!=Some(expected.as_slice()){
+        return Err("CDSP full 1200-byte short R E segment differs from the reference".into());
+    }
+    Ok(())
+}
+
 pub fn verify_feature_spin_and_cache_updates(reference:&[u8])->Result<(),String>{
     cdsp_boot::validate_reference(reference)?;
     let actual=build_feature_spin_and_cache_updates()?;
@@ -511,6 +599,22 @@ mod tests {
         assert_eq!(read(0x55394),0x6a49_c40d); // R13=add(PC,#8)
         assert_eq!(read(0x55398),0x59ff_fe50); // jump to physical 0x96cc7038
     }
+    #[test]
+    fn full_controller_segment_has_original_last_branch_and_mmio_boundaries(){
+        let r=|n|GeneralRegister::new(n).unwrap();
+        assert_eq!(encode_asl_high_gpr_identity(r(3),r(16),0).unwrap(),0x8c10_c043);
+        assert_eq!(encode_p0_eq_new_short_back_branch(r(3),r(2),-8).unwrap(),0x1433_e2fc);
+        assert!(encode_asl_high_gpr_identity(r(3),r(15),0).is_err());
+        assert!(encode_p0_eq_new_short_back_branch(r(3),r(2),0).is_err());
+        let suffix=build_final_controller_mmio_and_return().unwrap();
+        assert_eq!(suffix.len(),0xa8);
+        assert_eq!(&suffix[0xa4..0xa8],&0x529f_c000_u32.to_le_bytes());
+        assert_eq!(&suffix[0x6c..0x70],&0x1433_e2fc_u32.to_le_bytes());
+        let complete=build_full_short_controller_segment().unwrap();
+        assert_eq!(complete.len(),0x4b0);
+        assert_eq!(FILE_OFFSET+complete.len(),SHORT_CODE_SEGMENT_END);
+    }
+
     #[test]
     fn cache_feature_spin_uses_checked_packet_and_branch_fields(){
         let r=|n|GeneralRegister::new(n).unwrap();

@@ -20,6 +20,8 @@ fn main()->Result<(),Box<dyn Error>>{
         "verify-wait-handoff"=>{late::verify_controller_through_wait_handoff(&fs::read(&args[1])?)?;println!("Verified {} exact CDSP Hexagon bytes through wait handoff",late::ENABLE_AND_WAIT_LEN);},
         "emit-cache-spin"=>{let bytes=late::build_feature_spin_and_cache_updates()?;fs::write(&args[1],&bytes)?;println!("Emitted {} Hexagon controller bytes through cache feature MMIO updates",bytes.len());},
         "verify-cache-spin"=>{late::verify_feature_spin_and_cache_updates(&fs::read(&args[1])?)?;println!("Verified {} exact CDSP Hexagon bytes through cache MMIO updates",late::FEATURE_SPIN_LEN);},
+        "emit-controller-segment"=>{let bytes=late::build_full_short_controller_segment()?;fs::write(&args[1],&bytes)?;println!("Emitted {} original-source-derived Hexagon controller instruction bytes",bytes.len());},
+        "verify-controller-segment"=>{late::verify_full_short_controller_segment(&fs::read(&args[1])?)?;println!("Verified entire {}-byte later CDSP R E PT_LOAD code",late::SHORT_CODE_SEGMENT_LEN);},
         _=>return Err("usage: cdsp-late-rebuild <emit|verify|emit-joined|verify-joined|emit-mode-prefix|verify-mode-prefix|emit-configurations|verify-configurations|emit-flags|verify-flags|emit-wait-handoff|verify-wait-handoff> <OUTPUT|CDSP_MBN>".into()),
     }
     Ok(())
