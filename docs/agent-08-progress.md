@@ -33,3 +33,15 @@ independently authored human-readable build timestamp. Cumulative independent
 coverage is **176 / 34,236 bytes**, and the ten remaining opaque DSP/algorithm
 payloads are deliberately absent. All reference fields compare exactly,
 and the partial builder still refuses to finalize a full WMFW.
+
+## Checkpoint 08-03 — HALO framework algorithm controls
+
+Reconstructed the **948-byte** first `ALGORITHM_DATA` payload (`0x76cc–0x7a80`)
+from high-level register offsets and twelve named firmware controls (HALO
+state/heartbeat, audio block size, firmware build metadata, multirate fields,
+LRCLK delay and bypass flags). The WMFW v3 encoder uses checked counted-string
+fields with 4-byte padding, typed memory kinds, flags and register lengths;
+it never imports the reference bytes to build output. The bounded parser
+accepts the generated algorithm, rejects truncation and nonzero alignment
+padding. Independent coverage is **1,124 / 34,236 bytes**, with nine region
+payloads still missing.

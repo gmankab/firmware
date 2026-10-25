@@ -291,7 +291,11 @@ fn run() -> Result<(), Box<dyn Error>> {
         println!("Cirrus HALO WMFW v3 independently generated: {} / {} bytes ({} region descriptors)",
             plan.filled_bytes(), plan.total_bytes(), firmware_tools::wmfw_plan::REGION_COUNT);
         for region in firmware_tools::wmfw_plan::regions()? {
-            let state = if region.kind == 0xff { "INDEPENDENT TEXT" } else { "UNIMPLEMENTED PAYLOAD" };
+            let state = match (region.kind, region.file_header_offset) {
+                (0xff, _) => "INDEPENDENT TEXT",
+                (0xf2, 0x76c4) => "INDEPENDENT CONTROL METADATA",
+                _ => "UNIMPLEMENTED PAYLOAD",
+            };
             println!("  {} (0x{:02x}) @ file 0x{:x}, DSP 0x{:06x}: {} bytes, {:?} memory words, {}",
                 region.name(), region.kind, region.payload_offset,
                 region.dsp_address, region.payload_length, region.word_count, state);

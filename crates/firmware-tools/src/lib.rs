@@ -14,6 +14,7 @@ pub mod devices;
 pub use devices::xiaomi_nabu::modemuw::build_modemuw;
 pub mod wmfw_metadata;
 pub mod wmfw_plan;
+pub mod wmfw_algorithms;
 
 /// Parse only the bounded ELF32 little-endian header and segment table.
 /// Neither this metadata inspector nor its output is an executable decompiler.

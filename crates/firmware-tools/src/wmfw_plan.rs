@@ -6,6 +6,7 @@
 //! intentionally absent and must never be filled from the reference image.
 
 use crate::image_plan::ImagePlan;
+use crate::wmfw_algorithms;
 use crate::wmfw_metadata::{build_wmfw_header, WmfwRegionDescriptor, WMFW_REGIONS};
 use crate::{parse_wmfw, wmfw_type_name};
 
@@ -16,7 +17,7 @@ pub const REGION_COUNT: usize = 11;
 /// Human-readable build timestamp as distinct INFO_TEXT region payload.
 /// This is text, not executable HALO code or copied proprietary instructions.
 pub const FIRMWARE_INFO: &str = "Fri 02 Apr 2021 21:03:50 W. Europe Daylight Time";
-pub const INDEPENDENT_METADATA_BYTES: usize = HEADER_SIZE + REGION_COUNT * DESCRIPTOR_SIZE + 48;
+pub const INDEPENDENT_METADATA_BYTES: usize = HEADER_SIZE + REGION_COUNT * DESCRIPTOR_SIZE + 48 + 948;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct WmfwLayoutRegion {
@@ -83,8 +84,13 @@ pub fn partial_container() -> Result<ImagePlan, String> {
         return Err("WMFW information text has incorrect declared size".into());
     }
     plan.place("human-readable WMFW build information", HEADER_SIZE + DESCRIPTOR_SIZE, info)?;
+    let framework = wmfw_algorithms::encode_algorithm(&wmfw_algorithms::framework())?;
+    if framework.len() != WMFW_REGIONS[8].payload_size as usize {
+        return Err("WMFW HALO framework metadata has incorrect authored size".into());
+    }
+    plan.place("HALO framework algorithm metadata", WMFW_REGIONS[8].file_offset + DESCRIPTOR_SIZE, &framework)?;
     assert_eq!(plan.filled_bytes(), INDEPENDENT_METADATA_BYTES);
-    assert_eq!(plan.holes().len(), REGION_COUNT - 1);
+    assert_eq!(plan.holes().len(), REGION_COUNT - 2);
     Ok(plan)
 }
 
@@ -126,6 +132,9 @@ mod tests {
         }
         reference[HEADER_SIZE + DESCRIPTOR_SIZE..WMFW_REGIONS[1].file_offset]
             .copy_from_slice(FIRMWARE_INFO.as_bytes());
+        let framework = wmfw_algorithms::encode_algorithm(&wmfw_algorithms::framework()).unwrap();
+        reference[WMFW_REGIONS[8].file_offset+DESCRIPTOR_SIZE..WMFW_REGIONS[9].file_offset]
+            .copy_from_slice(&framework);
         reference
     }
 
@@ -138,9 +147,9 @@ mod tests {
         assert_eq!(rs[6].word_count, Some(1_533));
         assert_eq!(rs[0].name(), "INFO_TEXT");
         let plan = partial_container().unwrap();
-        assert_eq!(plan.filled_bytes(), 176);
+        assert_eq!(plan.filled_bytes(), 1_124);
         assert_eq!(plan.total_bytes(), FILE_SIZE);
-        assert_eq!(plan.holes().len(), 10);
+        assert_eq!(plan.holes().len(), 9);
         assert_eq!(plan.holes().first().unwrap(), &(0x68..0xb0));
         assert_eq!(plan.holes().last().unwrap(), &(0x82c4..0x85bc));
         assert!(plan.build_complete().unwrap_err().contains("incomplete"));
