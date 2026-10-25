@@ -136,3 +136,4 @@ pub mod cdsp_early_system_start;
 pub mod cdsp_early_interrupt_debug; // Agent 20-09: 0x43f4 CFGBASE probe, 0x4418..0x4500 structural fill
 pub mod cdsp_early_supervisor_vectors; // Agent 20-09 exception/interrupt vectors to 0x471c
 pub mod cdsp_early_exception_entry; // Agent 20-09 exception thread context start at 0x471c
+pub mod cdsp_early_exception_context; // Hexagon V66 context save to 0x481c
