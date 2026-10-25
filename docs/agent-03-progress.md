@@ -233,3 +233,22 @@ continues up to `0x24000` (exclusive). The unimplemented initial mid-function
 tail `[0x18000,0x183e0)` is not counted. Branch ancestry is still the
 available `69ebf0d`, **not** missing checkpoint-50 commit `b7ed4b5`;
 cherry-pick Agent 03 commits during integration. Not signed or flashable.
+
+## Checkpoint 22 — six-way controller worker and codec-mode table
+
+Function `[0x21604,0x21888)` (file `[0x25604,0x25888)`) adds **644**
+reference-identical bytes comprising **151 typed ARM32 instructions**,
+a six-way codec dispatch table `[0x21718,0x21730)` and four diagnostic/
+controller words `[0x21878,0x21888)`. It creates a repeated controller
+work loop, allocates codec resource slots, selects the correct mode callback
+and reports unsupported mode identifiers. An independently assembled/linked
+LLVM/Clang version matches every byte; Rust, Python and release-build tests
+also pass.
+
+Total contiguous late interval `[0x183e0,0x21888)` is **38,056 bytes**:
+9,111 independently encoded ARM instructions and 403 distinct data words.
+Next function starts at `0x21888` (file `0x25888`); the remainder of the
+exclusive `[0x18000,0x24000)` reservation is not yet wholly reconstructed.
+Missing prefix `[0x18000,0x183e0)` begins mid-function. Git ancestry remains
+older `69ebf0d`, not checkpoint-50 `b7ed4b5`, because its bundle was missing
+in this session. This is a disjoint, unauthenticated non-flashable artifact.
