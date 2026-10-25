@@ -334,3 +334,9 @@ Original reference: private `map220v-nabu-firmware/venus.mbn`, SHA-256 `9d4af65d
 - Continuous A32 region `[0x21c78,0x2ddfc)` = **49,540 exact bytes**; new `[0x2d3f4,0x2ddfc)` = **2568 bytes** with **632 re-encoded ARM32 instructions** and **10 separate data words**.
 - Initializes per-channel command register sets and optional surface planes; encodes ARMv7 `SMULBB` through checked operand fields. A 10-word literal pool begins at `0x2ddd4`, following the function's `POP {..,pc}` at `0x2ddd0`.
 - First uncovered executable address: `0x2ddfc` (a new controller initializer). Instruction-byte reconstruction is not source-level behavioral recovery or newly signed firmware.
+
+## Checkpoint 50 — full encoder resource initialization
+
+- Contiguous reference-matched A32 span `[0x21c78,0x2ea50)` = **52,696 bytes**, new `[0x2ddfc,0x2ea50)` = **3,156 bytes** comprising **782 ARM32 instructions** and **7 data words**.
+- Builds codec surface descriptor slots, validates the run-state, lays out multiple command lists and uses the public `SMULBB` formula. Seven constant/address words at `[0x2ea34,0x2ea50)` are separate, following the original return at `0x2ea30`. This is an instruction-byte reconstruction, not high-level behavioral equivalence or newly authenticated code.
+- Next uncovered executable routine starts `0x2ea50`.
