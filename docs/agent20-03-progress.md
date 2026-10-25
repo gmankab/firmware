@@ -124,3 +124,10 @@ Original reference: private `map220v-nabu-firmware/venus.mbn`, SHA-256 `9d4af65d
 - Contiguous VMA `[0x21c78,0x265e4)` = **18,796 byte-identical typed bytes**, private MBN file `[0x25c78,0x2a5e4)`.
 - Newly encoded `[0x2634c,0x265e4)` = **664 bytes**: **151 A32 instructions and 15 separate non-instruction words** in twelve literal pools. First function releases IRQ channels for six hardware sources; nine regular-index accessor wrappers are emitted from a semantic selector/field table; final two routines initialize paired IRQ lines with conditional channel masks.
 - Cumulative independent mnemonic reassembly matches **4,368 instructions and 331 data words in 78 pools**; all previous code remains byte-identical to pinned `venus.mbn`. Next uncovered routine begins at `0x265e4`.
+
+## Checkpoint 17 — IRQ masks, indexed channel accessors and controller reset
+
+- Contiguous typed A32 runtime `[0x21c78,0x2693c)` = **19,652 exact bytes** (MBN file `[0x25c78,0x2a93c)`).
+- Newly generated `[0x265e4,0x2693c)` = **856 bytes**, **195 A32 instructions and 19 named MMIO/data words in seven pools**, covering enable/clear IRQ masks for channel classes and DMA clocks, platform handler dispatching, pending-state acknowledgement, repeated MMIO read barriers and final hardware reset path.
+- Independently rebuilt in Clang/LLVM the entire cumulative source span: **4,563 ARM instructions and 350 data words in 85 separately classified literal pools**; no mismatched bytes.
+- Next uncovered function begins at `0x2693c`.
