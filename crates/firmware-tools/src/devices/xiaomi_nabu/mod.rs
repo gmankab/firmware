@@ -86,6 +86,7 @@ mod venus_runtime_bitmap_controls;
 mod venus_runtime_bridge_lookup;
 mod venus_runtime_bridge_records;
 mod venus_runtime_bridge_state;
+mod venus_runtime_bridge_slots;
 pub mod venus_runtime_bridge;
 pub mod venus_plan;
 

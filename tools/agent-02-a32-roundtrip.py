@@ -72,8 +72,15 @@ def run() -> None:
                 raise ValueError(f'disassembler omitted instruction at 0x{address:x}')
             op, operand = code[address]
             operand = re.sub(r'\s+<[^>]*>.*$', '', operand)
-            if op in ('bl', 'blx', 'b') or (op.startswith('b') and op[1:] in (
-                'eq', 'ne', 'lt', 'le', 'gt', 'ge', 'cs', 'cc', 'hs', 'lo', 'hi', 'ls', 'mi', 'pl')):
+            conditions = ('eq', 'ne', 'lt', 'le', 'gt', 'ge', 'cs', 'cc',
+                          'hs', 'lo', 'hi', 'ls', 'mi', 'pl', 'vs', 'vc')
+            if (op in ('bl', 'blx', 'b') or
+                    (op.startswith('bl') and op[2:] in conditions) or
+                    (op.startswith('b') and op[1:] in conditions)):
+                # Conditional BL (e.g., blne) is PC-relative just like B.
+                # Its absolute objdump target must not become an absolute
+                # assembler operand. Conditional BLS is disambiguated by
+                # testing the complete condition suffix above.
                 target = int(operand.split()[0], 16)
                 delta = target - address
                 operand = f'. {delta:+d}'

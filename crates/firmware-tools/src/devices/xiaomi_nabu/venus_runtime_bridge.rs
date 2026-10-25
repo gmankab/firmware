@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: GPL-3.0-only
 //! Strictly contiguous, independently regenerated Venus bridge bytes.
 //! This assembler intentionally refuses to substitute missing firmware bytes.
-use super::{venus_runtime, venus_runtime_bridge_lookup, venus_runtime_bridge_records, venus_runtime_bridge_state, venus_plan};
+use super::{venus_runtime, venus_runtime_bridge_lookup, venus_runtime_bridge_records, venus_runtime_bridge_state, venus_runtime_bridge_slots, venus_plan};
 use crate::image_plan::ImagePlan;
 
 pub const START: usize = venus_runtime_bridge_lookup::START;
-pub const END: usize = venus_runtime_bridge_state::END;
+pub const END: usize = venus_runtime_bridge_slots::END;
 pub const FILE_OFFSET: usize = venus_runtime_bridge_lookup::FILE_OFFSET;
 pub const BRIDGE_LENGTH: usize = END - START;
 
@@ -21,9 +21,15 @@ pub fn fragment() -> Result<Vec<u8>, String> {
        venus_runtime_bridge_state::FILE_OFFSET != venus_runtime_bridge_records::END + 0x4000 {
         return Err("Venus queue/state bridge fragments are not adjacent".into());
     }
+    let slots = venus_runtime_bridge_slots::fragment()?;
+    if venus_runtime_bridge_state::END != venus_runtime_bridge_slots::START ||
+       venus_runtime_bridge_slots::FILE_OFFSET != venus_runtime_bridge_state::END + 0x4000 {
+        return Err("Venus state/slot bridge fragments are not adjacent".into());
+    }
     let mut result = first;
     result.extend_from_slice(&additional);
     result.extend_from_slice(&state);
+    result.extend_from_slice(&slots);
     if result.len() != BRIDGE_LENGTH {
         return Err("Venus bridge fragment coverage gap".into());
     }
