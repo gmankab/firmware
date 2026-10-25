@@ -231,3 +231,9 @@ Original reference: private `map220v-nabu-firmware/venus.mbn`, SHA-256 `9d4af65d
 - Seven compact routines implement codec/status IRQ reads, DMA interrupt acknowledgement, and queue notification. Pool locations: `0x29490`, `0x294ec`, `0x2954c`, `0x295ac`, `0x29604`, `0x29690–0x29698`, and `0x296ec`.
 - Total `[0x21c78,0x296f0)` contains **7,293 instructions and 545 data words**, with no copied OEM instruction encodings. The original function flow, comments and opcode equivalence are not proof of independent high-level semantic decompilation or device execution.
 - Existing checkpoint-31 Git bundle from a previous session was not mounted; this is a byte-identical recreation on top of recovered checkpoint 29. The next missing ARM runtime address is `0x296f0`.
+
+## Checkpoint 32 — priority-based codec IRQ acknowledgment
+
+- Contiguous `[0x21c78,0x29850)` = **31,704 reference-exact bytes** (MBN `[0x25c78,0x2d850)`). The new `[0x296f0,0x29850)` contains **86 typed A32 instructions** and **2 MMIO controller data words** `[0x29848,0x29850)`.
+- Handles prioritized interrupt pending bits, conditional command-register writes and host interrupt-counter synchronization before a callback. The final return branches to previously reconstructed queue notify at `0x292c` (external target).
+- Strict full-fragment reference comparison and independent Clang/LLD assembler comparison are required. Subsequent pending helper begins at `0x29850`.
