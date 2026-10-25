@@ -231,3 +231,12 @@ The cumulative generated spans are now **1,208** and **1,210** bytes; 458 instru
 **Verification qualification:** This environment does not have the GNU 2.25.1 `nds32le-elf-*` tools used in checkpoint 04. Rust source-to-reference comparison and regression tests were performed, but a fresh independent GNU assembler verification cannot be claimed for checkpoint 05. The linker/emitter dependency is documented rather than bypassed with raw OEM bytes.
 
 PostmarketOS first missing file address: `0xb22`, runtime `0x922`; next routine is absent or relocated in map220v. Remaining assigned postmarketOS bytes: **62,686**. This is an isolated contribution to the old Agent 09 history, not checkpoint-50 integration.
+
+## Checkpoint 06 — PostmarketOS-only controller-state check
+
+- Follow-up NDS32 routine `[0xb22,0xb42)` contributes **32 independently encoded executable bytes (13 instructions)** to the required profile. Cumulative postmarketOS coverage `[0x66a,0xb42)` is **1,240 executable bytes / 471 instructions** (149 32-bit, 322 16-bit), no layout/data/OEM copied bytes and zero reference mismatches.
+- Separately verified older map220v profile remains at `[0x66a,0xb24)` = 1,210 bytes / 458 instructions. This code path is absent here in the old firmware; no bogus register-shift offset alignment was assumed.
+- Three new EX9 upper-ILM dependencies are independently checked from their **semantic effects**, but not counted as reconstructed Agent17 executable code: entry `0xab` = `lwi.gp r0,[0x2eca8]`; entries `0x2e`, `0x141` = `swi.gp r0,[0x2c73c]`, `swi.gp r0,[0x2c740]`. These dependency table bytes belong to Agent18.
+- Added checked GP halfword, signed compact comparisons, bitfield extraction and compact register ADD45/SUB45 typed encoders with tests. NDS32 opcode assignments cross-checked against GNU binutils and OpenOCD sources; byte comparison against both profiles passes.
+- `cargo test --workspace --offline --locked`, `cargo build --workspace --release --offline --locked`, Python discovery and Git cleanliness pass. **Independent GNU NDS32 assembler is not present in this environment; its reassembly check is pending**, not silently reported as passed.
+- First missing postmarketOS file offset `0xb42`; runtime `0x942`.

@@ -74,6 +74,7 @@ pub enum Insn {
     MoveSmall { dest: Reg, value: i8 },
     MovePositive { dest: Reg, value: u8 },
     LoadWordGp { dest: Reg, address: u32 },
+    HalfGp { store: bool, signed: bool, reg: Reg, address: u32 },
     ShortMemory { store: bool, width: Width, reg: Reg, base: Reg, offset: u8 },
     ImmediateMemory { store: bool, width: Width, reg: Reg, base: Reg, offset: i32 },
     WordAtRegister { store: bool, reg: Reg, base: Reg },
@@ -85,15 +86,21 @@ pub enum Insn {
     BranchImmediate { reg: Reg, value: i16, nonzero: bool, target: u32 },
     BranchA5 { reg: Reg, nonzero: bool, target: u32 },
     AddSmall { reg: Reg, value: u8, subtract: bool },
+    /// ADD45/SUB45: compact destructive register arithmetic.
+    AddSmallRegister { dest: Reg, source: Reg, subtract: bool },
     ZeroExtend { dest: Reg, source: Reg, half: bool },
     SignExtendByte { dest: Reg, source: Reg },
     BitMaskShort { reg: Reg, bit: u8 },
+    BitFieldExtractImmediate { reg: Reg, bit: u8 },
     CompactOr { dest: Reg, source: Reg },
     OrImmediate { dest: Reg, source: Reg, value: u16 },
     AndImmediate { dest: Reg, source: Reg, value: u16 },
     SubtractSmall3 { dest: Reg, source: Reg, value: u8 },
     /// SLTI45 writes the implicit temporary register TA.
     LessThanSmallImmediate { reg: Reg, value: u8 },
+    LessThanSmallRegister { left: Reg, right: Reg },
+    LessThanSignedSmallRegister { left: Reg, right: Reg },
+    LessThanSignedSmallImmediate { reg: Reg, value: u8 },
     BranchTa { nonzero: bool, target: u32 },
     BitSet { dest: Reg, source: Reg, bit: u8 },
     IndexedByte { store: bool, reg: Reg, base: Reg, index: Reg, shift: u8 },
@@ -155,6 +162,13 @@ impl Insn {
                 let delta=i64::from(address)-i64::from(gp);
                 if delta%4!=0{return Err("unaligned GP word address".into());}
                 (0x1e<<25)|(dest.number()<<20)|(6<<17)|signed(delta/4,17)?
+            }
+            HalfGp { store,signed:is_signed,reg,address } => {
+                if store && is_signed {return Err("signed GP halfword store is impossible".into());}
+                let delta=i64::from(address)-i64::from(gp);
+                if delta&1 != 0 {return Err("unaligned GP halfword address".into());}
+                let type_code=if store{4}else if is_signed{2}else{0};
+                (0x1e<<25)|(reg.number()<<20)|(type_code<<17)|signed(delta/2,18)?
             }
             ImmediateMemory { store,width,reg,base,offset } => {
                 let scale=i32::from(width.scale());
@@ -245,17 +259,28 @@ impl Insn {
                 if value>31{return Err("ADDI45/SUBI45 value exceeds 31".into());}
                 0x8c00|u16::from(subtract)<<9|reg.compact()?<<5|u16::from(value)
             }
+            AddSmallRegister { dest,source,subtract } => 0x8800|u16::from(subtract)<<9|dest.compact()?<<5|source.number() as u16,
             ZeroExtend { dest,source,half } => 0x9600|dest.small()?<<6|source.small()?<<3|u16::from(half),
             SignExtendByte { dest,source } => 0x9602|dest.small()?<<6|source.small()?<<3,
             SubtractSmall3 { dest,source,value } => {
                 if value>7{return Err("SUBI333 value exceeds 7".into());}
                 0x9e00|dest.small()?<<6|source.small()?<<3|u16::from(value)
             }
+            LessThanSmallRegister {left,right} => 0xe200|left.compact()?<<5|right.number() as u16,
+            LessThanSignedSmallRegister {left,right} => 0xe000|left.compact()?<<5|right.number() as u16,
+            LessThanSignedSmallImmediate {reg,value} => {
+                if value>31{return Err("SLTSI45 value exceeds 31".into());}
+                0xe400|reg.compact()?<<5|u16::from(value)
+            },
             LessThanSmallImmediate { reg,value } => {
                 if value>31{return Err("SLTI45 value exceeds 31".into());}
                 0xe600|reg.compact()?<<5|u16::from(value)
             }
             BranchTa { nonzero,target } => (if nonzero{0xe900}else{0xe800})|displacement(pc,target,8)? as u16,
+            BitFieldExtractImmediate {reg,bit} => {
+                if bit>7 {return Err("FEXTI33 bit exceeds 7".into());}
+                0x9607|reg.small()?<<6|u16::from(bit)<<3
+            },
             BitMaskShort { reg,bit } => {
                 if bit>7{return Err("BMSKI33 bit exceeds 7".into());}
                 0x9606|reg.small()?<<6|u16::from(bit)<<3
@@ -302,6 +327,7 @@ impl Insn {
             MoveSmall { dest,value } => format!("movi55 {},{}",r(dest),value),
             MovePositive { dest,value } => format!("movpi45 {},{}",r(dest),value),
             LoadWordGp { dest,address } => format!("lwi.gp {},[{}]",r(dest),i64::from(address)-i64::from(gp)),
+            HalfGp { store,signed,reg,address } => format!("{} {},[{}]",if store{"shi.gp"}else if signed{"lhsi.gp"}else{"lhi.gp"},r(reg),i64::from(address)-i64::from(gp)),
             ShortMemory { store,width,reg,base,offset } => format!("{}{}i333 {},[{}+{}]",if store{"s"}else{"l"},width.letter(),r(reg),r(base),offset),
             ImmediateMemory { store,width,reg,base,offset } => format!("{}{}i {},[{}{:+}]",if store{"s"}else{"l"},width.letter(),r(reg),r(base),offset),
             WordAtRegister { store,reg,base } => format!("{}wi450 {},[{}]",if store{"s"}else{"l"},r(reg),r(base)),
@@ -313,12 +339,17 @@ impl Insn {
             BranchImmediate { reg,value,nonzero,target } => format!("{} {},{},.{:+}",if nonzero{"bnec"}else{"beqc"},r(reg),value,i64::from(target)-i64::from(pc)),
             BranchA5 { reg,nonzero,target } => format!("{} {},.{:+}",if nonzero{"bnes38"}else{"beqs38"},r(reg),i64::from(target)-i64::from(pc)),
             AddSmall { reg,value,subtract } => format!("{} {},{}",if subtract{"subi45"}else{"addi45"},r(reg),value),
+            AddSmallRegister { dest,source,subtract } => format!("{} {},{}",if subtract{"sub45"}else{"add45"},r(dest),r(source)),
             ZeroExtend { dest,source,half } => format!("{} {},{}",if half{"zeh33"}else{"zeb33"},r(dest),r(source)),
             SignExtendByte { dest,source } => format!("seb33 {},{}",r(dest),r(source)),
             SubtractSmall3 { dest,source,value } => format!("subi333 {},{},{}",r(dest),r(source),value),
             LessThanSmallImmediate { reg,value } => format!("slti45 {},{}",r(reg),value),
+            LessThanSmallRegister {left,right} => format!("slt45 {},{}",r(left),r(right)),
+            LessThanSignedSmallRegister {left,right} => format!("slts45 {},{}",r(left),r(right)),
+            LessThanSignedSmallImmediate {reg,value} => format!("sltsi45 {},{}",r(reg),value),
             BranchTa { nonzero,target } => format!("{} .{:+}",if nonzero{"bnezs8"}else{"beqzs8"},i64::from(target)-i64::from(pc)),
             BitMaskShort { reg,bit } => format!("bmski33 {},{}",r(reg),bit),
+            BitFieldExtractImmediate {reg,bit} => format!("fexti33 {},{}",r(reg),bit),
             CompactOr { dest,source } => format!("or33 {},{}",r(dest),r(source)),
             OrImmediate { dest,source,value } => format!("ori {},{},{}",r(dest),r(source),value),
             AndImmediate { dest,source,value } => format!("andi {},{},{}",r(dest),r(source),value),
@@ -342,6 +373,20 @@ impl Insn {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn short_signed_comparisons_halfword_gp_and_register_add() {
+        assert_eq!(Insn::AddSmallRegister{dest:R0,source:R1,subtract:false}.encode(0,0).unwrap(),[0x88,0x01]);
+        assert_eq!(Insn::AddSmallRegister{dest:Reg::new(16),source:R1,subtract:true}.encode(0,0).unwrap(),[0x8b,0x81]);
+        assert!(Insn::AddSmallRegister{dest:Reg::new(12),source:R1,subtract:false}.encode(0,0).is_err());
+        assert_eq!(Insn::LessThanSmallRegister{left:R1,right:R2}.encode(0,0).unwrap(),[0xe2,0x22]);
+        assert_eq!(Insn::LessThanSignedSmallRegister{left:R1,right:R2}.encode(0,0).unwrap(),[0xe0,0x22]);
+        assert_eq!(Insn::LessThanSignedSmallImmediate{reg:R1,value:2}.encode(0,0).unwrap(),[0xe4,0x22]);
+        assert!(Insn::LessThanSignedSmallImmediate{reg:R0,value:32}.encode(0,0).is_err());
+        assert_eq!(Insn::BitFieldExtractImmediate{reg:R1,bit:2}.encode(0,0).unwrap(),[0x96,0x57]);
+        assert!(Insn::HalfGp{store:true,signed:true,reg:R0,address:0x2d9e0}.encode(0,0x2d9e0).is_err());
+        assert!(Insn::HalfGp{store:true,signed:false,reg:R0,address:0x2d9e1}.encode(0,0x2d9e0).is_err());
+        assert_eq!(Insn::HalfGp{store:false,signed:false,reg:R0,address:0x2d9e0}.encode(0,0x2d9e0).unwrap(),[0x3c,0,0,0]);
+    }
     #[test]
     fn compact_register_map_rejects_holes() {
         assert_eq!(Reg::new(11).compact().unwrap(),11);

@@ -58,6 +58,9 @@ PROFILES = {
             0x1AF: {"operation": "ori", "destination_register": 0, "source_register": 0, "immediate": 8},
             0x1BC: {"operation": "swi.gp", "source_register": 0, "address": 0x2C58C},
             0x1C5: {"operation": "movi", "destination_register": 0, "immediate": 0x2FE60},
+            0x2E: {"operation": "swi.gp", "source_register": 0, "address": 0x2C73C},
+            0xAB: {"operation": "lwi.gp", "destination_register": 0, "address": 0x2ECA8},
+            0x141: {"operation": "swi.gp", "source_register": 0, "address": 0x2C740},
         },
     },
     "map220v": {
@@ -115,6 +118,7 @@ CHECKPOINT_COUNTS["postmarketos"][0xB1A] = (455, 145, 310, 55, 29)
 CHECKPOINT_COUNTS["map220v"][0xB1C] = (455, 146, 309, 54, 28)
 CHECKPOINT_COUNTS["postmarketos"][0xB22] = (458, 146, 312, 55, 29)
 CHECKPOINT_COUNTS["map220v"][0xB24] = (458, 147, 311, 54, 28)
+CHECKPOINT_COUNTS["postmarketos"][0xB42] = (471, 149, 322, 58, 32)
 SUPPORTED_MNEMONICS = {
     2: frozenset({
         "addi45", "beqs38", "bnes38", "beqz38", "bnez38", "beqzs8", "bnezs8",
