@@ -816,3 +816,108 @@ MODEM_TLB_UNLOCK
 }
 modem_pagewalk_return:
 { jumpr lr }
+
+// Protected word-transfer dispatcher. It preserves the exception link in r17,
+// initializes the global memory region and calls an already reconstructed
+// pagewalk prior to launching a cache-line transfer helper.
+.globl agent11_modem_dispatch_protected_word_transfer
+agent11_modem_dispatch_protected_word_transfer:
+{ r17 = r31 }
+{ r29 = ##-1065079608 }
+{ call ##agent11_modem_protected_pagewalk }
+{ r0 = memw(##3230081848) }
+{ call ##agent11_modem_zero_cache_lines }
+{ r31 = r17 }
+{ jumpr r31 }
+
+// Bounded single-level loop: zero a whole L2 cache line before copying the
+// next two adjacent 64-bit register pairs into the controller destination.
+.globl agent11_modem_zero_cache_lines
+agent11_modem_zero_cache_lines:
+{
+    r1 = memw(##3249373896)
+    r2 = memw(##3249373900)
+}
+{
+    p0 = cmp.eq(r1,#0)
+    if (p0.new) jump:nt modem_zero_cache_return
+}
+{
+    p0 = cmp.eq(r2,#0)
+    if (p0.new) jump:nt modem_zero_cache_return
+}
+{
+    p0 = cmp.gt(r2,#32)
+    if (!p0.new) jump:nt modem_zero_cache_return
+}
+{
+    r3 = lsr(r2,#5)
+    p0 = cmp.eq(r0,#0)
+    if (p0.new) jump:nt modem_zero_cache_return
+}
+{
+    loop0(modem_zero_cache_next,r3)
+    r4 = add(r0,#8)
+    r5 = add(r1,#8)
+}
+modem_zero_cache_next:
+{ dczeroa(r1) }
+{
+    r7:6 = memd(r0++#16)
+    r9:8 = memd(r4++#16)
+}
+{
+    memd(r1++#16) = r7:6
+    memd(r5++#16) = r9:8
+}
+{
+    r7:6 = memd(r0++#16)
+    r9:8 = memd(r4++#16)
+}
+{
+    memd(r1++#16) = r7:6
+    memd(r5++#16) = r9:8
+}:endloop0
+modem_zero_cache_return:
+{ jumpr r31 }
+
+// A four-word physical-indexed copy: extract an eleven-bit selector from a
+// source register, read the protected physical word, and write to a buffer.
+// MODEM_PHY_WORD_LOAD uses the already checked Hexagon Y2 physical load ISA.
+.globl agent11_modem_copy_phys_words
+agent11_modem_copy_phys_words:
+{
+    r1 = memw(##3261442188)
+    r3 = memw(##3249316576)
+}
+{
+    p0 = cmp.eq(r1,#0)
+    if (p0.new) jump:nt modem_phys_copy_done
+}
+{
+    p0 = cmp.eq(r3,#0)
+    if (p0.new) jump:nt modem_phys_copy_done
+}
+{
+    p0 = cmp.gt(r3,#32)
+    if (!p0.new) jump:nt modem_phys_copy_done
+    r0 = memw(##3230081860)
+}
+{
+    r2 = lsr(r3,#2)
+    p0 = cmp.eq(r0,#0)
+    if (p0.new) jump:nt modem_phys_copy_done
+}
+{
+    loop0(modem_phys_copy_next,r2)
+    r2 = #11
+}
+modem_phys_copy_next:
+{ r4 = lsr(r0,r2) }
+MODEM_PHY_WORD_LOAD 5,0,4
+{
+    r0 = add(r0,#4)
+    memw(r1++#4) = r5
+}:endloop0
+modem_phys_copy_done:
+{ jumpr lr }

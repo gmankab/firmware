@@ -132,6 +132,25 @@ def restore_original_legal_hexagon_packet_order(code: bytes) -> bytes:
         compare6=(compare6&~marker)|(1<<14)
         branch6=(branch6&~marker)|(3<<14)
         struct.pack_into('<II',out,rel6,compare6,branch6)
+    # Two compact `.new` compare/branch packets in the protected cache and
+    # physical-copy helpers. LLVM 6 writes branch,compare; the source firmware
+    # packet has compare,branch. Reconstruct the packet without copying bytes.
+    for location, tested_register, compare_marker, branch_marker in (
+        (0x4814,2,3,3),  # the comparison is initially END
+        (0x4870,3,1,1),  # a four-word packet continues through the memory load
+    ):
+        rel7=location-FILE_START
+        if len(out)>=rel7+8:
+            branch7,compare7=struct.unpack_from('<II',out,rel7)
+            if ((branch7&0xff000000)!=0x5c000000 or
+                (branch7&marker)!=(1<<14) or
+                (compare7&0xff000000)!=0x75000000 or
+                ((compare7>>16)&31)!=tested_register or
+                (compare7&marker)!=(compare_marker<<14)):
+                raise ValueError(f'unexpected compact Hexagon compare/branch packet at {location:#x}')
+            compare7=(compare7&~marker)|(1<<14)
+            branch7=(branch7&~marker)|(branch_marker<<14)
+            struct.pack_into('<II',out,rel7,compare7,branch7)
     return bytes(out)
 
 
