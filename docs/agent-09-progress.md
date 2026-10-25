@@ -615,3 +615,43 @@ Tests: full offline Rust workspace tests (195), Python unittest suite (13),
 offline release build, `verify-envelope` for both references, strict
 six-file external-input assembly round-trip. Not flashable; firmware runtime
 behavior remains unverified.
+
+## Checkpoint 15 — Independently authored interrupt-controller reset sequence
+
+Added an 86-byte NDS32 boot-control and tiny service routine at
+`[0x588,0x5de)`. It sets/reads system CSR 0x89 and 0x20, disables/branches
+on platform control state, establishes the interrupt-table base (`mtusr itb`),
+performs an `EX9.IT` service and uses a compact `PUSH25`/`POP25` prologue.
+Every instruction is generated via checked NDS32 constructors, not copied
+from either reference. The last compact routine ends with `POP25`, which
+returns via `lp`; execution after `0x5de` belongs to a separate function.
+
+Both revisions exactly match when built from their own **non-opcode values**:
+
+| Field | Required postmarketOS | Older upstream |
+| --- | ---: | ---: |
+| Global-pointer base | `0x2d9e0` | `0x2d7f0` |
+| Interrupt-table address | `0x17bc0` | `0x17010` |
+| Service workspace address | `0x2f2cc` | `0x2eeec` |
+| Boot-control address | `0x2c390` | `0x2c378` |
+| EX9 service identifiers | `0x4b`, `0x3d` | `0x33`, `0x38` |
+
+The new emitter includes checked `BREAK`, sixteen-bit `OR33/XOR33/XLSB33`,
+`MOVI55`, `SUB333`, `SBI333`, `EX9.IT`, `PUSH25`/`POP25`, and control-register
+read/write encoding. It emits exactly 86 bytes, verified independently against
+both private firmware binaries with zero differences.
+
+The total standalone **source-authored NDS32 code** is now **398 executable
+bytes** (`[0x450,0x5de)`), but the strict assembler still embeds only 312
+until the next checkpoint. No complete ILM/DLM has been reconstructed.
+
+```sh
+cargo run --offline --locked -p firmware-tools --bin novatek-nabu -- \
+  emit-nds32-boot-control postmarketos /tmp/novatek-boot-86.bin
+cargo run --offline --locked -p firmware-tools --bin novatek-nabu -- \
+  verify-nds32-boot-control /private/novatek_nt36523_fw.bin postmarketos
+```
+
+Validation: Rust workspace tests, Python unittest tests, and offline release
+build. The two CRC-valid layout variants remain independently generated only
+in the already integrated `[0x450,0x588)` prefix for now.

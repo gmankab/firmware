@@ -51,6 +51,34 @@ fn run() -> Result<(), String> {
         println!("Wrote {} structural bytes; hardware CRC verified: {}. WARNING: remaining ILM/DLM provenance and behavior NOT verified; do NOT flash.", built.bytes.len(),built.is_hardware_crc_verified());
         return Ok(());
     }
+    if args.first().map(String::as_str)==Some("emit-nds32-boot-control") && args.len()==3 {
+        let profile=match args[1].as_str(){
+            "postmarketos"=>novatek_nds32::POSTMARKETOS_BOOT,
+            "map220v"=>novatek_nds32::MAP220V_BOOT,
+            _=>return Err("boot-control variant must be postmarketos or map220v".into()),
+        };
+        let code=novatek_nds32::boot_control_setup(profile)?;
+        fs::write(&args[2],&code).map_err(|e|e.to_string())?;
+        println!("Generated {} source-derived NDS32 boot-control bytes [0x{:x},0x{:x})",
+            code.len(),novatek_nds32::THIRD_INTERRUPT_END,novatek_nds32::BOOT_SETUP_END);
+        return Ok(());
+    }
+    if args.first().map(String::as_str)==Some("verify-nds32-boot-control") && args.len()==3 {
+        let profile=match args[2].as_str(){
+            "postmarketos"=>novatek_nds32::POSTMARKETOS_BOOT,
+            "map220v"=>novatek_nds32::MAP220V_BOOT,
+            _=>return Err("boot-control variant must be postmarketos or map220v".into()),
+        };
+        let reference=fs::read(&args[1]).map_err(|e|e.to_string())?;
+        let layout=NabuNovatekLayout::parse(&reference)?;
+        if layout.ilm.end()? < novatek_nds32::BOOT_SETUP_END {
+            return Err("boot setup outside firmware ILM".into());
+        }
+        novatek_nds32::verify_boot_control_setup(&reference,profile)?;
+        println!("NDS32 boot control: independently encoded {} bytes exactly match {}",
+            novatek_nds32::BOOT_SETUP_END-novatek_nds32::THIRD_INTERRUPT_END,args[2]);
+        return Ok(());
+    }
     // A third NDS32 exception handler contains GP-relative relocations that
     // differ between the required postmarketOS and historic upstream images.
     // Variant must be explicit: a random OEM binary cannot be passed off as
@@ -121,7 +149,7 @@ fn run() -> Result<(), String> {
         return Ok(());
     }
     if args.len() < 2 || args.len() > 3 {
-        return Err("usage: novatek-nabu <emit-nds32-isr out.bin|verify-nds32-isr reference.bin|emit-nds32-extra-paths out.bin|verify-nds32-extra-paths reference.bin|emit-nds32-third-path postmarketos|map220v out.bin|verify-nds32-third-path reference.bin postmarketos|map220v> | <inspect|verify-dlm-mirror|verify-crcs|emit-recomputed-crc-header|emit-header|emit-padding|emit-vector|emit-vector-padding|emit-post-dlm-padding|emit-tail-padding|emit-marker|verify-header|verify-envelope|verify-vectors> <private-reference.bin> [output] | assemble-structural-unverified <private-meta-reference> <externally-authored-vector-words> <independently-authored-ilm-after-0x588> <independently-authored-dlm> <output> | assemble-crc-validated <private-meta-reference> <authored-vector-words> <authored-ilm> <authored-dlm> <output>".into());
+        return Err("usage: novatek-nabu <emit-nds32-isr out.bin|verify-nds32-isr reference.bin|emit-nds32-extra-paths out.bin|verify-nds32-extra-paths reference.bin|emit-nds32-third-path postmarketos|map220v out.bin|verify-nds32-third-path reference.bin postmarketos|map220v|emit-nds32-boot-control postmarketos|map220v out.bin|verify-nds32-boot-control reference.bin postmarketos|map220v> | <inspect|verify-dlm-mirror|verify-crcs|emit-recomputed-crc-header|emit-header|emit-padding|emit-vector|emit-vector-padding|emit-post-dlm-padding|emit-tail-padding|emit-marker|verify-header|verify-envelope|verify-vectors> <private-reference.bin> [output] | assemble-structural-unverified <private-meta-reference> <externally-authored-vector-words> <independently-authored-ilm-after-0x588> <independently-authored-dlm> <output> | assemble-crc-validated <private-meta-reference> <authored-vector-words> <authored-ilm> <authored-dlm> <output>".into());
     }
     let command = &args[0];
     let reference = fs::read(&args[1]).map_err(|e| e.to_string())?;

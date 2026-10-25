@@ -18,6 +18,8 @@ pub const EXTRA_INTERRUPTS_END:usize=0x544;
 /// End of the third NDS32 exception path, including the GP-relative
 /// interrupt status-table lookup and unconditional peripheral dispatch.
 pub const THIRD_INTERRUPT_END:usize=0x588;
+/// Initial control-register setup and a compact controller service function.
+pub const BOOT_SETUP_END:usize=0x5de;
 /// Verified link-time GP bases for the two private Nabu image revisions.
 /// These are CPU base-address constants, not vendor opcode words.
 pub const POSTMARKETOS_GP_BASE:i32=0x2d9e0;
@@ -90,10 +92,10 @@ pub fn multiple_words(
 
 /// User special-register read/write (`mfusr`/`mtusr`).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum UserSpecial { IfcLp }
+pub enum UserSpecial { IfcLp, Itb }
 impl UserSpecial {
     fn fields(self) -> (u32,u32) {
-        match self { Self::IfcLp => (0,29) }
+        match self { Self::IfcLp => (0,29), Self::Itb=>(0,28) }
     }
 }
 pub fn user_register(rt:Gpr, special:UserSpecial, write:bool) -> u32 {
@@ -112,6 +114,10 @@ pub enum SystemRegister {
     Ipc,
     /// CSR 0x99; register interpretation requires an exact controller map.
     Csr099,
+    /// System control register 0x89, used by initial controller enable.
+    Csr089,
+    /// System control register 0x20, used to select interrupt table handling.
+    Csr020,
 }
 impl SystemRegister {
     pub fn index(self) -> u32 {
@@ -120,6 +126,8 @@ impl SystemRegister {
             Self::Ipsw => 0x81,
             Self::Ipc => 0xa9,
             Self::Csr099 => 0x99,
+            Self::Csr089 => 0x89,
+            Self::Csr020 => 0x20,
         }
     }
 }
@@ -132,6 +140,66 @@ pub fn system_register(rt:Gpr, source:SystemRegister, write:bool) -> u32 {
 pub fn disable_global_interrupts() -> u32 {
     (0b110010_u32<<25) | (0x80<<10) | (2<<5) | 3
 }
+/// The NDS32 `break Swid` instruction. This checked form encodes a 15-bit
+/// software trap identifier; the boot path uses 0x7fff as an error sentinel.
+pub fn debug_break(swid:u16)->Result<u32,String>{
+    if swid>0x7fff{return Err("NDS32 BREAK identifier exceeds 15 bits".into());}
+    Ok((0b110010_u32<<25)|((swid as u32)<<5)|0b01010)
+}
+
+/// 16-bit register-to-register bitwise operations on the small GPR subset.
+#[derive(Clone,Copy,Debug,PartialEq,Eq)]
+pub enum SmallBitOp{Or,Xor,LowBit}
+pub fn short_bitop(out:Gpr,src:Gpr,op:SmallBitOp)->Result<u16,String>{
+    if out.number()>7 || src.number()>7{return Err("16-bit NDS32 bitwise operands must be a0..s1".into());}
+    let (opc,sel)=match op {
+        SmallBitOp::Or => (0b111111,0b111),
+        SmallBitOp::Xor => (0b111111,0b101),
+        SmallBitOp::LowBit => (0b001011,0b100),
+    };
+    Ok(0x8000 | (opc<<9) | ((out.number() as u16)<<6) |
+        ((src.number() as u16)<<3) | sel)
+}
+
+/// NDS32 compressed MOVI55 with signed five-bit literal.
+pub fn short_move_immediate(rt:Gpr,lit:i8)->Result<u16,String>{
+    if rt.number()>31 || !(-16..=15).contains(&lit){return Err("MOVI55 literal out of range".into());}
+    Ok(0x8000|(0b00001<<10)|((rt.number() as u16)<<5)|(lit as u16&31))
+}
+
+/// Compressed SUB333: `dst = left - right` in a0..s1.
+pub fn short_subtract(dst:Gpr,left:Gpr,right:Gpr)->Result<u16,String>{
+    if [dst,left,right].iter().any(|r|r.number()>7){return Err("SUB333 requires a0..s1".into());}
+    Ok(0x8000|(0b001101<<9)|((dst.number() as u16)<<6)|
+        ((left.number() as u16)<<3)|(right.number() as u16))
+}
+
+/// Compressed `sbi333 rt3, [ra3+#imm3]`.
+pub fn short_store_byte(rt:Gpr,base:Gpr,displacement:u8)->Result<u16,String>{
+    if rt.number()>7 || base.number()>7 || displacement>7 {
+        return Err("SBI333 operand or displacement outside short encoding".into());
+    }
+    Ok(0x8000|(0b010111<<9)|((rt.number() as u16)<<6)|
+        ((base.number() as u16)<<3)|(displacement as u16))
+}
+
+/// NDS32 short software interrupt/EX9.IT with 9-bit immediate > 31;
+/// lower immediate values have a distinct compact encoding.
+pub fn short_ex9(interrupt_code:u16)->Result<u16,String>{
+    if !(32..=511).contains(&interrupt_code){return Err("EX9.IT wide encoding needs immediate 32..511".into());}
+    Ok(0x8000|(0b110101<<9)|interrupt_code)
+}
+
+/// PUSH25/POP25 short prologues; `group=0` saves s0 plus fp/gp/lp;
+/// `stack_extra` is an immediate multiple of 8 in the field.
+pub fn short_push_pop(pop:bool,group:u8,stack_extra:u16)->Result<u16,String>{
+    if group>3 || stack_extra&7!=0 || stack_extra>248 {
+        return Err("PUSH25/POP25 group or stack reservation invalid".into());
+    }
+    Ok(0x8000|((if pop{0b11111001}else{0b11111000})<<7)|
+        ((group as u16)<<5)|(stack_extra>>3))
+}
+
 pub fn data_synchronization_barrier() -> u32 { (0b110010_u32<<25)|8 }
 pub fn interrupt_return() -> u32 { (0b110010_u32<<25)|4 }
 
@@ -287,6 +355,90 @@ pub fn third_interrupt_path(gp_base:i32)->Result<Vec<u8>,String>{
 
 /// Audit just the newly implemented executable range against private
 /// reference, while allowing either independently documented GP profile.
+/// Per-revision linker addresses for independently reconstructed reset
+/// setup, distinct from the fixed-structure controller metadata and GP.
+#[derive(Clone,Copy,Debug,PartialEq,Eq)]
+pub struct BootProfile {
+    pub global_pointer:i32,
+    pub service_workspace:i32,
+    pub boot_control:i32,
+    /// Runtime interrupt-table base address.
+    pub interrupt_table:i32,
+    /// Two vendor-defined software exception service identifiers.
+    pub service_init_code:u16,
+    pub service_wake_code:u16,
+}
+pub const POSTMARKETOS_BOOT:BootProfile=BootProfile{
+    global_pointer:POSTMARKETOS_GP_BASE,
+    service_workspace:0x2f2cc,
+    boot_control:0x2c390,
+    interrupt_table:0x17bc0,
+    service_init_code:0x4b,
+    service_wake_code:0x3d,
+};
+pub const MAP220V_BOOT:BootProfile=BootProfile{
+    global_pointer:MAP220V_GP_BASE,
+    service_workspace:0x2eeec,
+    boot_control:0x2c378,
+    interrupt_table:0x17010,
+    service_init_code:0x33,
+    service_wake_code:0x38,
+};
+
+/// Initial interrupt-enable controller setup (`0x588..0x5c8`), followed by
+/// a small service callback (`0x5c8..0x5de`). Values differ by *linker
+/// placement*, while instructions and packet structure are identical.
+pub fn boot_control_setup(profile:BootProfile)->Result<Vec<u8>,String>{
+    let a0=Gpr::A0; let a1=Gpr::A1; let a2=Gpr::A2;
+    let s0=Gpr::new(6)?;let sp=Gpr::SP;let gp=Gpr::new(29)?;
+    let ta=Gpr::TA;
+    let mut out=Vec::with_capacity(BOOT_SETUP_END-THIRD_INTERRUPT_END);
+    be32(&mut out,system_register(a0,SystemRegister::Csr089,false));
+    be32(&mut out,move_immediate(a1,0xc000)?);
+    be16(&mut out,short_bitop(a0,a1,SmallBitOp::Or)?);
+    be16(&mut out,short_bitop(a0,a1,SmallBitOp::Xor)?);
+    be32(&mut out,system_register(a0,SystemRegister::Csr089,true));
+    be32(&mut out,data_synchronization_barrier());
+    be32(&mut out,move_immediate(gp,profile.global_pointer)?);
+    be32(&mut out,move_immediate(sp,0x2fe00)?);
+    be32(&mut out,system_register(a0,SystemRegister::Csr020,false));
+    be16(&mut out,shift_right_immediate(a0,24)?);
+    be16(&mut out,short_bitop(a0,a0,SmallBitOp::LowBit)?);
+    be16(&mut out,branch_equal_zero_short(0x5ac,a0,0x5b6)?);
+    be32(&mut out,move_immediate(a0,profile.interrupt_table)?);
+    be32(&mut out,user_register(a0,UserSpecial::Itb,true));
+    be32(&mut out,move_immediate(ta,0x4bc)?);
+    be16(&mut out,branch_ta_zero_short(0x5ba,0x5be)?);
+    be16(&mut out,branch_not_equal_to_a5(0x5bc,Gpr::A5,0x61a)?);
+    be32(&mut out,gp_relative_word_load(ta,profile.global_pointer,0x12c)?);
+    be16(&mut out,branch_not_equal_to_a5(0x5c2,Gpr::A5,0x620)?);
+    be32(&mut out,debug_break(0x7fff)?);
+    // The next small routine has a balanced PUSH25/POP25 stack frame.
+    be16(&mut out,short_push_pop(false,0,0)?);
+    be32(&mut out,move_immediate(s0,profile.service_workspace)?);
+    be32(&mut out,move_immediate(a0,profile.boot_control)?);
+    be16(&mut out,short_move_immediate(a1,0)?);
+    be16(&mut out,short_subtract(a2,s0,a0)?);
+    be16(&mut out,short_ex9(profile.service_init_code)?);
+    be16(&mut out,short_ex9(profile.service_wake_code)?);
+    be16(&mut out,short_store_byte(a0,s0,1)?);
+    be16(&mut out,short_push_pop(true,0,0)?);
+    if out.len()!=BOOT_SETUP_END-THIRD_INTERRUPT_END{
+        return Err(format!("boot setup length {} != {}",out.len(),BOOT_SETUP_END-THIRD_INTERRUPT_END));
+    }
+    Ok(out)
+}
+
+pub fn verify_boot_control_setup(firmware:&[u8],profile:BootProfile)->Result<(),String>{
+    if firmware.len()<BOOT_SETUP_END{return Err("firmware too short for boot control".into());}
+    let code=boot_control_setup(profile)?;
+    let original=&firmware[THIRD_INTERRUPT_END..BOOT_SETUP_END];
+    if let Some(i)=code.iter().zip(original).position(|(a,b)|a!=b){
+        return Err(format!("NDS32 boot setup mismatch at file offset 0x{:x}",THIRD_INTERRUPT_END+i));
+    }
+    Ok(())
+}
+
 pub fn verify_third_interrupt_path(firmware:&[u8],gp_base:i32)->Result<(),String>{
     if firmware.len()<THIRD_INTERRUPT_END{return Err("firmware too short for third ISR".into());}
     let built=third_interrupt_path(gp_base)?;
@@ -512,6 +664,30 @@ pub fn verify_first_handler(firmware:&[u8])->Result<(),String>{
         assert_eq!(disable_global_interrupts(),0x64020043);
         assert_eq!(data_synchronization_barrier(),0x64000008);
         assert_eq!(interrupt_return(),0x64000004);
+    }
+    #[test]fn initial_reset_and_service_control_have_no_hidden_opcodes(){
+        assert_eq!(boot_control_setup(POSTMARKETOS_BOOT).unwrap().len(),0x56);
+        assert_eq!(user_register(Gpr::A0,UserSpecial::Itb,true),0x420e0021);
+        assert_eq!(system_register(Gpr::A0,SystemRegister::Csr089,false),0x64022402);
+        assert_eq!(short_bitop(Gpr::A0,Gpr::A1,SmallBitOp::Or).unwrap(),0xfe0f);
+        assert_eq!(short_bitop(Gpr::A0,Gpr::A1,SmallBitOp::Xor).unwrap(),0xfe0d);
+        assert_eq!(short_bitop(Gpr::A0,Gpr::A0,SmallBitOp::LowBit).unwrap(),0x9604);
+        assert_eq!(short_push_pop(false,0,0).unwrap(),0xfc00);
+        assert_eq!(short_push_pop(true,0,0).unwrap(),0xfc80);
+        assert_eq!(short_subtract(Gpr::A2,Gpr::new(6).unwrap(),Gpr::A0).unwrap(),0x9ab0);
+        assert_eq!(short_store_byte(Gpr::A0,Gpr::new(6).unwrap(),1).unwrap(),0xae31);
+        assert_eq!(short_ex9(0x4b).unwrap(),0xea4b);
+        assert_eq!(short_ex9(0x3d).unwrap(),0xea3d);
+        assert!(short_ex9(0x13).is_err());
+        assert!(short_push_pop(false,4,0).is_err());
+        for p in [POSTMARKETOS_BOOT,MAP220V_BOOT]{
+            let code=boot_control_setup(p).unwrap();
+            let mut firmware=vec![0;BOOT_SETUP_END];
+            firmware[THIRD_INTERRUPT_END..BOOT_SETUP_END].copy_from_slice(&code);
+            verify_boot_control_setup(&firmware,p).unwrap();
+            firmware[0x5dc]^=1;
+            assert!(verify_boot_control_setup(&firmware,p).unwrap_err().contains("0x5dc"));
+        }
     }
     #[test]fn third_path_correctly_encodes_branches_and_gp_relative_memory(){
         assert_eq!(branch_zero(0x544,Gpr::SP,0x588,ZeroBranch::Equal).unwrap(),0x4ff20022);
