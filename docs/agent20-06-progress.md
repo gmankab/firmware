@@ -323,3 +323,11 @@ python3 tools/agent20_06_a32_roundtrip.py /private/venus.mbn 0xa8ea0 0xa92c8 \
 - Rebuilds device descriptor allocation, checks allocation and controller state, initializes shared metadata, invokes caller callback hooks, and preserves original cleanup/return flow. The twelve-word literal pool includes the reference function address `0xb60ec` and controller-global pointers, not executable instructions.
 - Direct typed Rust emission and independent Clang/LLVM reassembly match original **with zero differences**; a Rust regression validates all 12 words. **208 Rust tests**, **13 Python tests** pass. Offline release build is not claimed in this checkpoint.
 - Next runtime address `0xb65e4` (`venus.mbn` file `0xba5e4`) begins a small callback thunk; no behavior/hardware/OEM-signing validation has been established. Work is provisional old-base instruction re-encoding only.
+
+## Checkpoint 37 — controller context thunks and codec descriptor registration
+
+- Cumulative exact Venus runtime `[0xa8000,0xb68bc)` = **59,580 bytes**, original `venus.mbn` file `[0xac000,0xba8bc)`.
+- New `[0xb65e4,0xb68bc)` = **728 bytes**: **173 typed ARM32 instructions (692 bytes)** and nine literal/controller data words (36 bytes) `[0xb6898,0xb68bc)`.
+- Rebuilt the small controller forwarding thunks `[0xb65e4,0xb6654)` and the descriptor-registration function `[0xb6654,0xb68bc)`, preserving its conditional branches, controller callbacks and source register-allocation semantics. Data words include controller globals and diagnostic addresses, not instructions.
+- Independent Clang/LLVM assembler matches all 692 instruction and 36 data bytes (`--data-range 0xb6898:0xb68bc`), zero differences; full typed emitter verifies the entire cumulative fragment. **209 Rust and 13 Python tests pass.** Release build not claimed at this checkpoint.
+- Next runtime `0xb68bc` (file `0xba8bc`) begins a new codec descriptor size/offset calculation routine. This remains a provisional old-base typed ARM32 reconstruction, not a full semantic source rebuild, signed OEM firmware, or on-device verification.
