@@ -1,0 +1,71 @@
+# Agent 20-12 — Later modem executable reconstruction
+
+## Lineage and prerequisite
+
+This is a **provisional** Agent 12 branch rooted at **Agent 06's actual HEAD**
+`d9f7e92bfa1e0cbaf01bfa0d33c9909dea62fc1e` (`agent/06-modem`), itself
+rooted in older repository history. The requested new 20-agent integrated base
+descending from checkpoint-50 `b7ed4b587633b9b475a40f5a3ace5cc90db620ff`
+was **not supplied** in this session. Thus these changes are not a completed
+checkpoint-50-rooted integration. Only new modem-late source/tool/test/doc
+files are touched, so it should be portable after the integration owner
+publishes the proper base.
+
+The reference used is private and remains **outside Git**:
+`modem.mbn`, pinned SHA-256
+`6f5cb32bc10e41abb40938d185805e788f5637a41d3ebcef278e4e169fc36782`.
+ELF `e_machine` is Hexagon 164; both executable sections are confirmed by
+program headers and disassembly with LLVM 6 Hexagon V60. An ELF32-hexagon
+identity alone does not prove ISA revision. The earlier Agent 06 source has
+working Hexagon V60 boot code and Hexagon ISA encoding notes.
+
+## Checkpoint 01: atomic helper and secondary executable bootstrap
+
+**Disjoint source-generated code** within Agent 12's exclusive ranges:
+
+| File interval | ELF vaddr | Physical address | Bytes | Content |
+|---|---|---|---:|---|
+| `[0x7c000,0x7c028)` | `0xc0890000` | `0x8e090000` | 40 | Hexagon locked-memory conditional exchange/retry helper |
+| `[0x7c028,0x7c030)` | `0xc0890028` | `0x8e090028` | 8 | Explicit Hexagon `brkpt` trap guard, generated instructions (not unknown fill) |
+| `[0x7c030,0x7c040)` | `0xc0890030` | `0x8e090030` | 16 | Flag update / return helper with extended absolute byte store |
+| `[0x446000,0x446088)` | `0x1e400000` | `0x90000000` | 136 | Auxiliary executable startup, GP/stack control, callbacks |
+| `[0x446088,0x4460d8)` | `0x1e400088` | `0x90000088` | 80 | Checked byte/word zeroing helper with loop packet layout |
+
+**Total independently generated: 280 bytes**, of which **272 callable
+instructions** and **8 explicit architectural trap instructions**. There are
+**zero differences** against the pinned original. Neither region claims to
+cover the intervening firmware nor later code. In particular, firmware byte
+`0x4460d8` and onward is **not** output as source-generated executable;
+several following words are resource strings and linker metadata, not code.
+
+`modem_late_atomic.s` models the atomic conditional-store algorithm with
+explicit packet and branch labels. LLVM6 schedules a two-word conditional
+ADD and comparison/branch packet in reverse order. The checked
+`restore_atomic_packet_order` procedure validates instruction classes and
+packet marker state then restores the source's original legal order; it
+never replaces bytes from the proprietary reference. The auxiliary startup
+uses checked Hexagon C2_tfrrcr architecture fields for the unsupported
+`framelimit = r0` control-register alias; all other operations use LLVM6 MC.
+
+Deterministic generation and strict reference verification:
+
+```sh
+python3 tools/assemble-modem-late.py \
+  --llvm-mc /path/to/llvm6/bin/llvm-mc \
+  --reference /private/modem.mbn \
+  --output-dir /tmp/agent12-modem-late
+```
+
+The tool rejects an incorrect modem SHA-256, incorrect Hexagon ELF machine,
+unexpected executable segment virtual/physical addresses or sizes,
+invalid source-generated packet layout, and every byte mismatch. Program
+headers confirm `[0x7c000,0x1ffcf0)` vaddr `0xc0890000` and
+`[0x446000,0x457da4)` vaddr `0x1e400000` are executable; these reservations
+stay exclusive to Agent 12.
+
+**Known limitations:** no full modem, no reconstructed OEM signature, no
+flashable image or verified hardware execution. This is an original,
+human-readable Hexagon V60 assembly reconstruction of selected functions,
+not a wholesale reconstruction of the 1.6 MiB first later executable segment
+or a high-level C implementation. The remaining function ranges must still
+be identified and source-reconstructed independently.
