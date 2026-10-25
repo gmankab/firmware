@@ -1,4 +1,4 @@
-# Agent 04 — Qualcomm ADSP reconstruction (checkpoints 01–02)
+# Agent 04 — Qualcomm ADSP reconstruction (checkpoints 01–03)
 
 ## Starting point and provenance
 
@@ -39,17 +39,19 @@ actually started from checkpoint 50.
 ## Checkpoint 02: independent timer and controller fragment
 
 A second, **disjoint** fragment has now been independently source-assembled
-at file offsets `[0x4218,0x4288)` (`0x70 = 112 bytes`), executable PT_LOAD
-relative `[0x1218,0x1288)`, physical addresses
-`[0x8be01218,0x8be01288)`. This covers a three-instruction register-save
+at file offsets `[0x4218,0x4488)` (`0x270 = 624 bytes`), executable PT_LOAD
+relative `[0x1218,0x1488)`, physical addresses
+`[0x8be01218,0x8be01488)`. The initial 112 bytes formed checkpoint 02;
+checkpoint 03 adds the adjacent 512 bytes of actual hardware-register
+initialization (three paths, each with nine named configuration writes). This covers a three-instruction register-save
 packet, global-timer polling/conditional retry, restoration and a return,
 followed by controller status comparison against `0x100`/`0x200` and
 three conditional branch destinations. The code uses source labels, combined
 predicate/branch packet syntax, `immext` generated from constants and no
-binary code words. Its SHA-256 is
-`b0a30e51b22612004266caeb2c959328aca41243ff8a24e444ce9bcbb1fa3757`.
+binary code words. The full 624-byte region SHA-256 is
+`632f108b4b85b96d6641d56f0bb1581633a25cbefb06d0f616d406b2e4eac0c1`.
 
-**Cumulative independently rebuilt executable bytes: 148** (`36 + 112`).
+**Cumulative independently rebuilt executable bytes: 660** (`36 + 624`).
 They are **not contiguous**; there is a gap after the first entry fragment.
 The first missing executable byte remains at file `0x3024`; the missing
 interval `[0x3024,0x4218)` must not be hidden or counted as rebuilt.
@@ -66,7 +68,7 @@ python3 -S tools/emit-adsp-entry.py \
 python3 -S tools/emit-adsp-entry.py \
   --segment counter-controller \
   --llvm-mc "$HEXAGON_LLVM_MC" \
-  --output /tmp/adsp-controller-112.bin \
+  --output /tmp/adsp-controller-624.bin \
   --reference "$NABU_ADSP_REFERENCE"
 HEXAGON_LLVM_MC="$HEXAGON_LLVM_MC" \
 NABU_ADSP_REFERENCE="$NABU_ADSP_REFERENCE" \

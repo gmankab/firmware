@@ -69,20 +69,24 @@ class ADSPBootstrapTests(unittest.TestCase):
         source = adsp.CONTROLLER_SOURCE.read_text()
         self.assertIn("poll_timer:", source)
         self.assertIn("if (!p0.new) jump:t poll_timer", source)
-        self.assertIn("secondary_mode", source)
+        self.assertIn("secondary_mode:", source)
+        self.assertIn("primary_mode:", source)
+        self.assertIn("fallback_mode:", source)
+        self.assertIn("memw(r0+#0) = ##0x20485699", source)
         self.assertNotIn(".word", source)
         self.assertNotIn(".incbin", source)
 
     @unittest.skipUnless(LLVM_MC, "Hexagon-capable llvm-mc unavailable")
     def test_controller_compiles_without_unresolved_relocations(self) -> None:
-        generated = adsp.assemble(LLVM_MC, adsp.CONTROLLER_SOURCE, 0x70)
-        self.assertEqual(len(generated), 0x70)
+        generated = adsp.assemble(LLVM_MC, adsp.CONTROLLER_SOURCE, 0x270)
+        self.assertEqual(len(generated), 0x270)
         self.assertEqual(generated[0x34:0x38], bytes.fromhex("00c08d52"))
+        self.assertNotEqual(generated[0x74:0x78], generated[0x120:0x124])
 
     @unittest.skipUnless(LLVM_MC and REFERENCE,
                          "Hexagon assembler and exact Nabu ADSP reference required")
     def test_controller_is_byte_identical_to_original(self) -> None:
-        generated = adsp.assemble(LLVM_MC, adsp.CONTROLLER_SOURCE, 0x70)
+        generated = adsp.assemble(LLVM_MC, adsp.CONTROLLER_SOURCE, 0x270)
         original = Path(REFERENCE).read_bytes()
         adsp.verify_reference(generated, original, 0x4218)
         mutated = bytearray(generated)

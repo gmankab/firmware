@@ -27,7 +27,7 @@ ASM_SOURCE = pathlib.Path(__file__).with_name("adsp-boot-vectors.S")
 CONTROLLER_SOURCE = pathlib.Path(__file__).with_name("adsp-counter-controller.S")
 FRAGMENTS = {
     "vectors": (ASM_SOURCE, OEM_FILE_OFFSET, GENERATED_LENGTH),
-    "counter-controller": (CONTROLLER_SOURCE, 0x4218, 0x70),
+    "counter-controller": (CONTROLLER_SOURCE, 0x4218, 0x270),
 }
 
 

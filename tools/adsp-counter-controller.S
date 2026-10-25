@@ -50,6 +50,79 @@ adsp_controller_mode:
 
 // These targets are not included in this fragment. Keep their exact
 // displacements address-derived, without copying OEM code bytes.
-.set primary_mode, adsp_controller_mode + 0x38
-.set secondary_mode, adsp_controller_mode + 0xe4
-.set fallback_mode, adsp_controller_mode + 0x190
+// Three controller setup cases. The branches select the same nine
+// MMIO configuration registers but use class-specific mode settings.
+// The compiler emits the two-word Hexagon immext packets from ##const,
+// rather than importing the OEM instruction sequence.
+primary_mode:
+{ r14 = ##0x32 }
+{ r15 = ##0x44 }
+{ r16 = ##1 }
+{ r0 = ##0x17300218 }
+{ memw(r0+#0) = ##0x20485699 }
+{ r0 = ##0x1730021c }
+{ memw(r0+#0) = ##0x2267 }
+{ r0 = ##0x17300220 }
+{ memw(r0+#0) = ##0x24 }
+{ r0 = ##0x17300224 }
+{ memw(r0+#0) = ##0x0 }
+{ r0 = ##0x17300228 }
+{ memw(r0+#0) = ##0x2 }
+{ r0 = ##0x1730022c }
+{ memw(r0+#0) = ##0x20 }
+{ r0 = ##0x1730020c }
+{ memw(r0+#0) = ##0x0 }
+{ r0 = ##0x17300210 }
+{ memw(r0+#0) = ##0x805 }
+{ r0 = ##0x17300214 }
+{ memw(r0+#0) = ##0xd0 }
+{ jump controller_done }
+
+secondary_mode:
+{ r14 = ##0x3d }
+{ r15 = ##0x44 }
+{ r16 = ##1 }
+{ r0 = ##0x17300218 }
+{ memw(r0+#0) = ##0x20485699 }
+{ r0 = ##0x1730021c }
+{ memw(r0+#0) = ##0x2267 }
+{ r0 = ##0x17300220 }
+{ memw(r0+#0) = ##0x24 }
+{ r0 = ##0x17300224 }
+{ memw(r0+#0) = ##0x0 }
+{ r0 = ##0x17300228 }
+{ memw(r0+#0) = ##0x0 }
+{ r0 = ##0x1730022c }
+{ memw(r0+#0) = ##0x20 }
+{ r0 = ##0x1730020c }
+{ memw(r0+#0) = ##0x0 }
+{ r0 = ##0x17300210 }
+{ memw(r0+#0) = ##0x805 }
+{ r0 = ##0x17300214 }
+{ memw(r0+#0) = ##0xd0 }
+{ jump controller_done }
+
+fallback_mode:
+{ r14 = ##0x3d }
+{ r15 = ##0x44 }
+{ r16 = ##1 }
+{ r0 = ##0x17300218 }
+{ memw(r0+#0) = ##0x20485699 }
+{ r0 = ##0x1730021c }
+{ memw(r0+#0) = ##0x2267 }
+{ r0 = ##0x17300220 }
+{ memw(r0+#0) = ##0x24 }
+{ r0 = ##0x17300224 }
+{ memw(r0+#0) = ##0x0 }
+{ r0 = ##0x17300228 }
+{ memw(r0+#0) = ##0x0 }
+{ r0 = ##0x1730022c }
+{ memw(r0+#0) = ##0x20 }
+{ r0 = ##0x1730020c }
+{ memw(r0+#0) = ##0x0 }
+{ r0 = ##0x17300210 }
+{ memw(r0+#0) = ##0x805 }
+{ r0 = ##0x17300214 }
+{ memw(r0+#0) = ##0xd0 }
+
+controller_done:
