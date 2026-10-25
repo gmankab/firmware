@@ -242,3 +242,11 @@ python3 tools/agent20_06_a32_roundtrip.py /private/venus.mbn 0xa8ea0 0xa92c8 \
 - Added `[0xb1b44,0xb2000)` = **1,212 typed ARM32 executable instruction bytes (303 instructions)**, with no inline literal/data words. It processes controller plane-size metadata, codec stream command/queue fields and status checks.
 - The routine beginning at `0xb1b44` has an original branch/return at `0xb1de4`, but additional fallback branches continue afterward; it is **incomplete at `0xb2000`**. Do not describe it as a finished semantic function. The following first unimplemented runtime address is `0xb2000` (file `0xb6000`).
 - Full generated fragment and independent Clang/LLVM mnemonic reassembly match the original exactly, **zero mismatches**. Still provisional, based on older Agent 03, with no hardware behavior/OEM signing claims.
+
+## Checkpoint 27 — completed frame/plane controller command queue
+
+- Cumulative runtime `[0xa8000,0xb2a80)` = **43,648 consecutive byte-identical bytes**, original MBN file `[0xac000,0xb6a80)`.
+- New interval `[0xb2000,0xb2a80)` adds **2,688 bytes**, 657 typed A32 instructions (2,628 bytes) plus **15 independently classified data words** `[0xb2a44,0xb2a80)` (60 bytes). These include diagnostic strings, codec mask/controller global addresses and a pointer back to helper `0xb0448`.
+- Completes controller frame-queue processing: command handling, slot format transitions, optional buffer expansion, register readback, error callbacks, and packet publication. The final branch at `0xb2a40` returns into existing command logic; next distinct routine begins `0xb2a80`.
+- Direct generated-byte comparison and independent Clang/LLVM assembler round-trip pass with zero mismatches, with the data region explicitly excluded from instruction decoding. Rust regression checks all 15 words.
+- The assigned range after this checkpoint still has unimplemented bytes; next uncovered VMA `0xb2a80` (file `0xb6a80`). Provisional old-base branch only; not a new signed/flashable firmware or behavioral proof.
