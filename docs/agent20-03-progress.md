@@ -203,3 +203,10 @@ Original reference: private `map220v-nabu-firmware/venus.mbn`, SHA-256 `9d4af65d
 - Includes active codec queue frame setup, hardware MMIO register updates, codec callback registration and conditional status/error reporting. All opaque data values remain separate from executable instructions.
 - Independent Clang/LLVM reassembly matches the entire fragment: **6,646 A32 instructions and 503 non-instruction data words across 111 pools**, zero byte differences. Nine external BLX relocation typing warnings are non-fatal; linked bytes match reference exactly.
 - The full 194 Rust and 13 Python tests and release build pass. Next uncovered function starts at `0x28c2c`.
+
+## Checkpoint 28 — codec frame teardown and output channel closure
+
+- Contiguous typed A32 `[0x21c78,0x290a4)` = **29,740 byte-identical bytes**, reference file `[0x25c78,0x2d0a4)`.
+- New `[0x28c2c,0x290a4)` = **1,144 bytes**, **267 typed ARM32 instructions** plus **19 classified hardware/data words** in pools `[0x28e7c,0x28e9c)`, `[0x28fd4,0x28ff0)` and `[0x29094,0x290a4)`. Three adjacent routines release host/codec channels, clear stale buffer control flags and report completion.
+- Full independent LLVM/Clang mnemonic rebuild matches **6,913 instructions and 522 data words across 114 literal pools**, zero byte differences. Nine linker non-STT_FUNC external `BLX` target warnings do not affect equality.
+- Rust 194 tests, Python 13 tests and release build pass; next missing codec routine begins at runtime `0x290a4`.
