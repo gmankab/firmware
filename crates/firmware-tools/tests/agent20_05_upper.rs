@@ -44,3 +44,16 @@ fn color_unpack_matches_optional_reference(){
         assert_eq!(&bytes[..],orig.get(offset..offset+bytes.len()).unwrap());
     }
 }
+
+#[path = "../src/devices/xiaomi_nabu/venus_agent20_05_quality.rs"]
+mod quality;
+#[test]
+fn quality_tier_and_allocators_match_optional_reference(){
+    let bytes=quality::fragment().expect("quality-tier and allocation typed A32");
+    assert_eq!(bytes.len(),quality::END-quality::START);
+    if let Some(reference)=std::env::var_os("NABU_VENUS_REFERENCE"){
+        let original=std::fs::read(reference).expect("read original Venus");
+        let off=quality::START+quality::FILE_BASE;
+        assert_eq!(&bytes[..],original.get(off..off+bytes.len()).expect("short original"));
+    }
+}
