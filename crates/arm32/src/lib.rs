@@ -574,6 +574,29 @@ mod tests {
             Register::R0, -256).is_err());
     }
     #[test]
+    fn halfword_writeback_and_postindex_encoders() {
+        let r9=Register::new(9).unwrap();
+        let r10=Register::new(10).unwrap();
+        let r3=Register::new(3).unwrap();
+        assert_eq!(load_halfword_register_preindexed_writeback(Condition::Al,
+            Register::R2, r10, Register::R0).unwrap(),0xe1ba_20b0);
+        assert_eq!(load_halfword_register_preindexed_writeback(Condition::Al,
+            Register::R0, r9, Register::R0).unwrap(),0xe1b9_00b0);
+        assert_eq!(load_halfword_preindexed_writeback(Condition::Al,
+            r3, Register::R0, -2).unwrap(),0xe170_30b2);
+        assert_eq!(load_halfword_postindexed(Condition::Al,Register::R2,
+            Register::R0,2).unwrap(),0xe0d0_20b2);
+        assert!(load_halfword_register_preindexed_writeback(Condition::Al,
+            Register::R2,Register::R2,Register::R0).is_err());
+        assert!(load_halfword_postindexed(Condition::Al,
+            Register::R0,Register::R0,2).is_err());
+        assert!(load_halfword_preindexed_writeback(Condition::Al,
+            Register::R0,Register::R0,-2).is_err());
+        assert!(load_halfword_postindexed(Condition::Al,
+            Register::R2,Register::PC,2).is_err());
+    }
+
+    #[test]
     fn smlabb_signed_halfword_multiply_accumulate_encoding() {
         let r3=Register::new(3).unwrap();
         let r7=Register::new(7).unwrap();
