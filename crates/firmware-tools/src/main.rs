@@ -301,6 +301,16 @@ fn run() -> Result<(), Box<dyn Error>> {
         println!("Extracted seven PRIVATELY HELD proprietary DSP binary inputs (30252 bytes). NEVER commit or redistribute them as independent source.");
         return Ok(());
     }
+    if args.len() == 1 && args[0] == "wmfw-cs35l41-bus-map" {
+        for region in firmware_tools::wmfw_cs35l41_bus::all_transfers()? {
+            println!("{:?}: DSP 0x{:x}..0x{:x} from file 0x{:x}..0x{:x} to AHB 0x{:08x}..0x{:08x}",
+                region.memory,region.dsp_word_span.start,region.dsp_word_span.end,
+                region.original_file_span.start,region.original_file_span.end,
+                region.ahb_register_span.start,region.ahb_register_span.end);
+        }
+        println!("Checked mapped AHB transfer boundaries only; no HALO program bytes were independently generated.");
+        return Ok(());
+    }
     if args.len() == 2 && args[0] == "inspect-wmfw-program-patterns" {
         let b=fs::read(&args[1])?;
         firmware_tools::wmfw_plan::verify_container(&b)?;

@@ -141,3 +141,19 @@ repetition alone cannot identify a HALO opcode, branch or semantic behavior.
 No proprietary program words are embedded in the implementation; source-
 reconstructed coverage remains **3,984 / 34,236 bytes**. This inventory is
 for identifying potential future function/data boundaries, not build output.
+
+## Checkpoint 08-10 — CS35L41 real AHB/register destination mapping
+
+Mapped every packed memory region to hardware register addresses from the
+public Linux `include/sound/cs35l41.h` definitions: XM `0x02000000`, YM
+`0x02c00000`, program memory `0x03800000`. The `wmfw-cs35l41-bus-map` command
+resolves all seven file payloads to exact DSP-word and register ranges, tests
+packed 32-bit host alignment and the documented register end bounds, and
+rejects overlaps/out-of-range writes. This enables auditing the loader's
+transfer schedule without including any OEM DSP payload or claiming HALO
+instruction semantics. File-byte reconstruction remains **3,984 / 34,236**;
+complete byte-identical files can still only be produced using seven
+explicit, SHA-256-pinned external DSP payloads from checkpoint 08-06.
+
+References: `https://codebrowser.dev/linux/linux/include/sound/cs35l41.h.html`,
+`https://github.com/torvalds/linux/blob/master/sound/soc/codecs/cs35l41-lib.c`.
