@@ -186,6 +186,26 @@ class ADSPBootstrapTests(unittest.TestCase):
         out = adsp.assemble_tlb_flush(LLVM_MC)
         adsp.verify_reference(out, Path(REFERENCE).read_bytes(), 0x4788)
 
+    def test_memory_copy_source_contains_typed_hardware_loop(self) -> None:
+        source = adsp.MEMORY_COPY_SOURCE.read_text()
+        self.assertIn("adsp_memory_copy:", source)
+        self.assertIn("loop0(copy_loop,r2)", source)
+        self.assertIn("memd(r1++#8)", source)
+        self.assertIn("memd(r0++#8)", source)
+        self.assertIn(":endloop0", source)
+        self.assertNotIn(".word", source)
+        self.assertNotIn(".incbin", source)
+
+    @unittest.skipUnless(LLVM_MC and REFERENCE,
+                         "Exact ADSP reference and Hexagon assembler required")
+    def test_memory_copy_source_matches_reference_and_loop_packet(self) -> None:
+        generated = adsp.assemble(LLVM_MC, adsp.MEMORY_COPY_SOURCE, 0x40)
+        adsp.verify_reference(generated, Path(REFERENCE).read_bytes(), 0x4890)
+        # The last loop packet is a NOP + postincremented memd store with
+        # endloop0 encoding; instruction packets remain source-generated.
+        self.assertEqual(generated[0x34:0x3c], bytes.fromhex("0080007f08c4c0ab"))
+        self.assertEqual(generated[-4:], struct.pack("<I", 0x529fc000))
+
     @unittest.skipUnless(LLVM_MC, "Hexagon-capable llvm-mc unavailable")
     def test_reject_relocations_and_malformed_section_offsets(self) -> None:
         with tempfile.TemporaryDirectory() as t:

@@ -27,6 +27,7 @@ ASM_SOURCE = pathlib.Path(__file__).with_name("adsp-boot-vectors.S")
 CONTROLLER_SOURCE = pathlib.Path(__file__).with_name("adsp-counter-controller.S")
 TLB_MAP_SOURCE = pathlib.Path(__file__).with_name("adsp-tlb-map.S")
 TLB_FLUSH_SOURCE = pathlib.Path(__file__).with_name("adsp-tlb-flush.S")
+MEMORY_COPY_SOURCE = pathlib.Path(__file__).with_name("adsp-dsp-memory-copy.S")
 FRAGMENTS = {
     "vectors": (ASM_SOURCE, OEM_FILE_OFFSET, GENERATED_LENGTH),
     "boot-prefix": (ASM_SOURCE, OEM_FILE_OFFSET, 0x44),
@@ -34,6 +35,7 @@ FRAGMENTS = {
     "tlb-flush": (TLB_FLUSH_SOURCE, 0x4788, 0x90),
     "tlb-map": (TLB_MAP_SOURCE, 0x46f4, 0x94),
     "syscfg-handoff": (CONTROLLER_SOURCE, 0x46a0, 0x54),
+    "memory-copy": (MEMORY_COPY_SOURCE, 0x4890, 0x40),
 }
 
 
