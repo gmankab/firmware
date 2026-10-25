@@ -116,8 +116,9 @@ class ADSPBootstrapTests(unittest.TestCase):
                      adsp.assemble_startup_poll(LLVM_MC) +
                      adsp.assemble_syscfg_update(LLVM_MC) +
                      adsp.assemble_save_control(LLVM_MC) +
-                     adsp.assemble_l2_global(LLVM_MC))
-        self.assertEqual(len(generated), 0xf58)
+                     adsp.assemble_l2_global(LLVM_MC) +
+                     adsp.assemble_physical_tlb_copy(LLVM_MC))
+        self.assertEqual(len(generated), 0xfa4)
         original = Path(REFERENCE).read_bytes()
         adsp.verify_reference(generated, original, 0x41e0)
         mutated = bytearray(generated)
@@ -480,6 +481,27 @@ class ADSPBootstrapTests(unittest.TestCase):
                 "{ nop } // V66 l2gclean", "{ isync } // V66 l2gclean",1))
             with self.assertRaisesRegex(adsp.AdspError,"L2 global privilege slot"):
                 adsp.assemble_l2_global(LLVM_MC,bad)
+
+    def test_physical_tlb_copy_uses_bounded_hardware_loop(self) -> None:
+        src=adsp.CONTROLLER_PHYSICAL_TLB_COPY_SOURCE.read_text()
+        for text in ("loop0(check_loop,r2)", "memw_phys(r0,r4)",
+                     "memw(r1++#4)", ":endloop0", "p0.new"):
+            self.assertIn(text,src)
+        self.assertNotIn(".word",src)
+        self.assertNotIn(".incbin",src)
+
+    @unittest.skipUnless(LLVM_MC and REFERENCE,"Assembler and reference required")
+    def test_physical_tlb_copy_source_and_special_words_match_exactly(self) -> None:
+        b=adsp.assemble_physical_tlb_copy(LLVM_MC)
+        self.assertEqual(len(b),0x4c)
+        adsp.verify_reference(b,Path(REFERENCE).read_bytes(),0x5138)
+        with tempfile.TemporaryDirectory() as td:
+            bad=Path(td)/"bad-physical-tlb.S"
+            bad.write_text(adsp.CONTROLLER_PHYSICAL_TLB_COPY_SOURCE.read_text().replace(
+                "{ nop } // V66 r5 = memw_phys(r0,r4)",
+                "{ isync } // V66 r5 = memw_phys(r0,r4)",1))
+            with self.assertRaisesRegex(adsp.AdspError,"physical TLB-copy slot"):
+                adsp.assemble_physical_tlb_copy(LLVM_MC,bad)
 
     @unittest.skipUnless(LLVM_MC, "Hexagon-capable llvm-mc unavailable")
     def test_syscfg_handoff_uses_typed_and_source_assembly(self) -> None:

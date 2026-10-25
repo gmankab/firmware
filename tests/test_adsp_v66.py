@@ -203,6 +203,14 @@ class V66BootstrapTests(unittest.TestCase):
                            (0x5128,v66.read_system_register(0,v66.SystemRegister.SYSCFG))):
             self.assertEqual(struct.unpack_from("<I",b,off)[0],opcode)
 
+    @unittest.skipUnless(REFERENCE,"Exact firmware reference required")
+    def test_physical_tlb_copy_uses_selected_address_registers(self) -> None:
+        b=Path(REFERENCE).read_bytes()
+        self.assertEqual(struct.unpack_from("<I",b,0x5138)[0],
+                         v66.read_system_register(23,v66.SystemRegister.S54))
+        self.assertEqual(struct.unpack_from("<I",b,0x5174)[0],
+                         v66.physical_word_load(5,0,4))
+
     def test_near_jump_alignment_and_range(self) -> None:
         self.assertEqual(v66.jump_near(0x40, 0x63c), 0x5800C2FE)
         with self.assertRaises(v66.HexagonEncodingError):
