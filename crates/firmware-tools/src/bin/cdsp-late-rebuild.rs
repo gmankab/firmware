@@ -14,7 +14,9 @@ fn main()->Result<(),Box<dyn Error>>{
         "verify-mode-prefix"=>{let orig=fs::read(&args[1])?;late::verify_joined_with_mode_dispatch(&orig)?;println!("Verified {} generated CDSP controller bytes against pinned OEM reference",late::THREE_STAGE_LEN);},
         "emit-configurations"=>{let bytes=late::build_all_controller_mode_programs()?;fs::write(&args[1],&bytes)?;println!("Emitted {} source-built Hexagon config bytes file {:#x}–{:#x}",bytes.len(),late::FILE_OFFSET,late::FILE_OFFSET+bytes.len());},
         "verify-configurations"=>{late::verify_all_controller_mode_programs(&fs::read(&args[1])?)?;println!("Verified {} typed CDSP Hexagon bytes through hardware mode configuration",late::COMPLETE_CONFIG_PREFIX_LEN);},
-        _=>return Err("usage: cdsp-late-rebuild <emit|verify|emit-joined|verify-joined|emit-mode-prefix|verify-mode-prefix|emit-configurations|verify-configurations> <OUTPUT|CDSP_MBN>".into()),
+        "emit-flags"=>{let bytes=late::build_controller_through_flag_clear()?;fs::write(&args[1],&bytes)?;println!("Emitted {} Hexagon bytes including register flag commits",bytes.len());},
+        "verify-flags"=>{late::verify_controller_through_flag_clear(&fs::read(&args[1])?)?;println!("Verified {} exact CDSP MMIO controller bytes",late::FLAG_CLEAR_PREFIX_LEN);},
+        _=>return Err("usage: cdsp-late-rebuild <emit|verify|emit-joined|verify-joined|emit-mode-prefix|verify-mode-prefix|emit-configurations|verify-configurations|emit-flags|verify-flags> <OUTPUT|CDSP_MBN>".into()),
     }
     Ok(())
 }

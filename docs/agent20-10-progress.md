@@ -52,3 +52,11 @@ Agent 20-10 owns only new `cdsp_late_*` sources, its verification tool, focused 
 - `build_controller_mode_program(ControllerMode)` assembles checked Hexagon extended assignments and immediate stores from *semantic* register/value pairs. All three mode paths preserve separate branch destinations, packet parse markers and instruction boundaries; no vendor opcode array is included.
 - Independently verified the **entire new 524-byte interval** by LLVM6 assembly generated from a separate instruction fixture; all 131 instruction words also decode with Rizin V66 and compare byte-identically to the pinned CDSP reference. This is stronger than merely disassemble/reassemble OEM bytes.
 - The initial `R E` segment `[0x3b000,0x5475c)` remains mostly non-code metadata/fill and is *not* counted as reconstructed executable. Within the short `R E` segment `[0x55000,0x554b0)`, **508 bytes remain** unimplemented, starting at `0x552b4`.
+
+## Checkpoint 05 — shared commit and mode-flag clear, 812 bytes
+
+- Independently generated controller executable file `[0x55000,0x5532c)` = **812 matching CDSP bytes**; physical `[0x96cc7000,0x96cc732c)`, VMA `[0xc00c7000,0xc00c732c)`.
+- Added **120 bytes** `[0x552b4,0x5532c)`: commit R14/R15 to MMIO offsets `0x204` and `0x208`, then clear feature masks `1` and `7` at offsets `0x200` and `0x238`. The two read-modify-write sequences encode `R5=sub(#-1,R5)` as a short Hexagon instruction, with its parse marker preserved alongside the following word load.
+- The first extended R0 assignment is the continuation of a **three-word packet** with `R1=R14`, so its immediate-consumer parse marker must be `ContinuationA`, not a standalone final packet. Independent LLVM6 assembly of the same semantic grouped packet produces **all 120 bytes exactly**, and Rizin V66 decodes all 30 words. The check independently confirms the first consumer packet marker; only treating the instructions as independent singletons would be incorrect.
+- Typed constructors separately model `memw(Rbase+#0)=Rsrc`, `AND/OR` register fields, high/low halfword literals, and short `sub(#-1,Rsrc)`. These are backed by LLVM6 and direct reference comparison, not imported OEM words.
+- Next missing segment bytes `[0x5532c,0x554b0)` = **388 bytes**, inside the same 1,200-byte late executable `PT_LOAD`.

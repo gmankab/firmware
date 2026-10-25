@@ -24,6 +24,9 @@ pub const CONFIG_MODE_200_OFFSET:usize=0x55158;
 pub const CONFIG_DEFAULT_OFFSET:usize=0x55208;
 pub const CONFIG_COMMON_EXIT_OFFSET:usize=0x552b4;
 pub const COMPLETE_CONFIG_PREFIX_LEN:usize=CONFIG_COMMON_EXIT_OFFSET-FILE_OFFSET;
+pub const SHARED_MMIO_COMMIT_OFFSET:usize=CONFIG_COMMON_EXIT_OFFSET;
+pub const SHARED_CLEAR_FLAGS_END:usize=0x5532c;
+pub const FLAG_CLEAR_PREFIX_LEN:usize=SHARED_CLEAR_FLAGS_END-FILE_OFFSET;
 
 /// Checked Hexagon `memw(Rbase + #offset) = ##value` with an immediate extender.
 /// Only the small verified 32-bit, word-aligned addressing form is admitted;
@@ -256,6 +259,90 @@ pub fn verify_all_controller_mode_programs(reference:&[u8])->Result<(),String>{
     Ok(())
 }
 
+/// Hexagon scalar word store of a general register, restricted to exact
+/// word-aligned zero offset as verified by LLVM6. Unlike an immediate-store
+/// packet, this fits in one instruction word.
+pub fn encode_word_store_register(base:GeneralRegister,src:GeneralRegister)->u32{
+    0xa180_c000|(u32::from(base.number())<<16)|(u32::from(src.number())<<8)
+}
+
+#[derive(Debug,Clone,Copy,PartialEq,Eq)]
+pub enum RegisterLogic { And, Or }
+
+/// Ordinary Hexagon three-register AND/OR operations. Field positions were
+/// confirmed using independent LLVM6 test inputs with different registers.
+pub fn encode_register_logic(op:RegisterLogic,dst:GeneralRegister,
+                             left:GeneralRegister,right:GeneralRegister)->u32{
+    (if op==RegisterLogic::And {0xf100_c000}else{0xf120_c000})
+        |(u32::from(left.number())<<16)
+        |(u32::from(right.number())<<8)
+        |u32::from(dst.number())
+}
+
+/// Set one 16-bit half of a register to a verified unsigned short constant.
+/// Used for the CDSP hardware bitmask register R5; not a generic V66 vpair.
+pub fn encode_halfword_literal(reg:GeneralRegister,high:bool,value:u8)->u32{
+    (if high {0x7220_c000}else{0x7120_c000})
+       |(u32::from(reg.number())<<16)|u32::from(value)
+}
+
+/// Hexagon `Rdst=sub(#-1,Rsrc)` short (non-extended) form. The instruction
+/// is placed as a packet continuation before a memw load. Verified by LLVM6
+/// with distinct source/destination registers and packet-marker manipulation.
+pub fn encode_not_via_sub_neg1(dst:GeneralRegister,src:GeneralRegister)->u32{
+    0x7660_ffe0|(u32::from(src.number())<<16)|u32::from(dst.number())
+}
+
+/// Commit selected clock parameters R14/R15 to MMIO registers 0x8300204/208,
+/// and clear any previous mode-selection bits in registers 0x8300200/238.
+/// The two bit-clears are identical subroutines with different mask values.
+pub fn build_commit_and_clear_mode_flags()->Result<Vec<u8>,String>{
+    let r=|n|GeneralRegister::new(n);
+    let mut out=Vec::with_capacity(0x78);
+    for (address,source) in [(0x0830_0204,14),(0x0830_0208,15)]{
+        let words=cdsp_boot::encode_extended_assignment(r(0)?,address as i32,true);
+        // The first MMIO base assignment shares a three-word packet with
+        // `R1=R14`, whereas the next base assignment terminates its packet.
+        push_word(&mut out,words[0]);
+        push_word(&mut out,if address==0x0830_0204 {
+            PacketMarker::ContinuationA.apply(words[1])
+        }else{words[1]});
+        push_word(&mut out,ScalarPacket::AssignRegister{dst:r(1)?,src:r(source)?}.encode()?);
+        push_word(&mut out,encode_word_store_register(r(0)?,r(1)?));
+        push_word(&mut out,0xa800_c000); // hardware `barrier`
+    }
+    for (address,bitmask) in [(0x0830_0200,1),(0x0830_0238,7)]{
+        for word in cdsp_boot::encode_extended_assignment(r(0)?,address as i32,true){push_word(&mut out,word);}
+        push_word(&mut out,PacketMarker::ContinuationA.apply(
+            ScalarPacket::AssignRegister{dst:r(7)?,src:r(0)?}.encode()?));
+        push_word(&mut out,encode_halfword_literal(r(5)?,true,0));
+        push_word(&mut out,encode_halfword_literal(r(5)?,false,bitmask));
+        push_word(&mut out,PacketMarker::ContinuationA.apply(encode_not_via_sub_neg1(r(5)?,r(5)?)));
+        push_word(&mut out,encode_word_load_immediate(r(4)?,r(0)?,0)?);
+        push_word(&mut out,encode_register_logic(RegisterLogic::And,r(4)?,r(4)?,r(5)?));
+        push_word(&mut out,encode_word_store_register(r(0)?,r(4)?));
+        push_word(&mut out,0xa800_c000);
+    }
+    if out.len()!=0x78{return Err("CDSP MMIO commit/clear code has unexpected length".into());}
+    Ok(out)
+}
+
+pub fn build_controller_through_flag_clear()->Result<Vec<u8>,String>{
+    let mut out=build_all_controller_mode_programs()?;
+    out.extend(build_commit_and_clear_mode_flags()?);
+    if out.len()!=FLAG_CLEAR_PREFIX_LEN{return Err("CDSP MMIO flag-clear prefix length mismatch".into());}
+    Ok(out)
+}
+
+pub fn verify_controller_through_flag_clear(reference:&[u8])->Result<(),String>{
+    cdsp_boot::validate_reference(reference)?;
+    let out=build_controller_through_flag_clear()?;
+    if reference.get(FILE_OFFSET..FILE_OFFSET+out.len())!=Some(out.as_slice()){
+        return Err("CDSP MMIO commit/clear prefix differs from reference".into());
+    }
+    Ok(())
+}
+
 pub fn verify_mmio_setup(reference:&[u8])->Result<(),String>{
     cdsp_boot::validate_reference(reference)?;
     let actual=build_mmio_setup()?;
@@ -277,6 +364,21 @@ mod tests {
         assert_eq!(encode_extended_word_store_immediate(r0,0,0x1234).unwrap(),[0x0000_4048,0x3c40_c034]);
         assert!(encode_extended_word_store_immediate(r0,2,7).is_err());
         assert!(encode_extended_word_store_immediate(r0,16,7).is_err());
+    }
+    #[test]
+    fn reset_and_clear_mmio_source_encoding_is_bounded(){
+        let r=|n|GeneralRegister::new(n).unwrap();
+        assert_eq!(encode_word_store_register(r(0),r(1)),0xa180_c100);
+        assert_eq!(encode_word_store_register(r(0),r(4)),0xa180_c400);
+        assert_eq!(encode_register_logic(RegisterLogic::And,r(4),r(4),r(5)),0xf104_c504);
+        assert_eq!(encode_register_logic(RegisterLogic::Or,r(4),r(4),r(5)),0xf124_c504);
+        assert_eq!(encode_halfword_literal(r(5),true,0),0x7225_c000);
+        assert_eq!(encode_halfword_literal(r(5),false,7),0x7125_c007);
+        assert_eq!(encode_not_via_sub_neg1(r(5),r(5)),0x7665_ffe5);
+        let bytes=build_commit_and_clear_mode_flags().unwrap();
+        assert_eq!(bytes.len(),0x78);
+        assert_eq!(build_controller_through_flag_clear().unwrap().len(),FLAG_CLEAR_PREFIX_LEN);
+        assert_eq!(FILE_OFFSET+FLAG_CLEAR_PREFIX_LEN,SHARED_CLEAR_FLAGS_END);
     }
     #[test]
     fn all_hardware_mode_programs_are_exactly_partitioned(){
