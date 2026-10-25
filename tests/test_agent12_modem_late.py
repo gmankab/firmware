@@ -15,6 +15,17 @@ spec.loader.exec_module(agent12)
 
 
 class ModemLateTests(unittest.TestCase):
+    def test_aux_table_scanners_are_independent_source_functions(self):
+        find=agent12.AUX_FIND_FREE_SOURCE.read_text()
+        resolve=agent12.AUX_RESOLVE_SOURCE.read_text()
+        self.assertIn('loop0',find)
+        self.assertIn('jumpr r31',find)
+        self.assertIn('loop0',resolve)
+        self.assertIn('dealloc_return',resolve)
+        self.assertNotIn('.word',find)
+        self.assertNotIn('.word',resolve)
+        self.assertEqual(agent12.AUX_RESOLVE_END-agent12.AUX_FIND_FREE_START,216)
+
     def test_aux_session_prefix_explicitly_stops_before_framekey(self):
         self.assertEqual(agent12.AUX_SESSION_PREFIX_END,0x446EE8)
         source=agent12.AUX_SESSION_PREFIX_SOURCE.read_text()
@@ -187,6 +198,12 @@ class ModemLateTests(unittest.TestCase):
         self.assertEqual((agent12.AUX_SESSION_PREFIX_START,agent12.AUX_SESSION_PREFIX_END),
                          (0x446E90,0x446EE8))
         self.assertEqual(agent12.AUX_DIAGNOSTIC_HELPERS_END,agent12.AUX_SESSION_PREFIX_START)
+        self.assertEqual((agent12.AUX_FIND_FREE_START,agent12.AUX_FIND_FREE_END),
+                         (0x447028,0x447078))
+        self.assertEqual((agent12.AUX_RESOLVE_START,agent12.AUX_RESOLVE_END),
+                         (0x447078,0x447100))
+        self.assertEqual(agent12.AUX_FIND_FREE_END,agent12.AUX_RESOLVE_START)
+        self.assertLess(agent12.AUX_SESSION_PREFIX_END,agent12.AUX_FIND_FREE_START)
 
     def test_atomic_packet_reorder_checks_opcode_class_and_parse_bits(self):
         words = [0x7800C000] * 16  # synthetic A2_tfrsi instruction for surrounding words

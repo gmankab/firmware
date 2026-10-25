@@ -42,6 +42,8 @@ AUX_VENEERS_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem
 AUX_REGISTRATION_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_aux_controller_registration.s"
 AUX_DIAGNOSTIC_HELPERS_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_aux_diagnostic_helpers.s"
 AUX_SESSION_PREFIX_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_aux_session_prefix.s"
+AUX_FIND_FREE_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_aux_find_free_entry.s"
+AUX_RESOLVE_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_aux_resolve_handle.s"
 ATOMIC_START = 0x7C000
 ATOMIC_END = 0x7C040
 SERVICE_START = 0x7C2EC
@@ -90,6 +92,10 @@ AUX_DIAGNOSTIC_HELPERS_START = 0x446E1C
 AUX_DIAGNOSTIC_HELPERS_END = 0x446E90
 AUX_SESSION_PREFIX_START = 0x446E90
 AUX_SESSION_PREFIX_END = 0x446EE8
+AUX_FIND_FREE_START = 0x447028
+AUX_FIND_FREE_END = 0x447078
+AUX_RESOLVE_START = 0x447078
+AUX_RESOLVE_END = 0x447100
 MARKER_MASK = 3 << 14
 CONTINUE_MARKER = 1 << 14
 END_MARKER = 3 << 14
@@ -603,6 +609,12 @@ def output_fragments(llvm_mc: Path) -> dict[int, bytes]:
     aux_registration = restore_aux_registration_new_value_packet(assemble(llvm_mc,AUX_REGISTRATION_SOURCE))
     aux_diagnostic_helpers=assemble(llvm_mc,AUX_DIAGNOSTIC_HELPERS_SOURCE)
     aux_session_prefix=assemble(llvm_mc,AUX_SESSION_PREFIX_SOURCE)
+    aux_find_free=assemble(llvm_mc,AUX_FIND_FREE_SOURCE)
+    aux_resolve=assemble(llvm_mc,AUX_RESOLVE_SOURCE)
+    if len(aux_find_free)!=AUX_FIND_FREE_END-AUX_FIND_FREE_START:
+        raise ValueError("aux free-entry finder must emit exactly 80 bytes")
+    if len(aux_resolve)!=AUX_RESOLVE_END-AUX_RESOLVE_START:
+        raise ValueError("aux handle resolver must emit exactly 136 bytes")
     if len(aux_diagnostic_helpers)!=AUX_DIAGNOSTIC_HELPERS_END-AUX_DIAGNOSTIC_HELPERS_START:
         raise ValueError("aux diagnostic helpers must emit 116 bytes")
     if len(aux_session_prefix)!=AUX_SESSION_PREFIX_END-AUX_SESSION_PREFIX_START:
@@ -626,7 +638,8 @@ def output_fragments(llvm_mc: Path) -> dict[int, bytes]:
     return {ATOMIC_START: atomic + controller, SERVICE_START: service+service_mmio+service_flags+service_alloc,
             AUX_START: auxiliary, AUX_INIT_START: aux_init,
             AUX_GUARD_START: aux_guard+aux_stage+aux_mmio+aux_heap+aux_worker+aux_lookup,
-            AUX_DISPATCH_START:aux_dispatch+aux_type+aux_notify+aux_entry+aux_validator+aux_runtime_init+aux_veneers+aux_registration+aux_diagnostic_helpers+aux_session_prefix}
+            AUX_DISPATCH_START:aux_dispatch+aux_type+aux_notify+aux_entry+aux_validator+aux_runtime_init+aux_veneers+aux_registration+aux_diagnostic_helpers+aux_session_prefix,
+            AUX_FIND_FREE_START:aux_find_free+aux_resolve}
 
 
 def executable_segments(reference: bytes) -> dict[int, tuple[int, int, int, int]]:

@@ -559,3 +559,23 @@ Total later-modem reconstruction: **3,664 independently assembled bytes**
 in six disjoint mapped executable spans; the auxiliary verified contiguous
 segment is `[0x446650,0x446ee8)` (**2,200 bytes**). Whole modem and OEM
 authentication remain outside scope.
+
+## Checkpoint 21: hardware-loop registry search and handle resolution
+
+Two new **completely source-assembled Hexagon V60 functions** match the
+reference without any packet-bit correction: `modem_late_aux_find_free_entry.s`
+**80 bytes** at modem file `[0x447028,0x447078)`, and
+`modem_late_aux_resolve_handle.s` **136 bytes** at `[0x447078,0x447100)`.
+Mapped VMA is `[0x1e401028,0x1e401100)`, physical
+`[0x90001028,0x90001100)`. Both use architecture `loop0` packets to
+walk bounded controller-record arrays, handle not-found cases and return
+resource state. The resolver also uses diagnostic callbacks.
+
+This introduces a seventh disjoint verified executable interval
+`[0x447028,0x447100)` = **216 bytes**. Total independently source-assembled
+later-modem coverage rises to **3,880 bytes**; every emitted byte matches
+the pinned original modem MBN (zero mismatches). The gap
+`[0x446ee8,0x447028)` = **320 bytes** remains unclaimed: the first 4
+bytes are `r3=framekey` unsupported by LLVM6's assembler, and the rest
+is an unintegrated suffix of that partially reconstructed session function.
+This is *not* complete firmware or an OEM-authenticated image.
