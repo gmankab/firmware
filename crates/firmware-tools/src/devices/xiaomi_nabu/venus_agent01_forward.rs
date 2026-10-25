@@ -3,14 +3,15 @@
 //! address 0x12e5c. Instruction encoding uses validated public ARM A32
 //! constructors; unimplemented later code is never copied from the OEM image.
 //!
-//! This is independently emitted partial executable code, not a firmware
-//! container and not an OEM-signed image. The original function continues
-//! beyond this fragment and its return is not yet reconstructed.
+//! This is a typed instruction-level reconstruction, not an independent
+//! behavioral reimplementation of the high-level codec algorithms and not
+//! an OEM-authenticated/flashable firmware image. The last 48 bytes are the
+//! beginning of a function continuing beyond Agent 01's 0x18000 boundary.
 use arm32::{Condition as C, DataOp as Op, Register as R, Shift};
 use super::venus_runtime_services::Code;
 
 pub const START: usize=0x12e5c;
-pub const END: usize=0x17fd0;
+pub const END: usize=0x18000;
 pub const FILE_OFFSET:usize=START+0x4000;
 
 fn imm(c:&mut Code<'_>,cond:C,op:Op,rd:R,rn:R,value:u32)->Result<(),String>{
@@ -10448,6 +10449,38 @@ fn encode_variant_stream_commands(c:&mut Code<'_>)->Result<(),String>{
     c.check(0x17fd0)
 }
 
+/// Reconstruct only the first twelve instructions of the next codec-state
+/// function. Its register-based jump table and case bodies begin at or after
+/// `0x18000`, which belongs exclusively to Agent 03, so they are NOT emitted.
+fn begin_next_codec_state(c:&mut Code<'_>)->Result<(),String>{
+    c.check(0x17fd0)?;
+    // 0x17fd0
+    c.emit(arm32::push_registers(C::Al, R::new(4)?.bit() | R::new(5)?.bit() | R::new(6)?.bit() | R::new(7)?.bit() | R::new(8)?.bit() | R::new(9)?.bit() | R::new(10)?.bit() | R::R11.bit() | R::LR.bit())?)?;
+    // 0x17fd4
+    imm(c,C::Al,Op::Add,R::R11,R::SP,28)?;
+    // 0x17fd8
+    imm(c,C::Al,Op::Sub,R::SP,R::SP,4)?;
+    // 0x17fdc
+    c.emit(arm32::mov_register(C::Al, R::new(4)?, R::R1))?;
+    // 0x17fe0
+    imm(c,C::Al,Op::Mov,R::new(6)?,R::R0,0)?;
+    // 0x17fe4
+    imm(c,C::Al,Op::Mov,R::new(10)?,R::R0,4)?;
+    // 0x17fe8
+    c.emit(arm32::transfer_word(C::Al,true,R::R1,R::new(4)?,68)?)?;
+    // 0x17fec
+    imm(c,C::Al,Op::Sub,R::R1,R::R1,1)?;
+    // 0x17ff0
+    imm(c,C::Al,Op::Cmp,R::R0,R::R1,6)?;
+    // 0x17ff4
+    c.branch(C::Hi, 0x18120)?;
+    // 0x17ff8
+    c.emit(arm32::mov_shifted_register(C::Al, R::R1, R::R1, Shift::Lsl, 2)?)?;
+    // 0x17ffc
+    imm(c,C::Al,Op::Add,R::new(3)?,R::PC,12)?;
+    c.check(END)
+}
+
 /// Partial independently encoded region; does not read private firmware.
 pub fn fragment()->Result<Vec<u8>,String>{
     let skip=START-0x1000; // Scratch prefix is discarded; no padding is emitted.
@@ -10470,6 +10503,7 @@ pub fn fragment()->Result<Vec<u8>,String>{
     configure_controller_channels(&mut c)?;
     build_codec_frame_planes(&mut c)?;
     encode_variant_stream_commands(&mut c)?;
+    begin_next_codec_state(&mut c)?;
     Ok(out.split_off(skip))
 }
 
@@ -10477,5 +10511,35 @@ pub fn fragment()->Result<Vec<u8>,String>{
     use super::*;
     #[test]fn first_forward_fragment_is_exact_length(){
         assert_eq!(fragment().unwrap().len(),END-START);
+        assert_eq!(END,0x18000); // Agent 03 owns this and later addresses.
+        assert_eq!(FILE_OFFSET,0x16e5c);
+        assert_eq!(FILE_OFFSET+fragment().unwrap().len(),0x1c000);
+    }
+
+    #[test]
+    fn final_variant_tables_are_data_and_not_implicit_zeroes() {
+        let output=fragment().unwrap();
+        let read_word=|a:usize| {
+            assert!((START..END-3).contains(&a));
+            let i=a-START;
+            u32::from_le_bytes(output[i..i+4].try_into().unwrap())
+        };
+        for (idx,value) in [0x17548,0x17548,0x17670,0x17570,0x175bc,
+                            0x1761c,0x175f8].iter().enumerate() {
+            assert_eq!(read_word(0x1752c+idx*4),*value);
+        }
+        for (idx,value) in [0x17ebc,0x17ec8,0x17ee4,0x17f00].iter().enumerate() {
+            assert_eq!(read_word(0x17eac+idx*4),*value);
+        }
+        for (idx,value) in [0x000e_3d16,0xffff_ec20,0x0401_100d].iter().enumerate() {
+            assert_eq!(read_word(0x17fc4+idx*4),*value);
+        }
+        // Check the final 48 bytes against independently authored A32 operands.
+        assert_eq!(read_word(0x17fd0),arm32::push_registers(C::Al,
+            R::new(4).unwrap().bit()|R::new(5).unwrap().bit()|
+            R::new(6).unwrap().bit()|R::new(7).unwrap().bit()|
+            R::new(8).unwrap().bit()|R::new(9).unwrap().bit()|
+            R::new(10).unwrap().bit()|R::R11.bit()|R::LR.bit()).unwrap());
+        assert_eq!(read_word(0x17ff4),arm32::branch(C::Hi,0x17ff4,0x18120,false).unwrap());
     }
 }

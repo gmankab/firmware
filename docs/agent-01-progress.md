@@ -72,3 +72,46 @@ Generated output is a partial function; the next missing instruction is the repo
 - The function returns through the original `pop {..., pc}` at `0x17fb4` and has a separately modeled branch path `0x17fb8–0x17fc4` before the literal pool.
 - Next uncovered instruction at `0x17fd0`, a separate function entry. The remaining assigned interval is only `[0x17fd0, 0x18000)` (48 bytes).
 - All checks are **instruction-level encoding equivalence**, not proof that reverse-engineered higher-level algorithms would reproduce behavioral semantics, and not complete/signed firmware.
+
+## Agent 01 checkpoint 10 — assigned address reservation complete
+
+- **Entire assigned forward interval independently emitted** as named ARM32
+  instruction encodings and separately classified constant pools:
+  `[0x12e5c, 0x18000)` = **20,900 consecutive bytes**.
+- Original `venus.mbn` comparison: **all 20,900 bytes equal**, firmware file
+  range `[0x16e5c, 0x1c000)` (inclusive start, exclusive end).
+- Last checkpoint adds exactly 12 ARM32 instructions (48 bytes) at
+  `[0x17fd0, 0x18000)`. These are the prologue and early state checks of the
+  next function; its switch tables and cases at `0x18000` and beyond are
+  intentionally **excluded**, since Agent 03 owns that interval.
+- Prior completed routine `[0x174e4,0x17fd0)` includes the verified seven-way
+  and four-way jump tables and three diagnostic literals; all are explicit
+  non-instruction data. Focused unit tests check their values and the exact
+  agent boundary so that future extensions cannot silently overlap Agent 03.
+- SHA-256 of the complete generated 20,900-byte fragment (independent of
+  the reference input at build time):
+  `dfa36782537a8b618eeea41d46270e6c0834a403f55e316c5643808d0dcf9fdd`.
+- To verify bytes with original reference present **outside Git**:
+
+  ```sh
+  cargo run --offline --locked --bin agent01-venus-forward -- verify /private/venus.mbn
+  cargo run --offline --locked --bin agent01-venus-forward -- emit /tmp/venus-agent01.bin
+  ```
+
+- `cargo test --workspace --offline --locked`,
+  `cargo build --workspace --release --offline --locked`,
+  `python3 -m unittest discover -s tests -p 'test_*.py'` and `git diff --check`
+  pass in this environment.
+- **Integration caveat:** actual checkpoint 50 SHA
+  `b7ed4b587633b9b475a40f5a3ace5cc90db620ff` was not mountable in
+  this session. Our branch **does not** derive from it. Apply the cumulative
+  patch/cherry-pick into a real checkpoint-50 checkout, handling the only
+  shared changes in `crates/arm32/src/lib.rs` (checked SMULBB) and
+  `devices/xiaomi_nabu/mod.rs` (module export). The standalone CLI, complete
+  typed module and progress document have unique paths and should merge
+  without changing any other agent's runtime interval.
+- **Scope complete is not firmware complete:** the executable at `0x18000`
+  continues into Agent 03's range; Venus boot/service gap and rest of OEM
+  payload are outside this assignment. Code is byte-identical typed ARM32
+  instruction re-encoding, not high-level functional decompilation or a
+  newly signed/flashable MBN.
