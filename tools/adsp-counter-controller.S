@@ -277,3 +277,17 @@ poll_legacy_controller:
 // Disabling the earlier exception vectors allows startup to proceed.
 { r0 = ##0x173a0040 }
 { memw(r0+#0) = ##0 }
+// Clear remaining exception slots, finish the MMIO setup, and expose
+// minimal startup helpers. Later SYSCFG/exception handlers are outside
+// this source fragment.
+{ r0 = ##0x173a0044 }
+{ memw(r0+#0) = ##0 }
+{ r0 = ##0x173a0048 }
+{ memw(r0+#0) = ##0 }
+{ barrier }
+{ jumpr lr }
+{ nop }
+{ nop }
+{ sp = add(pc,##0x20458) }
+{ jumpr lr }
+{ jumpr lr }
