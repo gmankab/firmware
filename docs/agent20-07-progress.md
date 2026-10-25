@@ -575,3 +575,21 @@ Together with separate `[0x6030,0x6c6c)` (3,132 bytes), **3,648 bytes** of
 ADSP executable code are now source-assembled across two disjoint intervals.
 The original zero-fill and nonzero 144-byte unclassified table between them are
 excluded. Next missing program instruction starts at `0x10534`.
+
+## Checkpoint 31: physical cycle delta, CFGBASE and `memw_phys` `[0x10534,0x10570)`
+
+Another **60 independently encoded byte-identical Hexagon V66 bytes** update
+an ADSP controller's 64-bit per-thread cycle delta, increment an event count,
+clean the affected cache line and read a physical controller word. Ordinary
+LLVM6-assembled source encodes twelve instructions; three privileged Hexagon
+operations use named, checked ISA field encoders at exact sentinel positions:
+`R1:0=PCYCLE` as a packet continuation, `R1=CFGBASE` and
+`R2=memw_phys(R0,R1)`. The sequence's `r1=asl(r1,#5)` intentionally continues
+through a zero immediate extender for `r0=##8`; splitting that packet changes
+byte identity.
+
+The disjoint ADSP executable interval `[0x10330,0x10570)` is **576 bytes**,
+SHA-256 `a5b06fe80408fcf662e12824297b78558307fd44b4961f021cac4df57d3fa965`.
+The earlier `[0x6030,0x6c6c)` remains 3,132 byte-identical bytes, so total
+source-authored RWE code is **3,708 bytes**, and intervening reference-only
+fill/unknown data are not counted. Next uncovered file instruction `0x10570`.

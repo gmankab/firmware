@@ -14,10 +14,11 @@ from pathlib import Path
 TOOLS=Path(__file__).resolve().parent
 if str(TOOLS) not in sys.path:sys.path.insert(0,str(TOOLS))
 from adsp_hexagon_v66 import (SystemRegister, read_system_register,
-    read_system_register_pair, write_system_register, packet_continuation)
+    read_system_register_pair, write_system_register, packet_continuation,
+    physical_word_load)
 SOURCE=TOOLS/'adsp-agent20-rwe-next-getter.S'
 FILE_START=0x10330
-FILE_END=0x10534
+FILE_END=0x10570
 SIZE=FILE_END-FILE_START
 GETTER_SIZE=0x1c
 THREAD_CYCLES_SOURCE=TOOLS/'adsp-agent20-rwe-next-thread-cycles.S'
@@ -32,6 +33,8 @@ DEBUG_SNAPSHOT_SOURCE=TOOLS/'adsp-agent20-rwe-next-debug-snapshot.S'
 DEBUG_SNAPSHOT_SIZE=0x58
 CONTROLLER_PHASE_SOURCE=TOOLS/'adsp-agent20-rwe-next-controller-phase.S'
 CONTROLLER_PHASE_SIZE=0x7c
+CYCLE_SNAPSHOT_SOURCE=TOOLS/'adsp-agent20-rwe-next-cycle-snapshot.S'
+CYCLE_SNAPSHOT_SIZE=0x3c
 PHYS_START=0x8be0d330
 SHA256_REFERENCE='4b579e5dc1333d634e5bdc93f3314e357e0e30dab7140833f6cc7aef086b1c1e'
 FILL_START=0x6c6c
@@ -116,6 +119,32 @@ def controller_phase(llvm_mc:str, previous)->bytes:
     return bytes(b)
 
 
+def cycle_snapshot(llvm_mc:str, previous)->bytes:
+    """Read PCYCLE, CFGBASE and a physical controller word; write cycle deltas.
+
+    Hexagon LLVM6 cannot assemble these V66-only special operations. The
+    emitter verifies three independently mnemonic-assembled NOP slots and
+    replaces them with bounded checked architecture-field encoders. An
+    extender packet crossing an ordinary shift is preserved verbatim.
+    """
+    b=bytearray(previous.assemble(llvm_mc,CYCLE_SNAPSHOT_SOURCE,
+                                  CYCLE_SNAPSHOT_SIZE))
+    mid=struct.pack('<I',0x7f004000)
+    final=struct.pack('<I',0x7f00c000)
+    replacements={
+       0x00:(mid,packet_continuation(read_system_register_pair(0,30))),
+       0x28:(final,read_system_register(1,SystemRegister.CFGBASE)),
+       0x38:(final,physical_word_load(2,0,1)),
+    }
+    for at,(expected,word) in replacements.items():
+        if b[at:at+4]!=expected:
+            raise previous.AdspError(f'cycle-snapshot privileged slot changed +0x{at:x}')
+        b[at:at+4]=struct.pack('<I',word)
+    if any(b[i:i+4] in (mid,final) for i in range(0,len(b),4)):
+        raise previous.AdspError('unresolved cycle-snapshot placeholder')
+    return bytes(b)
+
+
 def render(llvm_mc: str)->bytes:
     # All seven V66 instructions are independently LLVM6-assembled, with no
     # reference bytes. The first packet sequence crosses a C function
@@ -145,7 +174,8 @@ def render(llvm_mc: str)->bytes:
             +b.assemble(llvm_mc,SRAM_CLONE_SOURCE,SRAM_CLONE_SIZE)
             +b.assemble(llvm_mc,CONTROLLER_POLL_SOURCE,CONTROLLER_POLL_SIZE)
             +debug_snapshot(llvm_mc,b)
-            +controller_phase(llvm_mc,b))
+            +controller_phase(llvm_mc,b)
+            +cycle_snapshot(llvm_mc,b))
 
 def verify(reference:bytes,built:bytes)->None:
     if hashlib.sha256(reference).hexdigest()!=SHA256_REFERENCE:
