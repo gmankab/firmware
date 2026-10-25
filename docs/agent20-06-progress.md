@@ -142,3 +142,13 @@ python3 tools/agent20_06_a32_roundtrip.py /private/venus.mbn 0xa8ea0 0xa92c8 \
 - Independent Clang/LLVM round-trip verified `[0xac750,0xace00)` using `tools/agent20_06_a32_roundtrip.py` with `--data-range 0xac9e4:0xac9f0`, **zero byte differences**.
 - No original OEM opcode blobs are embedded; this is byte-identical **instruction-level** re-encoding and not a high-level source reimplementation, hardware test, newly signed MBN, or completed assigned tail.
 - Next uncovered ARM runtime address `0xace00`, original MBN offset `0xb0e00`.
+
+## Checkpoint 15 — scaled codec allocation and callback getter
+
+- Exact source-generated runtime `[0xa8000,0xad728)` = **22,312 bytes**, reference file offsets `[0xac000,0xb1728)`; original Venus SHA-256 remains pinned.
+- Newly implemented `[0xace00,0xad728)` = 2,344 bytes, with **578 typed ARM32 instructions (2,312 bytes)** and 8 separately identified constant/address words (32 bytes): arithmetic/diagnostic pool `[0xad6f0,0xad70c)` (7 words), callback pointer `[0xad724,0xad728)` (1 word).
+- Completes the large allocator started at `0xac9f0`, including codec plane-size calculations, DMA/frame buffers and state/diagnostic updates. A six-instruction callback-tail helper `[0xad70c,0xad724)` follows.
+- New independently tested architectural `SMULBB` instruction encoder lives in shared `crates/arm32`; signed bottom-half multiplication is validated against Clang. No embedded OEM executable opcode arrays.
+- Independent Clang/LLVM A32 mnemonic assembly matches 2,312 instruction bytes and 32 data bytes exactly using `--data-range 0xad6f0:0xad70c --data-range 0xad724:0xad728`.
+- Full Rust/Python suites and offline release build pass. Next uncovered runtime address `0xad728`, original file offset `0xb1728`.
+- This remains instruction-level byte-identity only; behavior, OEM signatures, and checkpoint-50-based integration are not established.
