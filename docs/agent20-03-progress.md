@@ -394,3 +394,9 @@ Original reference: private `map220v-nabu-firmware/venus.mbn`, SHA-256 `9d4af65d
 - Contiguous typed A32 reconstruction `[0x21c78,0x2fcbc)` = **57,412 exact bytes**, new `[0x2fbc4,0x2fcbc)` = **248 bytes**, **58 instructions** and four literal words.
 - Implements the route register writes and conditionally handles disabled controller states. Pool `[0x2fcac,0x2fcbc)` is MMIO and diagnostic data, not executable ARM instructions.
 - The next routine begins at `0x2fcbc`, outside this checkpoint. Byte-for-byte instruction encoding is not behavioral proof or signing.
+
+## Checkpoint 60 — Codec plane layout and frame stride conversion
+
+- Full contiguous A32 region `[0x21c78,0x3027c)` = **58,884 exact bytes**; new function `[0x2fcbc,0x3027c)` = **1472 bytes** (**358 ARM32 instructions** and ten literal data words).
+- Emits codec plane dimensions, interlacing/sample-stride calculations, 32-entry command array and command packer. The table `[0x30254,0x3027c)` is explicitly non-executable data.
+- The next function starts at `0x3027c`. This is instruction-byte re-encoding and deterministic span generation, not independent high-level codec semantics or new OEM signing.
