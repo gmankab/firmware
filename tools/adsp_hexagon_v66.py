@@ -89,3 +89,35 @@ def boot_special_code() -> bytes:
     encoded = b"".join(struct.pack("<I", value) for value in words)
     assert len(encoded) == 0x20
     return encoded
+
+
+def syscfg_handoff_steps() -> tuple[tuple[str, int | str, int], ...]:
+    """Build a source-level, 21-word Hexagon SYS_CFG and cache sequence.
+
+    ``isa`` operations are checked typed system-register/only-one-opcode
+    forms; ``asm`` operations are original instruction source emitted by the
+    Hexagon assembler. Packet sizing is explicit to prevent implicit gaps.
+    This entry lives at ADSP file [0x46a0,0x46f4), after the 0x41e0 setup.
+    """
+    syscfg = SystemRegister.SYSCFG
+    return (
+        ("isa", read_system_register(15, syscfg), 4),
+        ("asm", "{ r15 = clrbit(r15,#1) }", 4),
+        ("isa", write_system_register(syscfg, 15), 4),
+        ("asm", "{ isync }", 4),
+        ("isa", int(CacheCommand.INSTRUCTION_CACHE_KILL), 4),
+        ("asm", "{ isync }", 4),
+        ("asm", "{ r15 = or(r15,#3) }", 4),
+        ("isa", write_system_register(syscfg, 15), 4),
+        ("asm", "{ isync }", 4),
+        ("asm", "{ lr = sub(lr,r25) }", 4),
+        ("asm", "{ jumpr lr }", 4),
+        ("asm", "{ fp = ##-0xfffe920; lr = add(lr,r25) }", 12),
+        ("asm", "{ fp = add(fp,r25) }", 4),
+        ("asm", "{ jumpr fp }", 4),
+        ("isa", read_system_register(15, syscfg), 4),
+        ("asm", "{ r15 = clrbit(r15,#0) }", 4),
+        ("isa", write_system_register(syscfg, 15), 4),
+        ("asm", "{ isync }", 4),
+        ("asm", "{ jumpr lr }", 4),
+    )

@@ -53,6 +53,22 @@ class V66BootstrapTests(unittest.TestCase):
         for word in struct.unpack("<8I", code):
             self.assertEqual((word >> 14) & 3, 3)
 
+    def test_syscfg_handoff_steps_use_explicit_source_and_operand_boundaries(self) -> None:
+        steps = v66.syscfg_handoff_steps()
+        self.assertEqual(sum(size for _, _, size in steps), 84)
+        self.assertEqual(sum(kind == "isa" for kind, _, _ in steps), 6)
+        self.assertTrue(all(kind in ("isa", "asm") for kind, _, _ in steps))
+        for kind, operation, size in steps:
+            with self.subTest(operation=operation):
+                self.assertIn(size, (4, 12))
+                if kind == "isa":
+                    self.assertIsInstance(operation, int)
+                    self.assertEqual((operation >> 14) & 3, 3)
+                else:
+                    self.assertIsInstance(operation, str)
+                    self.assertIn("{", operation)
+        self.assertEqual(steps[-1][1], "{ jumpr lr }")
+
     @unittest.skipUnless(REFERENCE, "ADSP reference required")
     def test_instructions_match_two_independent_adsp_call_sites(self) -> None:
         original = Path(REFERENCE).read_bytes()

@@ -92,13 +92,40 @@ class ADSPBootstrapTests(unittest.TestCase):
     @unittest.skipUnless(LLVM_MC and REFERENCE,
                          "Hexagon assembler and exact Nabu ADSP reference required")
     def test_controller_is_byte_identical_to_original(self) -> None:
-        generated = adsp.assemble(LLVM_MC, adsp.CONTROLLER_SOURCE, 0x4c0)
+        generated = (adsp.assemble(LLVM_MC, adsp.CONTROLLER_SOURCE, 0x4c0) +
+                     adsp.assemble_syscfg_handoff(LLVM_MC))
+        self.assertEqual(len(generated), 0x514)
         original = Path(REFERENCE).read_bytes()
         adsp.verify_reference(generated, original, 0x41e0)
         mutated = bytearray(generated)
         mutated[15] ^= 0x80
         with self.assertRaisesRegex(adsp.AdspError, "mismatch"):
             adsp.verify_reference(bytes(mutated), original, 0x41e0)
+
+    @unittest.skipUnless(LLVM_MC, "Hexagon-capable llvm-mc unavailable")
+    def test_syscfg_handoff_uses_typed_and_source_assembly(self) -> None:
+        handoff = adsp.assemble_syscfg_handoff(LLVM_MC)
+        self.assertEqual(len(handoff), 84)
+        self.assertEqual(handoff[:4], struct.pack("<I", 0x6e92c00f))
+        self.assertEqual(handoff[8:12], struct.pack("<I", 0x670fc012))
+        self.assertEqual(handoff[20:24], struct.pack("<I", 0x57c0c002))
+        # Instruction packets compiled independently by LLVM6 (one
+        # 12-byte extender+dual-operation packet at file 0x46cc).
+        self.assertEqual(
+            handoff[0x2c:0x38],
+            bytes.fromhex("5b40000f1e4400781fd91ff3"))
+        self.assertEqual(handoff[-4:], struct.pack("<I", 0x529fc000))
+
+    @unittest.skipUnless(LLVM_MC and REFERENCE,
+                         "Hexagon assembler and exact Nabu ADSP reference required")
+    def test_syscfg_handoff_matches_reference_and_rejects_wrong_revision(self) -> None:
+        handoff = adsp.assemble_syscfg_handoff(LLVM_MC)
+        ref = Path(REFERENCE).read_bytes()
+        adsp.verify_reference(handoff, ref, 0x46a0)
+        bad = bytearray(ref)
+        bad[0x46b0] ^= 1
+        with self.assertRaisesRegex(adsp.AdspError, "Wrong Xiaomi Nabu ADSP revision"):
+            adsp.verify_reference(handoff, bytes(bad), 0x46a0)
 
     @unittest.skipUnless(LLVM_MC, "Hexagon-capable llvm-mc unavailable")
     def test_reject_relocations_and_malformed_section_offsets(self) -> None:
