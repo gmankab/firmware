@@ -9,11 +9,10 @@
 //! the controller's use of the tables and original generation code remain
 //! inferred, not recovered executable semantics.
 //!
-//! Determinism: Rust's f64 `exp` accuracy is platform dependent. For these
-//! eight distinct sigma values the nearest half-integer boundary is more than
-//! 0.001583 away (sigma=40, x=72), checked independently using 80-digit decimal
-//! arithmetic. That is a measured rounding margin, not a universal libm error
-//! proof. A new target/toolchain must still run the pinned byte/hash verifier.
+//! Emitted coefficients use Q48 fixed-point and integer Taylor terms, without
+//! libm, so the output is deterministic across supported Rust platforms.
+//! The f64 helper below is retained *only* as a diagnostic for comparison.
+//! All parameter tuples must additionally be checked against the pinned bytes.
 
 pub const GAUSSIAN_HALF_WIDTH: usize = 80;
 pub const GAUSSIAN_SAMPLE_COUNT: usize = GAUSSIAN_HALF_WIDTH + 1;
@@ -86,18 +85,53 @@ fn checked_coefficient(sigma: f64, x: usize) -> Result<(f64, u16), String> {
     Ok((value, rounded as u16))
 }
 
-/// Generate exactly 81 coefficients from x=80 down to the center x=0.
-/// Positive values use nearest-integer rounding, with exact ties away from
-/// zero. The fixed sample count prevents caller-controlled oversized kernels.
-/// Reject sigma=0 and widths whose center coefficient overflows u16.
+// The rounded 48-bit fixed-point square root of 2π.
+// sqrt(2*pi)*2^48 = 705553135224033. ... (rounded half up).
+const Q48: u128 = 1u128 << 48;
+const SQRT_TWO_PI_Q48: u128 = 705_553_135_224_033;
+
+/// Compute exp(-z) for z in [0,16], using exp(z)'s strictly positive
+/// Taylor series followed by reciprocal Q48 division. Stopping once a term
+/// truncates to zero avoids cancellation. For z >= 16 any u16-bounded
+/// Gaussian peak multiplied by exp(-z) rounds to zero.
+fn exp_neg_q48(z: u128) -> Result<u128, String> {
+    if z >= 16 * Q48 { return Ok(0); }
+    let mut term = Q48;
+    let mut total = Q48;
+    for n in 1..=128u128 {
+        term = term.checked_mul(z).ok_or("Gaussian series overflow")? / (Q48 * n);
+        if term == 0 { break; }
+        total = total.checked_add(term).ok_or("Gaussian series overflow")?;
+    }
+    Ok(Q48.checked_mul(Q48).ok_or("Gaussian reciprocal overflow")? / total)
+}
+
+/// Pure integer source specification, rounded to the nearest positive u16.
+/// Sigma uses exact integer tenths and x is measured in whole sample slots.
+fn fixed_coefficient(sigma_tenths:u16, x:usize)->Result<u16,String>{
+    if sigma_tenths == 0 {return Err("Gaussian sigma must be positive".into());}
+    if x > GAUSSIAN_HALF_WIDTH {return Err("Gaussian sample outside half-width".into());}
+    let sigma_u = sigma_tenths as u128;
+    let peak_num = 4_000_000u128.checked_mul(Q48*Q48)
+        .ok_or("Gaussian amplitude overflow")?;
+    let peak_q48 = peak_num / (sigma_u * SQRT_TWO_PI_Q48);
+    if peak_q48 + Q48/2 > u16::MAX as u128 * Q48 + Q48 {
+        return Err("Gaussian coefficient is not representable as u16".into());
+    }
+    let z = 50u128 * (x as u128).pow(2) * Q48 / sigma_u.pow(2);
+    let decayed = peak_q48.checked_mul(exp_neg_q48(z)?)
+        .ok_or("Gaussian density overflow")? / Q48;
+    let rounded = (decayed + Q48/2) / Q48;
+    u16::try_from(rounded).map_err(|_|"Gaussian coefficient is not representable as u16".into())
+}
+
+/// Generate exactly 81 coefficients using only deterministic integer math.
+/// Output has the same u16 little-endian, x=80..0 layout as the pinned file.
 pub fn gaussian_half_kernel(sigma_tenths: u16) -> Result<Vec<u8>, String> {
-    let sigma = sigma(sigma_tenths)?;
-    // Check the largest coefficient first, avoiding a partial output on error.
-    checked_coefficient(sigma, 0)?;
+    fixed_coefficient(sigma_tenths, 0)?;
     let mut bytes = Vec::with_capacity(GAUSSIAN_KERNEL_BYTES);
     for x in (0..GAUSSIAN_SAMPLE_COUNT).rev() {
-        let (_, coefficient) = checked_coefficient(sigma, x)?;
-        bytes.extend_from_slice(&coefficient.to_le_bytes());
+        bytes.extend_from_slice(&fixed_coefficient(sigma_tenths, x)?.to_le_bytes());
     }
     Ok(bytes)
 }
@@ -225,6 +259,17 @@ mod tests {
         assert!(validate_fragment_layout(usize::MAX, GAUSSIAN_KERNEL_BYTES).is_err());
         assert!(validate_fragment_layout(0x22001, GAUSSIAN_KERNEL_BYTES).is_err());
         assert!(validate_fragment_layout(0x2e190, GAUSSIAN_KERNEL_BYTES).is_err());
+    }
+
+    #[test]
+    fn integer_q48_matches_independent_f64_at_all_profiles() {
+        for (_, width) in KERNEL_PROFILES {
+            let sigma = sigma(width).unwrap();
+            for x in 0..GAUSSIAN_SAMPLE_COUNT {
+                assert_eq!(fixed_coefficient(width,x).unwrap(), checked_coefficient(sigma,x).unwrap().1,
+                    "Gaussian width {width}, sample {x}");
+            }
+        }
     }
 
     #[test]

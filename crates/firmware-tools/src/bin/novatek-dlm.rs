@@ -150,14 +150,14 @@ mod integration_tests {
     fn every_generated_span_is_dlm_data_and_mirror_credit_is_not_duplicated() {
         let parts=generated_fragments().unwrap();
         let t=ledger(&parts).unwrap().totals;
-        assert_eq!(parts.len(),22);
-        assert_eq!(t.source_dlm_data_bytes,9252);
+        assert_eq!(parts.len(),23);
+        assert_eq!(t.source_dlm_data_bytes,9260);
         assert_eq!(t.mirror_from_source_bytes,648);
         assert_eq!(t.mirror_from_external_bytes,1656);
-        assert_eq!(t.unknown_dlm_bytes,40300);
-        assert_eq!(t.unknown_payload_bytes(),148354);
+        assert_eq!(t.unknown_dlm_bytes,40292);
+        assert_eq!(t.unknown_payload_bytes(),148346);
         assert_eq!(t.total_bytes(),196608);
-        assert_eq!(t.independent_bytes(),44926);
+        assert_eq!(t.independent_bytes(),44934);
         let r=report(&parts,false).unwrap();
         assert!(r.contains("\"mismatched_source_bytes\": null"));
         assert!(r.contains("\"reference_verified\": false"));

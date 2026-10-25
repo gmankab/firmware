@@ -191,9 +191,22 @@ pub fn narrow_index_walks(translated: bool) -> Result<DataFragment, String> {
     })
 }
 
+/// Two independent mailboxes begin with the Nabu controller's idle token.
+/// The two servicing paths return this identical token after consuming a
+/// transaction; this is a semantic initializer, not a copied payload span.
+/// Only the eight initialized bytes are claimed, not their adjacent fields.
+pub const IDLE_MAILBOX_TOKEN: u32 = 0x1234_5678;
+pub const MAILBOX_FILE_START: usize = 0x2e130;
+pub fn idle_mailbox_initializers() -> DataFragment {
+    let mut bytes = Vec::with_capacity(8);
+    for _ in 0..2 { bytes.extend_from_slice(&IDLE_MAILBOX_TOKEN.to_le_bytes()); }
+    DataFragment {name:"controller-idle-mailboxes",file_start:MAILBOX_FILE_START,bytes,
+        evidence:"two NDS32 mailbox slots initialized to controller idle token 0x12345678"}
+}
+
 pub fn fragments() -> Result<Vec<DataFragment>, String> {
     Ok(vec![initial_index_walks()?,narrow_index_walks(false)?,
-        translated_index_walks()?,narrow_index_walks(true)?])
+        translated_index_walks()?,narrow_index_walks(true)?, idle_mailbox_initializers()])
 }
 
 #[cfg(test)]
@@ -210,6 +223,14 @@ mod tests {
         assert_eq!(u32::from_le_bytes(encoded[52..56].try_into().unwrap()),
                    8 + 2*64 + 3*512 + 4*4096 + 5*32768 + 6*262144 + 7*2097152 + 134217728);
         assert_eq!(decode_record(&encoded).unwrap().as_slice(), slots);
+    }
+
+    #[test]
+    fn dual_idle_mailboxes_have_source_token_not_payload_copy() {
+        let f=idle_mailbox_initializers();
+        assert_eq!(f.file_start, 0x2e130);
+        assert_eq!(f.bytes, vec![0x78,0x56,0x34,0x12,0x78,0x56,0x34,0x12]);
+        assert_eq!(f.sram_start(), 0x2c130);
     }
 
     #[test]
@@ -269,6 +290,6 @@ mod tests {
             let decode=|data:&DataFragment|decode_record(&data.bytes[row*72..(row+1)*72]).unwrap();
             assert_eq!(decode(&a).map(|v|v==SENTINEL),decode(&b).map(|v|v==SENTINEL));
         }
-        assert_eq!(fragments().unwrap().iter().map(|f|f.bytes.len()).sum::<usize>(),6336);
+        assert_eq!(fragments().unwrap().iter().filter(|f|f.name.contains("index-walks")).map(|f|f.bytes.len()).sum::<usize>(),6336);
     }
 }

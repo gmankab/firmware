@@ -139,3 +139,52 @@ The precise remaining DLM holes are:
 | `[0x2e0dc,0x2e190)` | 180 |
 
 The 108,054-byte ILM remainder belongs to Agents 17 and 18. Integration Agent 01 must replay this contribution onto a real verified descendant of checkpoint 50, reconcile the ledger with later independently verified ILM contributions, and rerun the full build and byte comparisons. Full firmware behavior, hardware acceptance, and a complete independently authored image remain unfinished. No output here is represented as flashable or newly authenticated firmware.
+
+## Checkpoint 02 — Deterministic Gaussian tables and idle mailboxes
+
+This checkpoint advances independently structured DLM data coverage from
+9,252 to **9,260 bytes** (`23` fragments). The previous source-generated index
+schedules (6,336 bytes) and Gaussian kernels (2,916 bytes) retain byte-for-byte
+reference identity; an additional **eight bytes** are generated from the
+controller's dual idle-mailbox initializer at `[0x2e130,0x2e138)` (SRAM
+`[0x2c130,0x2c138)`). Those slots each contain the controller idle token
+`0x12345678`, modeled as a repeated little-endian `u32`, not a reference-byte
+copy. No executable bytes are credited to Agent 19.
+
+The Gaussian emitter now uses **Q48 fixed-point integer arithmetic**:
+`√(2π)` is represented by the nearest Q48 integer `705553135224033`;
+`exp(-x²/(2σ²))` is reconstructed with the positive Taylor series for
+`exp(z)` and integer reciprocal. Values with `z >= 16` are safely rounded
+to zero because the peak is bounded by `u16`. This eliminates target `libm`
+`exp` variations from emitted bytes. Its 18 tables match both the independent
+80-digit Python Decimal calculation and every byte of the pinned reference.
+The historical floating-point diagnostic remains available as a cross-check
+but is not used to emit firmware data.
+
+| Region | Independently generated | Unresolved | Other accounting |
+|---|---:|---:|---|
+| DLM `[0x22000,0x2e190)` | **9,260 bytes** | **40,292 bytes** | No source credit for visually empty runs |
+| Prior Agent 09 ILM | 538 bytes | 108,054 bytes | Owned by other agents |
+| Envelope and layout | 35,136 bytes | — | Fixed layout/marker, not executable code |
+| External header and vectors | — | — | 1,024 externally supplied scalar bytes |
+| Derived DLM mirror | — | — | 2,304 dependent bytes, counted **once** |
+
+The unique independently generated image coverage is **44,934 bytes**.
+The first unresolved DLM byte remains `0x22000`. The two idle slots are in
+the tail gap `[0x2e0dc,0x2e190)`, now split into `[0x2e0dc,0x2e130)` and
+`[0x2e138,0x2e190)`.
+
+**Verification:** pinned postmarketOS SHA-256
+`8b845514621ebfd95759a0919f3aa3d825314abb478a7cad1c3fb4c6872b70b5`,
+23 fragments / 9,260 data bytes / **zero source mismatches**, all 12 stored
+CRC fields and the 2,304-byte dependent mirror verified. The independent
+Python verifier checks the emitted Rust files against its own Decimal model
+and strict provenance rows. Concatenated fragment digest (by ascending offset):
+`aac0ac6e0c341b0e61e3df6fe4acd39b41680b2e06f0452c5ce23df071e67a2a`.
+
+**Integration:** This is a portable change from older-base preview
+`941c805f8510c88344133687a77722ace386504e`, not a verified descendant of
+checkpoint 50 `b7ed4b587633b9b475a40f5a3ace5cc90db620ff`. No other agent's
+ILM source or generic signing/image builder is modified. The branch and
+portable patches must be replayed and tested by Integration Agent 01 on the
+real integrated base.

@@ -46,6 +46,11 @@ def synthetic_envelope():
 
 
 class PackedScheduleTests(unittest.TestCase):
+    def test_idle_mailboxes_have_same_controller_token(self):
+        fragments = dlm.generated_fragments()
+        mailbox = next((start,name,data) for start,name,data in fragments if name=="controller-idle-mailboxes")
+        self.assertEqual(mailbox, (0x2e130,"controller-idle-mailboxes",struct.pack("<II",0x12345678,0x12345678)))
+
     def test_high_bits_cross_group_boundaries_and_sentinel_is_not_zero(self):
         values = [0] * 50
         values[0], values[9], values[10], values[23] = 0x100, 0x700, 0x300, 0x4a5
@@ -114,8 +119,8 @@ class GaussianAndCrcTests(unittest.TestCase):
 
     def test_fragments_are_disjoint_data_with_frozen_owned_byte_total(self):
         fragments = dlm.generated_fragments()
-        self.assertEqual(len(fragments), 22)
-        self.assertEqual(sum(len(data) for _, _, data in fragments), 9252)
+        self.assertEqual(len(fragments), 23)
+        self.assertEqual(sum(len(data) for _, _, data in fragments), 9260)
         self.assertEqual(sum(len(data) for _, name, data in fragments if name == "gaussian-half-kernel"), 2916)
         self.assertTrue(all(a + len(data) <= b for (a, _, data), (b, _, _) in zip(fragments, fragments[1:])))
         self.assertEqual(sum(max(0, min(start + len(data), 0x22900) - max(start, 0x22000))
@@ -190,7 +195,7 @@ class ManifestTests(unittest.TestCase):
                 (directory / "manifest.json").write_text(json.dumps(changed))
                 with self.assertRaisesRegex(ValueError, "extent/hash"):
                     dlm.check_manifest(directory, fragments)
-            manifest["new_executable_bytes"] = 9252
+            manifest["new_executable_bytes"] = 9260
             (directory / "manifest.json").write_text(json.dumps(manifest))
             with self.assertRaisesRegex(ValueError, "accounting"):
                 dlm.check_manifest(directory, fragments)
@@ -224,7 +229,7 @@ class OptionalReferenceTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             subprocess.run([os.environ["NOVATEK_DLM_BIN"], "emit", tmp], check=True, capture_output=True, text=True)
             report = dlm.verification_report(os.environ["NOVATEK_REFERENCE"], tmp)
-        self.assertEqual(report["independent_data_bytes"], 9252)
+        self.assertEqual(report["independent_data_bytes"], 9260)
         self.assertEqual(report["mismatched_source_bytes"], 0)
         self.assertTrue(report["rust_output_matches"])
 
