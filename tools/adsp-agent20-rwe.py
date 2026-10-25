@@ -20,11 +20,14 @@ if str(TOOLS) not in sys.path:
 from adsp_hexagon_v66 import SystemRegister,read_system_register,write_system_register
 
 FILE_START=0x6030
-FILE_END=0x608c
+FILE_END=0x60d4
 SIZE=FILE_END-FILE_START
 PADDR=0x8BE03030
 REFERENCE_SHA='4b579e5dc1333d634e5bdc93f3314e357e0e30dab7140833f6cc7aef086b1c1e'
 SOURCE=TOOLS/'adsp-agent20-rwe-startup.S'
+DISPATCH_SOURCE=TOOLS/'adsp-agent20-rwe-dispatch.S'
+STARTUP_SIZE=0x5c
+DISPATCH_SIZE=0x48
 
 
 def baseline():
@@ -38,7 +41,7 @@ def baseline():
 
 def render(llvm_mc:str)->bytes:
     previous=baseline()
-    output=bytearray(previous.assemble(llvm_mc,SOURCE,SIZE))
+    output=bytearray(previous.assemble(llvm_mc,SOURCE,STARTUP_SIZE))
     sentinel=struct.pack('<I',0x7F00C000)
     replacements={
         0x14:read_system_register(1,SystemRegister.SYSCFG),
@@ -51,6 +54,10 @@ def render(llvm_mc:str)->bytes:
         output[at:at+4]=struct.pack('<I',word)
     if sentinel in (output[x:x+4] for x in range(0,len(output),4)):
         raise previous.AdspError('unresolved privileged sentinel')
+    extra=previous.assemble(llvm_mc,DISPATCH_SOURCE,DISPATCH_SIZE)
+    output.extend(extra)
+    if len(output)!=SIZE:
+        raise previous.AdspError("RWE source fragments are not contiguous")
     return bytes(output)
 
 
