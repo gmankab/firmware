@@ -120,6 +120,9 @@ pub enum ScalarPacket {
     JumpBackward { displacement_bytes: i16 },
     /// `Rd=asl(Rs,#N)` (arithmetic shift left by a 5-bit constant).
     ArithmeticShiftLeft { dst: GeneralRegister, src: GeneralRegister, amount: u8 },
+    /// Compound Hexagon packet `P0=cmp.eq(Rsrc,#0); if(P0.new) jump:t`.
+    /// This is one word with a short forward branch counted in bytes.
+    SkipIfSourceZero { src: GeneralRegister, displacement_bytes: u16 },
     /// Cache and instruction synchronization (singleton packets).
     Dckill,
     Ickill,
@@ -306,6 +309,14 @@ impl ScalarPacket {
                 if amount >= 32 { return Err("Hexagon ASL immediate shift must be < 32".into()); }
                 Ok(0x8c00_c040 | (u32::from(src.number()) << 16)
                    | (u32::from(amount) << 8) | u32::from(dst.number()))
+            }
+            Self::SkipIfSourceZero { src, displacement_bytes } => {
+                if src.number()>7 || displacement_bytes==0 ||
+                   displacement_bytes>0x1fe || displacement_bytes % 2 != 0 {
+                    return Err("CDSP compound zero compare needs low-register and short forward branch".into());
+                }
+                Ok(0x1000_e000 | (u32::from(src.number()) << 16)
+                   | u32::from(displacement_bytes/2))
             }
             Self::Dckill => Ok(0xa200_c000),
             Self::Ickill => Ok(0x56c0_d000),
@@ -655,6 +666,19 @@ mod tests {
         assert!(JumpBackward{displacement_bytes:-5}.encode().is_err());
         assert!(JumpBackward{displacement_bytes:-0x1004}.encode().is_err());
         assert!(ArithmeticShiftLeft{dst:r(2),src:r(0),amount:32}.encode().is_err());
+    }
+
+    #[test]
+    fn compound_forward_zero_branch_matches_llvm_v60() {
+        use ScalarPacket::*;
+        let r=|n|GeneralRegister::new(n).unwrap();
+        assert_eq!(SkipIfSourceZero{src:r(2),displacement_bytes:16}.encode().unwrap(),
+                   0x1002_e008);
+        assert_eq!(SkipIfSourceZero{src:r(3),displacement_bytes:12}.encode().unwrap(),
+                   0x1003_e006);
+        assert!(SkipIfSourceZero{src:r(8),displacement_bytes:16}.encode().is_err());
+        assert!(SkipIfSourceZero{src:r(2),displacement_bytes:0}.encode().is_err());
+        assert!(SkipIfSourceZero{src:r(2),displacement_bytes:15}.encode().is_err());
     }
 
     #[test]

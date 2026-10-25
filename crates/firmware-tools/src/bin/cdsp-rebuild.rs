@@ -26,9 +26,13 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
                 privileged::FUNCTION_SIZE, privileged::FILE_OFFSET,
                 privileged::FILE_OFFSET + privileged::FUNCTION_SIZE);
         }
+        [action, output] if action == "emit-tlb-tables" => {
+            fs::write(output,extension::build_tlb_table_walks()?)?;
+            println!("Emitted 64 independently generated CDSP TLB table-walk bytes at file 0x3e78..0x3eb8.");
+        }
         [action, output] if action == "emit-tlb-extended" => {
             fs::write(output, extension::build_extended_cluster()?)?;
-            println!("Emitted {} independently reconstructed CDSP supervisor/TLB bytes at 0x3d40–0x3e78; entry is separate.",
+            println!("Emitted {} independently reconstructed CDSP supervisor/TLB bytes at 0x3d40–0x3eb8; entry is separate.",
                 tlb::COMPLETE_CLUSTER_SIZE+extension::TOTAL_BYTES);
         }
         [action, reference] if action == "verify-tlb-extended" => {
