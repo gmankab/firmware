@@ -80,3 +80,15 @@ python3 tools/build-wlanmdsp-agent13.py /tmp/wlan-prefix-through-27a0.bin \
 - Offline Rust suite: **160 passing tests**. Python discovery with LLVM22/reference configured: **22 tests discovered, 21 passing, 1 skipped**; the offline release build and `git diff --check` pass.
 - **Next uncovered function starts at file offset `0x42f18`, VMA `0xb0002f18`**. Remaining assigned interval is `[0x42f18,0x100000)`. Nothing beyond the next boundary is claimed as rebuilt.
 - **Provenance limitation:** branch is based on Agent 7's checkpoint (`d6104bb`) because the original checkpoint-50 merged history is unavailable. This is an integration-ready **portable branch**, not a checkpoint-50-descendant or a hardware-signed firmware.
+
+## Checkpoint 06 — record readiness and callback guard
+
+- Added **148 independently written Hexagon V66 instruction bytes**, covering two entire adjacent record-helper functions:
+  - `[file 0x42f18,0x42f74)` = 92-byte record readiness/format checks, handler fallback, `memuh` guard, and a normalized status return.
+  - `[file 0x42f74,0x42fac)` = 56-byte callback guard, conditional record-mode dispatch, saved-register restoration, and early exits.
+- New Agent 13 source-built code `[0x42708,0x42fac)` is **2,212 bytes**, SHA-256 `9e747db9fbf9b1d5c29b6aa7274ecd9077ba881cacfa459f4ae82d3075b4f065`.
+- Joined source-built prefix `[file 0x40000,0x42fac)` is **12,204 reference-exact layout bytes**, SHA-256 `d5abd5b035deadf4575556ea11c89472a0f0e32276cfffd8f5c817206dfc3516`, comprising **8,428 executable-instruction bytes** and **3,776 independently represented linker-fill bytes**.
+- All new instructions are written as Hexagon packet syntax; zero OEM opcode arrays or unknown/padded bytes were introduced. Direct strict reference-byte comparison is zero-difference in both standalone and Agent 7–joined modes.
+- Offline tests: **160 Rust**, Python discovery **22 cases, 21 passing and 1 skipped** with LLVM22/reference configured; release build passes.
+- Next uncovered routine starts at **file `0x42fac`, VMA `0xb0002fac`**. The owned reservation remains `[0x42fac,0x100000)`; this is not a complete image or a newly authenticated WLAN firmware.
+- Provenance: portable Agent 7–derived branch; a genuine checkpoint-50-descendant integrated branch remains a separate task.

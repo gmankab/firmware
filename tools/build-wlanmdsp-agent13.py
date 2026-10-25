@@ -38,6 +38,8 @@ FRAGMENTS = (
     ("record-field-exchange", WLAN_SRC / "agent13-runtime-record-exchange.S", 0x2d64, 0xbc),
     ("record-two-slot-update", WLAN_SRC / "agent13-runtime-record-update.S", 0x2e20, 0xb4),
     ("byte-table-seed", WLAN_SRC / "agent13-runtime-byte-table-seed.S", 0x2ed4, 0x44),
+    ("record-readiness", WLAN_SRC / "agent13-runtime-record-readiness.S", 0x2f18, 0x5c),
+    ("record-callback-guard", WLAN_SRC / "agent13-runtime-record-callback-guard.S", 0x2f74, 0x38),
 )
 
 
