@@ -281,3 +281,19 @@ of both ADSP executable `PT_LOAD`s remain unimplemented. Isolated branch
 still needs integration with the actual checkpoint-50-based repository.
 All 160 Rust tests, 151 Python tests, pinned MBN verification and release
 build pass.
+
+**Checkpoint 20 — typed descriptor comparison and locked event register:**
+Reconstructed two adjacent Hexagon V66 routines at `[file 0x3bfb8,0x3c010)`:
+a 20-byte descriptor low-20-bit tag comparison and a 68-byte guarded
+64-bit event-bit registration. The latter calls platform preparation,
+constructs a shifted 64-bit bit mask, updates a channel-indexed runtime
+slot, and performs an atomic compare/store through
+`memd_locked(r2)` / `memd_locked(r2,p0)` with a predicate retry loop.
+Both operations are semantically authored (no `.word`/`.incbin`/copied
+vendor instructions) and exactly reassembled by LLVM6 against the pinned
+ADSP reference. Combined **88 source-assembled executable bytes** form a
+continuous `[0x3bfb8,0x3c010)` span, with distinct manifest SHA-256s.
+Cumulative Agent 20-08 is now **2,672 independently generated exact executable
+bytes in 38 disjoint fragment entries**; the rest of the ADSP executable
+program remains vastly larger and largely unrecovered. 160 Rust and 153
+Python tests, release build and direct reference checks passed.

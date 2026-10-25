@@ -170,9 +170,9 @@ class ADSPExternalsAndCodeTests(unittest.TestCase):
     @unittest.skipUnless(LLVM_MC,'Hexagon LLVM6 assembler required')
     def test_complete_fragment_inventory_rejects_overlaps(self):
         manifest,regions=adsp.assembled_inventory(LLVM_MC,None)
-        self.assertEqual(len(manifest['fragments']),36)
-        self.assertEqual(manifest['total_independently_assembled_executable_bytes'],2584)
-        self.assertEqual(sum(map(len,regions.values())),2584)
+        self.assertEqual(len(manifest['fragments']),38)
+        self.assertEqual(manifest['total_independently_assembled_executable_bytes'],2672)
+        self.assertEqual(sum(map(len,regions.values())),2672)
         self.assertEqual(manifest['gap_bytes_included_in_generated_executables'],0)
         self.assertFalse(manifest['complete_adsp_image'])
         self.assertEqual(manifest['external_original_code_bytes_in_output'],0)
@@ -339,7 +339,7 @@ class ADSPExternalsAndCodeTests(unittest.TestCase):
     def test_inventory_every_fragment_uses_correct_original(self):
         inventory,_outputs=adsp.assembled_inventory(LLVM_MC,Path(REFERENCE).read_bytes())
         self.assertTrue(all(x['reference_byte_identical'] for x in inventory['fragments']))
-        self.assertEqual(inventory['total_independently_assembled_executable_bytes'],2584)
+        self.assertEqual(inventory['total_independently_assembled_executable_bytes'],2672)
 
     @unittest.skipUnless(LLVM_MC and REFERENCE,
                          'Hexagon LLVM6 and exact pinned ADSP reference required')
@@ -353,7 +353,7 @@ class ADSPExternalsAndCodeTests(unittest.TestCase):
                 adsp.verify_slice(built,original,off)
                 total+=len(built)
                 ranges.append((off,off+size))
-        self.assertEqual(total,2584)
+        self.assertEqual(total,2672)
         ranges.sort()
         self.assertEqual(ranges[0],(0x39000,0x39054))
         self.assertEqual(ranges[-1],(0x3640a8,0x3640f8))
@@ -596,3 +596,32 @@ class ADSPBufferBitfieldTests(unittest.TestCase):
     def test_bitfield_roundtrip_against_private_source(self):
         source,off,size=adsp.FRAGMENTS['buffer-bitfield']
         adsp.verify_slice(adsp.compile_source(LLVM_MC,source,size),Path(REFERENCE).read_bytes(),off)
+
+
+class ADSPDescriptorAtomicOpsTests(unittest.TestCase):
+    @unittest.skipUnless(LLVM_MC,'Hexagon LLVM6 needed')
+    def test_descriptor_comparison_and_atomic_event_bit_source(self):
+        expected={'descriptor-tag-compare':(0x3bfb8,20,'e4ebe0bdc31185ef82f51f7af811e4024388f6266a9ee56ec102c1ecbd1cae7c'),
+                  'atomic-event-bit':(0x3bfcc,68,'074fa2c9e6615afe849b3e387e835ac40d81d0a1a69a244a29bff124112f7755')}
+        for name,(off,size,digest) in expected.items():
+            with self.subTest(name=name):
+                src,start,length=adsp.FRAGMENTS[name]
+                self.assertEqual((start,length),(off,size))
+                text=src.read_text()
+                for forbidden in ('.word ','.long ','.byte ','.fill ','.incbin '):
+                    self.assertNotIn(forbidden,text)
+                self.assertEqual(hashlib.sha256(adsp.compile_source(LLVM_MC,src,size)).hexdigest(),digest)
+        word_source=adsp.FRAGMENTS['atomic-event-bit'][0].read_text()
+        self.assertIn('memd_locked(r2,p0)',word_source)
+        self.assertIn('if (!p0) jump:nt retry_locked',word_source)
+        self.assertIn('asl(r1:0,r16)',word_source)
+        self.assertEqual(adsp.FRAGMENTS['descriptor-tag-compare'][1]+20,
+                         adsp.FRAGMENTS['atomic-event-bit'][1])
+
+    @unittest.skipUnless(LLVM_MC and REFERENCE,'Pinned ADSP reference needed')
+    def test_descriptor_and_atomic_combined_region_matches_original(self):
+        original=Path(REFERENCE).read_bytes()
+        names=('descriptor-tag-compare','atomic-event-bit')
+        assembled=b''.join(adsp.compile_source(LLVM_MC,adsp.FRAGMENTS[name][0],adsp.FRAGMENTS[name][2]) for name in names)
+        self.assertEqual(len(assembled),88)
+        adsp.verify_slice(assembled,original,0x3bfb8)
