@@ -27,6 +27,7 @@ ARRAY_COMPARE_SOURCE = ROOT / "sources/xiaomi-nabu/wlanmdsp/wlan-record-array-co
 RECORD_WRAPPER_SOURCE = ROOT / "sources/xiaomi-nabu/wlanmdsp/wlan-record-wrapper.S"
 IRQ_STATE_GUARD_SOURCE = ROOT / "sources/xiaomi-nabu/wlanmdsp/wlan-irq-state-guard.S"
 RUNTIME_TABLE_INIT_SOURCE = ROOT / "sources/xiaomi-nabu/wlanmdsp/wlan-runtime-table-init.S"
+RECORD_CONSUMER_BODY_SOURCE = ROOT / "sources/xiaomi-nabu/wlanmdsp/wlan-record-consumer-body.S"
 FILE_OFFSET = 0x40000
 VADDR = 0xB0000000
 TEXT_LENGTH = 0x154
@@ -42,7 +43,9 @@ THROUGH_LOADER_HOOKS_LENGTH = CODE_AND_PLT_LENGTH + LOADER_HOOKS_LENGTH
 CONFIG_LOOKUP_LENGTH = 0x9c
 THROUGH_CONFIG_LOOKUP_LENGTH = THROUGH_LOADER_HOOKS_LENGTH + CONFIG_LOOKUP_LENGTH
 RECORD_CONSUMER_PREFIX_LENGTH = 0x12c
+RECORD_CONSUMER_BODY_LENGTH = 0x1fc
 THROUGH_RECORD_PREFIX_LENGTH = THROUGH_CONFIG_LOOKUP_LENGTH + RECORD_CONSUMER_PREFIX_LENGTH
+THROUGH_COMPLETE_RECORD_CONSUMER_LENGTH = THROUGH_RECORD_PREFIX_LENGTH + RECORD_CONSUMER_BODY_LENGTH
 IMPORT_ALIASES_OFFSET = 0x1fa8
 IMPORT_ALIASES_LENGTH = 0x18
 POSTALIASES_COMPARE_LENGTH = 0x50
@@ -233,6 +236,30 @@ def emit_with_record_prefix(prefix: bytes, llvm_mc: str, cpu: str) -> bytes:
     return prefix + packetized
 
 
+def emit_with_complete_record_consumer(prefix: bytes, llvm_mc_v66: str) -> bytes:
+    """Complete the preceding Hexagon record consumer using V66 assembly.
+
+    The 508-byte body includes a multiply-subtract instruction unavailable
+    in the older LLVM6 Hexagon encoder. A separate newer assembler must
+    explicitly be supplied; never copy source OEM bytes as fallback.
+    """
+    if len(prefix) != THROUGH_RECORD_PREFIX_LENGTH:
+        raise FragmentError("complete consumer requires the exact preceding 7596-byte prefix")
+    body = assemble(RECORD_CONSUMER_BODY_SOURCE, llvm_mc_v66, cpu="hexagonv66",
+                    expected_length=RECORD_CONSUMER_BODY_LENGTH)
+    return prefix + body
+
+
+def emit_with_full_runtime_helpers(prefix: bytes, llvm_mc: str, cpu: str) -> bytes:
+    """Append checked aliases/record comparators after closing the gap."""
+    if len(prefix) != THROUGH_COMPLETE_RECORD_CONSUMER_LENGTH:
+        raise FragmentError("runtime helpers require closed record consumer gap")
+    following = assemble_import_aliases_through_runtime_helpers(llvm_mc, cpu)
+    if len(following) != THROUGH_RUNTIME_HELPERS_LENGTH:
+        raise FragmentError("runtime helper block has unexpected length")
+    return prefix + following
+
+
 def assemble_import_aliases_through_runtime_helpers(llvm_mc: str, cpu: str) -> bytes:
     """Reconstruct a disconnected group through record-wrapper/runtime setup.
 
@@ -290,6 +317,12 @@ def main() -> None:
                     help="include the 156-byte table lookup and descriptor extractor")
     ap.add_argument("--with-record-prefix", action="store_true",
                     help="append the 300-byte record-consumer entry and initial checks; partial function")
+    ap.add_argument("--llvm-mc-v66", default=None,
+                    help="Hexagon v66 llvm-mc (LLVM22), mandatory to rebuild the record-consumer gap")
+    ap.add_argument("--with-complete-record-consumer", action="store_true",
+                    help="reconstruct 508-byte V66 consumer body joining runtime prefix to import aliases")
+    ap.add_argument("--with-full-initial-region", action="store_true",
+                    help="emit contiguous WLAN startup, PLT, consumer and helper functions through 0x2208")
     ap.add_argument("--import-aliases-only", action="store_true",
                     help="emit three separately verified Hexagon tail aliases at runtime offset 0x1fa8")
     ap.add_argument("--import-aliases-with-compare", action="store_true",
@@ -301,6 +334,12 @@ def main() -> None:
     ap.add_argument("--emit-plt-assembly", type=Path,
                     help="write independently generated PLT source for inspection")
     args = ap.parse_args()
+    if args.with_full_initial_region:
+        args.with_complete_record_consumer = True
+    if args.with_complete_record_consumer:
+        args.with_record_prefix = True
+        if not args.llvm_mc_v66:
+            raise FragmentError("closing WLAN consumer gap requires --llvm-mc-v66")
     disjoint_aliases = (args.import_aliases_only or args.import_aliases_with_compare
                         or args.import_aliases_with_array_compare or args.import_aliases_with_runtime_helpers)
     if sum(int(x) for x in (args.import_aliases_only, args.import_aliases_with_compare,
@@ -332,6 +371,10 @@ def main() -> None:
         fragment = emit_with_config_lookup(fragment, args.llvm_mc, args.cpu)
     if args.with_record_prefix:
         fragment = emit_with_record_prefix(fragment, args.llvm_mc, args.cpu)
+    if args.with_complete_record_consumer:
+        fragment = emit_with_complete_record_consumer(fragment, args.llvm_mc_v66)
+    if args.with_full_initial_region:
+        fragment = emit_with_full_runtime_helpers(fragment, args.llvm_mc, args.cpu)
     if args.reference is not None:
         check_reference(fragment, args.reference.read_bytes(), runtime_offset=runtime_offset)
     args.output.parent.mkdir(parents=True, exist_ok=True)
@@ -347,12 +390,13 @@ def main() -> None:
               "independently_encoded_loader_hook_bytes": LOADER_HOOKS_LENGTH if (args.with_loader_hooks or args.with_config_lookup or args.with_record_prefix) else 0,
               "independently_encoded_config_lookup_bytes": CONFIG_LOOKUP_LENGTH if (args.with_config_lookup or args.with_record_prefix) else 0,
               "independently_encoded_record_prefix_bytes": RECORD_CONSUMER_PREFIX_LENGTH if args.with_record_prefix else 0,
-              "independently_encoded_import_alias_bytes": IMPORT_ALIASES_LENGTH if disjoint_aliases else 0,
-              "independently_encoded_record_comparison_bytes": POSTALIASES_COMPARE_LENGTH if (args.import_aliases_with_compare or (args.import_aliases_with_array_compare or args.import_aliases_with_runtime_helpers)) else 0,
-              "independently_encoded_array_comparison_bytes": ARRAY_COMPARE_LENGTH if (args.import_aliases_with_array_compare or args.import_aliases_with_runtime_helpers) else 0,
-              "independently_encoded_runtime_wrapper_bytes": RECORD_WRAPPER_LENGTH if args.import_aliases_with_runtime_helpers else 0,
-              "independently_encoded_irq_guard_bytes": IRQ_STATE_GUARD_LENGTH if args.import_aliases_with_runtime_helpers else 0,
-              "independently_encoded_runtime_init_bytes": RUNTIME_TABLE_INIT_LENGTH if args.import_aliases_with_runtime_helpers else 0,
+              "independently_encoded_record_body_bytes": RECORD_CONSUMER_BODY_LENGTH if args.with_complete_record_consumer else 0,
+              "independently_encoded_import_alias_bytes": IMPORT_ALIASES_LENGTH if (disjoint_aliases or args.with_full_initial_region) else 0,
+              "independently_encoded_record_comparison_bytes": POSTALIASES_COMPARE_LENGTH if (args.import_aliases_with_compare or args.import_aliases_with_array_compare or args.import_aliases_with_runtime_helpers or args.with_full_initial_region) else 0,
+              "independently_encoded_array_comparison_bytes": ARRAY_COMPARE_LENGTH if (args.import_aliases_with_array_compare or args.import_aliases_with_runtime_helpers or args.with_full_initial_region) else 0,
+              "independently_encoded_runtime_wrapper_bytes": RECORD_WRAPPER_LENGTH if (args.import_aliases_with_runtime_helpers or args.with_full_initial_region) else 0,
+              "independently_encoded_irq_guard_bytes": IRQ_STATE_GUARD_LENGTH if (args.import_aliases_with_runtime_helpers or args.with_full_initial_region) else 0,
+              "independently_encoded_runtime_init_bytes": RUNTIME_TABLE_INIT_LENGTH if (args.import_aliases_with_runtime_helpers or args.with_full_initial_region) else 0,
               "separate_disconnected_executable_region": disjoint_aliases,
               "provenance": "independently assembled Hexagon source; no OEM instruction bytes embedded"}
     if args.manifest is not None:

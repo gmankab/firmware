@@ -337,3 +337,51 @@ for a **total of 4,428 independently reconstructed code bytes** without
 counting unresolved gaps. The 508-byte `[0x1dac,0x1fa8)` gap remains open.
 The next independent function begins at runtime `0xb0002208`. No complete
 signed WLAN MBN is available from these fragments.
+
+### Checkpoint K: close 508-byte record-consumer gap; join all prior regions
+
+**The previously disconnected intervals are now one contiguous verified
+executable layout region:** runtime `[0xb0000000,0xb0002208)` and WLAN ELF
+file `[0x40000,0x42208)`, **8,712/8,712 byte-identical bytes** from
+independently emitted assembly and deterministic linker-layout fill.
+
+The formerly missing **508 bytes** at runtime `[0xb0001dac,0xb0001fa8)`
+are now implemented as `wlan-record-consumer-body.S`. The body continues
+from the original 300-byte consumer prefix, performs record count/format
+checks, compares packed table entries, copies/merges the selected fields,
+updates destination metadata and branches through the import-alias thunks.
+It completes this packed-record consumer function. Notably, at runtime
+`0xb0001de0` there is a Hexagon v66 arithmetic instruction
+`r20 -= mpyi(r17,r16)` (firmware file offset `0x41de0`, relative body
+`0x34`). The LLVM6 Hexagon v62/v65 disassembler reports it as unknown and
+its assembler rejects that operand form. The supplied LLVM22 toolchain
+accepts Hexagon v66, correctly assembles it, and produces the **exact 508
+bytes** across the entire function. Independently, Rizin 0.9.1 recognizes
+that operation by meaning, corroborating the ISA interpretation without
+embedding the OEM instruction word in the source.
+
+The full executable-layout prefix is reconstructed with two assembler
+versions: LLVM6 v65 for the older well-supported startup, PLT and helper
+routines; LLVM22 v66 for the new 508-byte consumer body. An explicit
+`--llvm-mc-v66` CLI argument is mandatory when using
+`--with-complete-record-consumer` or `--with-full-initial-region`; the
+builder refuses to silently substitute unknown instructions or reference
+bytes. LLVM22's x86_64 host tools require the bundled `libc++`, `libc++abi`
+and `libunwind` runtime libraries in `LD_LIBRARY_PATH`.
+
+```sh
+LD_LIBRARY_PATH=/private/nabu-next-toolchain/ubuntu-runtime/flat \
+python3 tools/build-wlanmdsp-startup.py /tmp/wlan-contiguous-prefix.bin \
+  --with-full-initial-region \
+  --llvm-mc /private/nabu-next-toolchain/llvm6/bin/llvm-mc \
+  --llvm-mc-v66 /private/clang-llvm22/bin/llvm-mc \
+  --reference /private/wlanmdsp.mbn \
+  --manifest /tmp/wlan-contiguous-prefix.json
+```
+
+The 8,712 prefix layout bytes consist of **4,936 independently encoded
+Hexagon executable bytes** and **3,776 identified fill/alignment bytes**.
+The source's firmware-SHA binding ensures only the intended WLAN revision
+passes opt-in reference checking. The next executable routine begins at
+runtime `0xb0002208` (file `0x42208`); all later ELF load segments and
+OEM authentication remain unrebuilt. This is not flashable firmware.

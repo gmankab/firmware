@@ -267,6 +267,68 @@ class WlanHexagonAssemblyTests(unittest.TestCase):
             fw.check_reference(joined, Path(ref).read_bytes(),
                                runtime_offset=fw.IMPORT_ALIASES_OFFSET)
 
+    def test_hexagonv66_record_consumer_gap_and_full_contiguous_prefix(self):
+        source = fw.RECORD_CONSUMER_BODY_SOURCE.read_text()
+        for directive in (".incbin", ".byte", ".word", ".long", ".quad"):
+            self.assertNotIn(directive, source)
+        self.assertIn("r20 -= mpyi(r17,r16)", source)
+        self.assertIn("memw(r6+r4<<#0) = r2", source)
+        self.assertIn("jump write_block", source)
+        mc_v66 = os.environ.get("WLAN_LLVM_MC_V66")
+        if not mc_v66:
+            self.skipTest("set WLAN_LLVM_MC_V66 to LLVM22 Hexagon v66 assembler")
+        v66 = fw.assemble(fw.RECORD_CONSUMER_BODY_SOURCE, mc_v66,
+                          "hexagonv66", fw.RECORD_CONSUMER_BODY_LENGTH)
+        self.assertEqual(len(v66), 508)
+        # The v66 multiply/subtract instruction is precisely where LLVM6
+        # decoding of the exact firmware stopped in this function.
+        self.assertEqual(v66[0x34:0x38], bytes.fromhex("145091ef"))
+        self.assertEqual(fw.THROUGH_COMPLETE_RECORD_CONSUMER_LENGTH, 0x1fa8)
+        prefix = fw.assemble(fw.SOURCE, self.mc)
+        prefix = fw.emit_with_plt(prefix, self.mc, "hexagonv65")
+        prefix = fw.emit_with_loader_hooks(prefix, self.mc, "hexagonv65")
+        prefix = fw.emit_with_config_lookup(prefix, self.mc, "hexagonv65")
+        prefix = fw.emit_with_record_prefix(prefix, self.mc, "hexagonv65")
+        contiguous = fw.emit_with_complete_record_consumer(prefix, mc_v66)
+        self.assertEqual(contiguous[-508:], v66)
+        self.assertEqual(len(contiguous), 0x1fa8)
+        complete = fw.emit_with_full_runtime_helpers(contiguous, self.mc,
+                                                     "hexagonv65")
+        self.assertEqual(len(complete), 0x2208)
+        self.assertEqual(complete[0x1fa8:0x1fa8+24],
+                         fw.assemble(fw.IMPORT_ALIASES_SOURCE, self.mc,
+                                     expected_length=fw.IMPORT_ALIASES_LENGTH))
+        ref = os.environ.get("WLANMDSP_REFERENCE")
+        if ref:
+            fw.check_reference(complete, Path(ref).read_bytes())
+
+    def test_full_joined_prefix_cli_manifest_counts_code_and_linker_fill(self):
+        mc_v66 = os.environ.get("WLAN_LLVM_MC_V66")
+        if not mc_v66:
+            self.skipTest("set WLAN_LLVM_MC_V66 to LLVM22 Hexagon v66 assembler")
+        import json
+        import subprocess
+        with tempfile.TemporaryDirectory() as scratch:
+            dest = Path(scratch) / "full-first-region.bin"
+            manifest = Path(scratch) / "full-first-region.json"
+            cmd = [sys.executable, str(TOOL), str(dest),
+                   "--with-full-initial-region", "--llvm-mc", self.mc,
+                   "--llvm-mc-v66", mc_v66, "--manifest", str(manifest)]
+            if os.environ.get("WLANMDSP_REFERENCE"):
+                cmd.extend(("--reference", os.environ["WLANMDSP_REFERENCE"]))
+            subprocess.run(cmd, check=True, capture_output=True, text=True)
+            report = json.loads(manifest.read_text())
+            self.assertEqual(dest.stat().st_size, 0x2208)
+            self.assertEqual(report["generated_bytes"], 0x2208)
+            self.assertEqual(report["independently_encoded_record_body_bytes"], 508)
+            self.assertEqual(report["independently_encoded_record_comparison_bytes"], 80)
+            code_bytes = sum(v for k, v in report.items()
+                             if k.startswith("independently_encoded_") and k.endswith("_bytes"))
+            self.assertEqual(code_bytes, 4936)
+            self.assertEqual(report["linker_layout_fill_bytes"], 3776)
+            self.assertFalse(report["separate_disconnected_executable_region"])
+            self.assertFalse(report["complete_firmware"])
+
     def test_unresolved_reference_is_rejected(self):
         with tempfile.TemporaryDirectory() as d:
             bad = Path(d) / "unresolved.S"
