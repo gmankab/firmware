@@ -90,3 +90,98 @@ pub fn verify_joined_prefix(reference:&[u8])->Result<(),String>{
         assert!(cdsp_boot::encode_extended_new_value_store(r(25),-3).is_err());
     }
 }
+
+/// Invalidate the full indexed cache window with nested hardware loops and
+/// synchronize global caches before disabling SYSCFG bit two. This is the
+/// exact successor to `build_prefix`, not an unrelated stand-alone routine.
+pub const CACHE_MAINTENANCE_SIZE:usize=88;
+pub fn build_cache_maintenance()->Result<Vec<u8>,String>{
+    let r=|n|Gpr::new(n);
+    let mut out=Vec::with_capacity(CACHE_MAINTENANCE_SIZE);
+    let operations:[(H,P);22]=[
+        (H::AssignUnsignedImmediate{dst:r(22)?,value:0},P::Final),
+        (H::HardwareLoopImmediate{loop_index:1,iterations:128,displacement_bytes:4},P::Final),
+        (H::AssignRegister{dst:r(21)?,src:r(22)?},P::Final),
+        (H::HardwareLoopImmediate{loop_index:0,iterations:8,displacement_bytes:4},P::Final),
+        (H::AddSmallImmediate{dst:r(21)?,src:r(21)?,value:1},P::LoopEnd),
+        (H::CleanInvalidateDcacheIndex{address:r(21)?},P::Final),
+        (H::AddSmallImmediate{dst:r(22)?,src:r(22)?,value:32},P::ContinuationA),
+        (H::Nop,P::LoopEnd),
+        (H::Nop,P::Final),
+        (H::Syncht,P::Final),
+        (H::GlobalL2CleanInvalidate,P::Final),
+        (H::Syncht,P::Final),
+        (H::ReadSyscfg{dst:r(21)?},P::Final),
+        (H::TestBitPredicate{predicate:1,src:r(21)?,bit:31},P::ContinuationA),
+        (H::JumpIfNewP1TakenBackward{displacement_bytes:-4},P::Final),
+        (H::Syncht,P::Final),
+        (H::ClearBit{dst:r(21)?,src:r(21)?,position:2},P::Final),
+        (H::WriteSystem{system:SystemRegister::Syscfg,src:r(21)?},P::Final),
+        (H::Isync,P::Final),
+        (H::Dckill,P::Final),
+        (H::L2Kill,P::Final),
+        (H::Syncht,P::Final),
+    ];
+    for (op,parse) in operations { put(&mut out,op,parse)?; }
+    if out.len()!=CACHE_MAINTENANCE_SIZE {
+        return Err("cache maintenance instructions not contiguous".into());
+    }
+    Ok(out)
+}
+
+pub fn build_complete()->Result<Vec<u8>,String>{
+    let mut out=build_prefix()?;
+    out.extend(build_cache_maintenance()?);
+    assert_eq!(out.len(),PREFIX_SIZE+CACHE_MAINTENANCE_SIZE);
+    Ok(out)
+}
+
+pub fn build_joined_cache_cluster()->Result<Vec<u8>,String>{
+    let mut out=super::cdsp_copyfast::build_cluster_with_copyfast()?;
+    if super::cdsp_copyfast::FILE_OFFSET+super::cdsp_copyfast::TOTAL_BYTES!=FILE_OFFSET {
+        return Err("CDSP cache controller is not adjacent to cache-copy".into());
+    }
+    out.extend(build_complete()?);
+    if out.len()!=484+PREFIX_SIZE+CACHE_MAINTENANCE_SIZE {
+        return Err("CDSP cache-control cluster has an uncovered hole".into());
+    }
+    Ok(out)
+}
+
+pub fn verify_cache_maintenance(reference:&[u8])->Result<(),String>{
+    cdsp_boot::validate_reference(reference)?;
+    let out=build_cache_maintenance()?;
+    let start=FILE_OFFSET+PREFIX_SIZE;
+    let original=reference.get(start..start+out.len()).ok_or("CDSP cache-maintenance reference truncated")?;
+    if original!=out {return Err("CDSP cache-maintenance bytes not identical".into());}
+    Ok(())
+}
+
+pub fn verify_joined_cache_cluster(reference:&[u8])->Result<(),String>{
+    cdsp_boot::validate_reference(reference)?;
+    let out=build_joined_cache_cluster()?;
+    let start=super::cdsp_tlb::COMPLETE_CLUSTER_OFFSET;
+    if reference.get(start..start+out.len())!=Some(out.as_slice()) {
+        return Err("CDSP supervisor/TLB/cache-controller cluster differs".into());
+    }
+    Ok(())
+}
+
+#[cfg(test)]mod cache_loop_tests{
+    use super::*;
+    #[test] fn cache_loop_has_explicit_endloop_and_predicate(){
+        let r=|n|Gpr::new(n).unwrap();
+        let out=build_cache_maintenance().unwrap();
+        assert_eq!(out.len(),88);
+        assert_eq!(u32::from_le_bytes(out[4..8].try_into().unwrap()),0x6924_c008);
+        assert_eq!(u32::from_le_bytes(out[12..16].try_into().unwrap()),0x6900_c048);
+        assert_eq!(u32::from_le_bytes(out[24..28].try_into().unwrap())&0xc000,0x4000);
+        assert_eq!(u32::from_le_bytes(out[28..32].try_into().unwrap())&0xc000,0x8000);
+        assert_eq!(u32::from_le_bytes(out[14*4..15*4].try_into().unwrap()),0x5cdf_f9fe);
+        assert_eq!(H::TestBitPredicate{predicate:1,src:r(21),bit:31}.encode().unwrap(),0x8515_df01);
+        assert!(H::TestBitPredicate{predicate:4,src:r(21),bit:31}.encode().is_err());
+        assert!(H::HardwareLoopImmediate{loop_index:2,iterations:1,displacement_bytes:4}.encode().is_err());
+        assert!(H::JumpIfNewP1TakenBackward{displacement_bytes:4}.encode().is_err());
+        assert_eq!(build_joined_cache_cluster().unwrap().len(),652);
+    }
+}

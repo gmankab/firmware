@@ -147,6 +147,23 @@ pub enum ScalarPacket {
     /// this privileged operation; register fields were checked with the
     /// Rizin Hexagon decoder by varying each register independently.
     ReadPhysicalWord { dst: GeneralRegister, offset: GeneralRegister, base: GeneralRegister },
+    /// One ordinary register copy, independently checked with LLVM6.
+    AssignRegister { dst: GeneralRegister, src: GeneralRegister },
+    /// Hardware loop with a small constant iteration count and forward body.
+    /// Count bits are discontiguous, as confirmed with LLVM6 from 1..255.
+    HardwareLoopImmediate { loop_index:u8, iterations:u8, displacement_bytes:u16 },
+    /// Hexagon V66 indexed L1 cache clean + invalidate operation.
+    CleanInvalidateDcacheIndex { address:GeneralRegister },
+    /// V66 L2 global clean-and-invalidate barrier.
+    GlobalL2CleanInvalidate,
+    /// V66 `syncht`, used before and after global cache operations.
+    Syncht,
+    /// Predicate test of one bit in a general register (`P0..P3`).
+    TestBitPredicate { predicate:u8, src:GeneralRegister, bit:u8 },
+    /// P1.new taken-branch with verified negative packet-relative displacement.
+    JumpIfNewP1TakenBackward { displacement_bytes:i16 },
+    /// V66 kill local Level 2 cache content.
+    L2Kill,
     /// One Hexagon singleton NOP. Its packet marker can also denote endloop.
     Nop,
     /// Cache and instruction synchronization (singleton packets).
@@ -393,6 +410,37 @@ impl ScalarPacket {
                 Ok(0x9200_f000 | (u32::from(offset.number()) << 16)
                     | (u32::from(base.number()) << 8) | u32::from(dst.number()))
             }
+            Self::AssignRegister { dst, src } => {
+                Ok(0x7060_c000 | (u32::from(src.number()) << 16) | u32::from(dst.number()))
+            }
+            Self::HardwareLoopImmediate { loop_index, iterations, displacement_bytes } => {
+                if loop_index>1 || iterations==0 || displacement_bytes<4 ||
+                   displacement_bytes>248 || displacement_bytes%4!=0 {
+                    return Err("CDSP immediate hardware loop requires valid index, 1..255 iterations and short aligned target".into());
+                }
+                let count=u32::from(iterations);
+                Ok(0x6900_c000 | (u32::from(loop_index)<<21)
+                   | ((count&0xe0)<<11) | ((count&0x1c)<<3) | (count&3)
+                   | (u32::from(displacement_bytes)<<1))
+            }
+            Self::CleanInvalidateDcacheIndex { address } => {
+                // V66 privileged DCCLEANINVIDX, corroborated by Rizin.
+                Ok(0xa260_c000 | (u32::from(address.number()) << 16))
+            }
+            Self::GlobalL2CleanInvalidate => Ok(0xa820_d800),
+            Self::Syncht => Ok(0xa840_c000),
+            Self::TestBitPredicate {predicate,src,bit} => {
+                if predicate>3 || bit>31 {return Err("CDSP predicate bit/number out of range".into());}
+                Ok(0x8500_c000 | (u32::from(src.number())<<16)
+                    | (u32::from(bit)<<8) | u32::from(predicate))
+            }
+            Self::JumpIfNewP1TakenBackward { displacement_bytes } => {
+                if displacement_bytes >= 0 || displacement_bytes < -512 || displacement_bytes%2!=0 {
+                    return Err("CDSP P1.new taken branch requires verified negative even displacement".into());
+                }
+                Ok(0x5cdf_f800 | (((i32::from(displacement_bytes)/2) as u32)&0x1ff))
+            }
+            Self::L2Kill => Ok(0xa820_c000),
             Self::Nop => Ok(0x7f00_c000),
             Self::Dckill => Ok(0xa200_c000),
             Self::Ickill => Ok(0x56c0_d000),
