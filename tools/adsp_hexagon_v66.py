@@ -302,6 +302,16 @@ def physical_word_load(destination: int, physical_address: int, page_selector: i
             (gpr(page_selector) << 8) | gpr(destination))
 
 
+def wait_thread_from_register(source: int) -> int:
+    """Encode `wait(Rs)` using checked 5-bit Hexagon V66 source field.
+
+    The controller's `wait(R0)` sits in its own packet at ADSP executable
+    offset 0x105a8. The common system-operation register field is bits 20:16;
+    the typed operand is checked independently from the OEM instruction.
+    """
+    return 0x6440C000 | (gpr(source) << 16)
+
+
 def stop_thread_from_register(source: int) -> int:
     """Hexagon v66 ``stop(Rs)`` thread stop, single-operation packet.
 

@@ -13,14 +13,14 @@ class SparseRwe(unittest.TestCase):
         cls.mc=os.getenv('HEXAGON_LLVM_MC')
         cls.ref=os.getenv('NABU_ADSP_REFERENCE')
     def test_file_layout_is_explicit_and_disjoint(self):
-        self.assertEqual((sparse.FILE_START,sparse.FILE_END,sparse.SIZE),(0x10330,0x10570,576))
+        self.assertEqual((sparse.FILE_START,sparse.FILE_END,sparse.SIZE),(0x10330,0x105c4,660))
         self.assertEqual(sparse.FILL_END-sparse.FILL_START,0xff20-0x6c6c)
         self.assertEqual(sparse.UNKNOWN_RECORD_END-sparse.UNKNOWN_RECORD_START,0x90)
         self.assertEqual(sparse.FILL2_END-sparse.FILL2_START,0x380)
     def test_source_packets_and_strict_reference(self):
         if not self.mc:self.skipTest('HEXAGON_LLVM_MC required')
         result=sparse.render(self.mc)
-        self.assertEqual(len(result),576)
+        self.assertEqual(len(result),660)
         # Function return is not a packet boundary: packet continues with
         # extended GP load from the next function, so no artificial split.
         self.assertEqual((struct.unpack_from('<I',result,0x10)[0]>>14)&3,1)
@@ -111,6 +111,24 @@ class SparseRwe(unittest.TestCase):
         self.assertEqual((struct.unpack_from('<I',built,0x2c)[0]>>14)&3,1)
         if self.ref:
             self.assertEqual(built,Path(self.ref).read_bytes()[0x10534:0x10570])
+
+    def test_physical_scan_uses_checked_operands_and_correct_branch(self):
+        if not self.mc:self.skipTest('HEXAGON_LLVM_MC required')
+        prepared=sparse.base().assemble(self.mc,sparse.PHYSICAL_SCAN_SOURCE,
+                                        sparse.PHYSICAL_SCAN_SIZE)
+        self.assertEqual(len(prepared),84)
+        from adsp_hexagon_v66 import physical_word_load,wait_thread_from_register
+        for off in (0x10,0x14,0x18,0x38):
+            self.assertEqual(struct.unpack_from('<I',prepared,off)[0],0x7f00c000)
+        generated=sparse.physical_scan(self.mc,sparse.base())
+        for off,operands in ((0x10,(1,6,7)),(0x14,(0,8,7)),(0x18,(2,6,7))):
+            self.assertEqual(struct.unpack_from('<I',generated,off)[0],
+                             physical_word_load(*operands))
+        self.assertEqual(struct.unpack_from('<I',generated,0x38)[0],wait_thread_from_register(0))
+        self.assertEqual((struct.unpack_from('<I',generated,0x08)[0]>>14)&3,1)
+        self.assertEqual((struct.unpack_from('<I',generated,0x30)[0]>>14)&3,3)
+        if self.ref:
+            self.assertEqual(generated,Path(self.ref).read_bytes()[0x10570:0x105c4])
 
     def test_reject_reference_mutation(self):
         if not self.mc or not self.ref:self.skipTest('reference and LLVM6 required')

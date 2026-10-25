@@ -15,10 +15,10 @@ TOOLS=Path(__file__).resolve().parent
 if str(TOOLS) not in sys.path:sys.path.insert(0,str(TOOLS))
 from adsp_hexagon_v66 import (SystemRegister, read_system_register,
     read_system_register_pair, write_system_register, packet_continuation,
-    physical_word_load)
+    physical_word_load,wait_thread_from_register)
 SOURCE=TOOLS/'adsp-agent20-rwe-next-getter.S'
 FILE_START=0x10330
-FILE_END=0x10570
+FILE_END=0x105c4
 SIZE=FILE_END-FILE_START
 GETTER_SIZE=0x1c
 THREAD_CYCLES_SOURCE=TOOLS/'adsp-agent20-rwe-next-thread-cycles.S'
@@ -35,6 +35,8 @@ CONTROLLER_PHASE_SOURCE=TOOLS/'adsp-agent20-rwe-next-controller-phase.S'
 CONTROLLER_PHASE_SIZE=0x7c
 CYCLE_SNAPSHOT_SOURCE=TOOLS/'adsp-agent20-rwe-next-cycle-snapshot.S'
 CYCLE_SNAPSHOT_SIZE=0x3c
+PHYSICAL_SCAN_SOURCE=TOOLS/'adsp-agent20-rwe-next-physical-scan.S'
+PHYSICAL_SCAN_SIZE=0x54
 PHYS_START=0x8be0d330
 SHA256_REFERENCE='4b579e5dc1333d634e5bdc93f3314e357e0e30dab7140833f6cc7aef086b1c1e'
 FILL_START=0x6c6c
@@ -145,6 +147,31 @@ def cycle_snapshot(llvm_mc:str, previous)->bytes:
     return bytes(b)
 
 
+def physical_scan(llvm_mc:str, previous)->bytes:
+    """Poll two physical controller words, clean cycle state and wait.
+
+    Three `memw_phys` reads and a processor wait use the narrow V66 checked
+    register-field encoders. All ordinary packet words, physical external
+    call targets and branch displacements are compiled from mnemonic source.
+    """
+    b=bytearray(previous.assemble(llvm_mc,PHYSICAL_SCAN_SOURCE,
+                                  PHYSICAL_SCAN_SIZE))
+    final=struct.pack('<I',0x7f00c000)
+    slots={
+       0x10:physical_word_load(1,6,7),
+       0x14:physical_word_load(0,8,7),
+       0x18:physical_word_load(2,6,7),
+       0x38:wait_thread_from_register(0),
+    }
+    for at,value in slots.items():
+        if b[at:at+4]!=final:
+            raise previous.AdspError(f'physical scan privileged slot relocated +0x{at:x}')
+        b[at:at+4]=struct.pack('<I',value)
+    if any(b[i:i+4]==final for i in range(0,len(b),4)):
+        raise previous.AdspError('unresolved physical scan placeholder')
+    return bytes(b)
+
+
 def render(llvm_mc: str)->bytes:
     # All seven V66 instructions are independently LLVM6-assembled, with no
     # reference bytes. The first packet sequence crosses a C function
@@ -175,7 +202,8 @@ def render(llvm_mc: str)->bytes:
             +b.assemble(llvm_mc,CONTROLLER_POLL_SOURCE,CONTROLLER_POLL_SIZE)
             +debug_snapshot(llvm_mc,b)
             +controller_phase(llvm_mc,b)
-            +cycle_snapshot(llvm_mc,b))
+            +cycle_snapshot(llvm_mc,b)
+            +physical_scan(llvm_mc,b))
 
 def verify(reference:bytes,built:bytes)->None:
     if hashlib.sha256(reference).hexdigest()!=SHA256_REFERENCE:

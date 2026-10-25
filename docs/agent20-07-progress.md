@@ -593,3 +593,22 @@ SHA-256 `a5b06fe80408fcf662e12824297b78558307fd44b4961f021cac4df57d3fa965`.
 The earlier `[0x6030,0x6c6c)` remains 3,132 byte-identical bytes, so total
 source-authored RWE code is **3,708 bytes**, and intervening reference-only
 fill/unknown data are not counted. Next uncovered file instruction `0x10570`.
+
+## Checkpoint 32: physical controller scan, retry and wait `[0x10570,0x105c4)`
+
+Added **84 independently source-built and exactly matching Hexagon V66 bytes**:
+three checked `memw_phys(Ra,Rb)` reads, a predicate-controlled retry,
+cycle-statistics cache cleanup and an external controller callback followed
+by `syncht`, `wait(R0)` and a genuine wait loop. Hexagon LLVM6 assembles
+17 ordinary instruction words and four unsupported privileged operations are
+checked typed encodings, including the dedicated `wait_thread_from_register(0)`
+(0x6440c000). Source explicitly expresses the physical call destination
+rather than copying a reference displacement. The trailing `jumpr LR` is
+packetized with the next function's two memory reads, just as in firmware.
+
+The disjoint controller interval `[0x10330,0x105c4)` now contains **660
+independently generated executable bytes**, SHA-256
+`72ecab6796775beb135e29f934b77dab0549c09eda618e2af834a0ced78a614e`.
+Adding the separate 3,132-byte `[0x6030,0x6c6c)` prefix yields **3,792 bytes
+of ADSP independently source-built RWE code**, not counting external table,
+linker fill or OEM authentication. The next missing routine begins file `0x105c4`.

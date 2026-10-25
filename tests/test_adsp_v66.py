@@ -272,6 +272,12 @@ class V66BootstrapTests(unittest.TestCase):
             with self.subTest(offset=hex(offset)):
                 self.assertEqual(struct.unpack_from("<I", original, offset)[0], word)
 
+    def test_hexagon_v66_wait_thread_register_encoding(self) -> None:
+        self.assertEqual(v66.wait_thread_from_register(0),0x6440C000)
+        self.assertEqual(v66.wait_thread_from_register(7),0x6447C000)
+        with self.assertRaises(v66.HexagonEncodingError):
+            v66.wait_thread_from_register(32)
+
     def test_hexagon_v66_physical_word_load_register_fields(self) -> None:
         self.assertEqual(v66.physical_word_load(5,0,4),0x9200E405)
         self.assertEqual(v66.physical_word_load(5,3,4),0x9203E405)
