@@ -286,6 +286,22 @@ fn run() -> Result<(), Box<dyn Error>> {
         println!("Generated 40-byte WMFW metadata header (NOT DSP firmware)");
         return Ok(());
     }
+    if args.len() == 2 && args[0] == "inspect-halo-runtime-registry" {
+        // Raw *unpacked* 32-bit DSP register dump, not packed WMFW payload.
+        let raw=fs::read(&args[1])?;
+        let registry=firmware_tools::wmfw_halo_registry::parse_runtime_registry(&raw,0x5ac,0x7fc)?;
+        println!("HALO core {} firmware 0x{:x} v{:x}, {} algorithms (runtime snapshot)",
+            registry.header.core_id,registry.header.firmware_id,registry.header.firmware_version,
+            registry.algorithms.len());
+        let slots=firmware_tools::wmfw_halo_registry::resolve_named_controls(&registry)?;
+        println!("Resolved {} named HALO controls using actual per-algorithm runtime bases",slots.len());
+        for item in slots {
+            println!("0x{:x} {:?} 0x{:x}..0x{:x} {}",
+                item.algorithm_id,item.memory,item.dsp_word_span.start,
+                item.dsp_word_span.end,item.control_name);
+        }
+        return Ok(());
+    }
     if args.len() == 3 && args[0] == "assemble-wmfw-with-compact-y" {
         let output=firmware_tools::wmfw_compact_y::assemble_directory(std::path::Path::new(&args[1]))?;
         fs::write(&args[2],output)?;

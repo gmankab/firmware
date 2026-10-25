@@ -29,6 +29,23 @@ cargo run --offline --locked -q -p firmware-tools -- wmfw-cs35l41-bus-map
 cargo run --offline --locked -q -p firmware-tools -- wmfw-control-ranges
 cargo run --offline --locked -q -p firmware-tools -- inspect-wmfw-program-patterns "$ref"
 
+# Synthetic *runtime register* fixture verifies HALO v3 algorithm-directory
+# parsing without guessing a live device's algorithm bases from packed WMFW.
+python3 - "$work/synthetic-halo-unpacked-registry.bin" <<'PYHALO'
+import struct, sys
+head=[4,1,1,0x400a4,0x010203,0,0x5ac,0,0x7fc,3]
+algs=[(0x400a4,0x010203,0x20,0x20,0,0),
+      (0xcd,0x010203,0x100,0x100,0x100,0x100),
+      (0xf20b,0x010203,0x300,0x100,0x300,0)]
+with open(sys.argv[1],'wb') as f:
+    f.write(struct.pack('!10I', *head))
+    for alg in algs: f.write(struct.pack('!6I', *alg))
+PYHALO
+cargo run --offline --locked -q -p firmware-tools -- \
+  inspect-halo-runtime-registry "$work/synthetic-halo-unpacked-registry.bin" \
+  > "$work/synthetic-halo-resolved-controls.txt"
+grep -q 'Resolved 57 named HALO controls' "$work/synthetic-halo-resolved-controls.txt"
+
 # Explicit original DSP payloads are temporarily isolated outside Git.
 cargo run --offline --locked -q -p firmware-tools -- extract-wmfw-external-payloads "$ref" "$work/original-dsp-payloads"
 cargo run --offline --locked -q -p firmware-tools -- assemble-wmfw-with-external-payloads "$work/original-dsp-payloads" "$work/repacked.wmfw"

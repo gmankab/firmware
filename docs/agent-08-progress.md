@@ -249,3 +249,32 @@ cmp "$REF" "$PRIVATE/compact-rebuilt.wmfw"
 
 `tools/verify-agent08-wmfw.sh` checks all three workflows and deliberately
 corrupts an external compact Y part to confirm SHA-256 enforcement.
+
+## Checkpoint 08-15 — checked HALO runtime algorithm directory
+
+Linux's public `wmfw_v3_id_hdr`, `wmfw_halo_id_hdr` and
+`wmfw_halo_alg_hdr` structures define a **runtime** algorithm directory:
+a 40-byte identifier header followed by six big-endian 32-bit fields per
+algorithm. The HALO processor exposes these fields through **unpacked 32-bit
+DSP register memory**, which is not equivalent to parsing the WMFW packed
+XM payload directly.
+
+The `wmfw_halo_registry` module decodes these runtime structures, rejects
+truncated tables, excessive/duplicate algorithm IDs, overflowing memory
+ranges and conflicting XM/YM allocations. Given an authentic running-device
+registry dump, `resolve_named_controls` combines the 57 independently
+reconstructed metadata controls with each algorithm's actual XM/YM base,
+validating the bounds of every resolved DSP-word span.
+
+The new `inspect-halo-runtime-registry` CLI accepts such an unpacked register
+dump; a synthetic three-algorithm registry is used in both Rust tests and the
+automated audit. **No actual device runtime register dump has been supplied**,
+so the reconstructed program remains unverified at instruction level and no
+real runtime algorithm bases are asserted. Firmware-byte accounting is
+unchanged: 3,984 independently authored WMFW metadata bytes, 5,748
+reference-verified Y zero bytes, and 24,504 external DSP bytes in the
+most compact full-file repackaging mode.
+
+Public ABI references:
+- `https://raw.githubusercontent.com/torvalds/linux/master/include/linux/firmware/cirrus/wmfw.h`
+- `https://raw.githubusercontent.com/torvalds/linux/master/drivers/firmware/cirrus/cs_dsp.c`

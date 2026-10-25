@@ -108,3 +108,13 @@ and eight-sparse-input APIs, but adds an optional nine-input packaging mode:
 24,504 externally supplied DSP bytes. The zero-run positions were inferred
 from the exact reference and are not HALO source recovery. The audit script
 exercises all three modes, including deliberate source-corruption rejection.
+
+
+## Checkpoint 08-15 — runtime HALO algorithm directory decoder
+
+Added a strict `wmfw_halo_registry.rs` parser for **unpacked, big-endian,
+32-bit** device register snapshots. It resolves named control offsets only
+when the actual algorithm directory is supplied; the original packed WMFW
+does not itself provide this trusted runtime registry. Synthetic fixtures
+in the audit confirm 57 controls and reject malformed boundaries. There is
+no increase in independently generated firmware bytes.
