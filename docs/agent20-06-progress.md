@@ -266,3 +266,12 @@ python3 tools/agent20_06_a32_roundtrip.py /private/venus.mbn 0xa8ea0 0xa92c8 \
 - The function handles active and queued codec-plane records, branch-back resource status loops, signed byte loads, bounded descriptor scans and callback notification. The last branch at `0xb3bc4` returns to an earlier status path; `0xb3bdc` is a new function entry.
 - The private-reference compare and the independent Clang/LLVM mnemonic assembly check **both report zero byte mismatches**. The full Rust workspace (199 tests) and 13 Python tests pass. No release-build success is claimed for this checkpoint.
 - The branch is still *provisional*, rooted in the older Agent 03 history. This is byte-identical typed ARM32 encoding, **not** high-level source reconstruction, authenticated firmware, or on-device execution.
+
+## Checkpoint 30 — controller slot compaction and live buffer setup
+
+- Verified cumulative ARM runtime `[0xa8000,0xb40ac)` = **49,324 contiguous byte-identical bytes**, original MBN `[0xac000,0xb80ac)`.
+- Added `[0xb3bdc,0xb40ac)` = **1,232 bytes**: **305 typed ARM32 instructions** (1,220 bytes) and **three explicitly classified non-code global/diagnostic words** `[0xb40a0,0xb40ac)` (12 bytes): `0x0010b654`, `0x0010b698`, `0x000f8be8`.
+- The two functions `[0xb3bdc,0xb3d04)` and `[0xb3d04,0xb40a0)` compact per-channel buffer slots, publish hardware descriptor selections and reset controller state. The second original return is `pop {...,pc}` at `0xb409c` immediately before the data words; no synthetic return or opaque code blob is used.
+- Added a checked `arm32::load_signed_byte_postindexed` encoder in a separate commit because the real A32 `LDRSB Rt,[Rn],#imm` at `0xb3e0c` requires sign extension *and* post-incremented addressing. Tests compare independent opcode encodings and reject unsafe register aliasing.
+- Full Rust emitter and independently assembled Clang mnemonic source both match pinned `venus.mbn` **exactly**; Rust 201 tests and Python 13 tests pass. No release-build pass is claimed in this checkpoint.
+- Next uncovered runtime `0xb40ac` (reference file `0xb80ac`). The branch remains provisional older-base instruction-level re-encoding, not functional decompilation, re-signed firmware or checkpoint-50 integration.
