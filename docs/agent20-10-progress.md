@@ -349,3 +349,48 @@ Agent 20-10 owns only new `cdsp_late_*` sources, its verification tool, focused 
   `0x96cc84b8`. This work remains provisional on Agent05's older CDSP base;
   no original vendor ELF/authentication bytes are embedded or OEM signing
   asserted.
+
+## Checkpoint 22 — CDSP callback broker and three trap0 operations, 2,512 executable bytes
+
+- Independently source-rebuilt **136 byte-identical Hexagon V66 executable
+  bytes** at CDSP MBN file `[0x564b8,0x56540)`, virtual
+  `[0xc00c84b8,0xc00c8540)`, physical `[0x96cc84b8,0x96cc8540)`.
+  The complete generated function and enlarged RWE file prefix compare
+  exactly with the pinned private original `cdsp.mbn`, with **0 byte mismatches**.
+- The function saves R17:16/R19:18, reads a GP-relative status word
+  at `0xc028c028`, calls the shared controller service `0x96ddf3a0`,
+  performs guarded state updates and three `trap0(#0)` calls with selectors
+  1, 6 and 2, then restores the pair frame and returns. Branches are
+  packet-relative, using original V66 `R2.new` producer/consumer semantics.
+- LLVM6 independently assembles the equivalent function in **128 bytes**:
+  compiler changes one extended GP load/store selection, packet markers and
+  branch immediates compared with the original 136-byte V66 layout.
+  The verified matching subset has **24 unchanged instruction words**;
+  Rizin V66 independently confirms all **34 generated original-order words**,
+  the physical callback, guarded branches and all three traps. The compiler
+  fixture is *not* misrepresented as a complete byte-identical assembly.
+- Contiguous RWE file reconstruction now `[0x56000,0x56540)` = **1,344 bytes**:
+  **1,312 independently encoded executable bytes + 32 distinctly identified
+  layout NOP/fill**. Adding the disjoint complete 1,200-byte controller
+  segment `[0x55000,0x554b0)` gives **2,512 total source-generated CDSP
+  executable bytes** for this agent, excluding all structural fill.
+- Added checked, narrow V66 op encoders for the extended GP load/store,
+  status predicate/branch, duplex register pair saves, trap0 and new-value
+  state writes. Regression tests reject unsupported branch targets, trap
+  selectors, register values and offsets. All Rust tests, Python tests,
+  offline workspace release build and independent decoder checks pass.
+  Reproduce with:
+
+  ```sh
+  cargo run --offline --locked -p firmware-tools --bin cdsp-late-callback-service -- verify /private/cdsp.mbn
+  cargo run --offline --locked -p firmware-tools --bin cdsp-late-callback-service -- verify-prefix /private/cdsp.mbn
+  python3 tools/verify-agent20-10-cdsp-callback-service.py \
+    --llvm-mc /private/llvm6/bin/llvm-mc --rz-asm /private/rz-asm \
+    --generated /private/callback-service-136.bin \
+    --prefix /private/cdsp-rwe-1344.bin --reference /private/cdsp.mbn
+  ```
+
+- **Next unimplemented CDSP code** starts file `0x56540` (physical
+  `0x96cc8540`). This Git branch is still based on the old Agent05 CDSP
+  checkpoint 17, not the unavailable checkpoint-50 integration branch.
+  No OEM signature, full CDSP image or hardware execution is implied.
