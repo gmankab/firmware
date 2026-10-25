@@ -116,3 +116,11 @@
 - New module `cdsp_early_exception_setup.rs`, standalone validator `tools/verify-agent20-09-exception-setup.py`, and `emit-controller-setup` and cumulative `emit-supervisor` CLI actions.
 - Cumulative source-generated executable coverage: first region `[0x41e0,0x4418)` **568** bytes; second `[0x4500,0x4860)` **864** bytes = **1,432 total executable bytes**. Interstitial `[0x4418,0x4500)` is **232 original linker zeros** and is *not* counted as source-authored code.
 - Next unimplemented original executable byte: file `0x4860` (physical `0x96c01860`). No whole MBN rebuild, emulator/real-hardware validation or OEM re-signing is claimed. Branch still descends from Agent 05, not missing checkpoint 50.
+
+## Checkpoint 14 — exception-controller transition through file `0x48a4`
+
+- Independently generated **68 executable bytes** `[0x4860,0x48a4)` (physical `[0x96c01860,0x96c018a4)`) with **zero differences** against the pinned CDSP MBN.
+- The routine advances the controller status from `3` to `4`, reads an `S54`-relative controller slot, checks the selected pointer with a new-predicate P0 compare/branch, and dispatches a callback before resuming. The forward branch at physical `0x96c0188c` targets `0x96c01924`, computed from the packet start `0x96c01888` (not copied raw).
+- Standalone validator `tools/verify-agent20-09-exception-transition.py`: all 17 Hexagon words decoded correctly by Rizin V66; **15 LLVM6 independently assembled encodings** plus branch/call instruction-family checks. The privileged `S54` read is inherited from the previous source module and remains decoder-corroborated only.
+- Code coverage is `[0x41e0,0x4418)` (**568** bytes) plus `[0x4500,0x48a4)` (**932** bytes) = **1,500 typed source-generated executable bytes**, with **232 ELF linker zero bytes** `[0x4418,0x4500)` excluded from executable count.
+- Next original executable byte: file `0x48a4` (physical `0x96c018a4`) in the controller wait/retry path. This portable branch descends from Agent 05 and does **not** claim checkpoint-50 ancestry or fresh OEM signatures.
