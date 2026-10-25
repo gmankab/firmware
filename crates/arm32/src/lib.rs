@@ -169,6 +169,19 @@ pub fn load_halfword(condition: Condition, rd: Register, rn: Register,
     Ok(store_halfword(condition, rd, rn, signed_offset)? | (1 << 20))
 }
 
+/// A32 register-offset halfword transfer, pre-indexed without writeback.
+/// A32 uses a different addressing-field layout from word loads/stores:
+/// the register offset is only Rm (no barrel shift), with bits 7 and 4 set.
+pub fn transfer_halfword_register(condition: Condition, load: bool,
+                                  rd: Register, rn: Register, rm: Register)
+                                  -> Result<u32, String> {
+    if [rd, rn, rm].contains(&Register::PC) {
+        return Err("PC is not valid in A32 register-indexed halfword transfers".into());
+    }
+    Ok(cond(condition) | 0x0180_00b0 | (if load { 1 << 20 } else { 0 })
+       | (rn.number() << 16) | (rd.number() << 12) | rm.number())
+}
+
 /// A32 signed halfword load with a checked signed imm8 displacement.
 /// This uses the halfword transfer's split eight-bit immediate field.
 pub fn load_signed_halfword(condition: Condition, rd: Register, rn: Register,
@@ -283,11 +296,11 @@ fn modified_immediate(value: u32) -> Result<u32, String> {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum DataOp { And = 0, Eor = 1, Sub = 2, Rsb = 3, Add = 4, Sbc = 6, Rsc = 7, Tst = 8, Cmp = 10, Cmn = 11, Orr = 12, Mov = 13, Bic = 14, Mvn = 15 }
+pub enum DataOp { And = 0, Eor = 1, Sub = 2, Rsb = 3, Add = 4, Sbc = 6, Rsc = 7, Tst = 8, Teq = 9, Cmp = 10, Cmn = 11, Orr = 12, Mov = 13, Bic = 14, Mvn = 15 }
 
 pub fn data_immediate(condition: Condition, op: DataOp, rd: Register, rn: Register,
                       value: u32) -> Result<u32, String> {
-    let test = matches!(op, DataOp::Cmp | DataOp::Tst | DataOp::Cmn);
+    let test = matches!(op, DataOp::Cmp | DataOp::Tst | DataOp::Teq | DataOp::Cmn);
     let rd_field = if test { 0 } else { rd.number() };
     Ok(cond(condition) | (1 << 25) | ((op as u32) << 21)
        | if test { 1 << 20 } else { 0 }
@@ -312,8 +325,8 @@ pub fn mov_shifted_register(condition: Condition, rd: Register, rm: Register,
 
 pub fn data_immediate_with_flags(condition: Condition, op: DataOp, rd: Register,
                                  rn: Register, value: u32, flags: bool) -> Result<u32, String> {
-    if matches!(op, DataOp::Cmp | DataOp::Tst | DataOp::Cmn) {
-        return Err("CMP and TST always update flags; use data_immediate".into());
+    if matches!(op, DataOp::Cmp | DataOp::Tst | DataOp::Teq | DataOp::Cmn) {
+        return Err("CMP, TST and TEQ always update flags; use data_immediate".into());
     }
     Ok(data_immediate(condition, op, rd, rn, value)? | if flags { 1 << 20 } else { 0 })
 }
@@ -321,8 +334,8 @@ pub fn data_immediate_with_flags(condition: Condition, op: DataOp, rd: Register,
 pub fn data_register(condition: Condition, op: DataOp, rd: Register, rn: Register,
                      rm: Register, shift: Shift, amount: u8,
                      flags: bool) -> Result<u32, String> {
-    let test = matches!(op, DataOp::Cmp | DataOp::Tst | DataOp::Cmn);
-    if flags && test { return Err("CMP and TST set flags automatically".into()); }
+    let test = matches!(op, DataOp::Cmp | DataOp::Tst | DataOp::Teq | DataOp::Cmn);
+    if flags && test { return Err("CMP, TST and TEQ set flags automatically".into()); }
     Ok(cond(condition) | ((op as u32) << 21) | ((rn.number()) << 16)
        | if flags || test { 1 << 20 } else { 0 }
        | (if test { 0 } else { rd.number() } << 12)
@@ -339,7 +352,7 @@ pub fn data_register_shifted_by_register(condition: Condition, op: DataOp,
     if rs == Register::PC || rm == Register::PC {
         return Err("PC is not a valid ARM32 shift operand".into());
     }
-    let test = matches!(op, DataOp::Cmp | DataOp::Tst | DataOp::Cmn);
+    let test = matches!(op, DataOp::Cmp | DataOp::Tst | DataOp::Teq | DataOp::Cmn);
     if test && flags { return Err("test opcodes always set flags".into()); }
     Ok(cond(condition) | ((op as u32) << 21) | (rn.number() << 16)
        | (if flags || test { 1 << 20 } else { 0 })
@@ -446,6 +459,36 @@ pub fn push_registers(condition: Condition, registers: u16) -> Result<u32, Strin
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn register_offset_halfword_encoding_and_rejections() {
+        let r4=Register::new(4).unwrap();
+        let r9=Register::new(9).unwrap();
+        assert_eq!(transfer_halfword_register(Condition::Al,false,
+            Register::R0,r4,Register::R1).unwrap(),0xe184_00b1);
+        assert_eq!(transfer_halfword_register(Condition::Al,false,
+            Register::R0,r4,r9).unwrap(),0xe184_00b9);
+        assert_eq!(transfer_halfword_register(Condition::Al,true,
+            Register::R0,r4,r9).unwrap(),0xe194_00b9);
+        assert_eq!(transfer_halfword_register(Condition::Al,false,
+            Register::R1,r4,Register::R2).unwrap(),0xe184_10b2);
+        assert!(transfer_halfword_register(Condition::Al,true,
+            Register::R0,Register::PC,r9).is_err());
+        assert!(transfer_halfword_register(Condition::Al,false,
+            Register::PC,r4,r9).is_err());
+    }
+
+    #[test]
+    fn teq_always_updates_flags_and_has_no_destination() {
+        // Independently disassembled A32 `teq r1, r2` = e1310002.
+        assert_eq!(data_register(Condition::Al, DataOp::Teq, Register::R0,
+            Register::R1, Register::R2, Shift::Lsl, 0, false).unwrap(), 0xe131_0002);
+        assert!(data_register(Condition::Al, DataOp::Teq, Register::R0,
+            Register::R1, Register::R2, Shift::Lsl, 0, true).is_err());
+        assert_eq!(data_immediate(Condition::Al, DataOp::Teq, Register::R0,
+            Register::R1, 1).unwrap(), 0xe331_0001);
+        assert!(data_immediate_with_flags(Condition::Al, DataOp::Teq,
+            Register::R0, Register::R1, 1, true).is_err());
+    }
     #[test]
     fn thumb_interworking_blx_encoding_and_range_checks() {
         // ARM BLX immediate follows a signed PC+8 displacement. Bit H
