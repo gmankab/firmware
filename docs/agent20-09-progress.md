@@ -45,3 +45,12 @@
 - Hexagon duplex paired immediate assignments, compressed paired adds, and extended assignment + register add are assembled from checked operands. Original packet-end marker appears on the NOP just before final duplex ADD. Independent LLVM6 confirms exact duplex encodings and Rizin V66 decodes all 36 instructions. **Privileged MEMW_PHYS remains Rizin-only corroboration** because LLVM6 does not assemble it.
 - No external OEM instruction bytes copied into Git or declared regenerated; strict output comparison against the pinned `cdsp.mbn` returns zero mismatches.
 - Next distinct routine begins at file offset `0x43f4` (physical `0x96c013f4`). The rest of first executable `PT_LOAD` through `0x3ab34` remains largely unimplemented.
+
+## Checkpoint 06 — CFGBASE probe and explicit linker alignment
+
+- New typed Hexagon V66 function `[file 0x43f4,0x4418)` = **36 independently re-encoded executable bytes** (nine 32-bit instruction words). Physical `[0x96c013f4,0x96c01418)` and ELF virtual `[0xfe0013f4,0xfe001418)`.
+- Added a checked CFGBASE system-register read, ASL shifts, physical memory read, and packetized GP-relative **R2.new** write with external 0xfe0c6734 address via IMMEXT. V66 Rizin decodes all nine words; LLVM6 independently assembles the two ASL and jumpr-LR instructions after normalizing packet bits. LLVM6 does not assemble the privileged CFGBASE / MEMW_PHYS instructions; those are only decoder-corroborated.
+- The typed continuous executable fragment now covers `[0x41e0,0x4418)` = **568 generated code bytes**. Its entire contents match the pinned CDSP revision with zero differences.
+- Source reference `[file 0x4418,0x4500)` contains **232 zero linker-alignment bytes**, checked against the reference but **not included** in the 568 emitted executable bytes. The next non-padding code starts at `0x4500` (physical `0x96c01500`). The gap is not an independently generated executable function.
+- `tools/verify-agent20-09-cfgbase.py` checks the new function with Rizin, three independent LLVM6 scalar encodings, the original reference match, and the 232-byte alignment. Rust `cfgbase_probe_is_executable_without_embedded_padding` tests the split and GP-address alignment.
+- Base and signing caveats from earlier checkpoints remain: branch starts from Agent 05's older snapshot `a02618f…`, NOT from missing checkpoint 50; Codex is author/committer but no GPG signature is claimed.
