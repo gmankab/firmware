@@ -388,3 +388,54 @@ verify all stored CRC fields with no mismatches.
 
 Tests: 183 Rust and 13 Python; offline
 release build and synthetic CLI end-to-end verification pass.
+
+## Checkpoint 09 — Identified NDS32 instruction stream; first executable entry path
+
+The touch-controller ILM is **Andes NDS32 (AndeStar)** rather than ARM,
+Thumb or 8051. This is corroborated by three independent findings:
+
+1. The first 32-bit **big-endian instruction** at file offset `0x450`
+   contains NDS32 opcode `LSMW=0b011101`, stores a full register context
+   and is followed by `mfusr` (`ALU_2` opcode), `mfsr` (`MISC` opcode), and
+   16-bit `mov55`/`srli45`/`fexti33` mixed-length instructions. Field
+   layouts reproduce the publicly documented AndeStar ISA v1.3 encodings.
+2. The exact instruction patterns for `mfsr $ipc`, `mfsr $ipsw`, `smw.adm`,
+   `setgie.d`, `dsb` and `iret` also occur in independently disassembled
+   Andes NDS32 GK64 keyboard firmware (not a Novatek derivative). These
+   distinctive privileged/control-flow sequences are far more compelling
+   ISA evidence than the driver name `SWRST_N8_ADDR` alone.
+3. The original NDS32 binutils author confirms that **instructions always
+   use big-endian encoding even when data is little-endian**. This matches
+   the observed big-endian ILM instruction stream and little-endian metadata
+   and vector words in the same firmware image.
+
+Sources for ISA cross-checks (no external firmware incorporated into code):
+
+- NDS32/Ghidra SLEIGH source: https://github.com/NationalSecurityAgency/ghidra/tree/Ghidra_12.1.4_build/Ghidra/Processors/NDS32/data/languages
+- Andes NDS32 toolchain author on instruction/data endian: https://sourceware.org/pipermail/binutils/2013-July/081922.html
+- Independent NDS32 executable disassembly: https://gist.github.com/wgwoods/ce29566e6a8ad6c7105de413db181617
+- U-Boot NDS32 16-/32-bit ISA information: https://docs.u-boot.org/en/v2020.07/arch/nds32.html
+
+New `novatek_nds32.rs` independently re-encodes **90 executable bytes** in
+file interval `[0x450,0x4aa)` as checked, typed instructions: 25 mixed 16/
+32-bit operations making an interrupt save/restore path ending in `IRET`.
+The branch at `0x484` targets `0x4c8`, outside this reconstructed linear
+path; the rest of the handler graph is not yet implemented. This is *not*
+proof of an executable-complete or flashable image.
+
+Commands:
+
+```sh
+cargo run --offline --locked -p firmware-tools --bin novatek-nabu -- \
+  emit-nds32-isr /tmp/novatek-isr-90.bin
+cargo run --offline --locked -p firmware-tools --bin novatek-nabu -- \
+  verify-nds32-isr /private/novatek_nt36523_fw.bin
+```
+
+The typed ISR output matches **both the pinned postmarketOS image and the
+older upstream revision, byte-for-byte** (zero mismatches). The ISR is
+independent of externally supplied ILM code, unlike the previous structural
+metadata work. No other ILM bytes are credited as independently authored at
+this checkpoint. The next task is integrating these 90 bytes into the sparse
+assembly plan, ensuring the builder no longer requires them in the external
+ILM input, and extending NDS32 encoding to the next real handler functions.
