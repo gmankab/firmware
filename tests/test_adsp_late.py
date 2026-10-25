@@ -170,9 +170,9 @@ class ADSPExternalsAndCodeTests(unittest.TestCase):
     @unittest.skipUnless(LLVM_MC,'Hexagon LLVM6 assembler required')
     def test_complete_fragment_inventory_rejects_overlaps(self):
         manifest,regions=adsp.assembled_inventory(LLVM_MC,None)
-        self.assertEqual(len(manifest['fragments']),35)
-        self.assertEqual(manifest['total_independently_assembled_executable_bytes'],2496)
-        self.assertEqual(sum(map(len,regions.values())),2496)
+        self.assertEqual(len(manifest['fragments']),36)
+        self.assertEqual(manifest['total_independently_assembled_executable_bytes'],2584)
+        self.assertEqual(sum(map(len,regions.values())),2584)
         self.assertEqual(manifest['gap_bytes_included_in_generated_executables'],0)
         self.assertFalse(manifest['complete_adsp_image'])
         self.assertEqual(manifest['external_original_code_bytes_in_output'],0)
@@ -339,7 +339,7 @@ class ADSPExternalsAndCodeTests(unittest.TestCase):
     def test_inventory_every_fragment_uses_correct_original(self):
         inventory,_outputs=adsp.assembled_inventory(LLVM_MC,Path(REFERENCE).read_bytes())
         self.assertTrue(all(x['reference_byte_identical'] for x in inventory['fragments']))
-        self.assertEqual(inventory['total_independently_assembled_executable_bytes'],2496)
+        self.assertEqual(inventory['total_independently_assembled_executable_bytes'],2584)
 
     @unittest.skipUnless(LLVM_MC and REFERENCE,
                          'Hexagon LLVM6 and exact pinned ADSP reference required')
@@ -353,7 +353,7 @@ class ADSPExternalsAndCodeTests(unittest.TestCase):
                 adsp.verify_slice(built,original,off)
                 total+=len(built)
                 ranges.append((off,off+size))
-        self.assertEqual(total,2496)
+        self.assertEqual(total,2584)
         ranges.sort()
         self.assertEqual(ranges[0],(0x39000,0x39054))
         self.assertEqual(ranges[-1],(0x3640a8,0x3640f8))
@@ -575,3 +575,24 @@ class LaterADSPParameterHelpersTests(unittest.TestCase):
                           (['parameter-combine','halfword-order'],0x3be70)]:
             data=b''.join(adsp.compile_source(LLVM_MC,adsp.FRAGMENTS[name][0],adsp.FRAGMENTS[name][2]) for name in names)
             adsp.verify_slice(data,original,off)
+
+
+class ADSPBufferBitfieldTests(unittest.TestCase):
+    @unittest.skipUnless(LLVM_MC, 'Hexagon LLVM6 assembler needed')
+    def test_bitfield_source_and_packetized_lookup(self):
+        source,off,size=adsp.FRAGMENTS['buffer-bitfield']
+        self.assertEqual((off,size),(0x3ba68,88))
+        text=source.read_text()
+        for forbidden in ('.word ','.long ','.byte ','.fill ','.incbin '):
+            self.assertNotIn(forbidden,text)
+        for operation in ('r2 = ct0(r2)', 'r2 = extractu(r0,#22,#0)',
+                          'r4 &= and(r0,r5); immext(#0xf01f2000)',
+                          'return_zero:', 'dealloc_return'):
+            self.assertIn(operation,text)
+        assembled=adsp.compile_source(LLVM_MC,source,size)
+        self.assertEqual(hashlib.sha256(assembled).hexdigest(),'ee842302127e5e22ce797bd744e6f65115531946096d4a7ae987a89d44572a34')
+
+    @unittest.skipUnless(LLVM_MC and REFERENCE, 'Private pinned reference required')
+    def test_bitfield_roundtrip_against_private_source(self):
+        source,off,size=adsp.FRAGMENTS['buffer-bitfield']
+        adsp.verify_slice(adsp.compile_source(LLVM_MC,source,size),Path(REFERENCE).read_bytes(),off)

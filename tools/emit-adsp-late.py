@@ -64,6 +64,7 @@ FRAGMENTS = {
     'parameter-forward': (TOOLS / 'adsp-late-parameter-forward.S', 0x3BC08, 0x14),
     'parameter-combine': (TOOLS / 'adsp-late-parameter-combine.S', 0x3BE70, 0x10),
     'halfword-order': (TOOLS / 'adsp-late-halfword-order.S', 0x3BE80, 0x1C),
+    'buffer-bitfield': (TOOLS / 'adsp-late-buffer-bitfield.S', 0x3BA68, 0x58),
 }
 
 class LateAdspError(ValueError):

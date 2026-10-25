@@ -266,3 +266,18 @@ fragment entries**. Zero guessed code, linker fill, or OEM payload counted.
 160 Rust tests, 149 Python tests, offline release build and exact original
 verification all pass. The intended checkpoint-50-based integrated Git tree
 remains unavailable; this is the isolated Agent04-descended branch.
+
+**Checkpoint 19 — bounded codec bitfield mask:** Added an independently
+reconstructed 88-byte Hexagon V66-compatible instruction routine
+`[file 0x3ba68,0x3bac0)` that selects a controller mask from a platform
+lookup table after computing the trailing-zero count (`ct0`) of a 22-bit
+extracted field. An exact `r4 &= and(...)`/`immext`/table-load source packet
+recreates the original parse-marker bits, with a separate zero-input exit.
+SHA-256 `ee842302127e5e22ce797bd744e6f65115531946096d4a7ae987a89d44572a34`.
+No OEM opcode words are embedded. The new source matches all 88 reference
+bytes, producing **2,584 total independent executable bytes across
+36 verified fragments**. The next huge controller functions and the majority
+of both ADSP executable `PT_LOAD`s remain unimplemented. Isolated branch
+still needs integration with the actual checkpoint-50-based repository.
+All 160 Rust tests, 151 Python tests, pinned MBN verification and release
+build pass.
