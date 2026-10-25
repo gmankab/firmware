@@ -128,6 +128,31 @@ class V66BootstrapTests(unittest.TestCase):
             with self.subTest(offset=hex(off)):
                 self.assertEqual(struct.unpack_from("<I",data,off)[0],word)
 
+    def test_isdben_and_debug_break_fields(self) -> None:
+        self.assertEqual(v66.read_system_register(1,v66.SystemRegister.ISDBEN),0x6eaac001)
+        self.assertEqual(v66.write_system_register(v66.SystemRegister.ISDBEN,1),0x6701c02a)
+        self.assertEqual(int(v66.DebugCommand.BREAKPOINT),0x6c20c000)
+        self.assertEqual(v66.packet_continuation(
+            v66.read_system_register(1,v66.SystemRegister.CFGBASE)),0x6e9b4001)
+        with self.assertRaises(v66.HexagonEncodingError):
+            v66.packet_continuation(0x6e9b4001)
+        with self.assertRaises(v66.HexagonEncodingError):
+            v66.packet_continuation(-1)
+
+    @unittest.skipUnless(REFERENCE,"Original reference required")
+    def test_debug_control_encodings_match_multiple_calls(self) -> None:
+        b=Path(REFERENCE).read_bytes()
+        checks={0x4c68:v66.read_system_register(1,v66.SystemRegister.ISDBEN),
+                0x39b4:v66.write_system_register(v66.SystemRegister.ISDBEN,1),
+                0x4cb4:v66.write_system_register(v66.SystemRegister.ISDBEN,1),
+                0x39bc:int(v66.DebugCommand.BREAKPOINT),
+                0x3e28:int(v66.DebugCommand.BREAKPOINT),
+                0x4cbc:int(v66.DebugCommand.BREAKPOINT),
+                0x4c74:v66.packet_continuation(v66.read_system_register(1,v66.SystemRegister.CFGBASE))}
+        for off,expected in checks.items():
+            with self.subTest(offset=hex(off)):
+                self.assertEqual(struct.unpack_from("<I",b,off)[0],expected)
+
     def test_fixed_operand_hexagon_tlb_write_encoding(self) -> None:
         self.assertEqual(v66.tlb_write_pair_r3_r2_index_r0(), 0x6c02c000)
         self.assertEqual((v66.tlb_write_pair_r3_r2_index_r0() >> 14) & 3, 3)

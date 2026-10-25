@@ -26,6 +26,7 @@ class SystemRegister(IntEnum):
     CFGBASE = 27
     PMUCFG = 53
     S54 = 54
+    ISDBEN = 42
 
 
 class CacheCommand(IntEnum):
@@ -169,3 +170,22 @@ def physical_word_load(destination: int, physical_address: int, page_selector: i
     """
     return (0x9200E000 | (gpr(physical_address) << 16) |
             (gpr(page_selector) << 8) | gpr(destination))
+
+
+class DebugCommand(IntEnum):
+    """Single-word v66 monitor/debug control instruction."""
+    BREAKPOINT = 0x6C20C000
+
+
+def packet_continuation(instruction: int) -> int:
+    """Put a one-word architectural opcode in the middle of a packet.
+
+    The Hexagon packet-parse bits [15:14] are 0b01 for a continuing operation
+    and 0b11 for the terminating operation. The caller must provide a legal
+    standalone architectural encoder result, not an arbitrary OEM word.
+    """
+    if not isinstance(instruction, int) or not 0 <= instruction <= 0xFFFFFFFF:
+        raise HexagonEncodingError("Expected a 32-bit instruction")
+    if (instruction >> 14) & 3 != 3:
+        raise HexagonEncodingError("Expected an end-of-packet instruction")
+    return (instruction & ~(3 << 14)) | (1 << 14)

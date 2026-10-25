@@ -105,8 +105,9 @@ class ADSPBootstrapTests(unittest.TestCase):
                      adsp.assemble_physical_compare(LLVM_MC) +
                      adsp.assemble_cfgbase_helper(LLVM_MC) +
                      adsp.assemble(LLVM_MC, adsp.CONTROLLER_ALIGNMENT_SOURCE, 0xf8) +
-                     adsp.assemble_controller_startup(LLVM_MC))
-        self.assertEqual(len(generated), 0xa88)
+                     adsp.assemble_controller_startup(LLVM_MC) +
+                     adsp.assemble_controller_debug_check(LLVM_MC))
+        self.assertEqual(len(generated), 0xae0)
         original = Path(REFERENCE).read_bytes()
         adsp.verify_reference(generated, original, 0x41e0)
         mutated = bytearray(generated)
@@ -233,6 +234,27 @@ class ADSPBootstrapTests(unittest.TestCase):
                 "{ nop } // V66 r23 = SYSCFG", "{ isync } // V66 r23 = SYSCFG",1))
             with self.assertRaisesRegex(adsp.AdspError,"startup sentinel"):
                 adsp.assemble_controller_startup(LLVM_MC,invalid)
+
+    def test_debug_guard_source_packetizes_privileged_words(self) -> None:
+        src=adsp.CONTROLLER_DEBUG_CHECK_SOURCE.read_text()
+        self.assertIn("tstbit(r1,#2)",src)
+        self.assertIn("memw_phys(r0,r1)",src)
+        self.assertIn("V66 ISDBEN = r1",src)
+        self.assertIn("V66 brkpt",src)
+        self.assertNotIn(".incbin",src)
+        self.assertNotIn(".word",src)
+
+    @unittest.skipUnless(LLVM_MC and REFERENCE,"Assembler and reference required")
+    def test_debug_guard_has_six_checked_unsupported_slots(self) -> None:
+        emitted=adsp.assemble_controller_debug_check(LLVM_MC)
+        self.assertEqual(len(emitted),0x58)
+        adsp.verify_reference(emitted,Path(REFERENCE).read_bytes(),0x4c68)
+        with tempfile.TemporaryDirectory() as td:
+            fake=Path(td)/"incorrect-debug-guard.S"
+            fake.write_text(adsp.CONTROLLER_DEBUG_CHECK_SOURCE.read_text().replace(
+                "{ nop } // V66 brkpt", "{ isync } // V66 brkpt",1))
+            with self.assertRaisesRegex(adsp.AdspError,"debug control sentinel"):
+                adsp.assemble_controller_debug_check(LLVM_MC,fake)
 
     @unittest.skipUnless(LLVM_MC, "Hexagon-capable llvm-mc unavailable")
     def test_syscfg_handoff_uses_typed_and_source_assembly(self) -> None:
