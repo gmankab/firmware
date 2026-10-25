@@ -235,3 +235,10 @@ python3 tools/agent20_06_a32_roundtrip.py /private/venus.mbn 0xa8ea0 0xa92c8 \
 - Reconstructs stream hardware initialization, data-plane/controller slot updates, callback/error handling and codec register reports. The original loop and conditional branches into earlier status transitions are retained. An original `POP {...,PC}` at `0xb1b38` returns before the second pool; no invented return is added.
 - Direct Rust bytes match pinned original exactly. Independent Clang/LLVM round-trip for `[0xb11b4,0xb1b44)` verifies 2,404 typed instruction bytes and 44 data bytes with **zero mismatches**. Literal regression tests cover both pools.
 - Next unimplemented VMA `0xb1b44` (file `0xb5b44`) begins the next codec controller helper. This remains provisional source-level A32 *instruction encoding*, not a behavioral decompilation or newly signed OEM image.
+
+## Checkpoint 26 — codec command queue and frame-plane stream prefix
+
+- Contiguous source-built Venus runtime `[0xa8000,0xb2000)` = **40,960 reference-identical bytes**, MBN file `[0xac000,0xb6000)`.
+- Added `[0xb1b44,0xb2000)` = **1,212 typed ARM32 executable instruction bytes (303 instructions)**, with no inline literal/data words. It processes controller plane-size metadata, codec stream command/queue fields and status checks.
+- The routine beginning at `0xb1b44` has an original branch/return at `0xb1de4`, but additional fallback branches continue afterward; it is **incomplete at `0xb2000`**. Do not describe it as a finished semantic function. The following first unimplemented runtime address is `0xb2000` (file `0xb6000`).
+- Full generated fragment and independent Clang/LLVM mnemonic reassembly match the original exactly, **zero mismatches**. Still provisional, based on older Agent 03, with no hardware behavior/OEM signing claims.
