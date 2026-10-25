@@ -57,3 +57,16 @@ fn quality_tier_and_allocators_match_optional_reference(){
         assert_eq!(&bytes[..],original.get(off..off+bytes.len()).expect("short original"));
     }
 }
+
+#[path = "../src/devices/xiaomi_nabu/venus_agent20_05_record_metrics.rs"]
+mod record_metrics;
+#[test]
+fn rolling_record_metrics_matches_optional_reference(){
+    let bytes=record_metrics::fragment().expect("typed 64-bit metrics");
+    assert_eq!(bytes.len(),record_metrics::END-record_metrics::START);
+    if let Some(reference)=std::env::var_os("NABU_VENUS_REFERENCE") {
+        let original=std::fs::read(reference).unwrap();
+        let off=record_metrics::START+record_metrics::FILE_BASE;
+        assert_eq!(&bytes[..],original.get(off..off+bytes.len()).unwrap());
+    }
+}
