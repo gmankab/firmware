@@ -109,3 +109,11 @@ python3 tools/agent20_06_a32_roundtrip.py /private/venus.mbn 0xa8ea0 0xa92c8 \
 - Newly reconstructed complete function `[0xaa6f0,0xab04c)` = **2,396 bytes**: 592 typed A32 instructions (2,368 bytes) and seven separately identified literal addresses (28 bytes) at `[0xab030,0xab04c)`. The original return is `pop {..., pc}` at `0xab02c`; no synthetic return, OEM opcode arrays or implicit zero fill are used.
 - The command queue initializes controller MMIO packet fields, updates quality/cached buffer tables, handles special codec mode paths and optional diagnostics. The independent Clang/LLVM assembler reassembled 2,368 new code bytes plus the explicit 28 data bytes with zero differences.
 - All 191 Rust tests, 13 Python tests and offline release build passed. The next missing runtime address is `0xab04c` (file `0xaf04c`), starting a new function. This remains an **instruction-level** byte-matched reconstruction based on the older provisional Agent 03 branch, not checkpoint 50 integration.
+
+## Checkpoint 11 — controller FIFO, DMA and per-frame registers
+
+- Total source-generated `[0xa8000,0xab784)` = **14,212 byte-identical bytes**, file `[0xac000,0xaf784)`; SHA-256 `780988a1737209ac7885f5d05632f909218777276519d23c5b59e583507adfa1`.
+- Added complete function `[0xab04c,0xab784)` = **1,848 bytes**: 455 public-ARM32-encoder instructions (1,820 bytes), seven separately classified diagnostic/global words (28 bytes) at `[0xab768,0xab784)`. Its actual final `pop {...,pc}` occurs at `0xab764`.
+- Handles controller state preparation, DMA parameters, register FIFO sequences, and conditional branches. No original firmware instructions are embedded as data arrays.
+- Independent LLVM/Clang ARM assembler verifies all 1,820 code bytes and 28 data bytes exactly. Full cargo workspace 191 Rust tests, 13 Python tests, release build pass. Next uncovered runtime address: `0xab784` (`venus.mbn` file offset `0xaf784`).
+- The standalone branch is still provisional, descending from older Agent 03, not checkpoint 50. Instruction identity does not establish semantic source reconstruction, emulated behavior, or OEM signing.
