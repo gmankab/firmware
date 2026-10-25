@@ -20,6 +20,34 @@
     .endif
     .word (0x92002000 | (\address << 16) | (\marker << 14) | (\offset_reg << 8) | \dst)
 .endm
+// Hexagon GP-relative absolute access with a constant extender. The V5
+// `memw(gp+#u16:2)` encoding treats GP as zero when an extender is present.
+// LLVM6's assembler shortens this to a different PC/GP-relative addressing
+// form. Emit the documented ISA bitfields with checked operands instead;
+// no OEM opcode words are embedded here.
+.macro HEX_ABS_MEMW_STORE src, absolute
+    .if (\src < 0) || (\src > 31)
+        .error "invalid Hexagon absolute store source register"
+    .endif
+    .if ((\absolute & 3) != 0) || (\absolute < 0) || (\absolute > 0xffffffff)
+        .error "invalid Hexagon absolute word-store address"
+    .endif
+    // Constant extender: u32[31:20] at word[27:16], u32[19:6] at [13:0].
+    .word ((((\absolute >> 20) & 0xfff) << 16) | (1 << 14) | ((\absolute >> 6) & 0x3fff))
+    // `memw(gp + #u16:2) = Rt`, with six low address bits and R[t].
+    .word (0x48800000 | (3 << 14) | (\src << 8) | (\absolute & 63))
+.endm
+.macro HEX_ABS_MEMW_LOAD dst, absolute
+    .if (\dst < 0) || (\dst > 31)
+        .error "invalid Hexagon absolute load destination register"
+    .endif
+    .if ((\absolute & 3) != 0) || (\absolute < 0) || (\absolute > 0xffffffff)
+        .error "invalid Hexagon absolute word-load address"
+    .endif
+    .word ((((\absolute >> 20) & 0xfff) << 16) | (1 << 14) | ((\absolute >> 6) & 0x3fff))
+    // `Rd = memw(gp + #u16:2)`, low address bits stored from bit 5.
+    .word (0x49800000 | (3 << 14) | ((\absolute & 63) << 5) | \dst)
+.endm
 .globl modem_boot_dispatch
 modem_boot_dispatch:
 .set modem_ready_handler, modem_boot_dispatch+0x5c4
@@ -446,3 +474,50 @@ HEX_SYSTEM_READ 0,18
 }
 .set post_tlb_callback, modem_boot_dispatch+0xeac
 { call post_tlb_callback }
+// Publish the selected bootstrap memory window, rounded up to an aligned
+// word count. Global-pointer-relative controls are system configuration,
+// not executable copies of OEM words.
+HEX_ABS_MEMW_STORE 26,0xc08722b0
+HEX_ABS_MEMW_STORE 24,0xc08722ac
+HEX_ABS_MEMW_LOAD 0,0xc0872340
+HEX_ABS_MEMW_LOAD 1,0xc191c134
+{ r1 = add(r1,#-1) }
+{ r0 = add(r0,r1) }
+{ r0 = and(r0,~r1) }
+HEX_ABS_MEMW_STORE 0,0xc0866010
+{ r0 = sub(r0,r26) }
+{ r0 = add(r0,r24) }
+HEX_ABS_MEMW_STORE 0,0xc087233c
+{ r25 = #0 }
+.set modem_boot_advance, modem_boot_dispatch+0x524
+{ jump modem_boot_advance }
+// This secondary page-map loader is reachable via a distinct bootstrap
+// branch and installs long memory mappings before rejoining TLB handling.
+{ r2 = #0 }
+{
+ r5 = add(r25,##-1046887928)
+ r3 = memw(r25+##-1047412276)
+}
+{
+ r3 = add(r3,r2)
+ r4 = add(r25,##-1064894464)
+}
+.set second_page_map_iter, modem_boot_dispatch+0x4fc
+second_page_map_iter:
+{ r1:0 = memd(r5+#0) }
+.set next_page_map_word, modem_boot_dispatch+0x518
+{ p1 = cmp.eq(r1,#0); if (p1.new) jump:nt next_page_map_word }
+.set page_map_write_done, modem_boot_dispatch+0x50c
+{ p1 = cmp.gt(r3,r2); if (!p1.new) jump:t page_map_write_done }
+{ memd(r4++#8) = r1:0 }
+page_map_write_done:
+// Hexagon Y2_tlbw: checked source pair r1:r0 and index r2.
+.word (0x6c000000 | (0 << 16) | (3 << 14) | (2 << 8))
+{
+ jump second_page_map_iter
+ r5 = add(r5,#8)
+ r2 = add(r2,#1)
+}
+next_page_map_word:
+{ memw(r25+##-1064860592) = r3 }
+{ jump modem_boot_dispatch+0x480 }
