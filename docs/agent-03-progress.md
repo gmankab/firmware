@@ -252,3 +252,24 @@ exclusive `[0x18000,0x24000)` reservation is not yet wholly reconstructed.
 Missing prefix `[0x18000,0x183e0)` begins mid-function. Git ancestry remains
 older `69ebf0d`, not checkpoint-50 `b7ed4b5`, because its bundle was missing
 in this session. This is a disjoint, unauthenticated non-flashable artifact.
+
+## Checkpoint 23 — session allocation, release and codec parameter checks
+
+Three function-aligned routines `[0x21888,0x21c78)` (file
+`[0x25888,0x25c78)`) add **1,008 exact bytes**, including **242 typed A32
+instructions** and ten identified literal-pointer words. Literal pools are
+`[0x21a7c,0x21a98)` (seven words), `[0x21b14,0x21b1c)` (two words) and
+`[0x21c74,0x21c78)` (one word). Control flow handles session allocation
+and activation, conditional resource destruction, and packed codec parameter
+selection. All instructions are re-encoded from typed ARM operands.
+
+The independent LLVM/Clang assembly-and-link check reproduces the 1,008
+reference bytes with zero differences, including all addressed literal pools.
+The complete Agent 03 artifact `[0x183e0,0x21c78)` (file
+`[0x1c3e0,0x25c78)`) now covers **39,064 exact bytes**: 9,353 ARM instructions
+and 413 noninstruction words. Full Rust tests, Python tests and offline
+release compilation pass. Next unimplemented code begins at runtime
+`0x21c78`. The initial `[0x18000,0x183e0)` remains a mid-function gap.
+The branch remains based on available `69ebf0d`, **not** checkpoint 50
+`b7ed4b5`; cherry-pick these changes for integration. Nothing is signed
+or flashable.
