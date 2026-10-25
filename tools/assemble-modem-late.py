@@ -36,6 +36,7 @@ AUX_DISPATCH_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/mode
 AUX_TYPE_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_aux_type_config.s"
 AUX_NOTIFY_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_aux_controller_notify.s"
 AUX_ENTRY_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_aux_entry.s"
+AUX_VALIDATOR_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_aux_input_validator.s"
 ATOMIC_START = 0x7C000
 ATOMIC_END = 0x7C040
 SERVICE_START = 0x7C2EC
@@ -72,6 +73,8 @@ AUX_NOTIFY_START = 0x4467A0
 AUX_NOTIFY_END = 0x4467F0
 AUX_ENTRY_START = 0x4467F0
 AUX_ENTRY_END = 0x446804
+AUX_VALIDATOR_START = 0x446804
+AUX_VALIDATOR_END = 0x446A68
 MARKER_MASK = 3 << 14
 CONTINUE_MARKER = 1 << 14
 END_MARKER = 3 << 14
@@ -425,6 +428,35 @@ def restore_aux_controller_notify_packets(assembled: bytes) -> bytes:
     return struct.pack('<20I',*words)
 
 
+def restore_aux_validator_predicate_packets(assembled: bytes) -> bytes:
+    """Place new-value producer comparisons before their branch consumers.
+
+    LLVM6 packet scheduling sometimes emits the compound predicated branch
+    before its generating compare in the same legal V60 packet. The target
+    assembler emitted the reverse order, and parse markers signal the same
+    one-packet ordering. Check lengths, opcode classes and parse fields
+    before rearranging the *independently assembled* operations. No source
+    firmware instruction bytes are imported.
+    """
+    if len(assembled) != AUX_VALIDATOR_END - AUX_VALIDATOR_START:
+        raise ValueError("auxiliary validator expects exactly 612 source bytes")
+    words=list(struct.unpack('<'+'I'*(len(assembled)//4),assembled))
+    for relative in (0x4468F0 - AUX_VALIDATOR_START, 0x446994 - AUX_VALIDATOR_START):
+        i=relative//4
+        branch, comparison=words[i:i+2]
+        if (branch>>24,comparison>>24) != (0x5c,0x75):
+            raise ValueError(f"validator predicate instruction classes changed at {AUX_VALIDATOR_START+relative:#x}")
+        old=(branch & MARKER_MASK,comparison & MARKER_MASK)
+        if relative==0x4468F0-AUX_VALIDATOR_START:
+            if old != (CONTINUE_MARKER,CONTINUE_MARKER):
+                raise ValueError("validator first predicate packet markers changed")
+        elif old!=(CONTINUE_MARKER,END_MARKER):
+            raise ValueError("validator second predicate packet markers changed")
+        words[i]=(comparison & ~MARKER_MASK)|CONTINUE_MARKER
+        words[i+1]=(branch & ~MARKER_MASK)|(END_MARKER if relative==0x446994-AUX_VALIDATOR_START else CONTINUE_MARKER)
+    return struct.pack('<'+'I'*len(words),*words)
+
+
 def assemble(llvm_mc: Path, source: Path) -> bytes:
     with tempfile.TemporaryDirectory(prefix="nabu-modem-late-") as tmp:
         obj = Path(tmp) / "late.o"
@@ -455,6 +487,7 @@ def output_fragments(llvm_mc: Path) -> dict[int, bytes]:
     aux_type = restore_aux_type_return_packets(assemble(llvm_mc,AUX_TYPE_SOURCE))
     aux_notify = restore_aux_controller_notify_packets(assemble(llvm_mc,AUX_NOTIFY_SOURCE))
     aux_entry = assemble(llvm_mc,AUX_ENTRY_SOURCE)
+    aux_validator = restore_aux_validator_predicate_packets(assemble(llvm_mc,AUX_VALIDATOR_SOURCE))
     if len(aux_entry)!=AUX_ENTRY_END-AUX_ENTRY_START:
         raise ValueError("auxiliary entry veneer must compile to 20 bytes")
     if len(aux_dispatch) != AUX_DISPATCH_END-AUX_DISPATCH_START:
@@ -474,7 +507,7 @@ def output_fragments(llvm_mc: Path) -> dict[int, bytes]:
     return {ATOMIC_START: atomic + controller, SERVICE_START: service+service_mmio+service_flags+service_alloc,
             AUX_START: auxiliary, AUX_INIT_START: aux_init,
             AUX_GUARD_START: aux_guard+aux_stage+aux_mmio+aux_heap+aux_worker+aux_lookup,
-            AUX_DISPATCH_START:aux_dispatch+aux_type+aux_notify+aux_entry}
+            AUX_DISPATCH_START:aux_dispatch+aux_type+aux_notify+aux_entry+aux_validator}
 
 
 def executable_segments(reference: bytes) -> dict[int, tuple[int, int, int, int]]:

@@ -15,6 +15,27 @@ spec.loader.exec_module(agent12)
 
 
 class ModemLateTests(unittest.TestCase):
+    def test_aux_validator_predicate_packet_guard(self):
+        words=[0x7800c000]*153
+        i=(0x4468f0-agent12.AUX_VALIDATOR_START)//4
+        j=(0x446994-agent12.AUX_VALIDATOR_START)//4
+        words[i:i+2]=[0x5c205852,0x75424720]
+        words[j:j+2]=[0x5c20585a,0x7542c4e0]
+        result=struct.unpack('<153I',agent12.restore_aux_validator_predicate_packets(
+            struct.pack('<153I',*words)))
+        self.assertEqual([x>>24 for x in result[i:i+2]],[0x75,0x5c])
+        self.assertEqual([x>>24 for x in result[j:j+2]],[0x75,0x5c])
+        self.assertEqual([x & agent12.MARKER_MASK for x in result[j:j+2]],
+                         [agent12.CONTINUE_MARKER,agent12.END_MARKER])
+        malformed=words.copy();malformed[i]=0x78004000
+        with self.assertRaisesRegex(ValueError,'instruction classes'):
+            agent12.restore_aux_validator_predicate_packets(struct.pack('<153I',*malformed))
+        malformed=words.copy();malformed[j+1]=0x754240e0
+        with self.assertRaisesRegex(ValueError,'packet markers'):
+            agent12.restore_aux_validator_predicate_packets(struct.pack('<153I',*malformed))
+        with self.assertRaisesRegex(ValueError,'612 source bytes'):
+            agent12.restore_aux_validator_predicate_packets(bytes(608))
+
     def test_aux_entry_is_source_encoded_not_oem_bytes(self):
         self.assertTrue(agent12.AUX_ENTRY_SOURCE.is_file())
         source=agent12.AUX_ENTRY_SOURCE.read_text()
@@ -74,6 +95,9 @@ class ModemLateTests(unittest.TestCase):
         self.assertEqual(agent12.AUX_TYPE_END,agent12.AUX_NOTIFY_START)
         self.assertEqual((agent12.AUX_ENTRY_START,agent12.AUX_ENTRY_END),(0x4467F0,0x446804))
         self.assertEqual(agent12.AUX_NOTIFY_END,agent12.AUX_ENTRY_START)
+        self.assertEqual((agent12.AUX_VALIDATOR_START,agent12.AUX_VALIDATOR_END),
+                         (0x446804,0x446A68))
+        self.assertEqual(agent12.AUX_ENTRY_END,agent12.AUX_VALIDATOR_START)
 
     def test_atomic_packet_reorder_checks_opcode_class_and_parse_bits(self):
         words = [0x7800C000] * 16  # synthetic A2_tfrsi instruction for surrounding words

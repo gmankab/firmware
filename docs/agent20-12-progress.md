@@ -443,3 +443,29 @@ assembled bytes** in six disjoint executable fragments. The following
 controller configuration function begins at `0x446804`. The original
 OEM authentication and all other modem executable regions remain outside
 this partial reconstruction.
+
+## Checkpoint 16: controller input validation and fallback defaults
+
+Reconstructed **612 source-assembled Hexagon V60 bytes** in modem file
+`[0x446804,0x446a68)` (vaddr `[0x1e400804,0x1e400a68)`, physical
+`[0x90000804,0x90000a68)`). The routine fills an 84-byte runtime descriptor
+with mandatory fields and fallback defaults, validates an input format's
+optional fields, consults the error callback when invalid, calls the
+controller's record-submission function and returns status. Source is a
+readable architecture-assembly description using named external call targets,
+not a copy of OEM machine words.
+
+LLVM6 places two new-value compare/branch pairs in the reverse order to
+the original target compiler; the checked
+`restore_aux_validator_predicate_packets` transform validates all opcode
+classes, exact 612-byte length and packet markers, and reorders only the
+source-assembled instructions with their checked parse-marker fields.
+Synthetic unit tests confirm changes in instruction classes/markers fail
+closed. The full new interval matches the correct SHA-256 modem reference
+byte-for-byte (zero differences).
+
+The contiguous auxiliary segment `[0x446650,0x446a68)` now spans **1,048
+source-assembled bytes**; cumulative Agent 12 coverage is **2,512 bytes**
+across the same six disjoint executable regions as checkpoint 15. The next
+function starts at original modem file offset `0x446a68`. This is partial
+firmware only, not a new OEM-signed modem image.
