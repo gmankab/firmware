@@ -20,8 +20,11 @@ EXPECTED_REFERENCE_SHA256 = "6f5cb32bc10e41abb40938d185805e788f5637a41d3ebcef278
 ROOT = Path(__file__).resolve().parents[1]
 ATOMIC_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_atomic.s"
 AUX_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_aux_boot.s"
+CONTROL_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_control.s"
 ATOMIC_START = 0x7C000
 ATOMIC_END = 0x7C040
+CONTROL_START = 0x7C040
+CONTROL_END = 0x7C0A0
 AUX_START = 0x446000
 AUX_END = 0x4460D8
 MARKER_MASK = 3 << 14
@@ -72,6 +75,38 @@ def restore_atomic_packet_order(assembled: bytes) -> bytes:
     return struct.pack("<" + "I" * len(words), *words)
 
 
+def restore_controller_packet_order(assembled: bytes) -> bytes:
+    """Restore two compare+immediate packets and a three-word control packet.
+
+    LLVM6 schedulers move new-value branch consumers ahead of the preceding
+    extended immediate/assignment and terminate the nearby parameter move
+    prematurely. Each rewrite is checked against documented Hexagon opcode
+    *classes* and parse markers; no OEM opcode data is used.
+    """
+    if len(assembled) != CONTROL_END - CONTROL_START:
+        raise ValueError("late modem controller requires 96 source-built bytes")
+    words = list(struct.unpack("<" + "I" * (len(assembled)//4),assembled))
+    for first, value_class in [(0x14//4, 0x78), (0x4c//4, 0x7e)]:
+        pred, extender, value = words[first:first+3]
+        if [w >> 24 for w in (pred,extender,value)] != [0x10,0x0c,value_class]:
+            raise ValueError(f"controller conditional/extended packet classes changed at {CONTROL_START + first*4:#x}")
+        if [w & MARKER_MASK for w in (pred,extender,value)] != [CONTINUE_MARKER,CONTINUE_MARKER,END_MARKER]:
+            raise ValueError(f"controller conditional/extended packet markers changed at {CONTROL_START + first*4:#x}")
+        words[first:first+3] = [extender,
+                               (value & ~MARKER_MASK) | CONTINUE_MARKER,
+                               (pred & ~MARKER_MASK) | END_MARKER]
+    # With a valid *source-assembled* three-word sequence, change only the
+    # MOV's end-of-packet to continue so it shares the following duplex
+    # memory-load/immediate instruction, as the original producer ordering.
+    extender, move, duplex = words[0x2c//4:0x38//4]
+    if [w >> 24 for w in (extender,move,duplex)] != [0x0c,0x78,0x48]:
+        raise ValueError("controller extended constant and duplex instruction classes changed")
+    if [w & MARKER_MASK for w in (extender,move,duplex)] != [CONTINUE_MARKER,END_MARKER,0]:
+        raise ValueError("unexpected controller param-load packet markers")
+    words[0x30//4]=(move & ~MARKER_MASK)|CONTINUE_MARKER
+    return struct.pack("<"+"I"*len(words),*words)
+
+
 def assemble(llvm_mc: Path, source: Path) -> bytes:
     with tempfile.TemporaryDirectory(prefix="nabu-modem-late-") as tmp:
         obj = Path(tmp) / "late.o"
@@ -85,10 +120,11 @@ def assemble(llvm_mc: Path, source: Path) -> bytes:
 
 def output_fragments(llvm_mc: Path) -> dict[int, bytes]:
     atomic = restore_atomic_packet_order(assemble(llvm_mc, ATOMIC_SOURCE))
+    controller = restore_controller_packet_order(assemble(llvm_mc, CONTROL_SOURCE))
     auxiliary = assemble(llvm_mc, AUX_SOURCE)
     if len(auxiliary) != AUX_END - AUX_START:
         raise ValueError(f"auxiliary boot source emitted {len(auxiliary)} instead of {AUX_END-AUX_START} bytes")
-    return {ATOMIC_START: atomic, AUX_START: auxiliary}
+    return {ATOMIC_START: atomic + controller, AUX_START: auxiliary}
 
 
 def executable_segments(reference: bytes) -> dict[int, tuple[int, int, int, int]]:
