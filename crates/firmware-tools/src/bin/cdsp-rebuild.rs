@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-only
 //! CDSP partial reconstruction command. Reference bytes stay outside Git.
-use firmware_tools::devices::xiaomi_nabu::cdsp_boot as cdsp;
+use firmware_tools::devices::xiaomi_nabu::{cdsp_boot as cdsp, cdsp_privilege as privileged};
 use std::{env, fs};
 
 fn run() -> Result<(), Box<dyn std::error::Error>> {
@@ -11,6 +11,20 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
             fs::write(output, bytes)?;
             println!("Emitted {} independently encoded CDSP Hexagon entry bytes, file offsets {:#x}..{:#x}; partial firmware only.",
                 cdsp::REBUILT_LEN, cdsp::START_FILE_OFFSET, cdsp::START_FILE_OFFSET + cdsp::REBUILT_LEN);
+        }
+        [action, output] if action == "emit-syscfg-reset" => {
+            let bytes = privileged::build_syscfg_reset()?;
+            fs::write(output, bytes)?;
+            println!("Emitted {} CDSP Hexagon privileged-reset instruction bytes at file {:#x}..{:#x}. Disconnected fragment; no flashable image.",
+                privileged::FUNCTION_SIZE, privileged::FILE_OFFSET,
+                privileged::FILE_OFFSET + privileged::FUNCTION_SIZE);
+        }
+        [action, original] if action == "verify-syscfg-reset" => {
+            let image = fs::read(original)?;
+            privileged::verify_syscfg_reset(&image)?;
+            println!("Verified {} CDSP Hexagon supervisor-reset bytes at file {:#x}..{:#x}, separate from the entry prefix.",
+                privileged::FUNCTION_SIZE, privileged::FILE_OFFSET,
+                privileged::FILE_OFFSET + privileged::FUNCTION_SIZE);
         }
         [action, output] if action == "emit-init-prefix" => {
             let bytes = cdsp::build_init_prefix()?;
@@ -37,7 +51,7 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
                 cdsp::HEXAGON_ELF_MACHINE, cdsp::CDSP_ELF_FLAGS, cdsp::ENTRY_PHYS,
                 cdsp::START_FILE_OFFSET, cdsp::ENTRY_ELF_VADDR, cdsp::ENTRY_PHYS, cdsp::FIRST_EXECUTABLE_SIZE);
         }
-        _ => return Err("Usage: cargo run -p firmware-tools --bin cdsp-rebuild -- [inspect REFERENCE | verify-entry REFERENCE | emit-entry OUTPUT | verify-init-prefix REFERENCE | emit-init-prefix OUTPUT]".into()),
+        _ => return Err("Usage: cargo run -p firmware-tools --bin cdsp-rebuild -- [inspect REFERENCE | verify-entry REFERENCE | emit-entry OUTPUT | verify-init-prefix REFERENCE | emit-init-prefix OUTPUT | emit-syscfg-reset OUTPUT | verify-syscfg-reset REFERENCE]".into()),
     }
     Ok(())
 }

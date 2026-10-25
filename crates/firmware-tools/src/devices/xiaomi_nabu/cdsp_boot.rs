@@ -62,9 +62,18 @@ pub enum ScalarPacket {
     ReadSyscfg { dst: GeneralRegister },
     /// Hexagon `Rd = setbit(Rs,#index)`, 0 <= index < 32.
     SetBit { dst: GeneralRegister, src: GeneralRegister, position: u8 },
-    /// Two no-operand cache-maintenance instructions confirmed by Hexagon V6 decoding.
+    /// Hexagon `Rd = clrbit(Rs,#index)`.
+    ClearBit { dst: GeneralRegister, src: GeneralRegister, position: u8 },
+    /// Hexagon `Rd = or(Rs,#imm)` with the confirmed nonnegative immediate field.
+    OrSmallImmediate { dst: GeneralRegister, src: GeneralRegister, value: u8 },
+    /// Hexagon `Rd = sub(Rs,Rt)`; fields confirmed with distinct operands.
+    SubtractRegisters { dst: GeneralRegister, left: GeneralRegister, right: GeneralRegister },
+    /// Hexagon `jumpr Rn` (not a return/stack ABI assumption).
+    JumpRegister { source: GeneralRegister },
+    /// Cache and instruction synchronization (singleton packets).
     Dckill,
     Ickill,
+    Isync,
 }
 
 /// V66 system register IDs *as used by this exact instruction family*.
@@ -121,8 +130,28 @@ impl ScalarPacket {
                 Ok(0x8cc0_c000 | (u32::from(src.number()) << 16)
                     | (u32::from(position) << 8) | u32::from(dst.number()))
             }
+            Self::ClearBit { dst, src, position } => {
+                if position >= 32 { return Err("Hexagon clrbit position >= 32".into()); }
+                Ok(0x8cc0_c020 | (u32::from(src.number()) << 16)
+                    | (u32::from(position) << 8) | u32::from(dst.number()))
+            }
+            Self::OrSmallImmediate { dst, src, value } => {
+                if value > 127 { return Err("Hexagon OR immediate > 127".into()); }
+                Ok(0x7680_c000 | (u32::from(src.number()) << 16)
+                    | (u32::from(value) << 5) | u32::from(dst.number()))
+            }
+            Self::SubtractRegisters { dst, left, right } => {
+                // Hexagon subtraction register fields are **not** laid out
+                // like the ARM32 data-processing fields. Independent LLVM
+                // samples include r31 = sub(r31,r25), r1 = sub(r2,r3).
+                Ok(0xf320_c000 | (u32::from(right.number()) << 16)
+                    | (u32::from(left.number()) << 8) | u32::from(dst.number()))
+            }
+            Self::JumpRegister { source } =>
+                Ok(0x5280_c000 | (u32::from(source.number()) << 16)),
             Self::Dckill => Ok(0xa200_c000),
             Self::Ickill => Ok(0x56c0_d000),
+            Self::Isync => Ok(0x57c0_c002),
         }
     }
 }
@@ -301,6 +330,21 @@ mod tests {
         assert_eq!(SetBit { dst: r5, src: r7, position: 2 }.encode().unwrap(), 0x8cc7_c205);
         assert_eq!(SetBit { dst: r1, src: r1, position: 3 }.encode().unwrap(), 0x8cc1_c301);
         assert!(SetBit { dst: r0, src: r0, position: 32 }.encode().is_err());
+    }
+
+    #[test]
+    fn hexagon_conditional_bit_and_arithmetic_fields_match_independent_llvm() {
+        use ScalarPacket::*;
+        let reg = |n| GeneralRegister::new(n).unwrap();
+        assert_eq!(ClearBit { dst: reg(15), src: reg(15), position: 1 }.encode().unwrap(), 0x8ccf_c12f);
+        assert_eq!(OrSmallImmediate { dst: reg(15), src: reg(15), value: 3 }.encode().unwrap(), 0x768f_c06f);
+        assert_eq!(OrSmallImmediate { dst: reg(1), src: reg(2), value: 3 }.encode().unwrap(), 0x7682_c061);
+        assert_eq!(SubtractRegisters { dst: reg(31), left: reg(31), right: reg(25) }.encode().unwrap(), 0xf339_df1f);
+        assert_eq!(SubtractRegisters { dst: reg(1), left: reg(2), right: reg(3) }.encode().unwrap(), 0xf323_c201);
+        assert_eq!(JumpRegister { source: reg(31) }.encode().unwrap(), 0x529f_c000);
+        assert_eq!(Isync.encode().unwrap(), 0x57c0_c002);
+        assert!(ClearBit { dst: reg(15), src: reg(15), position: 32 }.encode().is_err());
+        assert!(OrSmallImmediate { dst: reg(15), src: reg(15), value: 128 }.encode().is_err());
     }
 
     #[test]

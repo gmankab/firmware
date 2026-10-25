@@ -22,6 +22,15 @@ EXPECTED_MNEMONICS = (
     "r0 = setbit(r0,#0x5)", "syscfg = r0", "dckill",
     "ickill", "jump 0x96c00144",
 )
+SYS_CFG_RESET_MNEMONICS = (
+    "r15 = syscfg", "r15 = clrbit(r15,#0x1)", "syscfg = r15",
+    "isync", "ickill", "isync", "r15 = or(r15,##0x3)",
+    "syscfg = r15", "isync", "lr = sub(lr,r25)", "jumpr lr",
+)
+PROFILES = {
+    "init": (PHYSICAL_ADDRESS, FILE_OFFSET, EXPECTED_MNEMONICS),
+    "syscfg-reset": (0x96c00d40, 0x3d40, SYS_CFG_RESET_MNEMONICS),
+}
 
 
 def decode_output(stdout: str) -> list[str]:
@@ -41,26 +50,29 @@ def decode_output(stdout: str) -> list[str]:
     return instructions
 
 
-def verify(decoder: Path, generated: Path, reference: Path | None) -> None:
+def verify(decoder: Path, generated: Path, reference: Path | None,
+           profile: str = "init") -> None:
+    phys, file_offset, instructions = PROFILES[profile]
     data = generated.read_bytes()
-    if len(data) != 17 * 4:
-        raise ValueError(f"expected exactly 68 CDSP initialization bytes, got {len(data)}")
+    expected_length = len(instructions) * 4
+    if len(data) != expected_length:
+        raise ValueError(f"expected {expected_length} CDSP {profile} bytes, got {len(data)}")
     command = [str(decoder), "-a", "hexagon", "-b", "32",
-               "-o", f"0x{PHYSICAL_ADDRESS:x}", "-D", data.hex()]
+               "-o", f"0x{phys:x}", "-D", data.hex()]
     decoded = subprocess.run(command, text=True, capture_output=True, check=True)
     found = decode_output(decoded.stdout)
-    expected = [value.replace(" ", "").lower() for value in EXPECTED_MNEMONICS]
+    expected = [value.replace(" ", "").lower() for value in instructions]
     if found != expected:
         for i, (seen, wanted) in enumerate(zip(found, expected)):
             if seen != wanted:
                 raise ValueError(f"CDSP V66 instruction at +0x{4 * i:x} decoded as {seen}, expected {wanted}")
         raise ValueError(f"CDSP V66 decoded instruction count differs: {len(found)} != {len(expected)}")
-    print("Rizin Hexagon decoded all 17 independent generated scalar packets with expected semantics")
+    print(f"Rizin Hexagon decoded all {len(expected)} CDSP {profile} scalar packets with expected semantics")
     if reference is not None:
         image = reference.read_bytes()
-        if image[FILE_OFFSET:FILE_OFFSET + len(data)] != data:
-            raise ValueError("CDSP reference bytes differ from generated initialization")
-        print("CDSP reference comparison: 68 / 68 bytes, zero mismatches")
+        if image[file_offset:file_offset + len(data)] != data:
+            raise ValueError(f"CDSP reference bytes differ from generated {profile} region")
+        print(f"CDSP {profile} reference comparison: {len(data)} / {len(data)} bytes, zero mismatches")
 
 
 def main() -> None:
@@ -68,8 +80,9 @@ def main() -> None:
     parser.add_argument("--rz-asm", type=Path, required=True)
     parser.add_argument("--rust-output", type=Path, required=True)
     parser.add_argument("--reference", type=Path)
+    parser.add_argument("--profile", choices=sorted(PROFILES), default="init")
     arguments = parser.parse_args()
-    verify(arguments.rz_asm, arguments.rust_output, arguments.reference)
+    verify(arguments.rz_asm, arguments.rust_output, arguments.reference, arguments.profile)
 
 
 if __name__ == "__main__":

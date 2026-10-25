@@ -18,5 +18,7 @@ class CdspV66DecoderTests(unittest.TestCase):
             cdsp.decode_output('0x96c00024 4 06c00067 / SSR = R0\n')
     def test_expects_seventeen_instructions(self):
         self.assertEqual(len(cdsp.EXPECTED_MNEMONICS), 17)
+        self.assertEqual(len(cdsp.SYS_CFG_RESET_MNEMONICS), 11)
+        self.assertEqual(cdsp.PROFILES["syscfg-reset"][1], 0x3d40)
 
 if __name__=='__main__':unittest.main()
