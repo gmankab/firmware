@@ -17,8 +17,8 @@ spec.loader.exec_module(builder)
 class Agent13WlanTests(unittest.TestCase):
     def test_starts_after_agent07_and_ends_at_full_function_return(self):
         self.assertEqual(builder.START, 0x2708)
-        self.assertEqual(builder.validate_fragment_layout(), 0x35e0)
-        self.assertEqual(sum(length for _, _, _, length in builder.FRAGMENTS), 3800)
+        self.assertEqual(builder.validate_fragment_layout(), 0x37f0)
+        self.assertEqual(sum(length for _, _, _, length in builder.FRAGMENTS), 4328)
         self.assertEqual(builder.FILE_OFFSET + builder.START, 0x42708)
 
     def test_does_not_embed_opaque_instructions(self):
@@ -55,6 +55,11 @@ class Agent13WlanTests(unittest.TestCase):
         init=guard["record-state-init"].read_text()
         self.assertIn(":mem_noshuf",init)
         self.assertIn("r0 = r16; jump ##0x2a226c",init)
+        controller=guard["record-state-controller"].read_text()
+        self.assertIn("loop0(",controller)
+        self.assertIn(":endloop0",controller)
+        self.assertIn("popcount",controller)
+        self.assertIn("jump -0x83c",controller)
 
     def test_explicit_gap_rejected(self):
         old = builder.FRAGMENTS[0]
@@ -70,7 +75,7 @@ class Agent13WlanTests(unittest.TestCase):
     def test_optional_independent_assembler(self):
         parent=builder.load_parent()
         program=b"".join(parent.assemble(source,os.environ["HEXAGON_LLVM22"],"hexagonv66",expected_length=length) for _,source,_,length in builder.FRAGMENTS)
-        self.assertEqual(len(program),3800)
+        self.assertEqual(len(program),4328)
         firmware=os.getenv("NABU_WLAN_REFERENCE")
         if firmware:
             parent.check_reference(program,Path(firmware).read_bytes(),runtime_offset=builder.START)

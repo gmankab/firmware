@@ -44,6 +44,7 @@ FRAGMENTS = (
     ("record-context-allocation", WLAN_SRC / "agent13-runtime-record-create.S", 0x3410, 0x98),
     ("record-allocator-tail", WLAN_SRC / "agent13-runtime-record-allocator-tail.S", 0x34a8, 0x0c),
     ("record-state-init", WLAN_SRC / "agent13-runtime-record-context-init.S", 0x34b4, 0x12c),
+    ("record-state-controller", WLAN_SRC / "agent13-runtime-record-controller.S", 0x35e0, 0x210),
 )
 
 
