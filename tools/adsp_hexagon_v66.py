@@ -1,0 +1,303 @@
+#!/usr/bin/env python3
+# SPDX-License-Identifier: GPL-3.0-only
+"""Typed Hexagon system-register/one-word instruction encodings.
+
+LLVM 6's Hexagon MC assembler does not accept the ADSP's special-register
+and cache-kill mnemonics. The small subset below encodes explicit Hexagon
+instruction fields, rather than pasting OEM instruction arrays.
+
+Each encoding produces a single end-of-packet 32-bit little-endian instruction.
+This module intentionally does not implement arbitrary V66 packets or claim
+architecture-wide correctness. Validate new opcode families separately.
+"""
+from __future__ import annotations
+
+from enum import IntEnum
+import struct
+
+
+class HexagonEncodingError(ValueError):
+    pass
+
+
+class SystemRegister(IntEnum):
+    SSR = 6
+    SYSCFG = 18
+    CFGBASE = 27
+    PMUCFG = 53
+    S54 = 54
+    ISDBEN = 42
+    EVB = 16
+    PMUEVTCFG = 52
+    S47 = 47
+    HTID = 8
+    CCR = 7
+    ELR = 3
+    BADVA = 9
+    STID = 2
+    MODECTL = 17
+    DIAG = 28
+    S20 = 20
+    REV = 29
+    SGP0 = 0
+    S63 = 63
+    S60 = 60
+    S35 = 35
+
+
+class CacheCommand(IntEnum):
+    # Nullary ISA opcodes: these have no variable operands.
+    DATA_CACHE_KILL = 0xA200C000
+    INSTRUCTION_CACHE_KILL = 0x56C0D000
+
+
+def gpr(index: int) -> int:
+    if not isinstance(index, int) or not (0 <= index <= 31):
+        raise HexagonEncodingError(f"Not a Hexagon GPR: {index!r}")
+    return index
+
+
+def read_system_register(destination: int, sysreg: SystemRegister) -> int:
+    """Rd = SysReg; 5-bit dest in bits[4:0], system reg in bits[20:16]."""
+    return 0x6E80C000 | (int(sysreg) << 16) | gpr(destination)
+
+
+def write_system_register(sysreg: SystemRegister, source: int) -> int:
+    """SysReg = Rs; 5-bit source in bits[20:16], system reg bits[4:0]."""
+    return 0x6700C000 | (gpr(source) << 16) | int(sysreg)
+
+
+def read_system_register_pair(destination_even: int, system_even: int) -> int:
+    """Hexagon V66 ``R(d+1):d = S(s+1):s`` paired system-register read.
+
+    Unlike an ordinary 32-bit system register transfer, both operands encode
+    their *even* register start. The low destination uses bits 4:0 and the
+    low system source uses bits 21:16. Reject odd/out-of-range pairs rather
+    than aliasing an architectural register or crossing a register bank.
+    """
+    if (not isinstance(destination_even, int) or destination_even % 2
+            or not 0 <= destination_even <= 30):
+        raise HexagonEncodingError("System-pair destination must be even GPR 0..30")
+    if (not isinstance(system_even, int) or system_even % 2
+            or not 0 <= system_even <= 62):
+        raise HexagonEncodingError("System-pair source must be even S register 0..62")
+    return 0x6F00C000 | (system_even << 16) | destination_even
+
+
+class ControlRegister(IntEnum):
+    """Special control registers exported through the Hexagon control bank."""
+    P3_0 = 4
+    USR = 8
+    GP = 11
+    UGP = 10
+
+
+class ControlRegisterPair(IntEnum):
+    """Even starting indices for 64-bit control-register reads."""
+    LC0_SA0 = 0
+    LC1_SA1 = 2
+    M1_0 = 6
+    CS1_0 = 12
+    UTIMER = 30
+
+
+def read_control_register(destination: int, source: ControlRegister) -> int:
+    """Hexagon ``Rd = CR``; control register encoded in bits 20:16.
+
+    The caller owns packet boundaries; use ``packet_continuation`` for a
+    control-register read occurring before two or more stores in one packet.
+    """
+    if not isinstance(source, ControlRegister):
+        raise HexagonEncodingError("Expected named Hexagon control register")
+    return 0x6A00C000 | (int(source) << 16) | gpr(destination)
+
+
+def read_control_register_pair(destination_even: int, source: ControlRegisterPair) -> int:
+    """Hexagon ``R(d+1):d = CR(s+1):s``; exact paired control bank."""
+    if (not isinstance(destination_even,int) or destination_even % 2
+            or not 0 <= destination_even <= 30):
+        raise HexagonEncodingError("Control pair destination must be even GPR 0..30")
+    if not isinstance(source, ControlRegisterPair):
+        raise HexagonEncodingError("Expected named Hexagon control pair")
+    return 0x6800C000 | (int(source) << 16) | destination_even
+
+
+def read_interrupt_mask(destination: int, selector: int) -> int:
+    """Read the Hexagon v66 interrupt mask for a GPR selector.
+
+    The controller uses ``r28 = getimask(r1)`` four times with selectors
+    0..3 in R1, all compiled to the *same instruction* carrying R1 and R28
+    as operands. This is a bounded register-field encoder, not a generic
+    interrupt-state API or a replacement for independent packet scheduling.
+    """
+    return 0x6600C000 | (gpr(selector) << 16) | gpr(destination)
+
+
+def write_predicate_group_from_gpr(source: int) -> int:
+    """``P3:0 = Rs`` with checked 5-bit source register, one-op packet.
+
+    This limited Hexagon privileged group transfer is used by the context
+    restore; no unconstrained predicate writes are inferred from its opcode.
+    """
+    return 0x6220C004 | (gpr(source) << 16)
+
+
+def start_thread_from_register(source: int) -> int:
+    """``start(Rs)`` on the V66 controller, single-instruction packet."""
+    return 0x6460C020 | (gpr(source) << 16)
+
+
+def set_bit(destination: int, source: int, bit: int) -> int:
+    """Rd = setbit(Rs,#bit), 0..31; long literal extenders not permitted."""
+    if not isinstance(bit, int) or not 0 <= bit <= 31:
+        raise HexagonEncodingError(f"Not a Hexagon bit index: {bit}")
+    return (0x8CC0C000 | (gpr(source) << 16) |
+            (bit << 8) | gpr(destination))
+
+
+def jump_near(current_relative_pc: int, target_relative_pc: int) -> int:
+    """Unconditional near jump with the supported nonnegative halfword offset.
+
+    The instruction encodes byte displacement / 2. This narrow range is
+    sufficient for the ADSP bootstrap's forward stage-two branch; callers
+    outside it must instead use a verified assembler/supported long branch.
+    """
+    displacement = target_relative_pc - current_relative_pc
+    if current_relative_pc % 4 or target_relative_pc % 4:
+        raise HexagonEncodingError("Hexagon jump targets must be word aligned")
+    if displacement < 0 or displacement > 0x1FFE:
+        raise HexagonEncodingError(f"Out-of-range forward Hexagon jump: {displacement}")
+    return 0x5800C000 | (displacement >> 1)
+
+
+def tlb_write_pair_r3_r2_index_r0() -> int:
+    """Encode V66 ``tlbw(R3:2,R0)``, a fixed-operand system operation.
+
+    LLVM6 cannot assemble this privileged instruction. This narrow opcode
+    form is cross-checked against multiple instructions in the OEM reference
+    and a separate Hexagon decoder. It is *not* a generic writable TLB API:
+    other operands require independently validated architecture field rules.
+    """
+    return 0x6C02C000
+
+
+class L2GlobalCommand(IntEnum):
+    """Hexagon V66 global L2 commands with no operands or immediate fields."""
+    UNLOCK = 0xA820C800
+    CLEAN = 0xA820D000
+
+
+class TlbControl(IntEnum):
+    """Nullary v66 privileged TLB synchronization operations."""
+    LOCK = 0x6C20C020
+    UNLOCK = 0x6C20C040
+
+
+def tlb_read_pair_r5_r4_index_r3() -> int:
+    """Return the fixed-operand V66 `R5:4 = tlbr(R3)` opcode."""
+    return 0x6C43C004
+
+
+def tlb_write_pair_r7_r6_index_r3() -> int:
+    """Return the fixed-operand V66 `tlbw(R7:6,R3)` opcode."""
+    return 0x6C06C300
+
+
+def tlb_write_pair_r1_r0_index_r3() -> int:
+    """Return the fixed-operand V66 `tlbw(R1:0,R3)` opcode."""
+    return 0x6C00C300
+
+
+def boot_special_code() -> bytes:
+    """Eight typed V66 bootstrap instructions immediately after the vectors.
+
+    Entry ELF RX-relative offsets 0x24..0x44. These are *program operations*,
+    not a vendor machine-word table. No reference input is accessed here.
+    """
+    words = (
+        write_system_register(SystemRegister.SSR, 0),
+        read_system_register(0, SystemRegister.SYSCFG),
+        set_bit(0, 0, 3),
+        set_bit(0, 0, 5),
+        write_system_register(SystemRegister.SYSCFG, 0),
+        CacheCommand.DATA_CACHE_KILL,
+        CacheCommand.INSTRUCTION_CACHE_KILL,
+        jump_near(0x40, 0x63C),
+    )
+    encoded = b"".join(struct.pack("<I", value) for value in words)
+    assert len(encoded) == 0x20
+    return encoded
+
+
+def syscfg_handoff_steps() -> tuple[tuple[str, int | str, int], ...]:
+    """Build a source-level, 21-word Hexagon SYS_CFG and cache sequence.
+
+    ``isa`` operations are checked typed system-register/only-one-opcode
+    forms; ``asm`` operations are original instruction source emitted by the
+    Hexagon assembler. Packet sizing is explicit to prevent implicit gaps.
+    This entry lives at ADSP file [0x46a0,0x46f4), after the 0x41e0 setup.
+    """
+    syscfg = SystemRegister.SYSCFG
+    return (
+        ("isa", read_system_register(15, syscfg), 4),
+        ("asm", "{ r15 = clrbit(r15,#1) }", 4),
+        ("isa", write_system_register(syscfg, 15), 4),
+        ("asm", "{ isync }", 4),
+        ("isa", int(CacheCommand.INSTRUCTION_CACHE_KILL), 4),
+        ("asm", "{ isync }", 4),
+        ("asm", "{ r15 = or(r15,#3) }", 4),
+        ("isa", write_system_register(syscfg, 15), 4),
+        ("asm", "{ isync }", 4),
+        ("asm", "{ lr = sub(lr,r25) }", 4),
+        ("asm", "{ jumpr lr }", 4),
+        ("asm", "{ fp = ##-0xfffe920; lr = add(lr,r25) }", 12),
+        ("asm", "{ fp = add(fp,r25) }", 4),
+        ("asm", "{ jumpr fp }", 4),
+        ("isa", read_system_register(15, syscfg), 4),
+        ("asm", "{ r15 = clrbit(r15,#0) }", 4),
+        ("isa", write_system_register(syscfg, 15), 4),
+        ("asm", "{ isync }", 4),
+        ("asm", "{ jumpr lr }", 4),
+    )
+
+
+def physical_word_load(destination: int, physical_address: int, page_selector: int) -> int:
+    """Encode one v66 `Rd = memw_phys(Ra,Rb)` packet-ending instruction.
+
+    This is a *narrow single-operation* Hexagon v66 encoder: the chosen
+    operands are independent 5-bit fields. The reconstruction verifies the
+    model against three differently allocated original call sites and the
+    separate Rizin decoder. It must not be confused with an unprivileged
+    `memw` load, or with a generic packet scheduler.
+    """
+    return (0x9200E000 | (gpr(physical_address) << 16) |
+            (gpr(page_selector) << 8) | gpr(destination))
+
+
+def stop_thread_from_register(source: int) -> int:
+    """Hexagon v66 ``stop(Rs)`` thread stop, single-operation packet.
+
+    This is related to the previously verified ``start(Rs)`` opcode family,
+    but the selected operation is STOP rather than START. It does not
+    perform a global processor shutdown.
+    """
+    return 0x6460C000 | (gpr(source) << 16)
+
+
+class DebugCommand(IntEnum):
+    """Single-word v66 monitor/debug control instruction."""
+    BREAKPOINT = 0x6C20C000
+
+
+def packet_continuation(instruction: int) -> int:
+    """Put a one-word architectural opcode in the middle of a packet.
+
+    The Hexagon packet-parse bits [15:14] are 0b01 for a continuing operation
+    and 0b11 for the terminating operation. The caller must provide a legal
+    standalone architectural encoder result, not an arbitrary OEM word.
+    """
+    if not isinstance(instruction, int) or not 0 <= instruction <= 0xFFFFFFFF:
+        raise HexagonEncodingError("Expected a 32-bit instruction")
+    if (instruction >> 14) & 3 != 3:
+        raise HexagonEncodingError("Expected an end-of-packet instruction")
+    return (instruction & ~(3 << 14)) | (1 << 14)
