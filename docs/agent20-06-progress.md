@@ -203,3 +203,11 @@ python3 tools/agent20_06_a32_roundtrip.py /private/venus.mbn 0xa8ea0 0xa92c8 \
 - Independent Clang/LLVM reconstruction of `[0xaf6e0,0xb02b0)`, with `--data-range 0xb0288:0xb02b0`, matches the reference *exactly*; the whole generated fragment also compares equal. A Rust regression test now asserts the literal-pool words and their order.
 - Next unimplemented runtime address `0xb02b0` (original file offset `0xb42b0`), a new small controller helper.
 - The branch remains provisional, rooted in older Agent 03 history. This is typed instruction-level reassembly, **not** high-level source recovery, OEM signing, or working hardware validation.
+
+## Checkpoint 22 — codec record setup and guarded controller callbacks
+
+- Total contiguous original Venus runtime `[0xa8000,0xb0748)` = **34,632 byte-identical bytes**, original MBN file `[0xac000,0xb4748)`.
+- Newly reconstructed `[0xb02b0,0xb0748)` = 1,176 bytes: **292 typed ARM32 instructions (1,168 bytes)** and two data words (8 bytes) at `[0xb0444,0xb0448)` and `[0xb06d8,0xb06dc)`. The first pointer resolves to the adjacent helper entry `0xb0448`, and the second is a diagnostic address.
+- Captures codec record allocation, initialization of tagged byte/halfword fields, input/output size bounds, and guarded controller notification. Includes three separate helper/function entries at `0xb02b0`, `0xb0448` and `0xb06dc`. Returns retain the original `POP {...,PC}`.
+- Direct Rust reference comparison and independent Clang/LLVM round-trip (explicit `--data-range 0xb0444:0xb0448 --data-range 0xb06d8:0xb06dc`) have **zero byte differences**. Rust regression checks both data words.
+- Next missing runtime address `0xb0748`, MBN file `0xb4748`, begins a larger codec controller read/modify loop. Still a provisional old-base source-encoded fragment, not high-level source recovery or newly signed firmware.
