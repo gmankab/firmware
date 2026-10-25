@@ -482,3 +482,33 @@ The prefix consists of **5,856 independently encoded executable bytes** plus
 The next code begins at runtime `0xb00025a0` (ELF file `0x425a0`).
 Remaining executable, loader tables and OEM authentication are incomplete;
 this is not flashable firmware.
+
+### Checkpoint O: registration, teardown and packed initialization table
+
+Three independent packetized routines from virtual `0xb00025a0` to
+`0xb0002708` (file `0x425a0–0x42708`) have been re-encoded using v66 Hexagon
+LLVM22 assembly. The 360-byte addition registers runtime handlers and global
+state, checks guarded teardown conditions, and initializes a packed descriptor
+table with a two-iteration hardware loop and atomic word count increments.
+
+The implementation does not embed OEM instruction words: it uses source
+instructions and named immediate addresses. Two subtle original encodings
+required preserving source order (the extended register+constant duplex
+packet) and `:mem_noshuf` (a store/load packet). All 360 bytes match the
+SHA-256-pinned reference, including the final branch to existing helper code.
+
+```sh
+LD_LIBRARY_PATH=/private/nabu-runtime/flat \
+python3 tools/build-wlanmdsp-startup.py /tmp/wlan-9992.bin \
+  --with-runtime-registration --llvm-mc /private/llvm6/bin/llvm-mc \
+  --llvm-mc-v66 /private/llvm22/bin/llvm-mc \
+  --reference /private/wlanmdsp.mbn --manifest /tmp/wlan-9992.json
+```
+
+The emitted prefix is now **9,992 exactly matching bytes** from file
+`[0x40000,0x42708)` and virtual `[0xb0000000,0xb0002708)`. Of these,
+**6,216 bytes are independent executable instructions** and 3,776 are
+identified linker fill/alignment. SHA-256:
+`e2707559b08087b2098c2c958695347f46466f01ae8dfc7c0463c0c4014be2b1`.
+Next unimplemented code begins at virtual `0xb0002708`, file `0x42708`.
+This is partial and cannot replace a complete authenticated WLAN MBN.

@@ -432,6 +432,45 @@ class WlanHexagonAssemblyTests(unittest.TestCase):
             if ref:
                 fw.check_reference(artifact.read_bytes(),Path(ref).read_bytes())
 
+    def test_hexagon_v66_registration_and_table_seeding(self):
+        v66=os.environ.get("WLAN_LLVM_MC_V66")
+        if not v66:
+            self.skipTest("set WLAN_LLVM_MC_V66 for Hexagon v66 assembler")
+        asm=fw.RUNTIME_REGISTRATION_SOURCE.read_text()
+        for forb in (".incbin", ".byte", ".word", ".long", ".quad"):
+            self.assertNotIn(forb,asm)
+        for token in ("loop0(table_seed_body,#2)",":mem_noshuf","memb(r13++#1) = r7"):
+            self.assertIn(token,asm)
+        encoded=fw.assemble(fw.RUNTIME_REGISTRATION_SOURCE,v66,"hexagonv66",
+                            fw.RUNTIME_REGISTRATION_LENGTH)
+        self.assertEqual(len(encoded),360)
+        self.assertEqual(encoded[0xcc:0xd8],bytes.fromhex("c5400078b868060b17284628"))
+        self.assertEqual(fw.THROUGH_RUNTIME_REGISTRATION_LENGTH,0x2708)
+        with self.assertRaisesRegex(fw.FragmentError,"prefix through 0x25a0"):
+            fw.emit_with_runtime_registration(b"incomplete",v66)
+        ref=os.environ.get("WLANMDSP_REFERENCE")
+        if ref:fw.check_reference(encoded,Path(ref).read_bytes(),runtime_offset=0x25a0)
+
+    def test_runtime_registration_full_cli_manifest(self):
+        v66=os.environ.get("WLAN_LLVM_MC_V66")
+        if not v66:
+            self.skipTest("set WLAN_LLVM_MC_V66 for Hexagon v66 assembler")
+        import json,subprocess
+        with tempfile.TemporaryDirectory() as temp:
+            out,manifest=Path(temp)/"wlan-9992.bin",Path(temp)/"manifest.json"
+            cmd=[sys.executable,str(fw.ROOT/"tools/build-wlanmdsp-startup.py"),
+                 str(out),"--with-runtime-registration","--llvm-mc",self.mc,
+                 "--llvm-mc-v66",v66,"--manifest",str(manifest)]
+            ref=os.environ.get("WLANMDSP_REFERENCE")
+            if ref:cmd += ["--reference",ref]
+            subprocess.run(cmd,check=True,capture_output=True,text=True)
+            self.assertEqual(out.stat().st_size,0x2708)
+            result=json.loads(manifest.read_text())
+            self.assertEqual(result["independently_encoded_runtime_registration_bytes"],360)
+            self.assertEqual(result["linker_layout_fill_bytes"],3776)
+            self.assertFalse(result["complete_firmware"])
+            if ref:fw.check_reference(out.read_bytes(),Path(ref).read_bytes())
+
     def test_full_joined_prefix_cli_manifest_counts_code_and_linker_fill(self):
         mc_v66 = os.environ.get("WLAN_LLVM_MC_V66")
         if not mc_v66:
