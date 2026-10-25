@@ -229,3 +229,24 @@ fragment; no gap padding or OEM signature bytes included. Newly contiguous
 probe+MMIO SHA-256: `47992871a615ebedd925a865d7db2ebeab6c0466338c8cbf694f50892eb4374`.
 All further modem executable bytes remain incomplete; this is *not* a
 whole independently source-compiled firmware or authenticated replacement.
+
+## Checkpoint 07: service flag helpers through file 0x7c40c
+
+Added **100 independently assembled Hexagon V60 bytes** at modem file
+`[0x7c3a8,0x7c40c)` (VMA `[0xc08903a8,0xc089040c)`, physical
+`[0x8e0903a8,0x8e09040c)`), comprising flag bit test/clear with 4 bytes
+architectural `brkpt`, a controller word setter, and a flag getter.
+
+LLVM6 changes one three-word packet by hoisting `p0=cmp.eq; if(p0.new)
+jump` ahead of its constant extender and predicated consumer. The
+`restore_service_flag_packets` transform first validates ISA opcode classes
+and parse markers, then emits the source-order packet as
+`immext; if(!p0.new) r2=...; predicate+branch`. It changes only order and
+packet markers; **no original opcode bytes** are used as literals.
+
+**Total Agent 12 executable coverage: 900 bytes**, still five disjoint
+intervals: `[0x7c000,0x7c0a0)` 160, `[0x7c2ec,0x7c40c)` 288,
+`[0x446000,0x4460d8)` 216, `[0x446200,0x446254)` 84, and
+`[0x446260,0x4462f8)` 152. All match the pinned SHA-256 modem firmware.
+16 bytes are explicitly generated `brkpt` trap code, *not* implicit fill.
+Next target: `[0x7c40c,0x7c4b0)` controller allocation.

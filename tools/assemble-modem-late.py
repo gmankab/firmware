@@ -27,12 +27,15 @@ AUX_STAGE_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_l
 AUX_MMIO_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_aux_mmio.s"
 SERVICE_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_service_probe.s"
 SERVICE_MMIO_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_service_mmio.s"
+SERVICE_FLAGS_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_service_flags.s"
 ATOMIC_START = 0x7C000
 ATOMIC_END = 0x7C040
 SERVICE_START = 0x7C2EC
 SERVICE_END = 0x7C324
 SERVICE_MMIO_START = 0x7C324
 SERVICE_MMIO_END = 0x7C3A8
+SERVICE_FLAGS_START = 0x7C3A8
+SERVICE_FLAGS_END = 0x7C40C
 CONTROL_START = 0x7C040
 CONTROL_END = 0x7C0A0
 AUX_START = 0x446000
@@ -214,6 +217,33 @@ def restore_service_mmio_packets(assembled: bytes) -> bytes:
     return struct.pack("<"+"I"*len(words),*words)
 
 
+def restore_service_flag_packets(assembled: bytes) -> bytes:
+    """Preserve a producer/consumer Hexagon V60 packet for flag access.
+
+    LLVM6 schedules the compound compare/branch ahead of its two-slot
+    predicated register-assignment and constant extender. The original
+    program instead orders extender, predicated move, comparison branch.
+    Reorder only those three independently assembled instructions and set
+    legal packet markers after checking opcode classes and source grouping.
+    This NEVER inserts reference words into the generated fragment.
+    """
+    if len(assembled) != SERVICE_FLAGS_END - SERVICE_FLAGS_START:
+        raise ValueError("service flag helpers require exactly 100 source bytes")
+    words = list(struct.unpack("<25I", assembled))
+    i = (0x7C3E8 - SERVICE_FLAGS_START) // 4
+    cmp_jump, extender, predicated = words[i:i+3]
+    if [x >> 24 for x in (cmp_jump, extender, predicated)] != [0x10, 0x0e, 0x7e]:
+        raise ValueError("unexpected Hexagon service flag predicate opcode classes")
+    if [x & MARKER_MASK for x in (cmp_jump, extender, predicated)] != [
+        CONTINUE_MARKER, CONTINUE_MARKER, END_MARKER
+    ]:
+        raise ValueError("unexpected Hexagon service flag packet parse markers")
+    words[i:i+3] = [extender,
+                    (predicated & ~MARKER_MASK) | CONTINUE_MARKER,
+                    (cmp_jump & ~MARKER_MASK) | END_MARKER]
+    return struct.pack("<25I", *words)
+
+
 def assemble(llvm_mc: Path, source: Path) -> bytes:
     with tempfile.TemporaryDirectory(prefix="nabu-modem-late-") as tmp:
         obj = Path(tmp) / "late.o"
@@ -242,8 +272,9 @@ def output_fragments(llvm_mc: Path) -> dict[int, bytes]:
     assert AUX_GUARD_END == AUX_STAGE_START and AUX_STAGE_END == AUX_MMIO_START
     service = restore_service_probe_packets(assemble(llvm_mc,SERVICE_SOURCE))
     service_mmio = restore_service_mmio_packets(assemble(llvm_mc,SERVICE_MMIO_SOURCE))
-    assert SERVICE_END == SERVICE_MMIO_START
-    return {ATOMIC_START: atomic + controller, SERVICE_START: service+service_mmio,
+    service_flags = restore_service_flag_packets(assemble(llvm_mc,SERVICE_FLAGS_SOURCE))
+    assert SERVICE_END == SERVICE_MMIO_START and SERVICE_MMIO_END == SERVICE_FLAGS_START
+    return {ATOMIC_START: atomic + controller, SERVICE_START: service+service_mmio+service_flags,
             AUX_START: auxiliary, AUX_INIT_START: aux_init,
             AUX_GUARD_START: aux_guard+aux_stage+aux_mmio}
 
