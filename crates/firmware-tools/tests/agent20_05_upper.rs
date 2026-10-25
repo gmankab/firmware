@@ -31,3 +31,16 @@ fn control_flags_fragment_matches_optional_reference(){
         assert_eq!(&bytes[..],original.get(off..off+bytes.len()).expect("short original"));
     }
 }
+
+#[path = "../src/devices/xiaomi_nabu/venus_agent20_05_color_unpack.rs"]
+mod color_unpack;
+#[test]
+fn color_unpack_matches_optional_reference(){
+    let bytes=color_unpack::fragment().expect("typed unpack routine");
+    assert_eq!(bytes.len(),color_unpack::END-color_unpack::START);
+    if let Some(reference)=std::env::var_os("NABU_VENUS_REFERENCE"){
+        let orig=std::fs::read(reference).unwrap();
+        let offset=color_unpack::START+color_unpack::FILE_BASE;
+        assert_eq!(&bytes[..],orig.get(offset..offset+bytes.len()).unwrap());
+    }
+}
