@@ -124,6 +124,21 @@ pub fn load_signed_byte(condition: Condition, rd: Register, rn: Register,
         | ((magnitude & 0xf0) << 4) | (magnitude & 0x0f))
 }
 
+/// A32 signed-byte load with post-indexed 8-bit immediate displacement.
+/// The base register is updated *after* the signed byte is read.
+/// Reject PC and load-into-base aliases, both architecturally unsafe.
+pub fn load_signed_byte_postindexed(condition: Condition, rd: Register,
+                                    rn: Register, signed_offset: i32) -> Result<u32,String> {
+    if rd == Register::PC || rn == Register::PC || rd == rn || signed_offset.unsigned_abs() > 255 {
+        return Err("invalid ARM32 signed-byte postindex operands".into());
+    }
+    let magnitude = signed_offset.unsigned_abs();
+    Ok(cond(condition) | 0x0050_00d0
+        | if signed_offset >= 0 {1 << 23} else {0}
+        | (rn.number() << 16) | (rd.number() << 12)
+        | ((magnitude & 0xf0) << 4) | (magnitude & 0x0f))
+}
+
 /// A32 LDRSB with unshifted positive register offset, preserving signed
 /// extension to a 32-bit destination; PC operands are not supported.
 pub fn load_signed_byte_register(condition: Condition, rd: Register,
@@ -783,6 +798,17 @@ mod tests {
         assert!(transfer_doubleword(Condition::Al, false, r2, Register::PC, 0).is_err());
         assert!(transfer_doubleword(Condition::Al, true, r2, Register::R0, 256).is_err());
     }
+    #[test]
+    fn signed_byte_postindexed_immediate_is_architecture_encoded() {
+        let r3=Register::new(3).unwrap();
+        assert_eq!(load_signed_byte_postindexed(Condition::Al,r3,Register::R1,1).unwrap(),0xe0d1_30d1);
+        assert_eq!(load_signed_byte_postindexed(Condition::Eq,Register::R2,Register::R1,-2).unwrap(),0x0051_20d2);
+        assert!(load_signed_byte_postindexed(Condition::Al,Register::R1,Register::R1,1).is_err());
+        assert!(load_signed_byte_postindexed(Condition::Al,Register::PC,Register::R1,1).is_err());
+        assert!(load_signed_byte_postindexed(Condition::Al,r3,Register::PC,0).is_err());
+        assert!(load_signed_byte_postindexed(Condition::Al,r3,Register::R1,256).is_err());
+    }
+
     #[test]
     fn signed_byte_load_encoding_and_rejections() {
         let r4 = Register::new(4).unwrap();
