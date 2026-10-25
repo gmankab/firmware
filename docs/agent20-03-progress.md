@@ -316,3 +316,9 @@ Original reference: private `map220v-nabu-firmware/venus.mbn`, SHA-256 `9d4af65d
 - Contiguous typed A32 match `[0x21c78,0x2cc94)` = **45,084 bytes**. Newly rebuilt `[0x2c950,0x2cc94)` = **836 bytes**: **189 A32 instructions + 20 separate data words**.
 - Handler lookup table `[0x2cb24,0x2cb48)` holds nine runtime target addresses, with two trailing diagnostic addresses through `0x2cb50`. Six other short data pools remain separately classified and are tested as such.
 - No opaque executable bytes imported; this is instruction-level re-encoding, not high-level functional decompilation or signed firmware. Next instruction address `0x2cc94`.
+
+## Checkpoint 47 — codec class handlers and diagnostic table
+
+- Contiguous typed A32 match `[0x21c78,0x2d19c)` = **46,372 bytes**. Newly rebuilt `[0x2cc94,0x2d19c)` = **1,288 bytes**: **237 A32 instructions and 85 separate data words**.
+- Controller class dispatch branches to several prior codec allocation handlers and updates state; the long non-instruction diagnostic/map table `[0x2d090,0x2d19c)` contains 67 words.
+- Literal/data pools are explicit; only typed operations emit executable instructions. This is instruction-level equivalence, not fully recovered high-level source or newly authenticated firmware. First missing runtime address `0x2d19c`.
