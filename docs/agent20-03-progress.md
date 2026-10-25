@@ -295,3 +295,8 @@ Original reference: private `map220v-nabu-firmware/venus.mbn`, SHA-256 `9d4af65d
 
 - Runtime `[0x21c78,0x2be44)` = **41,420 contiguous bytes** identical to the pinned `venus.mbn`. New `[0x2ba68,0x2be44)` = **988 typed ARM32 instruction bytes** (247 A32 instructions and no literal data words).
 - Handles codec buffer type allocation, input descriptor selection, frame limits, callback dispatch and error reporting. This is still a section of the larger codec event function, whose later control flow continues beyond `0x2be44`.
+
+## Checkpoint 43 — codec buffer cleanup and nine-way stream selector
+
+- Generated A32 `[0x21c78,0x2c024)` = **41,900 contiguous byte-identical bytes**, with new `[0x2be44,0x2c024)` **480 bytes** comprising **111 instructions and 9 literal handler addresses**.
+- Clears and releases two reference-counted buffer sets using an indirect ARM `BLX`, constructs diagnostics and introduces a nine-entry stream-type dispatch table `[0x2bfd0,0x2bff4)`; completion handlers beyond `0x2c024` remain unimplemented.
