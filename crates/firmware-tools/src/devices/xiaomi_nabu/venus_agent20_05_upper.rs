@@ -1,0 +1,172 @@
+// SPDX-License-Identifier: GPL-3.0-only
+//! Agent 20-05: independent function-aligned Venus ARM32 upper-runtime sources.
+//!
+//! Exclusive reservation: runtime [0x68000, 0xa8000), ELF file offsets
+//! [0x6c000, 0xac000). The reservation begins inside a prior function;
+//! the first *complete* function available here starts at 0x69b80.
+//!
+//! These are independently typed ARM ISA encodings, not embedded OEM bytes.
+//! External firmware bytes must be provided to verify; no originals are
+//! redistributed or silently used to populate missing executable ranges.
+use arm32::{
+    branch, data_immediate, data_register, mov_register, mov_shifted_register,
+    push_registers, transfer_byte, transfer_multiple, transfer_word,
+    BlockMode, Condition as C, DataOp as Op, Register as R, Shift,
+};
+
+pub const OWNED_START: usize = 0x68000;
+pub const OWNED_END: usize = 0xa8000;
+pub const FILE_MAPPING_DELTA: usize = 0x4000;
+pub const VERIFIED_START: usize = 0x69b80;
+pub const VERIFIED_END: usize = 0x69c3c;
+pub const INITIAL_UNCOVERED: usize = VERIFIED_START - OWNED_START;
+
+struct A32 {
+    pc: usize,
+    bytes: Vec<u8>,
+}
+impl A32 {
+    fn new(start: usize) -> Result<Self, String> {
+        if start < OWNED_START || start >= OWNED_END || start & 3 != 0 {
+            return Err(format!("outside agent 20-05 ARM range: 0x{start:x}"));
+        }
+        Ok(Self { pc: start, bytes: Vec::new() })
+    }
+    fn check(&self, wanted: usize) -> Result<(), String> {
+        if self.pc != wanted {
+            return Err(format!("ARM32 layout 0x{:x} != expected 0x{wanted:x}", self.pc));
+        }
+        Ok(())
+    }
+    fn emit(&mut self, encoded: u32) -> Result<(), String> {
+        if self.pc < OWNED_START || self.pc + 4 > OWNED_END || self.pc & 3 != 0 {
+            return Err(format!("agent 20-05 out-of-bounds emission 0x{:x}", self.pc));
+        }
+        self.bytes.extend_from_slice(&encoded.to_le_bytes());
+        self.pc += 4;
+        Ok(())
+    }
+    fn b(&mut self, cond: C, target: usize) -> Result<(), String> {
+        self.emit(branch(cond, self.pc as u32, target as u32, false)?)
+    }
+    fn bl(&mut self, target: usize) -> Result<(), String> {
+        self.emit(branch(C::Al, self.pc as u32, target as u32, true)?)
+    }
+    fn lit(&mut self, dst: R, location: usize) -> Result<(), String> {
+        let displacement = i32::try_from(location as i64 - self.pc as i64 - 8)
+            .map_err(|_| "literal address displacement overflow")?;
+        self.emit(transfer_word(C::Al, true, dst, R::PC, displacement)?)
+    }
+}
+fn r(n: u8) -> Result<R, String> { R::new(n) }
+fn imm(c: &mut A32, cond: C, op: Op, dst: R, src: R, value: u32) -> Result<(), String> {
+    c.emit(data_immediate(cond, op, dst, src, value)?)
+}
+fn reg(c: &mut A32, cond: C, op: Op, dst: R, lhs: R, rhs: R,
+       shift: Shift, count: u8) -> Result<(), String> {
+    c.emit(data_register(cond, op, dst, lhs, rhs, shift, count, false)?)
+}
+fn load(c: &mut A32, cond: C, dst: R, base: R, displacement: i32) -> Result<(), String> {
+    c.emit(transfer_word(cond, true, dst, base, displacement)?)
+}
+fn store(c: &mut A32, cond: C, src: R, base: R, displacement: i32) -> Result<(), String> {
+    c.emit(transfer_word(cond, false, src, base, displacement)?)
+}
+fn mov(c: &mut A32, cond: C, dst: R, src: R) -> Result<(), String> {
+    c.emit(mov_register(cond, dst, src))
+}
+fn movshift(c: &mut A32, cond: C, dst: R, src: R, shift: Shift, count: u8) -> Result<(), String> {
+    c.emit(mov_shifted_register(cond, dst, src, shift, count)?)
+}
+/// Public ARM A32 UMULL: low/high halves of unsigned 32x32 multiplication.
+/// Encoded from the ISA format, with reserved registers and aliases rejected.
+fn umull(c: &mut A32, low: R, high: R, lhs: R, rhs: R) -> Result<(), String> {
+    if low == high || [low, high, lhs, rhs].iter().any(|v| v.number() > 12) {
+        return Err("invalid UMULL registers".into());
+    }
+    c.emit(0xe080_0090 | (high.number() << 16) | (low.number() << 12)
+           | (rhs.number() << 8) | lhs.number())
+}
+
+/// Populate the descriptor's quarter-size counts and 16.16 fixed-point
+/// scaled buffer dimensions. When the hardware layout flag is clear, the
+/// scale factor is read from controller state; otherwise it is unity.
+/// The field and memory-offset interpretation needs device-level validation.
+fn emit_scaled_descriptor_init(c: &mut A32) -> Result<(), String> {
+    let r3=r(3)?; let r4=r(4)?; let r5=r(5)?; let r6=r(6)?; let r7=r(7)?;
+    let frame=r4.bit()|r5.bit()|r6.bit()|r7.bit()|R::R11.bit()|R::LR.bit();
+    c.check(VERIFIED_START)?;
+    c.emit(push_registers(C::Al, frame)?)?;                        // 0x69b80
+    imm(c,C::Al,Op::Add,R::R11,R::SP,16)?;
+    mov(c,C::Al,r7,R::R2)?;
+    mov(c,C::Al,r4,R::R0)?;
+    reg(c,C::Al,Op::Add,R::R0,R::R1,R::R1,Shift::Lsl,1)?;
+    movshift(c,C::Al,R::R2,R::R0,Shift::Lsr,2)?;
+    movshift(c,C::Al,R::R0,R::R1,Shift::Lsr,2)?;
+    imm(c,C::Al,Op::Cmp,R::R0,r7,0)?;
+    store(c,C::Al,R::R2,r4,0)?;
+    c.emit(transfer_multiple(C::Al,false,r4,R::R0.bit()|R::R1.bit(),
+                             BlockMode::IncrementBefore,false)?)?;
+    c.b(C::Eq,0x69bb4)?;
+    imm(c,C::Al,Op::Mov,r3,R::R0,0x10000)?;
+    c.b(C::Al,0x69bc8)?;
+    c.check(0x69bb4)?;
+    load(c,C::Al,r3,r3,0x838)?;
+    c.emit(transfer_byte(C::Al,true,R::R12,r3,0xe0)?)?;
+    c.lit(r3,0x69c38)?;
+    imm(c,C::Al,Op::Cmp,R::R0,R::R12,0)?;
+    imm(c,C::Ne,Op::Mov,r3,R::R0,0x10000)?;
+    c.check(0x69bc8)?;
+    umull(c,r5,r6,R::R2,r3)?;
+    store(c,C::Al,r3,r4,0x20)?;
+    movshift(c,C::Al,R::R2,r5,Shift::Lsr,16)?;
+    reg(c,C::Al,Op::Orr,R::R2,R::R2,r6,Shift::Lsl,16)?;
+    store(c,C::Al,R::R2,r4,0x10)?;
+    umull(c,R::R2,r6,r3,R::R0)?;
+    movshift(c,C::Al,R::R0,R::R2,Shift::Lsr,16)?;
+    reg(c,C::Al,Op::Orr,R::R0,R::R0,r6,Shift::Lsl,16)?;
+    store(c,C::Al,R::R0,r4,0x0c)?;
+    umull(c,R::R0,R::R2,r3,R::R1)?;
+    imm(c,C::Al,Op::Mov,R::R1,R::R0,0)?;
+    movshift(c,C::Al,R::R0,R::R0,Shift::Lsr,16)?;
+    reg(c,C::Al,Op::Orr,R::R0,R::R0,R::R2,Shift::Lsl,16)?;
+    imm(c,C::Al,Op::Mov,R::R2,R::R0,21)?;
+    store(c,C::Al,R::R0,r4,0x14)?;
+    imm(c,C::Al,Op::Mov,R::R0,R::R0,0)?;
+    for off in [0x18,0x1c,0xd4,0xd8] { store(c,C::Al,R::R0,r4,off)?; }
+    imm(c,C::Al,Op::Add,R::R0,r4,0xbc)?;
+    c.bl(0x31ec)?;                // preexisting memset-style runtime helper
+    imm(c,C::Al,Op::Mov,R::R0,R::R0,0x10000)?;
+    imm(c,C::Al,Op::Cmp,R::R0,r7,0)?;
+    imm(c,C::Eq,Op::Mov,R::R0,R::R0,0x20000)?;
+    store(c,C::Al,R::R0,r4,0xdc)?;
+    store(c,C::Al,R::R0,r4,0xe0)?;
+    c.emit(transfer_multiple(C::Al,true,R::SP,
+        (frame&!R::LR.bit())|R::PC.bit(),BlockMode::IncrementAfter,true)?)?;
+    c.check(0x69c38)?;
+    const SCALING_FACTOR_Q16: u32 = 0x0001_3333;
+    c.emit(SCALING_FACTOR_Q16)?;
+    c.check(VERIFIED_END)
+}
+
+pub fn fragment() -> Result<Vec<u8>,String> {
+    let mut c=A32::new(VERIFIED_START)?;
+    emit_scaled_descriptor_init(&mut c)?;
+    Ok(c.bytes)
+}
+
+#[cfg(test)] mod tests {
+    use super::*;
+    #[test]fn aligned_and_address_bounded(){
+        let output=fragment().unwrap();
+        assert_eq!(output.len(), VERIFIED_END-VERIFIED_START);
+        assert_eq!(VERIFIED_START,0x69b80);
+        assert_eq!(INITIAL_UNCOVERED,0x1b80);
+        assert_eq!(&output[output.len()-4..], &0x0001_3333u32.to_le_bytes());
+    }
+    #[test]fn unsigned_multiply_long_uses_valid_regs(){
+        let mut c=A32::new(VERIFIED_START).unwrap();
+        assert!(umull(&mut c,R::R0,R::R0,R::R1,R::R2).is_err());
+        assert!(umull(&mut c,R::R0,R::R1,R::PC,R::R2).is_err());
+    }
+}
