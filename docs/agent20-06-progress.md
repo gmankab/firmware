@@ -169,3 +169,11 @@ python3 tools/agent20_06_a32_roundtrip.py /private/venus.mbn 0xa8ea0 0xa92c8 \
 - Includes complete surface/slot initialization `[0xadc14,0xadcbc)`, guarded buffer activation `[0xadcbc,0xadf18)` and guarded buffer deactivation `[0xadf18,0xae020)`; original conditional branches and returns preserved.
 - Independent LLVM/Clang round-trip passes with `--data-range 0xadf10:0xadf18 --data-range 0xae018:0xae020` and zero differing bytes.
 - Full Rust/Python suites pass; release build result is separately recorded. Next uncovered ARM runtime address `0xae020` (file `0xb2020`). This remains partial instruction re-encoding; no behavioral/hardware validation or newly OEM-signed image is claimed.
+
+## Checkpoint 18 — controller register plane initialization and buffer publication
+
+- Cumulative exact Venus runtime `[0xa8000,0xae748)` = **26,440 byte-identical bytes**, MBN original file `[0xac000,0xb2748)`.
+- New interval `[0xae020,0xae748)` = 1,832 bytes: **456 ARM32 instructions** (1,824 bytes) and **two data words** (8 bytes) at `0xae58c` and `0xae744`. Correct count: code intervals `[0xae020,0xae58c)` and `[0xae590,0xae744)`, data at `[0xae58c,0xae590)` and `[0xae744,0xae748)`.
+- Implemented codec channel buffer retirement/clear, mode-specific controller register encoding and per-channel output buffer publishing. At `0xae2f0` the conditional `ANDEQ` is real instruction, not assumed zero data. Original final returns at `0xae104`, `0xae588`, `0xae644`, `0xae740`.
+- Independently verified by Clang/LLVM with `--data-range 0xae58c:0xae590` and `--data-range 0xae744:0xae748`; **zero mismatches**. Literal pool regression tests include the new pools.
+- Rust and Python suites pass. Offline release-build status tracked separately. Next uncovered ARM address `0xae748` (MBN file `0xb2748`). No high-level behavioral equivalence, OEM signing, or checkpoint-50 integration claimed.
