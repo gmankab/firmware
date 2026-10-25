@@ -1,0 +1,62 @@
+{
+  "schema": "agent20-18.calibration-provenance.v1",
+  "firmware_sha256": "8b845514621ebfd95759a0919f3aa3d825314abb478a7cad1c3fb4c6872b70b5",
+  "file_start": 99872,
+  "file_end": 103856,
+  "bytes": 3984,
+  "sha256": "b61f09fc42c18ff4f1bc768ed1f59657a57f5e3d16d473aaeb3b3c94005b5007",
+  "embedded_original_firmware_bytes": 0,
+  "copy_original_into_git": false,
+  "source_level_recovery": "not established",
+  "container_reassembly": "possible only with externally supplied pinned 3984 bytes",
+  "segments": [
+    {
+      "label": "first_measurement_matrix",
+      "offset": 99872,
+      "end": 101472,
+      "bytes": 1600,
+      "sha256": "fe8f99f8148af1791cf7d41dc0a88b7f61423e5c11746149bf95f9ba5db09b85",
+      "row_count": 50,
+      "element_count": 1600,
+      "columns": 32,
+      "element_bytes": 1,
+      "min_value": 47,
+      "max_value": 119,
+      "distinct_values": 71,
+      "adjacent_identical_rows": 0,
+      "source_status": "external vendor-observed calibration; independent mathematical generator not found"
+    },
+    {
+      "label": "second_measurement_matrix",
+      "offset": 101472,
+      "end": 103072,
+      "bytes": 1600,
+      "sha256": "b2e20830431ead4ceb1c3479b54abbe3f3a28904049bf2484a2024ebb4c54a8d",
+      "row_count": 50,
+      "element_count": 1600,
+      "columns": 32,
+      "element_bytes": 1,
+      "min_value": 60,
+      "max_value": 151,
+      "distinct_values": 83,
+      "adjacent_identical_rows": 2,
+      "source_status": "external vendor-observed calibration; independent mathematical generator not found"
+    },
+    {
+      "label": "low_precision_measurements",
+      "offset": 103072,
+      "end": 103856,
+      "bytes": 784,
+      "sha256": "dce8d43bd5df2bcec520636071b567c8e24e6d3861a29bc5f8cd2a1510e40648",
+      "row_count": null,
+      "element_count": 392,
+      "columns": null,
+      "element_bytes": 2,
+      "min_value": 73,
+      "max_value": 224,
+      "distinct_values": 112,
+      "adjacent_identical_rows": null,
+      "source_status": "external vendor-observed calibration; independent mathematical generator not found"
+    }
+  ]
+}

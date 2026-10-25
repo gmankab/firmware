@@ -334,3 +334,75 @@ python3 tools/devices/xiaomi-nabu/verify-agent20-18.py /private/novatek_nt36523_
   --emitter "$CARGO_TARGET_DIR/release/novatek-upper-ilm" \
   --source-only --report /tmp/agent20-18-checkpoint05.json
 ```
+
+## Checkpoint 06 — verified reference-assisted complete upper-ILM assembly
+
+**This checkpoint does not establish independent source reconstruction for
+all 44,160 bytes.** It supplies an explicit, fail-closed binary integration
+option using 40,176 previously reconstructed/typed bytes **plus 3,984 bytes
+of externally provided OEM calibration**. Original calibration bytes remain
+outside Git and outside downloadable bundles.
+
+The remaining calibration interval `[0x18620,0x195b0)` consists of:
+
+| File interval | Length | Interpretation | SHA-256 status |
+| --- | ---: | --- | --- |
+| `[0x18620,0x18c60)` | 1,600 | Irregular 50×32 matrix, 8-bit values, 71 distinct observed values | Pinned per-region checksum |
+| `[0x18c60,0x192a0)` | 1,600 | Second 50×32 measurement matrix, 83 distinct observed byte values | Pinned per-region checksum |
+| `[0x192a0,0x195b0)` | 784 | 392 `u16` scalar samples, high byte zero in each value | Pinned per-region checksum |
+
+The second matrix's initial two rows are duplicates, but subsequent rows
+vary; the first matrix has no adjacent identical rows. These matrices and the
+392 samples occur once in the firmware. They are **measured-looking, irregular
+OEM calibration data**; no publicly grounded source, vendor-supplied
+calibration measurements, or exact generating algorithm was established.
+Their full and component checksums and descriptive statistics appear in
+`reference/xiaomi-nabu/agent20-18/upper-calibration-provenance.json`.
+No raw OEM calibration data or purported measurement-generation formula was
+embedded in any source file or released bundle.
+
+For a **reference-assisted exact original interval** (using the user's own
+OEM calibration copy), first build and export the sparse typed source:
+
+```sh
+cargo build --workspace --release --offline --locked
+"$CARGO_TARGET_DIR/release/novatek-upper-ilm" export /tmp/agent20-18-source
+# Take ONLY the original calibration slice from the matching firmware,
+# kept outside Git and out of deliverable bundles.
+dd if=/private/novatek_nt36523_fw.bin of=/private/nvt-calibration.bin \
+  bs=1 skip=$((0x18620)) count=$((0x195b0-0x18620)) status=none
+python3 tools/devices/xiaomi-nabu/assemble_agent20_18_upper.py \
+  --source-fragments /tmp/agent20-18-source \
+  --external-calibration /private/nvt-calibration.bin \
+  --output /tmp/upper-ilm-reference-assisted-44160.bin \
+  --reference /private/novatek_nt36523_fw.bin \
+  --report /tmp/upper-ilm-reference-assisted-report.json
+```
+
+The assembler enforces the source-fragment concatenation digest, the pinned
+calibration full and three component digests, exact 15-interval source layout,
+absence of overlaps, correct data-code-layout byte-class accounting, pinned
+44,160-byte SHA-256 of final output, and placement outside the Git checkout.
+It fails closed on any missing, truncated, corrupt, or substituted data and
+never fills a gap with guessed zeros. Its output covers *only* the Agent 18
+assigned upper-ILM segment, not the complete 196,608-byte Novatek firmware.
+
+Checked end-to-end locally against the postmarketOS pinned reference:
+
+- Full 44,160-byte reference-assisted upper ILM SHA-256
+  `257855053abdadc874d2b24d05f52dfcec80d76da6ca4455b8614081f82a8fbd`;
+  **zero mismatched bytes**.
+- Typed generated source concatenation: 40,176 bytes, SHA-256
+  `205b76b293a597c191e667aa23bd6fcadf8c67eb90d3a891576361377445ee18`.
+- Externally supplied OEM calibration: 3,984 bytes, SHA-256
+  `b61f09fc42c18ff4f1bc768ed1f59657a57f5e3d16d473aaeb3b3c94005b5007`.
+- Source-only generator intentionally continues to expose one 3,984-byte
+  missing fragment; it **does not** become complete in checkpoint 06.
+- No new OEM signature, original source semantics, on-device execution or
+  hardware behavior is established by reference-assisted equality.
+
+**Integration handoff:** Agent 01/17 own the preceding function prefix at
+file `0xfffc–0x10000`, already modeled as a 22-byte upper-owned suffix here.
+Future recovery of independent calibration source should replace the external
+slot without changing the typed NDS32 instruction work. Branch ancestry is
+still Agent 09 checkpoint 18, `51b1f91...`, not checkpoint 50.
