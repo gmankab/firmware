@@ -27,6 +27,7 @@ SEGMENTS = (
 # File offset and exact executable-code length (not inferred BSS/alignment)
 FRAGMENTS = {
     'queue-drain': (TOOLS / 'adsp-late-callback-drain.S', 0x39000, 0x54),
+    'zero-memory': (TOOLS / 'adsp-late-zero-memory.S', 0x3640A8, 0x50),
 }
 
 class LateAdspError(ValueError):

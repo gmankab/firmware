@@ -34,3 +34,7 @@ cargo build --workspace --release --offline --locked
 2. Rebuild a genuinely executable function at `0x364000` if the ISA is independently corroborated; do not count structural zero ranges as code.
 3. Map actual call targets/relocations in the two later `PT_LOAD` segments; expand to additional bounded function fragments, with a first-hole manifest and byte-accurate tests.
 4. Integrate only after the real checkpoint-50-based merged bundle exists.
+
+**Checkpoint 02:** A second *disjoint*, independently source-assembled function is now byte-verified: an **80-byte** zero-fill routine `[file 0x3640a8,0x3640f8)`, linker vaddr `[0xb00000a8,0xb00000f8)`, physical `[0x8c5000a8,0x8c5000f8)`. It clears unaligned front/tail bytes and uses a packetized eight-byte `memd(r0++#8)` loop in the aligned interior. All 20 instruction words were assembled from actual operations; no `.long` instructions were imported. SHA-256 `d8c1f7e013d349af5011c3a1a99db6e19689d99bb2fb7c459ed346625f550f1c`.
+
+**Cumulative source-generated executable count after checkpoint 02: 164 bytes, in two disjoint functions.** The intervening gaps, code/data arrays and tens of megabytes of remaining RX text are not reconstructed and must not be added to this total. In the second RX segment, file `[0x364100,0x364600)` contains predominantly zeros/data and is **not** 1,280 source-generated instruction bytes.

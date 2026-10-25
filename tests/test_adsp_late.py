@@ -25,6 +25,7 @@ LLVM_MC = os.environ.get('HEXAGON_LLVM_MC')
 REFERENCE = os.environ.get('NABU_ADSP_REFERENCE')
 RIZIN_ASM = os.environ.get('RZ_HEXAGON_ASM')
 EXPECTED_DIGEST = 'cc93ab6de47bc8514f946f427a059bc279975b4e99b9cfdc0be450f9d559a233'
+ZERO_MEMORY_DIGEST = 'd8c1f7e013d349af5011c3a1a99db6e19689d99bb2fb7c459ed346625f550f1c'
 
 
 class ADSPExternalsAndCodeTests(unittest.TestCase):
@@ -68,6 +69,29 @@ class ADSPExternalsAndCodeTests(unittest.TestCase):
         self.assertEqual(built[0x14:0x18], adsp.compile_source(LLVM_MC,SOURCE,0x54)[0x14:0x18])
         with self.assertRaisesRegex(adsp.LateAdspError, 'reference'):
             adsp.verify_slice(built,b'WRONG MBN',0x39000)
+    @unittest.skipUnless(LLVM_MC,'Hexagon LLVM6 assembler required')
+    def test_zero_memory_source_is_signed_length_bounded(self):
+        source = adsp.FRAGMENTS['zero-memory'][0]
+        text=source.read_text()
+        for expected in ('r3 = add(r0,#7)','r3 = insert(r4,#3,#0)',
+                         'memd(r0++#8) = r5:4','memb(r0++#1) = r4',
+                         'finished:', 'jumpr lr'):
+            self.assertIn(expected,text)
+        raw=adsp.compile_source(LLVM_MC,source,0x50)
+        self.assertEqual(hashlib.sha256(raw).hexdigest(),ZERO_MEMORY_DIGEST)
+        self.assertEqual(len(raw),80)
+
+    @unittest.skipUnless(LLVM_MC and REFERENCE,
+                         'Hexagon LLVM6 and exact pinned ADSP reference required')
+    def test_zero_memory_second_segment_exact(self):
+        source,start,length = adsp.FRAGMENTS['zero-memory']
+        built=adsp.compile_source(LLVM_MC,source,length)
+        adsp.verify_slice(built,Path(REFERENCE).read_bytes(),start)
+        edited=bytearray(built)
+        edited[32]^=2
+        with self.assertRaisesRegex(adsp.LateAdspError,'Mismatch'):
+            adsp.verify_slice(edited,Path(REFERENCE).read_bytes(),start)
+
     @unittest.skipUnless(LLVM_MC and REFERENCE,
                          'Hexagon LLVM6 and exact pinned ADSP reference required')
     def test_pinned_reference_exact_identity_and_mutation(self):
