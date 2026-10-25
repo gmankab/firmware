@@ -1,10 +1,10 @@
 # Agent 20-14 — WLAN late Hexagon reconstruction
 
-Latest checkpoint: **12**, with **11,020 contiguous executable bytes**
-and **496 independently generated dispatch-table data bytes**, for **11,516**
-source-derived bytes in disjoint intervals. Checkpoint 12 adds **552**
-Hexagon instruction bytes for one complete function at
-`[0x102aa8,0x102cd0)`. The next function begins at `0x102cd0`. The
+Latest checkpoint: **13**, with **11,592 contiguous executable bytes**
+and **496 independently generated dispatch-table data bytes**, for **12,088**
+source-derived bytes in disjoint intervals. Checkpoint 13 adds **572**
+Hexagon instruction bytes across two adjacent functions at
+`[0x102cd0,0x102f0c)`. The next function begins at `0x102f0c`. The
 Agent 13 leading seam `[0x100000,0x1001c4)` remains unimplemented here.
 
 ## Assignment and provenance
@@ -715,3 +715,38 @@ Leading Agent 13 seam `[0x100000,0x1001c4)` remains unimplemented.
 Next unimplemented complete function starts at `0x102cd0`. These are
 packet-level encoding equivalences, not verified original C algorithms or
 hardware execution.
+
+
+## Checkpoint 13 — status flag helper and checksum initializer
+
+The **20-byte** routine `[0x102cd0,0x102ce4)` stamps a controller status
+flag using the stored two-register response and returns. The **552-byte**
+routine `[0x102ce4,0x102f0c)` initializes the output record, serializes a
+controller status payload, and contains a bounded checksum routine with an
+architectural Hexagon hardware loop. Both function boundaries are independent
+of Agent 13 and do not overlap another agent's ELF interval.
+
+Two architectural packet details are critical. The far dispatch uses
+`jump ##1976776`; without an explicit Hexagon extender the V66 assembler
+silently emits an incorrectly shortened jump. Two memory operations require
+`:mem_noshuf` to preserve load/store order. Finally, the original
+`[0x102cec,0x102cf8)` packet consists of two ordinary instructions and a
+terminal duplex pair. LLVM's automatic shuffler chooses a different duplex
+from the same mnemonics, so the source owns a **second, typed assembly
+fixture** containing the three named operations as separate legal
+mini-packets. The builder checks that its encoding has parse kinds 11/11/00
+and changes **only** the first two Hexagon parse markers to continuation
+kind 01, producing a single legal original-layout 12-byte packet. No OEM
+raw instruction words, `.word` directives, or `.incbin` payloads are present;
+the combined packet is independently built under both LLVM 22/V66 and
+LLVM 6/V65 and checked against the pinned firmware. Packet framing for the
+entire function is validated on the resulting bytes.
+
+Full generated contiguous code `[0x1001c4,0x102f0c)` is **11,592 bytes**;
+separate dispatch tables remain **496 bytes** at `[0x2f6cd0,0x2f6ec0)`,
+total **12,088 source-derived bytes**, with zero mismatches and zero
+copied external reference bytes or hidden layout padding. All 160 Rust
+tests passed, 110 Python tests discovered (88 executed successfully, 22
+skipped for optional external dependencies), and release build passed.
+The next function starts at `0x102f0c`. Code encoding equivalence is not
+proof of original high-level semantics or hardware boot.

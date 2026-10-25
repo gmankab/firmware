@@ -60,6 +60,10 @@ class Region:
     sha256: str
     checkpoint: int
     classification: str
+    # For rare packets where LLVM's shuffler pairs a different duplex,
+    # explicitly join independently assembled mini-packets using ISA parse
+    # bits, not private raw instructions. Each is (byte_offset, source path).
+    packet_joins: tuple[tuple[int, str], ...] = ()
 
     @property
     def size_bytes(self) -> int:
@@ -132,8 +136,29 @@ def validate_registry(payload: dict, root: Path = ROOT) -> list[Region]:
         resolved = root.joinpath(*relative.parts).resolve()
         if not resolved.is_relative_to(source_directory):
             raise BuildError(f"{name}: source is outside the WLAN source directory")
+        joins = entry.get("packet_joins", [])
+        if not isinstance(joins, list):
+            raise BuildError(f"{name}: packet_joins must be a list")
+        validated_joins = []
+        prev_join_end = 0
+        for join in joins:
+            if not isinstance(join, dict) or set(join) != {"offset", "fixture"}:
+                raise BuildError(f"{name}: packet_join must contain offset and fixture")
+            offset = _integer(join["offset"], f"{name}.packet_join.offset")
+            if offset < prev_join_end or offset % 4 or offset + 12 > end - start:
+                raise BuildError(f"{name}: packet join overlaps or leaves the region")
+            fixture = join["fixture"]
+            if not isinstance(fixture, str) or "\\" in fixture:
+                raise BuildError(f"{name}: fixture path must be relative")
+            fp = PurePosixPath(fixture)
+            if fp.is_absolute() or ".." in fp.parts or fp.suffix != ".S":
+                raise BuildError(f"{name}: unsafe fixture path")
+            if not root.joinpath(*fp.parts).resolve().is_relative_to(source_directory):
+                raise BuildError(f"{name}: packet fixture leaves owned source directory")
+            prev_join_end = offset + 12
+            validated_joins.append((offset, fixture))
         regions.append(Region(name, start, end, source, symbol, digest,
-                              checkpoint, "executable"))
+                              checkpoint, "executable", tuple(validated_joins)))
         names.add(name)
         symbols.add(symbol)
         previous_end = end
@@ -205,13 +230,54 @@ def _source_bytes(region: Region) -> bytes:
     return source
 
 
-def _assemble(region: Region, source: Path, llvm_mc: str, cpu: str, obj: Path) -> bytes:
+def _typed_three_word_packet(fixture: Path, llvm_mc: str, cpu: str,
+                             obj: Path) -> bytes:
+    """Build 2 full A32-style Hexagon words plus a duplex from source.
+
+    Hexagon packet parse flags encode boundaries in word bits 15:14:
+    01 = continuation, 00 = final duplex, 11 = final ordinary. We assemble
+    each *named mnemonic mini-packet*, require 11,11,00 and convert only
+    their two independent packet terminators into continuation markers.
+    This is a structural ISA operation, not an OEM opcode-byte override.
+    """
+    try:
+        text = fixture.read_text()
+    except (OSError, UnicodeError) as exc:
+        raise BuildError(f"cannot read packet source fixture {fixture}: {exc}") from exc
+    without_comments = re.sub(r"//[^\n]*", "", text)
+    if re.search(r"(?:^|;)\s*\.(?:byte|word|long|short|incbin|fill|org)\b",
+                 without_comments, re.MULTILINE):
+        raise BuildError("packet fixture contains a prohibited raw-data directive")
+    _run([str(llvm_mc), "-triple=hexagon", f"-mcpu={cpu}",
+          "-filetype=obj", "-o", str(obj), str(fixture)])
+    try:
+        source_words = startup.read_resolved_text(obj.read_bytes(), 12)
+    except (OSError, startup.FragmentError) as exc:
+        raise BuildError(f"cannot assemble named packet fixture: {exc}") from exc
+    words = struct.unpack("<3I", source_words)
+    if [(w >> 14) & 3 for w in words] != [3, 3, 0]:
+        raise BuildError("packet fixture must encode two ordinary minis and a duplex")
+    return struct.pack("<3I", (words[0] & ~0xC000) | 0x4000,
+                       (words[1] & ~0xC000) | 0x4000, words[2])
+
+
+def _assemble(region: Region, source: Path, llvm_mc: str, cpu: str,
+              obj: Path) -> bytes:
     _run([str(llvm_mc), "-triple=hexagon", f"-mcpu={cpu}", "-filetype=obj",
           "-o", str(obj), str(source)])
     try:
-        return startup.read_resolved_text(obj.read_bytes(), region.size_bytes)
+        assembled = startup.read_resolved_text(obj.read_bytes(), region.size_bytes)
     except (OSError, startup.FragmentError) as exc:
         raise BuildError(f"{region.name}: {exc}") from exc
+    for number, (offset, fixture_name) in enumerate(region.packet_joins):
+        fixture = ROOT.joinpath(*PurePosixPath(fixture_name).parts)
+        mini_obj = obj.parent / f"{obj.stem}-join{number}.o"
+        combined = _typed_three_word_packet(fixture, llvm_mc, cpu, mini_obj)
+        # Prohibit a broken shuffler result that shifts later function bytes.
+        if len(assembled[offset:offset+12]) != len(combined):
+            raise BuildError(f"{region.name}: explicit packet width differs")
+        assembled = assembled[:offset] + combined + assembled[offset+12:]
+    return assembled
 
 
 def _decode(obj: Path, llvm_objdump: str, length: int) -> int:
@@ -288,6 +354,12 @@ def build(llvm_mc: str, reference: Path | None = None,
                             "bytes": len(fragment), "sha256": digest,
                             "source": region.source, "symbol": region.symbol,
                             "source_sha256": hashlib.sha256(source).hexdigest(),
+                            "packet_joins": [
+                                {"offset": ofs, "fixture": fname,
+                                 "fixture_sha256": hashlib.sha256(
+                                     ROOT.joinpath(*PurePosixPath(fname).parts).read_bytes()
+                                 ).hexdigest()}
+                                for ofs, fname in region.packet_joins],
                             "checkpoint": region.checkpoint, "classification": "executable",
                             **_stats(framing), "decoder_word_count": decoded_words})
             encoded.append(fragment)

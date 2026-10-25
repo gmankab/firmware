@@ -483,6 +483,32 @@
       "sha256": "688162ee7314e0dd50ae602d64e281c70b7182fb070ed23c2d6707710a0e4cd1",
       "checkpoint": 12,
       "classification": "executable"
+    },
+    {
+      "name": "request-status-flag-helper",
+      "file_start": 1060048,
+      "file_end": 1060068,
+      "source": "sources/xiaomi-nabu/wlanmdsp/agent14-late-request-status-flag-helper.S",
+      "symbol": "agent14_late_request_status_flag_helper",
+      "sha256": "8fa4ad8fb5772e404c842d764e6148c5c81db76b4b4f850e25554a180c2fb437",
+      "checkpoint": 13,
+      "classification": "executable"
+    },
+    {
+      "name": "status-frame-initialize",
+      "file_start": 1060068,
+      "file_end": 1060620,
+      "source": "sources/xiaomi-nabu/wlanmdsp/agent14-late-status-frame-initialize.S",
+      "symbol": "agent14_late_status_frame_initialize",
+      "sha256": "85e0a04a2c3254983d48ecf76c3d311bd08ea57faf7e24ab658a55c3e9b56b99",
+      "checkpoint": 13,
+      "classification": "executable",
+      "packet_joins": [
+        {
+          "offset": 8,
+          "fixture": "sources/xiaomi-nabu/wlanmdsp/agent14-late-status-frame-duplex.S"
+        }
+      ]
     }
   ]
 }
