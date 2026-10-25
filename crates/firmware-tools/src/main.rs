@@ -286,6 +286,21 @@ fn run() -> Result<(), Box<dyn Error>> {
         println!("Generated 40-byte WMFW metadata header (NOT DSP firmware)");
         return Ok(());
     }
+    if args.len() == 2 && args[0] == "inspect-wmfw-halo-memory" {
+        use firmware_tools::wmfw_halo_memory::{self,HaloMemoryKind};
+        let bytes = fs::read(&args[1])?;
+        firmware_tools::wmfw_plan::verify_container(&bytes)?;
+        for region in firmware_tools::wmfw_plan::regions()? {
+            if let Ok(kind) = HaloMemoryKind::from_wmfw_type(region.kind) {
+                let report = wmfw_halo_memory::summarize(kind, &bytes[region.payload_offset..region.end()])?;
+                println!("{} @ WMFW 0x{:x}: {} packed {}-bit DSP words, {} nonzero (inspection only)",
+                    region.name(), region.payload_offset, report.word_count,
+                    report.word_width_bits, report.nonzero_word_count);
+            }
+        }
+        println!("No HALO opcode semantics decoded and no DSP payload bytes independently rebuilt by this command.");
+        return Ok(());
+    }
     if args.len() == 1 && args[0] == "wmfw-coverage" {
         let plan = firmware_tools::wmfw_plan::partial_container()?;
         println!("Cirrus HALO WMFW v3 independently generated: {} / {} bytes ({} region descriptors)",

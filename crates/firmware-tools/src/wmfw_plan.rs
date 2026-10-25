@@ -7,6 +7,7 @@
 
 use crate::image_plan::ImagePlan;
 use crate::wmfw_algorithms;
+use crate::wmfw_halo_memory::{self,HaloMemoryKind};
 use crate::wmfw_metadata::{build_wmfw_header, WmfwRegionDescriptor, WMFW_REGIONS};
 use crate::{parse_wmfw, wmfw_type_name};
 
@@ -46,14 +47,10 @@ pub fn regions() -> Result<Vec<WmfwLayoutRegion>, String> {
         let payload_offset = cursor.checked_add(DESCRIPTOR_SIZE).ok_or("payload offset overflow")?;
         cursor = payload_offset.checked_add(length).ok_or("payload length overflow")?;
         if cursor > FILE_SIZE { return Err(format!("WMFW region exceeds file at 0x{cursor:x}")); }
-        // Cirrus HALO packed instruction words use 5 bytes. XM/YM packed
-        // DSP data carries 4 bytes per address, but that is NOT a claim that
-        // every 4-byte group is an independent HALO instruction.
-        let bytes_per_word = match *kind {
-            0x10 => Some(5usize),
-            0x11 | 0x12 => Some(4usize),
-            _ => None,
-        };
+        // HALO packed PM has 5 bytes/word; XM/YM use 3 bytes/word.
+        // This is storage mapping, NOT proof of HALO instruction semantics.
+        let bytes_per_word = HaloMemoryKind::from_wmfw_type(*kind)
+            .ok().map(|kind| kind.bytes_per_word());
         let word_count = match bytes_per_word {
             Some(n) if length % n == 0 => Some(length / n),
             Some(n) => return Err(format!("WMFW kind 0x{kind:02x} payload is not divisible by {n}")),
@@ -126,6 +123,16 @@ pub fn verify_container(reference: &[u8]) -> Result<(), String> {
             return Err(format!("WMFW region descriptor differs at 0x{:x}", expected.file_header_offset));
         }
     }
+    for region in known {
+        if let Ok(kind) = HaloMemoryKind::from_wmfw_type(region.kind) {
+            let bytes=reference.get(region.payload_offset..region.end())
+                .ok_or("HALO memory region beyond file")?;
+            let summary=wmfw_halo_memory::summarize(kind,bytes)?;
+            if Some(summary.word_count) != region.word_count {
+                return Err("HALO packed word count differs from checked layout".into());
+            }
+        }
+    }
     partial_container()?.compare_known(reference)
 }
 
@@ -159,7 +166,8 @@ mod tests {
         assert_eq!(rs.len(), REGION_COUNT);
         assert_eq!(rs[7].kind, 0x10);
         assert_eq!(rs[7].word_count, Some(4_056));
-        assert_eq!(rs[6].word_count, Some(1_533));
+        assert_eq!(rs[6].word_count, Some(2_044));
+        assert_eq!(rs[1].word_count, Some(24));
         assert_eq!(rs[0].name(), "INFO_TEXT");
         let plan = partial_container().unwrap();
         assert_eq!(plan.filled_bytes(), 3_984);

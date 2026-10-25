@@ -55,3 +55,15 @@ WMFW v3 length-prefixed serializer produces exactly the 2,100-byte CSPL
 The host-diagnostic parser validates the records and rejects malformed data.
 **Cumulative independently generated metadata: 3,984 / 34,236 bytes.** Seven
 DSP memory payloads are still missing, including all 20,280 program bytes.
+
+## Checkpoint 08-05 — HALO PM/XM/YM packed-memory model
+
+Corrected the memory-mapping model using the Linux Cirrus HALO loader: XM/YM
+are **24-bit packed** (three bytes per DSP word, with four DSP words mapped
+into three 32-bit host registers), while PM uses **40-bit packed** storage
+(five bytes per DSP program word). The reference therefore contains 4,056 PM
+words and 2,044 YM words; the initial 72-byte XM region holds 24 DSP words.
+Added overflow-checked mapping, reversible transport pack/unpack, word-count
+summaries, and bounded-reference checks. These routines **do not decode HALO
+instructions** and **do not increase independent reconstruction coverage**:
+3,984 / 34,236 bytes remains the correct count.
