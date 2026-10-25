@@ -51,3 +51,52 @@ Public protocol references (not firmware content):
 
 - Linux NT36xxx driver parser: https://patchew.org/linux/20241015-nt36xxx-v1-0-3919d0bffee6%40gmail.com/20241015-nt36xxx-v1-2-3919d0bffee6%40gmail.com/
 - NT36523 chip mapping in touchscreen driver: https://android.googlesource.com/kernel/google-modules/touch/novatek_touch/
+
+## Checkpoint 02 — Strict full-image provenance and end padding
+
+The correct 196,608-byte postmarketOS image has another reserved area
+`[0x2f900, 0x2fffd)`, all **1,789 zero bytes**, followed by the constant
+three-byte `NVT` terminator `[0x2fffd, 0x30000)`. A typed writer emits
+these bytes without reading the vendor payload; any nonzero reference in
+the reserved range is **rejected**, not silently overwritten.
+
+`novatek_layout::coverage()` describes **every byte** using seven mutually
+exclusive, gapless regions and refuses overlaps, negative or missing ranges.
+Only independently provable regions count as source-derived data.
+
+| File region | Bytes | Status |
+| --- | ---: | --- |
+| `[0x00000,0x00200)` | 512 | Structured header; vendor CRC scalar inputs remain opaque |
+| `[0x00200,0x1ac80)` | 109,184 | ILM executable/data unknown |
+| `[0x1ac80,0x22000)` | 29,568 | Verified independently emitted zeros |
+| `[0x22000,0x2e190)` | 49,552 | DLM executable/data unknown |
+| `[0x2e190,0x2f900)` | 6,000 | Controller calibration/trailer unknown |
+| `[0x2f900,0x2fffd)` | 1,789 | Verified independently emitted zeros |
+| `[0x2fffd,0x30000)` | 3 | Independently emitted fixed `NVT` marker |
+
+Totals: **31,360 bytes** of fully source-independent layout constants
+(`29,568 + 1,789 + 3`), plus **512 bytes** of metadata serializable from
+external supplied scalar fields, and **164,736 unimplemented payload bytes**
+(`109,184 + 49,552 + 6,000`). These totals sum to **196,608**.
+No part of the unknown executable/data regions is counted as reconstructed,
+even when it happens to contain zeros. Do not call this a complete firmware.
+
+Validate and emit using the *correct* private reference:
+
+```sh
+cargo run --offline --locked -p firmware-tools --bin novatek-nabu -- verify-envelope /private/novatek_nt36523_fw.bin
+cargo run --offline --locked -p firmware-tools --bin novatek-nabu -- emit-tail-padding /private/novatek_nt36523_fw.bin /tmp/novatek-endpad.bin
+cargo run --offline --locked -p firmware-tools --bin novatek-nabu -- emit-marker /private/novatek_nt36523_fw.bin /tmp/novatek-end-marker.bin
+```
+
+Checkpoint 2 also tests mutations of end padding, incompatible input
+lengths, bad marker, and gap/overlap categorization with synthetic images.
+Rust tests, Python tests, and offline release build pass.
+
+### Remaining work
+
+Establish the MCU ISA through trustworthy vendor/SoC evidence before
+claiming source-derived ILM instructions, reverse the hardware CRC algorithm
+from firmware and bootloader driver, decode the packed controller configuration
+area, and build a deterministic full image *only* from independently authored
+payload sources and legitimate checksum values.
