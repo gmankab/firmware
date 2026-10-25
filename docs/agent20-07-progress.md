@@ -282,3 +282,19 @@ physical `[0x8be03030,0x8be03818)`, SHA-256
 Independent Rizin reads the same packet boundaries; next routine begins at
 `0x6818`. This remains a provisional Agent04-based branch awaiting an actual
 checkpoint-50 descendant; source-level semantics/hardware trust are unproven.
+
+## Checkpoint 18: codec feature-mode classifier prefix `[0x6818,0x68bc)`
+
+Added **164 fully source-assembled Hexagon V66 instruction bytes** forming the
+first four bit-pattern cases of a hardware-codec mode matcher. LLVM6 compiles
+all **41 instruction words** from readable predicates, shifts, explicit
+`immext` operations and PC-relative branches with the correct physical
+addresses; no typed privileged substitutions or opaque word arrays are
+needed. Rizin's V66 decoder independently confirms the `.new` predicate
+packet groupings. The function is **incomplete**, with branches into code not
+yet reconstructed; no synthetic return or implicit zeros have been added.
+
+The continuous source-built RWE region is **2,188 bytes**, ADSP MBN file
+`[0x6030,0x68bc)` / physical `[0x8be03030,0x8be038bc)`, SHA-256
+`f52c0d96b6bfa2ebe7b63cfbb755e504967e7fb67d80f735845c2a3bce44f37e`.
+The next instruction to recover is file `0x68bc`.
