@@ -83,3 +83,11 @@ git diff --check
 - Independent Clang/LLVM reassembly of the **296 mnemonics**, with PC-relative branches and external BL targets resolved using expression-relative offsets, reproduces every instruction byte. The typed Rust emitter and the pinned `venus.mbn` also match; no reference OEM instruction array was imported into the Rust module.
 - Combined contiguous typed reconstruction `[0x40a2c,0x43ff0)` is **13,764 bytes**, comprising **3,415 executable A32 instructions = 13,660 bytes** and **26 separately identified literal data words = 104 bytes**. Full original-reference check compares all eight adjacent regions and reports zero differences.
 - Next confirmed function entry at `0x43ff0` (file offset `0x47ff0`), inside Agent 04 reservation `[0x40000,0x68000)`. Prefix `[0x40000,0x40a2c)` remains unimplemented, as previously documented.
+
+## Checkpoint 08 — controller format initialization (partial function)
+
+- Added `[0x43ff0,0x45000)`: **4,112 typed executable bytes = 1,028 A32 instructions**, MBN file `[0x47ff0,0x49000)`; the source directly encodes A32 operand forms including conditional flag-setting arithmetic, signed-byte register loads, indexed byte loads, and conditional controller writes. The function continues **past 0x45000**; no return or adjacent implementation is implied.
+- Independent Clang/LLVM reassembly of all 1,028 mnemonic instructions from ARM architecture operands, using same-section branch labels and relative external targets, agrees byte-for-byte with the typed Rust output and original pinned `venus.mbn`.
+- New **contiguous** source-derived fragment `[0x40a2c,0x45000)` = **17,876 byte-identical bytes**, of which **4,443 ARM32 instructions (17,772 bytes)** and 26 literal-data words (104 bytes). No OEM executable words, unknown gaps or original-file payload arrays are imported into source. The bytes before runtime `0x40a2c` remain unknown in this agent's reservation.
+- Testing: normal offline workspace Rust and Python suites pass. The default optimized release compile exceeded this execution session's per-command time limit; `CARGO_PROFILE_RELEASE_OPT_LEVEL=0 cargo build --workspace --release --offline --locked` succeeds. Do **not** claim default optimized release compilation passed at this checkpoint.
+- Next uncovered runtime `0x45000`, file offset `0x49000`. Agent 04 still owns through `0x68000` exclusively.
