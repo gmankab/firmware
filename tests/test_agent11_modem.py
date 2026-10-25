@@ -28,7 +28,7 @@ class ModemAgent11Tests(unittest.TestCase):
         if not llvm: self.skipTest("set AGENT11_LLVM_MC for external tool verification")
         source=SCRIPT.parent.parent/"crates/firmware-tools/src/devices/xiaomi_nabu/modem_entry_followup.s"
         data=module.assemble(Path(llvm),source)
-        self.assertEqual(len(data),328)
+        self.assertEqual(len(data),440)
         # Structural assertion checks the two adjacent word loads are in
         # one duplex slot and the final instruction is a packet-ending return.
         words=[int.from_bytes(data[n:n+4],"little") for n in range(0,len(data),4)]
@@ -41,7 +41,8 @@ class ModemAgent11Tests(unittest.TestCase):
         self.assertEqual(words[36]&0xc000,0x4000) # predicate in 4-word packet
         self.assertEqual(words[39]&0xc000,0xc000) # predicated update closes packet
         self.assertEqual(words[46]&0xc000,0xc000) # protected S-register setup
-        self.assertEqual(words[-2]&0xc000,0xc000) # fatal reset jump
-        self.assertEqual(words[-1]&0xc000,0xc000) # final brkpt
+        self.assertEqual(words[81]&0xc000,0xc000) # fault brkpt at 0x419c
+        self.assertEqual(words[-1]&0xc000,0xc000) # status shim jumpr r13
+        self.assertEqual(words[95]&0xc000,0xc000) # controller register barrier
 
 if __name__=='__main__':unittest.main()

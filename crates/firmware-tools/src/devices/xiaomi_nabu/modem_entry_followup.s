@@ -175,3 +175,43 @@ MODEM_PHY_WORD_LOAD 23,22,23
 }
 { jump modem_reset_recovery }
 { brkpt }
+
+// Reset three controller status flags, then transfer control to register
+// configuration. These MMIO data constants are authored as device fields.
+.globl agent11_modem_reset_controller_flags
+agent11_modem_reset_controller_flags:
+{ r0 = ##68288576 }
+{ memw(r0+#0) = ##7 }
+{ r0 = ##68288580 }
+{ memw(r0+#0) = ##7 }
+{ r0 = ##68288584 }
+{ memw(r0+#0) = ##7 }
+{ barrier }
+.set modem_initialize_mmio, agent11_modem_protected_state_entry + 0xf4
+{ jump modem_initialize_mmio }
+
+// Three-parameter return shim polls a mutable controller status counter
+// before transferring its operands to the next bootstrap using r13.
+.globl agent11_modem_await_counter
+agent11_modem_await_counter:
+{
+    r8 = r1
+    r9 = r2
+    r10 = r3
+}
+{ r2 = r0 }
+{ r0 = ##68296704 }
+{ r1 = memw(r0+#0) }
+modem_wait_for_change:
+{ r3 = memw(r0+#0) }
+{ r3 = sub(r3,r1) }
+{
+    p0 = cmp.gtu(r3,r2)
+    if (!p0.new) jump:t modem_wait_for_change
+}
+{
+    r1 = r8
+    r2 = r9
+    r3 = r10
+}
+{ jumpr r13 }

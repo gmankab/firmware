@@ -47,3 +47,10 @@ python3 -m unittest discover -s tests -p 'test_*.py'
 - Preserves paired privileged writes S50/S48/S44, scalar S47/S52 and S16/S27 reads, a packet-local `.new` compare against protected status, two protected physical page reads and its two fault-handler branches to modem file `0x4a00`. LLVM6 requires `jump:t ##target` to preserve the original extender even where a shorter equivalent branch might fit.
 - A dead-end fallback jump returns to modem file `0x3020` and the matching break instruction terminates this stage. No proprietary reference opcodes were copied into source; all register-transfer encodings derive from checked ISA macros and LLVM6.
 - Full Agent 11 `[file 0x4058,0x41a0)` = **328 bytes**, matched to pinned `modem.mbn` with zero differences. Combined first PT_LOAD source `[0x3000,0x41a0)` = **4,512 bytes** (3,300 executable + 412 metadata + 800 deterministic fill). Next uncovered file byte `0x41a0`.
+
+## Checkpoint 05 — Controller MMIO reset and counter-polled handoff
+
+- File `[0x41a0,0x4210)` adds **112 exact Hexagon V60 instruction bytes** with explicitly authored three absolute MMIO stores of value 7, barrier, a branch forward to register configuration and an 8/9/10-register saved-argument shim.
+- The shim polls a controller-owned word for a change greater than the requested value, then forwards r8/r9/r10 as r1/r2/r3 and tail-jumps via r13. It preserves the multi-instruction `.new` predicate packet before the loop-back branch.
+- LLVM6 reproduces the complete `[0x4058,0x4210)` Agent 11 prefix (**440 bytes**) with zero differences against the SHA-pinned reference; combined with Agent 6 this yields a continuous **4,624-byte** first-load prefix `[0x3000,0x4210)` = **3,412 executable**, 412 source-structured metadata, 800 deterministic alignment.
+- Next first missing modem file address: `0x4210`, physical `0x8e001210`. Authentication and all later mapped firmware remain incomplete.
