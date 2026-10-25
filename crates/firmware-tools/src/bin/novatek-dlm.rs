@@ -10,6 +10,7 @@
 #[path = "../devices/xiaomi_nabu/novatek_dlm_gaussian.rs"] mod novatek_dlm_gaussian;
 #[path = "../devices/xiaomi_nabu/novatek_dlm_schedule_links.rs"] mod novatek_dlm_schedule_links;
 #[path = "../devices/xiaomi_nabu/novatek_dlm_bank_transform.rs"] mod novatek_dlm_bank_transform;
+#[path = "../devices/xiaomi_nabu/novatek_dlm_control_candidates.rs"] mod novatek_dlm_control_candidates;
 #[path = "../devices/xiaomi_nabu/novatek_dlm_envelope.rs"] mod novatek_dlm_envelope;
 #[path = "../devices/xiaomi_nabu/novatek_dlm_provenance.rs"] mod novatek_dlm_provenance;
 
@@ -131,6 +132,12 @@ fn run()->Result<(),String> {
             let count=novatek_dlm_bank_transform::verify_against_supplied_reference(&image)?;
             println!("Verified {count} reference-dependent DLM descriptor bytes in two bank pairs; zero new independent source-byte credit");
         }
+        Some("inspect-control-candidates") if args.len()==2 => {
+            let image=fs::read(&args[1]).map_err(|e|e.to_string())?;
+            if hex_digest(&image)!=REFERENCE_SHA256 {return Err("reference SHA-256 mismatch".into());}
+            let (mirrored,classified)=novatek_dlm_control_candidates::verify_reference_assisted_candidates(&image)?;
+            println!("Candidate 40-bit recurrence matches {mirrored} reference bytes; adjacent {classified} externally supplied transfer bytes have valid five-byte structure. ZERO new source-authored DLM credit; operation bits and record payload semantics are not established.");
+        }
         Some("check-envelope") if args.len()==2 => {
             let image=fs::read(&args[1]).map_err(|e|e.to_string())?;
             let a=novatek_dlm_envelope::verify_envelope(&image)?;
@@ -148,7 +155,7 @@ fn run()->Result<(),String> {
             println!("Emitted {} data fragments ({} bytes), with explicit holes retained in the provenance manifest.",
                 parts.len(),parts.iter().map(|part|part.bytes.len()).sum::<usize>());
         }
-        _=>return Err("usage: novatek-dlm ledger | emit <directory> | verify-reference <pinned-image.bin> | check-envelope <image.bin> | verify-bank-pairs <pinned-image.bin>".into()),
+        _=>return Err("usage: novatek-dlm ledger | emit <directory> | verify-reference <pinned-image.bin> | check-envelope <image.bin> | verify-bank-pairs <pinned-image.bin> | inspect-control-candidates <pinned-image.bin>".into()),
     }
     Ok(())
 }

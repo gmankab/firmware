@@ -132,6 +132,47 @@ class PackedScheduleTests(unittest.TestCase):
             dlm.wide_schedule(-1)
 
 
+class UncreditedCommandCandidatesTests(unittest.TestCase):
+    def test_observed_40bit_recursion_has_32_phase_mirror_records(self):
+        actual = dlm.mirrored_control_candidate()
+        self.assertEqual(len(actual), 160)
+        for i, chunk in enumerate(actual[j:j+5] for j in range(0,160,5)):
+            raw = int.from_bytes(chunk, "little")
+            row = i // 4
+            selected = (16 + row) if i % 4 < 2 else (31 - row)
+            self.assertEqual((raw >> 24) & 0x1f, selected)
+            self.assertEqual((raw >> 23) & 1, i % 2)
+            self.assertEqual(raw & ~((0x1f << 24) | (1 << 23)), 0x8000064800)
+
+    def test_uncredited_40bit_and_external_records_do_not_enter_source_ledger(self):
+        image = bytearray(0x2d4be)
+        image[0x2d3b0:0x2d450] = dlm.mirrored_control_candidate()
+        for i in range(22):
+            image[0x2d450 + i*5:0x2d450 + i*5 + 5] = bytes((0x20,0x00,(0x02,0x19,0x32)[i%3],i,0x88))
+        report = dlm.verify_uncredited_candidates(image)
+        self.assertEqual(report["candidate_mathematically_matched_bytes"],160)
+        self.assertEqual(report["external_transfer_structurally_validated_bytes"],110)
+        self.assertEqual(report["additional_source_owned_bytes"],0)
+        self.assertFalse(report["source_generation_semantics_proven"])
+        self.assertFalse(any(start <= 0x2d3b0 < start + len(data)
+                             for start,_,data in dlm.generated_fragments()))
+        image[0x2d3b1] ^= 1
+        with self.assertRaisesRegex(ValueError,"recurrence"):
+            dlm.verify_uncredited_candidates(image)
+        image[0x2d3b1] ^= 1
+        image[0x2d450] ^= 1
+        with self.assertRaisesRegex(ValueError,"external transfer"):
+            dlm.verify_uncredited_candidates(image)
+
+    @unittest.skipUnless(os.environ.get("NOVATEK_REFERENCE"),"pinned Novatek reference not supplied")
+    def test_pinned_reference_matches_only_uncredited_candidate(self):
+        image = Path(os.environ["NOVATEK_REFERENCE"]).read_bytes()
+        self.assertEqual(__import__("hashlib").sha256(image).hexdigest(),dlm.REFERENCE_SHA256)
+        result = dlm.verify_uncredited_candidates(image)
+        self.assertEqual(result["candidate_mathematically_matched_bytes"],160)
+        self.assertEqual(result["additional_source_owned_bytes"],0)
+
+
 class GaussianAndCrcTests(unittest.TestCase):
     def test_machin_pi_decimal_density_and_rounding_margin(self):
         self.assertTrue(str(dlm.decimal_pi()).startswith("3.14159265358979323846264338327950288419716939937510"))

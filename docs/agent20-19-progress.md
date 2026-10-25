@@ -311,3 +311,42 @@ verification does not upgrade the unproven flag or any copied descriptor
 payload. This remains a portable older-base contribution from parent
 `941c805f8510c88344133687a77722ace386504e`, not a checkpoint-50
 integrated or flashable firmware.
+
+## Checkpoint 06 — 40-bit control recurrence and adjacent external record structure (UN-CREDITED)
+
+Examining file `[0x2d3b0,0x2d450)` reveals an exact recurrence of **32
+little-endian 40-bit words**: for each `i=0..7`, select `16+i` then `31-i`;
+for each selector, take phase `0` and `1`. Serialize the low five bytes of
+`0x8000064800 | (selector << 24) | (phase << 23)`. The 160-byte recurrence
+can be emitted without copying an OEM payload; Rust and an independently
+implemented Python encoder generate identical bytes. The fixed operation
+field `0x8000064800` is still an **observation**, not a proven command
+instruction. Neither an independent NDS32 consumer nor a documented Novatek
+DSP/controller command specification has yet established what it means.
+
+The adjacent file `[0x2d450,0x2d4be)` comprises **22** five-byte records,
+all with a `0x20,0x00` prefix and a third-byte class in `{0x02,0x19,0x32}`.
+Their two-byte payloads vary and are **only parsed from externally supplied
+reference bytes**; they are NOT mathematically derived or embedded in Git.
+The observed 110 bytes are checked for length, allowed classes, and fixed
+prefix. Corrupt lengths, packet classes and prefixes are rejected.
+
+Both spans are an **unproven candidate** useful for future controller-driver
+work. They are excluded from `novatek_dlm::generated_fragments()` and
+`SourceDlmData`, preserving these checkpoint-05 accounting totals exactly:
+
+| Category | Bytes |
+|---|---:|
+| Independent DLM data | **9,340** |
+| Unresolved DLM | **40,212** |
+| Candidate recurrence re-encoded but uncredited | 160 |
+| External transfer-record structure classified but uncredited | 110 |
+| New source-executable bytes | **0** |
+
+`novatek-dlm inspect-control-candidates <pinned-reference>` checks both
+observations only after SHA-256 pinning the **postmarketOS** revision. The
+same structures are evaluated by a separate Python model and Rust tests;
+this command explicitly prints **zero additional source credit**. The
+remaining DLM tables contain irregular tuning/calibration samples for which
+neither authoring algorithms nor hardware calibration measurements were
+provided. A reference-derived match alone must not be counted as source.

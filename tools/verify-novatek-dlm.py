@@ -156,6 +156,50 @@ def gaussian_kernel(sigma_tenths):
         return struct.pack("<81H", *samples), minimum, closest_x
 
 
+# The 40-bit control-word recurrence is only an UNPROVEN candidate; it is
+# never included in generated_fragments() or credited to source_dlm_data.
+MIRRORED_CONTROL_START = 0x2d3b0
+MIRRORED_CONTROL_END = 0x2d450
+TRANSFER_CONTROL_START = 0x2d450
+TRANSFER_CONTROL_END = 0x2d4be
+
+
+def mirrored_control_candidate():
+    out = bytearray()
+    for row in range(8):
+        for selector in (16 + row, 31 - row):
+            for phase in (0, 1):
+                value = 0x8000064800 + (selector << 24) + (phase << 23)
+                out.extend(struct.pack("<Q", value)[:5])
+    assert len(out) == 160
+    return bytes(out)
+
+
+def inspect_external_five_byte_transfers(image):
+    span = image[TRANSFER_CONTROL_START:TRANSFER_CONTROL_END]
+    if len(span) != 110:
+        raise ValueError("reference transfer span incomplete")
+    result = []
+    for i in range(22):
+        block = span[5 * i:5 * (i + 1)]
+        if block[:2] != b"\x20\x00" or block[2] not in (0x02, 0x19, 0x32):
+            raise ValueError(f"unsupported external transfer word at index {i}")
+        result.append((block[2], struct.unpack("<H", block[3:])[0]))
+    return result
+
+
+def verify_uncredited_candidates(image):
+    expected = mirrored_control_candidate()
+    span = image[MIRRORED_CONTROL_START:MIRRORED_CONTROL_END]
+    if len(span) != len(expected) or span != expected:
+        raise ValueError("reference-assisted 40-bit recurrence is not reproduced")
+    transfers = inspect_external_five_byte_transfers(image)
+    return {"candidate_mathematically_matched_bytes": len(expected),
+            "external_transfer_structurally_validated_bytes": 5 * len(transfers),
+            "additional_source_owned_bytes": 0,
+            "source_generation_semantics_proven": False}
+
+
 def generated_fragments():
     fragments = []
     for start, name, rows, generator, translated in (
