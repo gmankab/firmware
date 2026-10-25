@@ -68,6 +68,9 @@ FRAGMENTS = {
     'buffer-bitfield': (TOOLS / 'adsp-late-buffer-bitfield.S', 0x3BA68, 0x58),
     'descriptor-tag-compare': (TOOLS / 'adsp-late-descriptor-tag-compare.S', 0x3BFB8, 0x14),
     'atomic-event-bit': (TOOLS / 'adsp-late-atomic-event-bit.S', 0x3BFCC, 0x44),
+    'packet-type-check': (TOOLS / 'adsp-late-packet-type-check.S', 0x3D048, 0x14),
+    'stack-marshaller': (TOOLS / 'adsp-late-stack-marshaller.S', 0x3D05C, 0x3C),
+    'controller-shutdown-adapter': (TOOLS / 'adsp-late-controller-shutdown-adapter.S', 0x3D098, 0x30),
 }
 
 class LateAdspError(ValueError):

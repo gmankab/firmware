@@ -316,3 +316,23 @@ ADSP executable segments remain mostly unreconstructed. All 160 Rust and
 155 Python tests, release build, reference check and Git diff validation pass.
 The branch remains provisional until integration onto the original
 checkpoint-50-descended repository.
+
+**Checkpoint 22 — packet type, six-slot stack marshalling and shutdown tail:**
+Three adjacent source-assembled Hexagon V66-compatible routines at
+`[file 0x3d048,0x3d0c8)` reproduce **128 executable bytes exactly**.
+The 20-byte packet-type check at `[0x3d048,0x3d05c)` checks class 19 and
+an associated platform descriptor. The 60-byte stack marshaller at
+`[0x3d05c,0x3d098)` copies six argument slots into a 24-byte outgoing
+frame before forwarding platform work. The 48-byte shutdown adapter at
+`[0x3d098,0x3d0c8)` obtains a shared controller handle, invokes its
+cleanup and tail-jumps into an existing epilogue. Hexagon packet bounds,
+new-register dependencies and PC-relative calls are expressed as source
+instruction groups and symbolic `.set` labels, not original firmware
+opcode arrays. The original ELF32 ADSP reference has pinned SHA-256
+`4b579e5dc1333d634e5bdc93f3314e357e0e30dab7140833f6cc7aef086b1c1e`.
+Each fragment's independently assembled output matches that reference,
+with individual SHA-256s recorded in the emitted coverage manifest.
+**Cumulative independent executable coverage: 2,956 bytes across 42
+verified fragments** (2,828 preexisting + 128 new). The rest of ADSP
+executable is still largely unknown; no structural padding or OEM
+payload is counted as rebuilt source.

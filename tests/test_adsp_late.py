@@ -72,6 +72,33 @@ class ADSPExternalsAndCodeTests(unittest.TestCase):
         self.assertEqual(built[0x14:0x18], adsp.compile_source(LLVM_MC,SOURCE,0x54)[0x14:0x18])
         with self.assertRaisesRegex(adsp.LateAdspError, 'reference'):
             adsp.verify_slice(built,b'WRONG MBN',0x39000)
+    @unittest.skipUnless(LLVM_MC, 'LLVM6 Hexagon assembler required')
+    def test_three_adjacent_controller_helper_functions(self):
+        expected={
+          'packet-type-check':(0x3d048,20,'a51007446642cff9413dd1ec00a9cc0c114e7053ba7532039fdd24665bd3a099'),
+          'stack-marshaller':(0x3d05c,60,'ead3c85cb8d40d603887c843ecd41f24b0b7d8bf015aa1287cd4e34125218912'),
+          'controller-shutdown-adapter':(0x3d098,48,'661c544275b730cc2e4e6208660b3680404b019e419c62f20251cad398966a05'),
+        }
+        outputs=[]
+        for name,(off,size,digest) in expected.items():
+            with self.subTest(name=name):
+                src,begin,length=adsp.FRAGMENTS[name]
+                self.assertEqual((begin,length),(off,size))
+                text=src.read_text()
+                for forbidden in ('.word ','.long ','.byte ','.incbin ','.fill '):
+                    self.assertNotIn(forbidden,text)
+                b=adsp.compile_source(LLVM_MC,src,length)
+                self.assertEqual(hashlib.sha256(b).hexdigest(),digest)
+                if REFERENCE: adsp.verify_slice(b,Path(REFERENCE).read_bytes(),begin)
+                outputs.append(b)
+        self.assertEqual(len(b''.join(outputs)),0x80)
+        self.assertEqual(adsp.FRAGMENTS['packet-type-check'][1]+20,0x3d05c)
+        self.assertEqual(adsp.FRAGMENTS['stack-marshaller'][1]+60,0x3d098)
+        self.assertEqual(adsp.FRAGMENTS['controller-shutdown-adapter'][1]+48,0x3d0c8)
+        self.assertIn('if (!p0.new) jump:t next_function',adsp.FRAGMENTS['packet-type-check'][0].read_text())
+        self.assertIn('memw(r29+#20) = r6.new',adsp.FRAGMENTS['stack-marshaller'][0].read_text())
+        self.assertIn('jump platform_tail',adsp.FRAGMENTS['controller-shutdown-adapter'][0].read_text())
+
     @unittest.skipUnless(LLVM_MC,'Hexagon LLVM6 assembler required')
     def test_zero_memory_source_is_signed_length_bounded(self):
         source = adsp.FRAGMENTS['zero-memory'][0]
@@ -170,9 +197,9 @@ class ADSPExternalsAndCodeTests(unittest.TestCase):
     @unittest.skipUnless(LLVM_MC,'Hexagon LLVM6 assembler required')
     def test_complete_fragment_inventory_rejects_overlaps(self):
         manifest,regions=adsp.assembled_inventory(LLVM_MC,None)
-        self.assertEqual(len(manifest['fragments']),39)
-        self.assertEqual(manifest['total_independently_assembled_executable_bytes'],2828)
-        self.assertEqual(sum(map(len,regions.values())),2828)
+        self.assertEqual(len(manifest['fragments']),42)
+        self.assertEqual(manifest['total_independently_assembled_executable_bytes'],2956)
+        self.assertEqual(sum(map(len,regions.values())),2956)
         self.assertEqual(manifest['gap_bytes_included_in_generated_executables'],0)
         self.assertFalse(manifest['complete_adsp_image'])
         self.assertEqual(manifest['external_original_code_bytes_in_output'],0)
@@ -339,7 +366,7 @@ class ADSPExternalsAndCodeTests(unittest.TestCase):
     def test_inventory_every_fragment_uses_correct_original(self):
         inventory,_outputs=adsp.assembled_inventory(LLVM_MC,Path(REFERENCE).read_bytes())
         self.assertTrue(all(x['reference_byte_identical'] for x in inventory['fragments']))
-        self.assertEqual(inventory['total_independently_assembled_executable_bytes'],2828)
+        self.assertEqual(inventory['total_independently_assembled_executable_bytes'],2956)
 
     @unittest.skipUnless(LLVM_MC and REFERENCE,
                          'Hexagon LLVM6 and exact pinned ADSP reference required')
@@ -353,7 +380,7 @@ class ADSPExternalsAndCodeTests(unittest.TestCase):
                 adsp.verify_slice(built,original,off)
                 total+=len(built)
                 ranges.append((off,off+size))
-        self.assertEqual(total,2828)
+        self.assertEqual(total,2956)
         ranges.sort()
         self.assertEqual(ranges[0],(0x39000,0x39054))
         self.assertEqual(ranges[-1],(0x3640a8,0x3640f8))
