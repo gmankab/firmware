@@ -53,3 +53,17 @@ python3 tools/build-wlanmdsp-agent13.py /tmp/wlan-prefix-through-27a0.bin \
 - The full prefix rebuilt from Agent7 and Agent13 source is `[0x40000,0x42aa4)` = **10,916 layout bytes**, SHA-256 `69e77fe4dc061d8f69b49e0ff6e1ff4dacc0817a2a60730be62c623536ab2b43`, all reference-identical. Of these, **7,140 independently re-encoded instructions** and **3,776 prior linker fill**.
 - `cargo test --workspace --offline --locked -q`: **160 Rust tests passed**. Python test discovery: **22 tests, 20 passed, 2 skipped**. Offline release build: passed. Direct reference SHA, ELF segment and full-region comparison: passed.
 - Next function begins at file `0x42aa4`, VMA `0xb0002aa4`. No bytes above this boundary are claimed.
+
+## Checkpoint 04 — frame dispatch, array walk, metadata and session guards
+
+- Added **704 independently re-encoded executable bytes** `[file 0x42aa4,0x42d64)`, corresponding to VMA `[0xb0002aa4,0xb0002d64)`, across six complete Hexagon V66 routines:
+  - 296-byte record-type dispatcher (`0x42aa4–0x42bcc`), including a bounded indirect function-table lookup from pre-existing controller state and logging for type 18/19; no table content copied from OEM.
+  - 56-byte bounded array walker (`0x42bcc–0x42c04`), conditional diagnostic execution on each record.
+  - 76-byte metadata-report wrapper and platform-jump thunk (`0x42c04–0x42c50`).
+  - 60-byte auxiliary metadata report (`0x42c50–0x42c8c`).
+  - 164-byte two-table runtime-session seed (`0x42c8c–0x42d30`), including conditional index wiring.
+  - 52-byte null-record guard (`0x42d30–0x42d64`).
+- Each code interval matches exact original bytes, checked independently with LLVM22 `hexagonv66`, original firmware checksum/profile comparison and segment mapping. Source uses named packet semantics, never opaque instruction arrays.
+- Total Agent13 independently assembled code `[0x42708,0x42d64)` = **1,628 instruction bytes** SHA-256 `9fffffcb5f33321138dd7c98c1c2a7aa2967f71f650050c4ba766e0b2e80292e`.
+- Source-built joined prefix `[0x40000,0x42d64)` = **11,620 matching layout bytes**, SHA-256 `03111a4e49b3a0583b7564e020d1ac064ec6ee2f718cd095ef693df1a03d2920`; composed of **7,844 instruction bytes** (6,216 Agent7 + 1,628 Agent13) plus **3,776 linker fill**.
+- 160 offline Rust tests passed; 22 Python tests discovered (20 passed, 2 skipped), offline release build passed. Direct reference hash+ELF+byte comparison passed. Next function begins at file `0x42d64`, VMA `0xb0002d64`.
