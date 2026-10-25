@@ -169,6 +169,19 @@ pub fn load_halfword(condition: Condition, rd: Register, rn: Register,
     Ok(store_halfword(condition, rd, rn, signed_offset)? | (1 << 20))
 }
 
+/// A32 register-offset halfword transfer, pre-indexed without writeback.
+/// A32 uses a different addressing-field layout from word loads/stores:
+/// the register offset is only Rm (no barrel shift), with bits 7 and 4 set.
+pub fn transfer_halfword_register(condition: Condition, load: bool,
+                                  rd: Register, rn: Register, rm: Register)
+                                  -> Result<u32, String> {
+    if [rd, rn, rm].contains(&Register::PC) {
+        return Err("PC is not valid in A32 register-indexed halfword transfers".into());
+    }
+    Ok(cond(condition) | 0x0180_00b0 | (if load { 1 << 20 } else { 0 })
+       | (rn.number() << 16) | (rd.number() << 12) | rm.number())
+}
+
 /// A32 signed halfword load with a checked signed imm8 displacement.
 /// This uses the halfword transfer's split eight-bit immediate field.
 pub fn load_signed_halfword(condition: Condition, rd: Register, rn: Register,
@@ -446,6 +459,24 @@ pub fn push_registers(condition: Condition, registers: u16) -> Result<u32, Strin
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn register_offset_halfword_encoding_and_rejections() {
+        let r4=Register::new(4).unwrap();
+        let r9=Register::new(9).unwrap();
+        assert_eq!(transfer_halfword_register(Condition::Al,false,
+            Register::R0,r4,Register::R1).unwrap(),0xe184_00b1);
+        assert_eq!(transfer_halfword_register(Condition::Al,false,
+            Register::R0,r4,r9).unwrap(),0xe184_00b9);
+        assert_eq!(transfer_halfword_register(Condition::Al,true,
+            Register::R0,r4,r9).unwrap(),0xe194_00b9);
+        assert_eq!(transfer_halfword_register(Condition::Al,false,
+            Register::R1,r4,Register::R2).unwrap(),0xe184_10b2);
+        assert!(transfer_halfword_register(Condition::Al,true,
+            Register::R0,Register::PC,r9).is_err());
+        assert!(transfer_halfword_register(Condition::Al,false,
+            Register::PC,r4,r9).is_err());
+    }
+
     #[test]
     fn teq_always_updates_flags_and_has_no_destination() {
         // Independently disassembled A32 `teq r1, r2` = e1310002.
