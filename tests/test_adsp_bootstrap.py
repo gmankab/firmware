@@ -97,8 +97,9 @@ class ADSPBootstrapTests(unittest.TestCase):
                      adsp.assemble_tlb_map(LLVM_MC) +
                      adsp.assemble_tlb_flush(LLVM_MC) +
                      adsp.assemble(LLVM_MC, adsp.CACHELINE_COPY_SOURCE, 0x78) +
-                     adsp.assemble(LLVM_MC, adsp.MEMORY_COPY_SOURCE, 0x40))
-        self.assertEqual(len(generated), 0x6f0)
+                     adsp.assemble(LLVM_MC, adsp.MEMORY_COPY_SOURCE, 0x40) +
+                     adsp.assemble_tlb_reconcile(LLVM_MC))
+        self.assertEqual(len(generated), 0x7a0)
         original = Path(REFERENCE).read_bytes()
         adsp.verify_reference(generated, original, 0x41e0)
         mutated = bytearray(generated)
@@ -227,6 +228,44 @@ class ADSPBootstrapTests(unittest.TestCase):
         # Both the loop packets and exact aligned NOPs come from source.
         self.assertEqual(generated[-12:],
                          struct.pack("<III", 0x7F00C000, 0x7F00C000, 0x7F00C000))
+
+    def test_tlb_reconciliation_source_and_loop_packet(self) -> None:
+        source = adsp.TLB_RECONCILE_SOURCE.read_text()
+        self.assertIn("adsp_tlb_reconcile:", source)
+        self.assertIn("loop0(recon_loop,#127)", source)
+        self.assertIn("}:endloop0", source)
+        self.assertIn("source_loop:", source)
+        self.assertEqual(source.count("{ nop }"), 7)
+        self.assertNotIn(".word", source)
+        self.assertNotIn(".incbin", source)
+
+    @unittest.skipUnless(LLVM_MC, "Hexagon-capable llvm-mc unavailable")
+    def test_tlb_reconciliation_replaces_exactly_seven_privileged_slots(self) -> None:
+        generated = adsp.assemble_tlb_reconcile(LLVM_MC)
+        self.assertEqual(len(generated), 0xB0)
+        expected = {
+            0x30: 0x6c43c004, 0x58: 0x6c20c020,
+            0x5c: 0x6c06c300, 0x60: 0x6c20c040,
+            0x8c: 0x6c20c020, 0x90: 0x6c00c300,
+            0x94: 0x6c20c040,
+        }
+        for offset, word in expected.items():
+            with self.subTest(at=hex(offset)):
+                self.assertEqual(
+                    generated[offset:offset + 4], struct.pack("<I", word))
+        self.assertEqual(generated[0x68:0x6c], struct.pack("<I", 0x7f00c000))
+        with tempfile.TemporaryDirectory() as td:
+            tampered = Path(td) / "wrong-tlb-reconcile.S"
+            tampered.write_text(adsp.TLB_RECONCILE_SOURCE.read_text().replace(
+                "{ nop }", "{ isync }", 1))
+            with self.assertRaisesRegex(adsp.AdspError, "Expected privileged TLB placeholder"):
+                adsp.assemble_tlb_reconcile(LLVM_MC, tampered)
+
+    @unittest.skipUnless(LLVM_MC and REFERENCE,
+                         "Exact Nabu ADSP reference and assembler required")
+    def test_tlb_reconciliation_matches_exact_adsp_reference(self) -> None:
+        adsp.verify_reference(adsp.assemble_tlb_reconcile(LLVM_MC),
+                              Path(REFERENCE).read_bytes(), 0x48d0)
 
     @unittest.skipUnless(LLVM_MC, "Hexagon-capable llvm-mc unavailable")
     def test_reject_relocations_and_malformed_section_offsets(self) -> None:

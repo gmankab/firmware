@@ -53,6 +53,35 @@ class V66BootstrapTests(unittest.TestCase):
         for word in struct.unpack("<8I", code):
             self.assertEqual((word >> 14) & 3, 3)
 
+    def test_fixed_hexagon_tlb_read_and_lock_control_words(self) -> None:
+        self.assertEqual(v66.tlb_read_pair_r5_r4_index_r3(), 0x6c43c004)
+        self.assertEqual(v66.tlb_write_pair_r7_r6_index_r3(), 0x6c06c300)
+        self.assertEqual(v66.tlb_write_pair_r1_r0_index_r3(), 0x6c00c300)
+        self.assertEqual(int(v66.TlbControl.LOCK), 0x6c20c020)
+        self.assertEqual(int(v66.TlbControl.UNLOCK), 0x6c20c040)
+        for word in [v66.tlb_read_pair_r5_r4_index_r3(),
+                     v66.tlb_write_pair_r7_r6_index_r3(),
+                     v66.tlb_write_pair_r1_r0_index_r3(),
+                     int(v66.TlbControl.LOCK),
+                     int(v66.TlbControl.UNLOCK)]:
+            self.assertEqual((word >> 14) & 3, 3)
+
+    @unittest.skipUnless(REFERENCE, "ADSP reference required")
+    def test_privileged_tlb_ops_match_original_distinct_positions(self) -> None:
+        original = Path(REFERENCE).read_bytes()
+        expected = {
+            0x4900: v66.tlb_read_pair_r5_r4_index_r3(),
+            0x4928: int(v66.TlbControl.LOCK),
+            0x492c: v66.tlb_write_pair_r7_r6_index_r3(),
+            0x4930: int(v66.TlbControl.UNLOCK),
+            0x495c: int(v66.TlbControl.LOCK),
+            0x4960: v66.tlb_write_pair_r1_r0_index_r3(),
+            0x4964: int(v66.TlbControl.UNLOCK),
+        }
+        for offset, word in expected.items():
+            with self.subTest(offset=hex(offset)):
+                self.assertEqual(struct.unpack_from("<I", original, offset)[0], word)
+
     def test_fixed_operand_hexagon_tlb_write_encoding(self) -> None:
         self.assertEqual(v66.tlb_write_pair_r3_r2_index_r0(), 0x6c02c000)
         self.assertEqual((v66.tlb_write_pair_r3_r2_index_r0() >> 14) & 3, 3)

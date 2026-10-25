@@ -81,6 +81,27 @@ def tlb_write_pair_r3_r2_index_r0() -> int:
     return 0x6C02C000
 
 
+class TlbControl(IntEnum):
+    """Nullary v66 privileged TLB synchronization operations."""
+    LOCK = 0x6C20C020
+    UNLOCK = 0x6C20C040
+
+
+def tlb_read_pair_r5_r4_index_r3() -> int:
+    """Return the fixed-operand V66 `R5:4 = tlbr(R3)` opcode."""
+    return 0x6C43C004
+
+
+def tlb_write_pair_r7_r6_index_r3() -> int:
+    """Return the fixed-operand V66 `tlbw(R7:6,R3)` opcode."""
+    return 0x6C06C300
+
+
+def tlb_write_pair_r1_r0_index_r3() -> int:
+    """Return the fixed-operand V66 `tlbw(R1:0,R3)` opcode."""
+    return 0x6C00C300
+
+
 def boot_special_code() -> bytes:
     """Eight typed V66 bootstrap instructions immediately after the vectors.
 

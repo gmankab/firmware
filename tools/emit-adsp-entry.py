@@ -29,10 +29,12 @@ TLB_MAP_SOURCE = pathlib.Path(__file__).with_name("adsp-tlb-map.S")
 TLB_FLUSH_SOURCE = pathlib.Path(__file__).with_name("adsp-tlb-flush.S")
 MEMORY_COPY_SOURCE = pathlib.Path(__file__).with_name("adsp-dsp-memory-copy.S")
 CACHELINE_COPY_SOURCE = pathlib.Path(__file__).with_name("adsp-cacheline-copy.S")
+TLB_RECONCILE_SOURCE = pathlib.Path(__file__).with_name("adsp-tlb-reconcile.S")
 FRAGMENTS = {
     "vectors": (ASM_SOURCE, OEM_FILE_OFFSET, GENERATED_LENGTH),
     "boot-prefix": (ASM_SOURCE, OEM_FILE_OFFSET, 0x44),
-    "counter-controller": (CONTROLLER_SOURCE, 0x41e0, 0x6f0),
+    "counter-controller": (CONTROLLER_SOURCE, 0x41e0, 0x7a0),
+    "tlb-reconcile": (TLB_RECONCILE_SOURCE, 0x48d0, 0xb0),
     "cacheline-copy": (CACHELINE_COPY_SOURCE, 0x4818, 0x78),
     "tlb-flush": (TLB_FLUSH_SOURCE, 0x4788, 0x90),
     "tlb-map": (TLB_MAP_SOURCE, 0x46f4, 0x94),
@@ -263,6 +265,51 @@ def assemble_tlb_flush(llvm_mc: str, source: pathlib.Path = TLB_FLUSH_SOURCE) ->
     return bytes(code)
 
 
+def assemble_tlb_reconcile(
+    llvm_mc: str, source: pathlib.Path = TLB_RECONCILE_SOURCE
+) -> bytes:
+    """Build TLB reconciliation source with seven narrow v66 TLB opcodes.
+
+    Compiler-derived packet boundaries, loop counters, branch offsets and
+    extender bytes are preserved. Every unsupported instruction is encoded
+    independently from its architectural operation and operand identity.
+    """
+    from adsp_hexagon_v66 import (
+        TlbControl,
+        tlb_read_pair_r5_r4_index_r3,
+        tlb_write_pair_r7_r6_index_r3,
+        tlb_write_pair_r1_r0_index_r3,
+    )
+
+    output = bytearray(assemble(llvm_mc, source, 0xB0))
+    mappings = (
+        (0x30, tlb_read_pair_r5_r4_index_r3()),
+        (0x58, int(TlbControl.LOCK)),
+        (0x5C, tlb_write_pair_r7_r6_index_r3()),
+        (0x60, int(TlbControl.UNLOCK)),
+        (0x8C, int(TlbControl.LOCK)),
+        (0x90, tlb_write_pair_r1_r0_index_r3()),
+        (0x94, int(TlbControl.UNLOCK)),
+    )
+    nop = struct.pack("<I", 0x7F00C000)
+    for offset, instruction in mappings:
+        if output[offset:offset+4] != nop:
+            raise AdspError(f"Expected privileged TLB placeholder at 0x{offset:x}")
+        output[offset:offset+4] = struct.pack("<I", instruction)
+    # One genuine NOP remains at 0x4938, paired with the hardware-loop
+    # increment and endloop0 marker. It is not a TLB substitute.
+    legitimate_nops = {0x68}
+    unresolved = [
+        i for i in range(0, len(output), 4)
+        if output[i:i+4] == nop and i not in legitimate_nops
+    ]
+    if unresolved:
+        raise AdspError(f"Unresolved TLB placeholder(s): {unresolved}")
+    if output[0x68:0x6C] != nop:
+        raise AdspError("The hardware-loop endloop0 NOP is missing")
+    return bytes(output)
+
+
 def run(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--llvm-mc", required=True,
@@ -295,9 +342,11 @@ def run(argv: list[str] | None = None) -> int:
             out = assemble_tlb_map(args.llvm_mc, args.source or source)
         elif args.segment == "tlb-flush":
             out = assemble_tlb_flush(args.llvm_mc, args.source or source)
+        elif args.segment == "tlb-reconcile":
+            out = assemble_tlb_reconcile(args.llvm_mc, args.source or source)
         elif args.segment == "counter-controller":
             # Compile the ISA-common controller and its V66-only tails
-            # independently, then emit a strictly adjacent 0x6f0-byte span.
+            # independently, then emit a strictly adjacent 0x7a0-byte span.
             if args.source is not None:
                 raise AdspError("--source override is not supported for the combined controller")
             out = (assemble(args.llvm_mc, CONTROLLER_SOURCE, 0x4c0) +
@@ -305,7 +354,8 @@ def run(argv: list[str] | None = None) -> int:
                    assemble_tlb_map(args.llvm_mc) +
                    assemble_tlb_flush(args.llvm_mc) +
                    assemble(args.llvm_mc, CACHELINE_COPY_SOURCE, 0x78) +
-                   assemble(args.llvm_mc, MEMORY_COPY_SOURCE, 0x40))
+                   assemble(args.llvm_mc, MEMORY_COPY_SOURCE, 0x40) +
+                   assemble_tlb_reconcile(args.llvm_mc))
         else:
             out = assemble(args.llvm_mc, args.source or source, expected_length)
         if len(out) != expected_length:
