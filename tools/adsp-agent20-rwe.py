@@ -20,12 +20,12 @@ TOOLS=Path(__file__).resolve().parent
 if str(TOOLS) not in sys.path:
     sys.path.insert(0,str(TOOLS))
 from adsp_hexagon_v66 import (SystemRegister, ControlRegister, InstructionCacheRead,
-                              read_instruction_cache_word, physical_word_load, read_system_register,
+                              read_instruction_cache_word, physical_word_load, read_system_register, tlb_write_pair_r3_r2_index_r0, tlb_read_pair,
                               write_system_register,read_control_register,
                               write_predicate_group_from_gpr,packet_continuation)
 
 FILE_START=0x6030
-FILE_END=0x6c10
+FILE_END=0x6c30
 SIZE=FILE_END-FILE_START
 PADDR=0x8BE03030
 REFERENCE_SHA='4b579e5dc1333d634e5bdc93f3314e357e0e30dab7140833f6cc7aef086b1c1e'
@@ -89,6 +89,8 @@ FEATURE_MODES_E_SOURCE=TOOLS/'adsp-agent20-rwe-feature-modes-e.S'
 FEATURE_MODES_E_SIZE=0xa4
 FEATURE_MODES_F_SOURCE=TOOLS/'adsp-agent20-rwe-feature-modes-f.S'
 FEATURE_MODES_F_SIZE=0xbc
+TLB_RESTORE_SOURCE=TOOLS/'adsp-agent20-rwe-tlb-restore.S'
+TLB_RESTORE_SIZE=0x20
 
 
 def baseline():
@@ -399,6 +401,25 @@ def physical_scan(llvm_mc:str,previous)->bytes:
     return bytes(data)
 
 
+def tlb_restore(llvm_mc: str, previous) -> bytes:
+    """Restore the saved TLB entries with a checked V66 TL Bwrite packet.
+
+    LLVM6 emits every ordinary packet, including the memory autoincrement,
+    predicated loop-back with a .new dependency and the full packet markers.
+    The one privileged `tlbw(R3:2,R0)` is encoded from register operands in
+    the bounded public Hexagon encoder after checking its exact NOP slot.
+    """
+    code=bytearray(previous.assemble(llvm_mc, TLB_RESTORE_SOURCE, TLB_RESTORE_SIZE))
+    at=0x10
+    sentinel=struct.pack('<I',0x7f00c000)
+    if code[at:at+4]!=sentinel:
+        raise previous.AdspError('V66 tlb restore write marker moved')
+    code[at:at+4]=struct.pack('<I',tlb_write_pair_r3_r2_index_r0())
+    if any(code[i:i+4]==sentinel for i in range(0,len(code),4)):
+        raise previous.AdspError('unresolved restore TLB opcode')
+    return bytes(code)
+
+
 def render(llvm_mc:str)->bytes:
     previous=baseline()
     output=bytearray(previous.assemble(llvm_mc,SOURCE,STARTUP_SIZE))
@@ -442,6 +463,7 @@ def render(llvm_mc:str)->bytes:
     output.extend(previous.assemble(llvm_mc,FEATURE_MODES_D_SOURCE,FEATURE_MODES_D_SIZE))
     output.extend(previous.assemble(llvm_mc,FEATURE_MODES_E_SOURCE,FEATURE_MODES_E_SIZE))
     output.extend(previous.assemble(llvm_mc,FEATURE_MODES_F_SOURCE,FEATURE_MODES_F_SIZE))
+    output.extend(tlb_restore(llvm_mc,previous))
     if len(output)!=SIZE:
         raise previous.AdspError("RWE source fragments are not contiguous")
     return bytes(output)
@@ -476,7 +498,7 @@ def main()->int:
     b=render(args.llvm_mc)
     if args.reference:verify(args.reference.read_bytes(),b)
     args.output.write_bytes(b)
-    print('ADSP RWE fragment: %d exact bytes, MBN [0x%x,0x%x), physical [0x%x,0x%x), SHA256=%s; next function begins at 0x6c10' %
+    print('ADSP RWE fragment: %d exact bytes, MBN [0x%x,0x%x), physical [0x%x,0x%x), SHA256=%s; next function begins at 0x6c30' %
           (len(b),FILE_START,FILE_END,PADDR,PADDR+len(b),hashlib.sha256(b).hexdigest()))
     return 0
 

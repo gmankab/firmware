@@ -19,8 +19,8 @@ class FeatureModeTests(unittest.TestCase):
         cls.reference=os.getenv('NABU_ADSP_REFERENCE')
     def test_source_region_length(self):
         self.assertEqual(RWE.FEATURE_MODES_A_SIZE,0xa4)
-        self.assertEqual(RWE.FILE_END,0x6c10)
-        self.assertEqual(RWE.SIZE,3040)
+        self.assertGreaterEqual(RWE.FILE_END,0x6c10)
+        self.assertGreaterEqual(RWE.SIZE,3040)
     def test_adjacent_bitmask_classifiers_are_independently_compiled(self):
         if not self.llvm:self.skipTest('HEXAGON_LLVM_MC required')
         output=RWE.baseline().assemble(self.llvm,RWE.FEATURE_MODES_B_SOURCE,0xc0)

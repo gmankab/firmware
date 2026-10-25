@@ -358,3 +358,31 @@ file `[0x6030,0x6c10)` and physical `[0x8be03030,0x8be03c10)`.
 SHA-256 `78881b6f1f11029d0689ed1dd1e6034bdf0e5681b3776645e774c6c04aaee269`.
 The next **separate TLB controller helper** begins at `0x6c10`; other ADSP
 executable sections and the original auth container remain unimplemented.
+
+## Checkpoint 22: ADSP controller TLB restore `[0x6c10,0x6c30)`
+
+Added a **32-byte** source-generated Hexagon V66 helper that restores the 128
+saved TLB entry pairs from controller SRAM `0xf000cf20`. The LLVM6-authored
+mnemonic source in `tools/adsp-agent20-rwe-tlb-restore.S` retains the original
+packet pairing of the initial register assignment and address extender and
+the `.new` predicate loop-back. Seven ordinary V66 instruction words are
+emitted directly by LLVM6. The privileged `tlbw(R3:2,R0)` occupies a checked
+single-word NOP sentinel and is generated with the existing bounded V66 TLB
+writer (`tlb_write_pair_r3_r2_index_r0`), not copied from OEM firmware.
+
+**Exact reference match:** 32 of 32 bytes; full contiguous ADSP RWE interval
+`[0x6030,0x6c30)` = **3,072 bytes**, physical
+`[0x8be03030,0x8be03c30)`, SHA-256
+`be799169c7080733cbe019aeaae39de6dcbf8a06ee0ef9a6cb5a5a0a9d870c49`.
+LLVM6 and Rizin V66 independently decode the same source-generated packets;
+Rizin confirms the backward branch target `0x8be03c1c` and register fields.
+The next 60-byte readback helper starts exactly at `0x6c30` and is not yet
+included in this checkpoint. Any later zeros in the RWE segment are *not*
+counted as executable source.
+
+Reproduce with the pinned private ADSP reference outside Git:
+
+```sh
+python3 -S tools/adsp-agent20-rwe.py --llvm-mc "$HEXAGON_LLVM_MC" \
+  --reference "$NABU_ADSP_REFERENCE" --output /tmp/adsp-rwe-3072.bin
+```

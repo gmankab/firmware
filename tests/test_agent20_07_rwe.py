@@ -21,9 +21,9 @@ class RweEntryTests(unittest.TestCase):
         cls.ref=os.environ.get('NABU_ADSP_REFERENCE')
     def test_ptload_offset_mapping(self):
         self.assertEqual(module.FILE_START,0x6030)
-        self.assertEqual(module.FILE_END,0x6c10)
+        self.assertEqual(module.FILE_END,0x6c30)
         self.assertEqual(module.PADDR,0x8BE03030)
-        self.assertEqual(module.SIZE,3040)
+        self.assertEqual(module.SIZE,3072)
     def test_source_assembler_with_checked_v66_registers(self):
         if not self.mc:self.skipTest('HEXAGON_LLVM_MC missing')
         b=module.render(self.mc)
