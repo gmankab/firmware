@@ -921,3 +921,130 @@ MODEM_PHY_WORD_LOAD 5,0,4
 }:endloop0
 modem_phys_copy_done:
 { jumpr lr }
+
+// Last protected copy before the MMU exception helper group. A bounded L0
+// loop compares each hardware physical word against its host-memory partner
+// and writes at most four address/value pairs to the source-authored buffer.
+.globl agent11_modem_scan_phys_descriptor_pairs
+agent11_modem_scan_phys_descriptor_pairs:
+{
+    r1 = ##0
+    r4 = ##-1063448472
+}
+{
+    r0 = ##32768
+    r6 = sub(r4,r1)
+}
+{
+    p0 = cmp.gt(r0,r6)
+    if (!p0.new) jump:nt modem_phys_pair_scan_done
+    r0 = ##0
+}
+{
+    r2 = lsr(r6,#2)
+    p0 = cmp.eq(r0,#0)
+    if (p0.new) jump:nt modem_phys_pair_scan_done
+}
+{
+    r8 = memw(##3230081712)
+    r9 = memw(##3230081708)
+}
+{
+    r5 = sub(r1,r0)
+    r9 = sub(r9,r8)
+    r3 = ##-1065287680
+}
+{ r3 = add(r3,r9) }
+{ r6 = ##3230035920; r3 = add(r3,r5) }
+{
+    loop0(modem_phys_pair_scan_next,r2)
+    r2 = #11
+    r7 = #0
+}
+modem_phys_pair_scan_next:
+{
+    r4 = lsr(r3,r2)
+    r0 = memw(r1+#0)
+}
+MODEM_PHY_WORD_LOAD 5,3,4
+{
+    p0 = cmp.eq(r5,r0)
+    if (p0.new) jump:nt modem_phys_pair_scan_increment
+}
+{
+    p0 = cmp.gt(r7,#3)
+    if (p0.new) jump:nt modem_phys_pair_scan_done
+}
+{
+    r7 = add(r7,#1)
+    memw(r6++#4) = r3
+}
+{ memw(r6++#4) = r5 }
+modem_phys_pair_scan_increment:
+{
+    nop
+    r1 = add(r1,#4)
+    r3 = add(r3,#4)
+}:endloop0
+modem_phys_pair_scan_done:
+{ jumpr r31 }
+
+// Preserve the translation-group hardware register S27, derive the low
+// physical MMU control halfword and publish it as a protected word in the
+// same packet as the final return.
+.globl agent11_modem_publish_phys_control
+agent11_modem_publish_phys_control:
+MODEM_SYS_READ 1,27
+{ r1 = asl(r1,#5) }
+{ r0 = ##0 }
+MODEM_PHY_WORD_LOAD 2,0,1
+{
+    r2 = asl(r2,#16)
+    jumpr lr
+    memw(##3230081860) = r2.new
+}
+
+// Copy an initialized GP descriptor table if the destination pointer is
+// non-null; no private firmware words are copied into source.
+.globl agent11_modem_publish_gp_table_a
+agent11_modem_publish_gp_table_a:
+{ r2 = memw(r25+##-1033525120) }
+{ r0 = add(r25,##-1045609280) }
+{ r1 = memw(r25+##-1064851284) }
+{ p1 = cmp.eq(r1,#0) }
+{ if (p1) jump:nt modem_publish_gp_a_done }
+{ loop0(modem_publish_gp_a_next,r2) }
+modem_publish_gp_a_next:
+{
+    r3 = memw(r0++#4)
+    memw(r1++#4) = r3.new
+}:endloop0
+modem_publish_gp_a_done:
+{ jumpr lr }
+
+// Alternate SRAM table at a fixed 0x2000 virtual address. The 8 KiB flag
+// comparison is source-level Hexagon operand logic (not an OEM instruction).
+.globl agent11_modem_publish_gp_table_b
+agent11_modem_publish_gp_table_b:
+{ r2 = memw(r25+##-1033525116) }
+{ r0 = add(r25,##-1045609248) }
+{ r1 = memw(r25+##-1064851280) }
+{ p1 = cmp.eq(r1,##8192) }
+{ if (p1) jump:nt modem_publish_gp_b_done }
+{ loop0(modem_publish_gp_b_next,r2) }
+modem_publish_gp_b_next:
+{
+    r3 = memw(r0++#4)
+    memw(r1++#4) = r3.new
+}:endloop0
+modem_publish_gp_b_done:
+{ jumpr lr }
+
+// The next 17 architecturally executable words are intentional synchronous
+// exception traps; count as trap bytes, not independently reconstructed
+// application logic or unexplained zero-fill.
+.globl agent11_modem_reserved_break_traps
+agent11_modem_reserved_break_traps:
+.rept 17
+{ brkpt }
+.endr

@@ -151,6 +151,18 @@ def restore_original_legal_hexagon_packet_order(code: bytes) -> bytes:
             compare7=(compare7&~marker)|(1<<14)
             branch7=(branch7&~marker)|(branch_marker<<14)
             struct.pack_into('<II',out,rel7,compare7,branch7)
+    # Protected S27 halfword publication groups the r1 shift with the
+    # extended zero register initialization and physical-memory load. LLVM6
+    # seals the one-instruction shift packet early; only its parse marker is
+    # repaired, after checking the independently assembled instruction class.
+    rel8=0x4938-FILE_START
+    if len(out)>=rel8+4:
+        shift=struct.unpack_from('<I',out,rel8)[0]
+        if ((shift&0xff000000)!=0x8c000000 or
+            ((shift>>16)&31)!=1 or
+            (shift&marker)!=(3<<14)):
+            raise ValueError('unexpected Hexagon S27 shift packet at file 0x4938')
+        struct.pack_into('<I',out,rel8,(shift&~marker)|(1<<14))
     return bytes(out)
 
 

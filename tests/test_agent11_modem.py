@@ -33,7 +33,7 @@ class ModemAgent11Tests(unittest.TestCase):
         if not llvm: self.skipTest("set AGENT11_LLVM_MC for external tool verification")
         source=SCRIPT.parent.parent/"crates/firmware-tools/src/devices/xiaomi_nabu/modem_entry_followup.s"
         data=module.assemble(Path(llvm),source)
-        self.assertEqual(len(data),2124)
+        self.assertEqual(len(data),2472)
         # Structural assertion checks the two adjacent word loads are in
         # one duplex slot and the final instruction is a packet-ending return.
         words=[int.from_bytes(data[n:n+4],"little") for n in range(0,len(data),4)]
@@ -85,5 +85,10 @@ class ModemAgent11Tests(unittest.TestCase):
         self.assertEqual([words[i+j]&0xc000 for j in range(4)],
                          [0x4000,0x4000,0x4000,0xc000])
         self.assertEqual(words[(0x4894-module.FILE_START)//4],0x9200e405)
+        # Protected scan's cache-pointer packet extends the controller
+        # register shift and 17 intentionally installed exception traps.
+        self.assertEqual(words[(0x4938-module.FILE_START)//4]&0xc000,0x4000)
+        for a in range(0x49bc,0x4a00,4):
+            self.assertEqual(words[(a-module.FILE_START)//4],0x6c20c000)
 
 if __name__=='__main__':unittest.main()
