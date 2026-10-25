@@ -186,6 +186,33 @@ class WlanHexagonAssemblyTests(unittest.TestCase):
             with self.assertRaisesRegex(fw.FragmentError,"negative"):
                 fw.check_reference(b"", Path(ref).read_bytes(), runtime_offset=-1)
 
+    def test_postaliases_retry_branch_and_fieldwise_record_comparator(self):
+        source = fw.POSTALIASES_COMPARE_SOURCE.read_text()
+        for directive in (".incbin", ".byte", ".word", ".long", ".quad"):
+            self.assertNotIn(directive, source)
+        self.assertIn("jump ##-832", source)
+        self.assertIn("r2 = r0; r0 = #0", source)
+        self.assertIn("if (!cmp.eq(r4.new,r3))", source)
+        encoded = fw.assemble(fw.POSTALIASES_COMPARE_SOURCE, self.mc,
+                              expected_length=fw.POSTALIASES_COMPARE_LENGTH)
+        self.assertEqual(len(encoded), 80)
+        self.assertEqual(encoded[12:20], bytes.fromhex("0040007814020250"))
+        self.assertEqual(encoded[-4:], bytes.fromhex("00c09f52"))
+        for cpu in ("hexagonv62",):
+            self.assertEqual(encoded, fw.assemble(fw.POSTALIASES_COMPARE_SOURCE,
+                             self.mc, cpu=cpu,
+                             expected_length=fw.POSTALIASES_COMPARE_LENGTH))
+        together = fw.assemble_import_aliases_through_compare(self.mc, "hexagonv65")
+        self.assertEqual(len(together), fw.THROUGH_POSTALIASES_COMPARE_LENGTH)
+        self.assertEqual(together[:fw.IMPORT_ALIASES_LENGTH],
+                         fw.assemble(fw.IMPORT_ALIASES_SOURCE, self.mc,
+                            expected_length=fw.IMPORT_ALIASES_LENGTH))
+        self.assertEqual(together[-80:], encoded)
+        ref = os.environ.get("WLANMDSP_REFERENCE")
+        if ref:
+            fw.check_reference(together, Path(ref).read_bytes(),
+                               runtime_offset=fw.IMPORT_ALIASES_OFFSET)
+
     def test_unresolved_reference_is_rejected(self):
         with tempfile.TemporaryDirectory() as d:
             bad = Path(d) / "unresolved.S"

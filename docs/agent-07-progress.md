@@ -236,3 +236,37 @@ python3 tools/build-wlanmdsp-startup.py /tmp/wlan-import-aliases.bin \
 Next work: complete remaining record-consumer body or independently recover
 function-level routines after `0xb0001fc0` without confusing disjoint spans
 with a contiguous firmware reconstruction.
+
+### Checkpoint H: import-alias retry and fieldwise comparator
+
+The disjoint import-alias range now extends from `0xb0001fa8` through
+`0xb0002010` (ELF file `[0x41fa8, 0x42010)`): **104 independently assembled
+and revision-verified Hexagon bytes**. The previously reconstructed 24-byte
+alias thunks remain unchanged. The following 80 bytes, authored as
+`wlan-postaliases-compare.S`, implement:
+
+- A packetized retry branch from `0xb0001fc0` to the unfinished record
+  consumer entry at `0xb0001c80`, preserving its paired `combine` operation.
+- A fieldwise five-word record comparator at `0xb0001fc8–0xb0002010`, which
+  returns equal/unequal using new-value comparisons and a shared return.
+- Exact packet shape at runtime `0xb0001fcc–0xb0001fd4`: `r2 = r0` must
+  precede `r0 = #0` in source to reconstruct the original duplex encoding.
+
+`--import-aliases-with-compare` assembles all 104 bytes; it rejects combining
+this disconnected region with the prior contiguous startup. Both LLVM6
+`hexagonv62` and `hexagonv65` independently encode the 80 new bytes identically
+and the 104-byte output matches the private hash-verified `wlanmdsp.mbn` with
+zero mismatches. The contiguous startup prefix stays at **7,596 bytes**, of
+which 3,820 bytes are independently encoded instructions and 3,776 bytes are
+identified linker fill/alignment. Separately covered executable bytes now
+measure **104**, including 24 import aliases and 80 retry/comparator bytes.
+
+```sh
+python3 tools/build-wlanmdsp-startup.py /tmp/alias-through-compare.bin \
+  --import-aliases-with-compare --llvm-mc /private/llvm6/bin/llvm-mc \
+  --reference /private/wlanmdsp.mbn --manifest /tmp/alias-compare-manifest.json
+```
+
+The unimplemented gap `[0xb0001dac,0xb0001fa8)` is still 508 bytes and the
+following independent function begins at `0xb0002010`. The 104-byte artifact
+is not a flashable firmware or an independently authenticated image.

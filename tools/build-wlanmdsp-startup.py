@@ -22,6 +22,7 @@ HOOK_SOURCE = ROOT / "sources/xiaomi-nabu/wlanmdsp/wlan-loader-hooks.S"
 LOOKUP_SOURCE = ROOT / "sources/xiaomi-nabu/wlanmdsp/wlan-config-lookup.S"
 RECORD_PREFIX_SOURCE = ROOT / "sources/xiaomi-nabu/wlanmdsp/wlan-record-consumer-prefix.S"
 IMPORT_ALIASES_SOURCE = ROOT / "sources/xiaomi-nabu/wlanmdsp/wlan-import-aliases.S"
+POSTALIASES_COMPARE_SOURCE = ROOT / "sources/xiaomi-nabu/wlanmdsp/wlan-postaliases-compare.S"
 FILE_OFFSET = 0x40000
 VADDR = 0xB0000000
 TEXT_LENGTH = 0x154
@@ -40,6 +41,8 @@ RECORD_CONSUMER_PREFIX_LENGTH = 0x12c
 THROUGH_RECORD_PREFIX_LENGTH = THROUGH_CONFIG_LOOKUP_LENGTH + RECORD_CONSUMER_PREFIX_LENGTH
 IMPORT_ALIASES_OFFSET = 0x1fa8
 IMPORT_ALIASES_LENGTH = 0x18
+POSTALIASES_COMPARE_LENGTH = 0x50
+THROUGH_POSTALIASES_COMPARE_LENGTH = IMPORT_ALIASES_LENGTH + POSTALIASES_COMPARE_LENGTH
 # Identified uniform gap immediately following _init up to the linker PLT.
 # Treat this as layout fill, NEVER as independently reconstructed code.
 LINKER_GAP_WORD = 0x00c0007f
@@ -219,6 +222,19 @@ def emit_with_record_prefix(prefix: bytes, llvm_mc: str, cpu: str) -> bytes:
     return prefix + packetized
 
 
+def assemble_import_aliases_through_compare(llvm_mc: str, cpu: str) -> bytes:
+    """Reconstruct a separate branch/record-comparator region after the PLT.
+
+    The earlier packed-record consumer has a 0x1fc0-0x1dac gap, so these
+    bytes must not be appended to the contiguous startup layout.
+    """
+    aliases = assemble(IMPORT_ALIASES_SOURCE, llvm_mc, cpu,
+                       expected_length=IMPORT_ALIASES_LENGTH)
+    compare = assemble(POSTALIASES_COMPARE_SOURCE, llvm_mc, cpu,
+                       expected_length=POSTALIASES_COMPARE_LENGTH)
+    return aliases + compare
+
+
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("output", type=Path, help="independently rebuilt raw executable bytes")
@@ -237,17 +253,25 @@ def main() -> None:
                     help="append the 300-byte record-consumer entry and initial checks; partial function")
     ap.add_argument("--import-aliases-only", action="store_true",
                     help="emit three separately verified Hexagon tail aliases at runtime offset 0x1fa8")
+    ap.add_argument("--import-aliases-with-compare", action="store_true",
+                    help="emit import aliases and 80-byte record comparison at runtime 0x1fa8")
     ap.add_argument("--emit-plt-assembly", type=Path,
                     help="write independently generated PLT source for inspection")
     args = ap.parse_args()
-    if args.import_aliases_only and (args.with_plt or args.with_loader_hooks
-                                    or args.with_config_lookup or args.with_record_prefix):
-        raise FragmentError("disjoint import aliases cannot be combined with contiguous prefix")
-    runtime_offset = IMPORT_ALIASES_OFFSET if args.import_aliases_only else 0
-    fragment = (assemble(IMPORT_ALIASES_SOURCE, args.llvm_mc, args.cpu,
-                         expected_length=IMPORT_ALIASES_LENGTH)
-                if args.import_aliases_only
-                else assemble(args.source, args.llvm_mc, args.cpu))
+    disjoint_aliases = args.import_aliases_only or args.import_aliases_with_compare
+    if args.import_aliases_only and args.import_aliases_with_compare:
+        raise FragmentError("choose exactly one disjoint import region mode")
+    if disjoint_aliases and (args.with_plt or args.with_loader_hooks
+                             or args.with_config_lookup or args.with_record_prefix):
+        raise FragmentError("disjoint import region cannot be combined with contiguous prefix")
+    runtime_offset = IMPORT_ALIASES_OFFSET if disjoint_aliases else 0
+    if args.import_aliases_with_compare:
+        fragment = assemble_import_aliases_through_compare(args.llvm_mc, args.cpu)
+    elif args.import_aliases_only:
+        fragment = assemble(IMPORT_ALIASES_SOURCE, args.llvm_mc, args.cpu,
+                            expected_length=IMPORT_ALIASES_LENGTH)
+    else:
+        fragment = assemble(args.source, args.llvm_mc, args.cpu)
     if args.emit_plt_assembly is not None:
         args.emit_plt_assembly.parent.mkdir(parents=True, exist_ok=True)
         args.emit_plt_assembly.write_text(plt_assembly())
@@ -274,8 +298,9 @@ def main() -> None:
               "independently_encoded_loader_hook_bytes": LOADER_HOOKS_LENGTH if (args.with_loader_hooks or args.with_config_lookup or args.with_record_prefix) else 0,
               "independently_encoded_config_lookup_bytes": CONFIG_LOOKUP_LENGTH if (args.with_config_lookup or args.with_record_prefix) else 0,
               "independently_encoded_record_prefix_bytes": RECORD_CONSUMER_PREFIX_LENGTH if args.with_record_prefix else 0,
-              "independently_encoded_import_alias_bytes": IMPORT_ALIASES_LENGTH if args.import_aliases_only else 0,
-              "separate_disconnected_executable_region": bool(args.import_aliases_only),
+              "independently_encoded_import_alias_bytes": IMPORT_ALIASES_LENGTH if disjoint_aliases else 0,
+              "independently_encoded_record_comparison_bytes": POSTALIASES_COMPARE_LENGTH if args.import_aliases_with_compare else 0,
+              "separate_disconnected_executable_region": disjoint_aliases,
               "provenance": "independently assembled Hexagon source; no OEM instruction bytes embedded"}
     if args.manifest is not None:
         args.manifest.parent.mkdir(parents=True, exist_ok=True)
