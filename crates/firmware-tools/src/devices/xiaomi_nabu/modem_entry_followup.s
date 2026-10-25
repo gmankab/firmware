@@ -421,3 +421,56 @@ MODEM_MMIO_STORE_WORD 68288584, 0
 { brkpt }
 { brkpt }
 { brkpt }
+
+// Query the protected controller's pc-relative global pointer, then return.
+.globl agent11_modem_get_gp_base
+agent11_modem_get_gp_base:
+{ r29 = add(pc,##261488) }
+{ jumpr lr }
+// Companion no-op invocation slot: preserving original callable layout.
+.globl agent11_modem_noop_slot
+agent11_modem_noop_slot:
+{ jumpr lr }
+
+.macro MODEM_ICKILL marker=3
+    // Hexagon V6 Y2_ickill instruction, checked packet marker.
+    .if (\marker < 0) || (\marker > 3)
+        .error "invalid ickill packet marker"
+    .endif
+    .word (0x56c01000 | (\marker << 14))
+.endm
+
+// Enter the uncached processing window by disabling S18's cache bit,
+// synchronizing and invalidating the I-cache, then restoring the flags.
+.globl agent11_modem_cache_state_transition
+agent11_modem_cache_state_transition:
+MODEM_SYS_READ 15,18,3
+{ r15 = clrbit(r15,#1) }
+MODEM_SYS_WRITE 18,15
+{ isync }
+MODEM_ICKILL
+{ isync }
+{ r15 = or(r15,#3) }
+MODEM_SYS_WRITE 18,15
+{ isync }
+{ r31 = sub(r31,r25) }
+{ jumpr r31 }
+
+// Trampoline from relocated virtual PC to an absolute controller callback.
+.globl agent11_modem_relocate_callback
+agent11_modem_relocate_callback:
+{
+    r30 = ##-1065347776
+    r31 = add(r31,r25)
+}
+{ r30 = add(r30,r25) }
+{ jumpr r30 }
+
+// Single-byte cache flag clear and synchronized return.
+.globl agent11_modem_clear_controller_bit
+agent11_modem_clear_controller_bit:
+MODEM_SYS_READ 15,18,3
+{ r15 = clrbit(r15,#0) }
+MODEM_SYS_WRITE 18,15
+{ isync }
+{ jumpr lr }

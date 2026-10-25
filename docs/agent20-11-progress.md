@@ -77,3 +77,11 @@ python3 -m unittest discover -s tests -p 'test_*.py'
 - Four-word source operand packet at `0x4448–0x4458` preserves both extended immediates and their `Continue`/`End` parse fields without importing reference code words.
 - Agent 11 `[0x4058,0x44f0)` totals **1,176 exact executable bytes**, SHA-256 `0d7008e7a707417c5b7b292e3e40a4305c0c8b1d0b97d2017839069589cc9d53`. Combined Agent 06+11 first `PT_LOAD` prefix `[0x3000,0x44f0)` is **5,360 total bytes**, decomposed as **4,148 executable**, **412 authored metadata**, **800 fixed linker fill**.
 - Next function starts at file `0x44f0`, physical `0x8e0014f0`. No original signer keys or authenticated full modem have been recreated.
+
+## Checkpoint 09 — Cache state, GP base and relocation helpers
+
+- Independently emitted `[file 0x44f0,0x4554)` = **100 source-generated Hexagon instruction bytes**, mapped physical `[0x8e0014f0,0x8e001554)`.
+- Three distinct controller helpers calculate a relocated global pointer, disable S18 cache state, perform `isync`/`ickill`, restore flags, return through relocated `r31`, or tail-transfer via relocated `r30`. The last helper clears S18 bit zero with synchronization and original return.
+- LLVM6 emits all standard operations; the sole private system opcode template is public Hexagon Y2_ickill with checked packet markers. A pair of extended-immediate and register-add operations is deliberately combined in one packet to preserve the reference parse field.
+- Agent 11 cumulative verified `[file 0x4058,0x4554)` = **1,276 independently encoded executable bytes**; SHA-256 `2e8c65771d770a8814051ad1a95c452faa847cf41c634f2ea641b08d30cafdf5`. Combined Agent 06+11 initial modem `[0x3000,0x4554)` = **5,460 exact bytes** (4,248 source-encoded executable, 412 metadata, 800 linker fill).
+- Next uncovered file instruction begins at `0x4554` (physical `0x8e001554`). The whole modem MBN remains incomplete and cannot be newly signed.
