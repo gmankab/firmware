@@ -30,6 +30,7 @@ class SystemRegister(IntEnum):
     EVB = 16
     PMUEVTCFG = 52
     S47 = 47
+    HTID = 8
 
 
 class CacheCommand(IntEnum):

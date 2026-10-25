@@ -557,3 +557,37 @@ python3 -S tools/emit-adsp-entry.py \
   --llvm-mc "$HEXAGON_LLVM_MC" --reference "$NABU_ADSP_REFERENCE" \
   --output /tmp/adsp-controller-3132.bin
 ```
+
+## Checkpoint 24: Hexagon HTID-indexed context save
+
+Added **68 consecutive source-authored bytes** at `[0x4e1c,0x4e60)`
+(physical `[0x8be01e1c,0x8be01e60)`). The context-save function reads the
+hardware thread identifier `HTID`, constructs the per-thread context address
+from low/high register halves and the `S54` base, stores `R1:0` as a
+64-bit word, calculates the thread-specific stack pointer and transfers
+control into the next context-switch routine.
+
+The packet-aware LLVM6 source file `tools/adsp-controller-context-save.S`
+generates all arithmetic, `immext`, memory-store and branch instructions.
+Three v66-specific system-register read sites (`HTID`, `S54`, and a
+**continuing-packet HTID** read) are replaced with checked narrow operand
+encoders, never copied from the OEM reference. Separate tests compare all
+three sites against actual firmware and verify repeated `HTID` encodings at
+four independent instruction locations. A tampered sentinel source fails.
+
+The controller's contiguous source-generated region has grown to
+**3,200 bytes** `[0x41e0,0x4e60)`, SHA-256
+`8752c74a7ebc87dfb3630f039ffc6a01e291f8023ee68d215d8992924e3bdb1f`.
+Including the disjoint 68-byte entry prefix, **3,268 total bytes** are
+reproduced, including 504 explicit NOP/alignment bytes. All **84 Python
+tests pass** with no reference mismatches. Next missing controller file byte
+is `0x4e60`; boot gap remains `[0x3044,0x41e0)`.
+
+```sh
+python3 -S tools/emit-adsp-entry.py \
+  --segment controller-context-save --llvm-mc "$HEXAGON_LLVM_MC" \
+  --reference "$NABU_ADSP_REFERENCE" --output /tmp/adsp-context-save-68.bin
+python3 -S tools/emit-adsp-entry.py \
+  --segment counter-controller --llvm-mc "$HEXAGON_LLVM_MC" \
+  --reference "$NABU_ADSP_REFERENCE" --output /tmp/adsp-controller-3200.bin
+```

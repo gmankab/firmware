@@ -51,6 +51,23 @@ class V66BootstrapTests(unittest.TestCase):
             v66.start_thread_from_register(23)):
             self.assertEqual((word >> 14)&3,3)
 
+    def test_htid_fields_and_packet_continuation(self) -> None:
+        self.assertEqual(v66.read_system_register(23,v66.SystemRegister.HTID),0x6e88c017)
+        self.assertEqual(v66.read_system_register(22,v66.SystemRegister.HTID),0x6e88c016)
+        self.assertEqual(v66.packet_continuation(
+            v66.read_system_register(22,v66.SystemRegister.HTID)),0x6e884016)
+        self.assertEqual(v66.read_system_register(22,v66.SystemRegister.S54),0x6eb6c016)
+
+    @unittest.skipUnless(REFERENCE,"Exact firmware reference required")
+    def test_htid_register_reads_at_distinct_boot_sites(self) -> None:
+        b=Path(REFERENCE).read_bytes()
+        for offset,rd,cont in ((0x4e1c,23,False),(0x4e48,22,True),
+                                (0x4e60,23,False),(0x4f10,23,False)):
+            with self.subTest(offset=hex(offset)):
+                value=v66.read_system_register(rd,v66.SystemRegister.HTID)
+                if cont:value=v66.packet_continuation(value)
+                self.assertEqual(struct.unpack_from("<I",b,offset)[0],value)
+
     def test_system_register_pair_rejects_invalid_register_width(self) -> None:
         for dst,sys in [(-1,48),(1,48),(31,44),(32,44),(0,-2),(0,45),(0,64),
                         (0,"S48"),("r0",44)]:

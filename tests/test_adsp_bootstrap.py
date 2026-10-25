@@ -109,8 +109,9 @@ class ADSPBootstrapTests(unittest.TestCase):
                      adsp.assemble_controller_debug_check(LLVM_MC) +
                      adsp.assemble_vector_handoff(LLVM_MC) +
                      adsp.assemble_privileged_restore(LLVM_MC) +
-                     adsp.assemble(LLVM_MC, adsp.CONTROLLER_RESTORE_PADDING_SOURCE, 0x100))
-        self.assertEqual(len(generated), 0xc3c)
+                     adsp.assemble(LLVM_MC, adsp.CONTROLLER_RESTORE_PADDING_SOURCE, 0x100) +
+                     adsp.assemble_context_save(LLVM_MC))
+        self.assertEqual(len(generated), 0xc80)
         original = Path(REFERENCE).read_bytes()
         adsp.verify_reference(generated, original, 0x41e0)
         mutated = bytearray(generated)
@@ -318,6 +319,28 @@ class ADSPBootstrapTests(unittest.TestCase):
         self.assertEqual(binary[-28:-24],struct.pack("<I",0x5800c00e))
         self.assertEqual(binary[-4:],struct.pack("<I",0x5800c000))
         adsp.verify_reference(binary,Path(REFERENCE).read_bytes(),0x4d1c)
+
+    def test_context_save_source_preserves_hexagon_packet_structure(self) -> None:
+        source=adsp.CONTROLLER_CONTEXT_SAVE_SOURCE.read_text()
+        self.assertIn("r23 = asl(r23,#18)",source)
+        self.assertIn("memd(r23+#0) = r1:0",source)
+        self.assertIn("r1 += mpyi(r22,#0xe0)",source)
+        self.assertIn("{ r1 = sp; sp = r1 }",source)
+        self.assertNotIn(".word",source)
+        self.assertNotIn(".incbin",source)
+
+    @unittest.skipUnless(LLVM_MC and REFERENCE, "Hexagon assembler and reference required")
+    def test_context_save_byte_identity_and_checked_sentinel(self) -> None:
+        generated=adsp.assemble_context_save(LLVM_MC)
+        self.assertEqual(len(generated),0x44)
+        adsp.verify_reference(generated,Path(REFERENCE).read_bytes(),0x4e1c)
+        self.assertEqual(generated[0x2c:0x30],struct.pack("<I",0x6e884016))
+        with tempfile.TemporaryDirectory() as td:
+            bad=Path(td)/"bad-context-save.S"
+            bad.write_text(adsp.CONTROLLER_CONTEXT_SAVE_SOURCE.read_text().replace(
+                "{ nop } // V66 r23 = HTID", "{ isync } // V66 r23 = HTID",1))
+            with self.assertRaisesRegex(adsp.AdspError,"context save placeholder"):
+                adsp.assemble_context_save(LLVM_MC,bad)
 
     @unittest.skipUnless(LLVM_MC, "Hexagon-capable llvm-mc unavailable")
     def test_syscfg_handoff_uses_typed_and_source_assembly(self) -> None:
