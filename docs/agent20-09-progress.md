@@ -54,3 +54,11 @@
 - Source reference `[file 0x4418,0x4500)` contains **232 zero linker-alignment bytes**, checked against the reference but **not included** in the 568 emitted executable bytes. The next non-padding code starts at `0x4500` (physical `0x96c01500`). The gap is not an independently generated executable function.
 - `tools/verify-agent20-09-cfgbase.py` checks the new function with Rizin, three independent LLVM6 scalar encodings, the original reference match, and the 232-byte alignment. Rust `cfgbase_probe_is_executable_without_embedded_padding` tests the split and GP-address alignment.
 - Base and signing caveats from earlier checkpoints remain: branch starts from Agent 05's older snapshot `a02618f…`, NOT from missing checkpoint 50; Codex is author/committer but no GPG signature is claimed.
+
+## Checkpoint 07 — Disjoint privileged supervisor setup after linker fill
+
+- New independently encoded **48 executable bytes** at CDSP firmware file `[0x4500,0x4530)`, physical `[0x96c01500,0x96c01530)`, ELF vaddr `[0xfe001500,0xfe001530)`.
+- Code reads SYSCFG, assigns PMUCFG, enables and synchronizes system control state, reads S54, initializes an extended relative pointer to the system configuration, and loads its first word. Privileged forms are encoded via narrow checked Hexagon V66 selector fields and decoded with Rizin; LLVM6 independently encodes four conventional register arithmetic/load/assignment forms after normalization of packet parse markers.
+- The new fragment is **disconnected by 232 zero linker-alignment bytes** `[0x4418,0x4500)` from the previous 568 source-generated executable bytes. Coverage is **616 source-authored executable bytes in two disjoint spans**, plus 232 structurally verified zero bytes; do not count the zero span as source code. Source-stable output is exposed via `agent20-09-cdsp emit-system-start`.
+- `tools/verify-agent20-09-system-start.py` cross-checks all 12 V66 decoded instruction words, four LLVM6 independently encoded scalar forms, and original reference bytes. The larger supervisor routine continues at file `0x4530`; the earliest **unimplemented non-padding executable byte** is `0x4530`.
+- Checkpoint-50 ancestry remains unavailable; this separately rooted branch is based on Agent 05 HEAD `a02618f...` and should only be merged as a portable contribution onto a verified integration base.
