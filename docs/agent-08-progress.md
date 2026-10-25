@@ -127,3 +127,17 @@ non-word-aligned lengths, unknown memory types and unsupported flags. The
 assert absolute per-algorithm bases from a guessed DSP program. File-byte
 coverage stays **3,984 / 34,236 bytes**, and no HALO opcode reconstruction
 is claimed.
+
+## Checkpoint 08-09 — conservative 40-bit program inventory
+
+A new HALO packed PM inspector splits the original PM region into 4,056
+five-byte transport words, counts 3,701 distinct values and 29 all-zero
+words, and locates repeated four-word records where the final two words
+match across multiple consecutive entries. The original image contains a
+six-entry candidate repeated template beginning at PM word zero, plus two
+shorter three-entry runs. The detector rejects truncated input and runs on
+synthetic vectors in unit tests. It is **not an instruction decoder**:
+repetition alone cannot identify a HALO opcode, branch or semantic behavior.
+No proprietary program words are embedded in the implementation; source-
+reconstructed coverage remains **3,984 / 34,236 bytes**. This inventory is
+for identifying potential future function/data boundaries, not build output.

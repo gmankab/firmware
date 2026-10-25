@@ -301,6 +301,21 @@ fn run() -> Result<(), Box<dyn Error>> {
         println!("Extracted seven PRIVATELY HELD proprietary DSP binary inputs (30252 bytes). NEVER commit or redistribute them as independent source.");
         return Ok(());
     }
+    if args.len() == 2 && args[0] == "inspect-wmfw-program-patterns" {
+        let b=fs::read(&args[1])?;
+        firmware_tools::wmfw_plan::verify_container(&b)?;
+        let pm=firmware_tools::wmfw_plan::regions()?.into_iter().find(|r|r.kind==0x10)
+            .ok_or("missing HALO packed program memory region")?;
+        let a=firmware_tools::wmfw_program_patterns::analyze_packed_program(&b[pm.payload_offset..pm.end()])?;
+        println!("HALO packed PM: {} 40-bit transport words, {} distinct, {} exactly zero",
+            a.total_words,a.distinct_words,a.all_zero_words);
+        for pattern in a.repeated_four_word_tails.iter().take(20) {
+            println!("Candidate 4-word repeating-tail pattern: start DSP word {} with {} entries",
+                pattern.initial_word,pattern.entries);
+        }
+        println!("Frequency and pattern inventory ONLY; HALO instruction opcodes and control flow remain unknown.");
+        return Ok(());
+    }
     if args.len() == 1 && args[0] == "wmfw-control-ranges" {
         let reports=firmware_tools::wmfw_control_ranges::coverage()?;
         for r in reports {

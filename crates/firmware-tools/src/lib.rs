@@ -20,6 +20,7 @@ pub mod wmfw_sha256;
 pub mod wmfw_external_payload;
 pub mod wmfw_memory_map;
 pub mod wmfw_control_ranges;
+pub mod wmfw_program_patterns;
 
 /// Parse only the bounded ELF32 little-endian header and segment table.
 /// Neither this metadata inspector nor its output is an executable decompiler.
