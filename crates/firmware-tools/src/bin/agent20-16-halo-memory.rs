@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 //! Isolated Agent 16 entry point; shared firmware-tools CLI is unchanged.
 use firmware_tools::{wmfw_halo_memory::{self, HaloMemoryKind}, wmfw_halo_static_data as data,
+    wmfw_halo_control_defaults as defaults, wmfw_halo_memory_plan as memory_plan,
     wmfw_plan, wmfw_sha256};
 use std::{env, fs, io::Write, path::Path};
 
@@ -53,7 +54,42 @@ fn run(args: &[String]) -> Result<(), String> {
             let bytes = data::assemble_directory(Path::new(inputs))?;
             write_new(output, &bytes)
         }
-        _ => Err("usage: agent20-16-halo-memory verify REFERENCE | emit-static-directory OUTPUT | decode-xy REFERENCE | assemble-external INPUT_DIRECTORY OUTPUT".into()),
+        [cmd] if cmd == "control-defaults" => {
+            let records = defaults::nabu_control_defaults()?;
+            println!("{{\"origin\":\"reference_observed_named_initialization\",\"controls\":[");
+            for (i, r) in records.iter().enumerate() {
+                println!("{{\"algorithm_id\":{},\"name\":\"{}\",\"memory\":\"{:?}\",\"relative_word_offset\":{},\"static_dsp_word_address\":{},\"values\":[{}]}}{}",
+                    r.algorithm_id, r.name, r.memory, r.relative_word_offset, r.static_dsp_word_address,
+                    r.values.iter().map(u64::to_string).collect::<Vec<_>>().join(","),
+                    if i + 1 == records.len() { "" } else { "," });
+            }
+            println!("]}}");
+            Ok(())
+        }
+        [cmd] if cmd == "control-bytes" => {
+            let bytes = defaults::generated_bytes()?;
+            println!("{{\"origin\":\"reference_observed_named_initialization\",\"bytes\":[{}]}}",
+                bytes.iter().map(|(offset, value)| format!("[{offset},{value}]")).collect::<Vec<_>>().join(","));
+            Ok(())
+        }
+        [cmd] if cmd == "memory-provenance" => {
+            println!("{}", memory_plan::ledger_json()?);
+            Ok(())
+        }
+        [cmd, input] if cmd == "verify-memory" => {
+            let bytes = reference(input)?;
+            memory_plan::verify_reference(&bytes)?;
+            println!("{}", memory_plan::ledger_json()?);
+            Ok(())
+        }
+        [cmd, input, output] if cmd == "extract-memory-external" => {
+            let bytes = reference(input)?;
+            memory_plan::extract_inputs(&bytes, Path::new(output))
+        }
+        [cmd, input, output] if cmd == "assemble-memory-external" => {
+            write_new(output, &memory_plan::assemble_directory(Path::new(input))?)
+        }
+        _ => Err("usage: agent20-16-halo-memory verify REFERENCE | emit-static-directory OUTPUT | decode-xy REFERENCE | assemble-external INPUT_DIRECTORY OUTPUT | control-defaults | control-bytes | memory-provenance | verify-memory REFERENCE | extract-memory-external REFERENCE NEW_DIRECTORY | assemble-memory-external INPUT_DIRECTORY OUTPUT".into()),
     }
 }
 

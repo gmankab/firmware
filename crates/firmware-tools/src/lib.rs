@@ -36,6 +36,8 @@ pub mod wmfw_cs35l41_bus;
 pub mod wmfw_halo_static_data;
 pub mod wmfw_halo_fixed_point;
 pub mod wmfw_halo_calibration;
+pub mod wmfw_halo_control_defaults;
+pub mod wmfw_halo_memory_plan;
 
 /// Parse only the bounded ELF32 little-endian header and segment table.
 /// Neither this metadata inspector nor its output is an executable decompiler.
