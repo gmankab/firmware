@@ -27,8 +27,8 @@ class SnapshotTests(unittest.TestCase):
 
     def test_snapshot_bounds(self):
         self.assertEqual(MODULE.REGISTER_SNAPSHOT_SIZE,0x8c)
-        self.assertEqual(MODULE.FILE_END,0x65f4)
-        self.assertEqual(MODULE.SIZE,0x65f4-0x6030)
+        self.assertEqual(MODULE.REGISTER_SNAPSHOT_END,0x65f4)
+        self.assertGreaterEqual(MODULE.SIZE,0x65f4-0x6030)
 
     def test_privileged_transfer_register_fields(self):
         words=(read_system_register(1,SystemRegister.SGP0),

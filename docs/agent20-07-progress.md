@@ -203,3 +203,23 @@ Rizin hexagon-v66 decoding of the complete 140-byte interval; direct SHA-pinned
 reference byte comparison; workspace offline Rust/Python tests and release build.
 Branch is still rooted in Agent04's older `d7cb8b1…` snapshot, **not** the
 missing checkpoint-50 integration tree.
+
+## Checkpoint 14: version guard and return stub `[0x65f4,0x661c)`
+
+The additional **40 source-assembled V66 bytes** include a 4-byte standalone
+`jumpr lr` stub and a revision-gated controller configuration routine. Nine
+ordinary instructions/duplex packets are LLVM6 source-assembled; the tenth is
+a checked architectural register read `r0 = REV` (`SystemRegister.REV`, S29),
+inserted only after verifying an exact assembler NOP slot. It masks the
+revision, conditionally returns, reads a physical MMIO flag and writes the
+ready marker when absent. Rizin's independent V66 decoder agrees on all
+packet boundaries and operands. The register read has a unit test and the
+source emitter compares its full output to the pinned MBN without copying
+original code bytes.
+
+RWE fragment: **1,516 contiguous bytes** `[0x6030,0x661c)` (physical
+`[0x8be03030,0x8be0361c)`), SHA-256
+`68534204cf65712bc055995149dfa10efd690e5f5aae1f918fb441dd72b06537`.
+The following controller diagnostic/cache routine starts at `0x661c` and has
+not yet been rebuilt. Firmwares beyond the selected fragment and OEM signing
+remain outside this checkpoint.

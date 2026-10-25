@@ -24,7 +24,7 @@ from adsp_hexagon_v66 import (SystemRegister, ControlRegister, read_system_regis
                               write_predicate_group_from_gpr,packet_continuation)
 
 FILE_START=0x6030
-FILE_END=0x65f4
+FILE_END=0x661c
 SIZE=FILE_END-FILE_START
 PADDR=0x8BE03030
 REFERENCE_SHA='4b579e5dc1333d634e5bdc93f3314e357e0e30dab7140833f6cc7aef086b1c1e'
@@ -62,6 +62,9 @@ RESET_CONTROLLER_SOURCE=TOOLS/'adsp-agent20-rwe-reset-controller.S'
 RESET_CONTROLLER_SIZE=0x90
 REGISTER_SNAPSHOT_SOURCE=TOOLS/'adsp-agent20-rwe-register-snapshot.S'
 REGISTER_SNAPSHOT_SIZE=0x8c
+REGISTER_SNAPSHOT_END=0x65f4
+REVISION_GUARD_SOURCE=TOOLS/'adsp-agent20-rwe-revision-guard.S'
+REVISION_GUARD_SIZE=0x28
 
 
 def baseline():
@@ -280,6 +283,23 @@ def register_snapshot(llvm_mc:str, previous)->bytes:
     return bytes(output)
 
 
+
+def revision_guard(llvm_mc:str,previous)->bytes:
+    """Assemble tiny return stub + checked S29 (REV) reader in version guard.
+
+    Remaining nine packet words are direct LLVM6 assembly, preserving a
+    Hexagon duplex predicate return and the original GP-address extender.
+    """
+    code=bytearray(previous.assemble(llvm_mc,REVISION_GUARD_SOURCE,REVISION_GUARD_SIZE))
+    at=0x04
+    if code[at:at+4]!=struct.pack('<I',0x7f00c000):
+        raise previous.AdspError('revision S29 sentinel moved')
+    code[at:at+4]=struct.pack('<I',read_system_register(0,SystemRegister.REV))
+    if any(code[i:i+4]==struct.pack('<I',0x7f00c000) for i in range(0,len(code),4)):
+        raise previous.AdspError('unresolved revision privilege placeholder')
+    return bytes(code)
+
+
 def render(llvm_mc:str)->bytes:
     previous=baseline()
     output=bytearray(previous.assemble(llvm_mc,SOURCE,STARTUP_SIZE))
@@ -311,6 +331,7 @@ def render(llvm_mc:str)->bytes:
     output.extend(previous.assemble(llvm_mc,STATE_READY_SOURCE,STATE_READY_SIZE))
     output.extend(reset_controller(llvm_mc,previous))
     output.extend(register_snapshot(llvm_mc,previous))
+    output.extend(revision_guard(llvm_mc,previous))
     if len(output)!=SIZE:
         raise previous.AdspError("RWE source fragments are not contiguous")
     return bytes(output)
