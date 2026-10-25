@@ -331,3 +331,11 @@ python3 tools/agent20_06_a32_roundtrip.py /private/venus.mbn 0xa8ea0 0xa92c8 \
 - Rebuilt the small controller forwarding thunks `[0xb65e4,0xb6654)` and the descriptor-registration function `[0xb6654,0xb68bc)`, preserving its conditional branches, controller callbacks and source register-allocation semantics. Data words include controller globals and diagnostic addresses, not instructions.
 - Independent Clang/LLVM assembler matches all 692 instruction and 36 data bytes (`--data-range 0xb6898:0xb68bc`), zero differences; full typed emitter verifies the entire cumulative fragment. **209 Rust and 13 Python tests pass.** Release build not claimed at this checkpoint.
 - Next runtime `0xb68bc` (file `0xba8bc`) begins a new codec descriptor size/offset calculation routine. This remains a provisional old-base typed ARM32 reconstruction, not a full semantic source rebuild, signed OEM firmware, or on-device verification.
+
+## Checkpoint 38 — codec plane layout and six-way event dispatch
+
+- Contiguous exact Venus ARM runtime `[0xa8000,0xb6edc)` = **61,148 bytes**; reference MBN file `[0xac000,0xbaedc)`.
+- New `[0xb68bc,0xb6edc)` = **1,568 bytes**, comprising **368 typed ARM32 instructions (1,472 bytes)** and 24 separately classified data words (96 bytes). Constant pools are `[0xb6ab4,0xb6ac4)`, `[0xb6c34,0xb6c4c)`, `[0xb6d28,0xb6d34)`, `[0xb6e2c,0xb6e44)` (the six-way dispatch table) and `[0xb6ec8,0xb6edc)`.
+- Reconstructs controller buffer dimensions/offsets, allocation checks, callbacks and a six-way mode dispatch. The computed `LDR PC,[R0,R1]` at `0xb6e28` is a valid control transfer, so it uses the PC-capable ARM register transfer encoder rather than the guarded data-only helper.
+- Direct source-built output comparison against `venus.mbn` and independent Clang/LLVM reassembly both show **zero byte differences**. All **210 Rust** and **13 Python** tests pass. Offline release build is not claimed here.
+- Next uncovered runtime `0xb6edc` (reference file offset `0xbaedc`); this remains a provisional older-base instruction-level A32 implementation, not a behavioral high-level decompilation or a newly signed/flashable image.
