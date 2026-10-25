@@ -60,6 +60,18 @@ pub enum ScalarPacket {
     WriteSystem { system: SystemRegister, src: GeneralRegister },
     /// Hexagon V66 `Rn = SYSCFG`; only this documented register is supported.
     ReadSyscfg { dst: GeneralRegister },
+    /// Hexagon register-width logical shift right with constant amount.
+    LogicalShiftRight { dst: GeneralRegister, src: GeneralRegister, amount: u8 },
+    /// Hexagon insert register bit-field. Width + offset must fit 32 bits.
+    InsertBitField { dst: GeneralRegister, src: GeneralRegister, width: u8, offset: u8 },
+    /// Hexagon 12-bit unsigned immediate assignment without an immext word.
+    AssignUnsignedImmediate { dst: GeneralRegister, value: u16 },
+    /// `R(odd):R(even)=combine(#0,#0)`; even low register required.
+    CombineZeroPair { low: GeneralRegister },
+    /// `tlbw(R(odd):R(even),R0)`, a V66 privileged TLB write.
+    /// Rizin V6 corroborates register-pair field positions; LLVM6 cannot
+    /// assemble this privileged form and is not presented as a second encoder.
+    TlbWriteIndexedR0 { low: GeneralRegister },
     /// Hexagon `Rd = setbit(Rs,#index)`, 0 <= index < 32.
     SetBit { dst: GeneralRegister, src: GeneralRegister, position: u8 },
     /// Hexagon `Rd = clrbit(Rs,#index)`.
@@ -123,6 +135,37 @@ impl ScalarPacket {
                 Ok(0x6e80_c000 | (SystemRegister::Syscfg.opcode_selector() << 16)
                     | u32::from(dst.number()))
             }
+            Self::LogicalShiftRight { dst, src, amount } => {
+                if amount>=32 { return Err("Hexagon LSR immediate amount >=32".into()); }
+                Ok(0x8c00_c020 | (u32::from(src.number()) << 16)
+                    | (u32::from(amount) << 8) | u32::from(dst.number()))
+            }
+            Self::InsertBitField { dst, src, width, offset } => {
+                if width==0 || width>31 || offset>=32 || u16::from(width)+u16::from(offset)>32 {
+                    return Err("Hexagon INSERT bitfield outside 32-bit register".into());
+                }
+                Ok(0x8f00_c000 | (u32::from(offset & 16) << 18)
+                    | (u32::from(src.number()) << 16)
+                    | (u32::from(width) << 8)
+                    | (u32::from(offset & 15) << 5) | u32::from(dst.number()))
+            }
+            Self::AssignUnsignedImmediate { dst, value } => {
+                if value>4095 { return Err("Hexagon positive 12-bit immediate >4095".into()); }
+                Ok(0x7800_c000 | (u32::from(value >> 9) << 16)
+                    | (u32::from(value & 0x1ff) << 5) | u32::from(dst.number()))
+            }
+            Self::CombineZeroPair { low } => {
+                if low.number()%2!=0 || low.number()>30 {
+                    return Err("Hexagon register pair requires even low register".into());
+                }
+                Ok(0x7c00_c000 | u32::from(low.number()))
+            }
+            Self::TlbWriteIndexedR0 { low } => {
+                if low.number()%2!=0 || low.number()>30 {
+                    return Err("Hexagon TLB register pair requires even low register".into());
+                }
+                Ok(0x6c00_c000 | (u32::from(low.number()) << 16))
+            }
             Self::SetBit { dst, src, position } => {
                 if position >= 32 {
                     return Err(format!("Hexagon setbit position out of range: {position}"));
@@ -181,6 +224,23 @@ pub fn encode_extended_assignment(dst: GeneralRegister, value: i32,
     let mut assignment=0x7800_c000 | ((bits & 0x3f) << 5) | u32::from(dst.number());
     if !end_packet { assignment &= !0x8000; }
     [extender,assignment]
+}
+
+/// Preserve the parse bits chosen for a multi-instruction Hexagon packet.
+/// ScalarPacket::encode() yields a standalone final instruction (0xc000);
+/// packet interior words can carry 0x4000 or 0x0000. This helper rejects
+/// unsupported parse-bit patterns rather than fabricating unrelated words.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PacketMarker { ContinuationA, ContinuationB, Final }
+impl PacketMarker {
+    pub fn apply(self, standalone: u32) -> u32 {
+        let marker = match self {
+            Self::ContinuationA => 0x4000,
+            Self::ContinuationB => 0x0000,
+            Self::Final => 0xc000,
+        };
+        (standalone & !0xc000) | marker
+    }
 }
 
 /// The reference opens with a selector branch, six guarded self-branches,
@@ -398,6 +458,27 @@ mod tests {
                    0xf31f_d91f);
         assert_eq!(ScalarPacket::AddRegisters { dst: r(2), left:r(4), right:r(5) }.encode().unwrap(),
                    0xf304_c502);
+    }
+
+    #[test]
+    fn hexagon_tlb_instruction_fields_and_parse_markers() {
+        use ScalarPacket::*;
+        let r=|n|GeneralRegister::new(n).unwrap();
+        assert_eq!(LogicalShiftRight{dst:r(2),src:r(24),amount:11}.encode().unwrap(),0x8c18_cb22);
+        assert_eq!(InsertBitField{dst:r(2),src:r(4),width:11,offset:21}.encode().unwrap(),0x8f44_cba2);
+        assert_eq!(InsertBitField{dst:r(3),src:r(5),width:12,offset:20}.encode().unwrap(),0x8f45_cc83);
+        assert_eq!(AssignUnsignedImmediate{dst:r(4),value:0x7c0}.encode().unwrap(),0x7803_f804);
+        assert_eq!(AssignUnsignedImmediate{dst:r(5),value:0xc00}.encode().unwrap(),0x7806_c005);
+        assert_eq!(CombineZeroPair{low:r(2)}.encode().unwrap(),0x7c00_c002);
+        assert_eq!(TlbWriteIndexedR0{low:r(2)}.encode().unwrap(),0x6c02_c000);
+        assert_eq!(TlbWriteIndexedR0{low:r(6)}.encode().unwrap(),0x6c06_c000);
+        assert_eq!(PacketMarker::ContinuationA.apply(0x8c18_cb22),0x8c18_4b22);
+        assert_eq!(PacketMarker::ContinuationB.apply(0x7803_f804),0x7803_3804);
+        assert!(LogicalShiftRight{dst:r(2),src:r(24),amount:32}.encode().is_err());
+        assert!(InsertBitField{dst:r(2),src:r(4),width:13,offset:21}.encode().is_err());
+        assert!(CombineZeroPair{low:r(3)}.encode().is_err());
+        assert!(TlbWriteIndexedR0{low:r(31)}.encode().is_err());
+        assert!(AssignUnsignedImmediate{dst:r(5),value:4096}.encode().is_err());
     }
 
     #[test]

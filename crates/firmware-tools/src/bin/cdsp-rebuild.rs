@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-only
 //! CDSP partial reconstruction command. Reference bytes stay outside Git.
-use firmware_tools::devices::xiaomi_nabu::{cdsp_boot as cdsp, cdsp_privilege as privileged};
+use firmware_tools::devices::xiaomi_nabu::{cdsp_boot as cdsp, cdsp_privilege as privileged, cdsp_tlb as tlb};
 use std::{env, fs};
 
 fn run() -> Result<(), Box<dyn std::error::Error>> {
@@ -25,6 +25,18 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
             println!("Verified {} CDSP Hexagon supervisor-reset bytes at file {:#x}..{:#x}, separate from the entry prefix.",
                 privileged::FUNCTION_SIZE, privileged::FILE_OFFSET,
                 privileged::FILE_OFFSET + privileged::FUNCTION_SIZE);
+        }
+        [action, output] if action == "emit-tlb-maintenance" => {
+            let bytes=tlb::build_tlb_maintenance()?;
+            fs::write(output, bytes)?;
+            println!("Emitted {} CDSP TLB maintenance bytes at {:#x}..{:#x} (disjoint firmware fragment).",
+                tlb::REGION_SIZE,tlb::FILE_OFFSET,tlb::FILE_OFFSET+tlb::REGION_SIZE);
+        }
+        [action, input] if action == "verify-tlb-maintenance" => {
+            let image=fs::read(input)?;
+            tlb::verify_tlb_maintenance(&image)?;
+            println!("Verified {} CDSP TLB maintenance bytes at {:#x}..{:#x} (disjoint fragment).",
+                tlb::REGION_SIZE,tlb::FILE_OFFSET,tlb::FILE_OFFSET+tlb::REGION_SIZE);
         }
         [action, output] if action == "emit-relocator" => {
             let data=privileged::build_relocator_trampoline()?;
@@ -93,7 +105,7 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
                 cdsp::HEXAGON_ELF_MACHINE, cdsp::CDSP_ELF_FLAGS, cdsp::ENTRY_PHYS,
                 cdsp::START_FILE_OFFSET, cdsp::ENTRY_ELF_VADDR, cdsp::ENTRY_PHYS, cdsp::FIRST_EXECUTABLE_SIZE);
         }
-        _ => return Err("Usage: cargo run -p firmware-tools --bin cdsp-rebuild -- [inspect REFERENCE | verify-entry REFERENCE | emit-entry OUTPUT | verify-init-prefix REFERENCE | emit-init-prefix OUTPUT | emit-syscfg-reset OUTPUT | verify-syscfg-reset REFERENCE | emit-syscfg-disable OUTPUT | verify-syscfg-disable REFERENCE | emit-relocator OUTPUT | verify-relocator REFERENCE | emit-supervisor-span OUTPUT | verify-supervisor-span REFERENCE]".into()),
+        _ => return Err("Usage: cargo run -p firmware-tools --bin cdsp-rebuild -- [inspect REFERENCE | verify-entry REFERENCE | emit-entry OUTPUT | verify-init-prefix REFERENCE | emit-init-prefix OUTPUT | emit-syscfg-reset OUTPUT | verify-syscfg-reset REFERENCE | emit-syscfg-disable OUTPUT | verify-syscfg-disable REFERENCE | emit-relocator OUTPUT | verify-relocator REFERENCE | emit-supervisor-span OUTPUT | verify-supervisor-span REFERENCE | emit-tlb-maintenance OUTPUT | verify-tlb-maintenance REFERENCE]".into()),
     }
     Ok(())
 }

@@ -155,3 +155,40 @@ python3 tools/verify-cdsp-supervisor-bridge.py \
   --llvm-mc /path/to/llvm-mc --rust-output /tmp/cdsp-relocator.bin \
   --reference /private/cdsp.mbn
 ```
+
+## Checkpoint 06 — two adjacent TLB maintenance functions
+
+At file `[0x3dfc,0x3e38)` (physical `[0x96c00dfc,0x96c00e38)`), two
+standalone functions total **60 contiguous reconstructed bytes**. The first
+builds 16-bit TLB attributes from logical shifts, bit-field insertion and a
+register mask, then executes `tlbw(R3:2,R0)`, `isync` and returns. The second
+sets `R3:2 = combine(#0,#0)`, executes `tlbw`, synchronizes and returns.
+Hexagon packet markers are preserved explicitly, using typed register fields
+and checked immediate/range constraints; **no private opcode arrays are copied**.
+
+`tools/verify-cdsp-tlb.py` independently assembles the 13 non-TLB instructions
+(52 bytes) with LLVM6 and uses Rizin V66 to decode **all 15 instructions**.
+Rizin corroborates the two V66 `tlbw` encodings, but does not independently
+*assemble* them; this distinction matters. The 60 emitted bytes match the
+private CDSP reference with zero differences. New typed constructs include
+logical right shift, register bit-field insert, unsigned 12-bit immediate,
+zeroed register pair, TLB write indexed by R0, and checked Hexagon packet
+parse markers.
+
+The independent rebuild now covers **212 unique CDSP executable bytes**
+in three disjoint spans: entry `[0x3000,0x3044)` (68), supervisor
+`[0x3d40,0x3d94)` (84), and TLB `[0x3dfc,0x3e38)` (60). The total is not one
+contiguous run. There is still a 104-byte gap `[0x3d94,0x3dfc)` between
+supervisor and TLB, and a large unreconstructed interval after 0x3044.
+No full/signable CDSP firmware has been produced. The base checkpoint-50
+bundle remains inaccessible in this session; ancestry is `69ebf0d`.
+
+```sh
+cargo run --offline --locked -p firmware-tools --bin cdsp-rebuild -- \
+  emit-tlb-maintenance /tmp/cdsp-tlb-maintenance.bin
+cargo run --offline --locked -p firmware-tools --bin cdsp-rebuild -- \
+  verify-tlb-maintenance /private/cdsp.mbn
+python3 tools/verify-cdsp-tlb.py \
+  --llvm-mc /path/to/llvm6/bin/llvm-mc --rz-asm /path/to/rz-asm \
+  --rust-output /tmp/cdsp-tlb-maintenance.bin --reference /private/cdsp.mbn
+```
