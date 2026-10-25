@@ -131,3 +131,10 @@ Original reference: private `map220v-nabu-firmware/venus.mbn`, SHA-256 `9d4af65d
 - Newly generated `[0x265e4,0x2693c)` = **856 bytes**, **195 A32 instructions and 19 named MMIO/data words in seven pools**, covering enable/clear IRQ masks for channel classes and DMA clocks, platform handler dispatching, pending-state acknowledgement, repeated MMIO read barriers and final hardware reset path.
 - Independently rebuilt in Clang/LLVM the entire cumulative source span: **4,563 ARM instructions and 350 data words in 85 separately classified literal pools**; no mismatched bytes.
 - Next uncovered function begins at `0x2693c`.
+
+## Checkpoint 18 — controller handshake and IRQ power-state transitions
+
+- Contiguous `[0x21c78,0x26c60)` = **20,456 byte-identical bytes** (file `[0x25c78,0x2ac60)`).
+- New `[0x2693c,0x26c60)` = **804 bytes**, **183 A32 instructions and 18 non-instruction words** in three separate literal pools `[0x26aa0,0x26ac4)`, `[0x26af0,0x26af8)`, `[0x26c44,0x26c60)`.
+- Handles controller sleep/resume handshake, IRQ pending state, status bit acknowledgement and repeated controller MMIO polling. Source-generated A32 is independent of the OEM binary, which is read only by verifiers.
+- Cumulative independent Clang/LLVM round-trip matches **4,746 instructions, 368 data words in 88 pools**, with zero byte differences. Next missing function begins at `0x26c60`.
