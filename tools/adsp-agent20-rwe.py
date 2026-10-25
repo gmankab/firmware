@@ -20,10 +20,11 @@ TOOLS=Path(__file__).resolve().parent
 if str(TOOLS) not in sys.path:
     sys.path.insert(0,str(TOOLS))
 from adsp_hexagon_v66 import (SystemRegister, ControlRegister, read_system_register,
-                              write_system_register, read_control_register,packet_continuation)
+                              write_system_register,read_control_register,
+                              write_predicate_group_from_gpr,packet_continuation)
 
 FILE_START=0x6030
-FILE_END=0x6220
+FILE_END=0x625c
 SIZE=FILE_END-FILE_START
 PADDR=0x8BE03030
 REFERENCE_SHA='4b579e5dc1333d634e5bdc93f3314e357e0e30dab7140833f6cc7aef086b1c1e'
@@ -39,6 +40,8 @@ POLL_SOURCE=TOOLS/'adsp-agent20-rwe-poll.S'
 POLL_SIZE=0x4c
 MEMORY_INIT_SOURCE=TOOLS/'adsp-agent20-rwe-memory-init.S'
 MEMORY_INIT_SIZE=0x8c
+THREAD_GUARD_SOURCE=TOOLS/'adsp-agent20-rwe-thread-guard.S'
+THREAD_GUARD_SIZE=0x3c
 
 
 def baseline():
@@ -115,6 +118,24 @@ def memory_init(llvm_mc:str,previous)->bytes:
     return bytes(out)
 
 
+def thread_guard(llvm_mc:str,previous)->bytes:
+    """Reproduce guarded thread permissions and the packetized P3:0 write."""
+    out=bytearray(previous.assemble(llvm_mc,THREAD_GUARD_SOURCE,THREAD_GUARD_SIZE))
+    sentinel_end=struct.pack('<I',0x7f00c000)
+    sentinel_mid=struct.pack('<I',0x7f004000)
+    checks={
+        0x08:(sentinel_end,read_system_register(1,SystemRegister.HTID)),
+        0x2c:(sentinel_mid,packet_continuation(write_predicate_group_from_gpr(28))),
+    }
+    for at,(sentinel,replacement) in checks.items():
+        if out[at:at+4]!=sentinel:
+            raise previous.AdspError(f'controller predicate guard sentinel moved at +0x{at:x}')
+        out[at:at+4]=struct.pack('<I',replacement)
+    if any(out[i:i+4] in (sentinel_end,sentinel_mid) for i in range(0,len(out),4)):
+        raise previous.AdspError('unresolved privileged guard instruction')
+    return bytes(out)
+
+
 def render(llvm_mc:str)->bytes:
     previous=baseline()
     output=bytearray(previous.assemble(llvm_mc,SOURCE,STARTUP_SIZE))
@@ -135,6 +156,7 @@ def render(llvm_mc:str)->bytes:
     output.extend(finalize(llvm_mc,previous))
     output.extend(previous.assemble(llvm_mc,POLL_SOURCE,POLL_SIZE))
     output.extend(memory_init(llvm_mc,previous))
+    output.extend(thread_guard(llvm_mc,previous))
     if len(output)!=SIZE:
         raise previous.AdspError("RWE source fragments are not contiguous")
     return bytes(output)
