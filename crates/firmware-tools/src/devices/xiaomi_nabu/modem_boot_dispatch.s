@@ -81,6 +81,19 @@
     // J2_call: 0101101iiiiiiiiiPPiiiiiiiiiiiii0, low six bits unscaled.
     .word (0x5a000000 | (3 << 14) | ((hex_rel\@ & 63) << 1))
 .endm
+// Copy one Hexagon MMU/controller pair into the destination metadata table.
+// Consecutive extended memory operations share a single four-word packet.
+.macro HEX_COPY_MAP_PAIR dst_a, dst_b, source_a, source_b
+    {
+        r2 = add(r1,#\dst_a)
+        r4 = add(r1,#\dst_b)
+    }
+    {
+        r3 = memw(r25+##\source_a)
+        r5 = memw(r25+##\source_b)
+    }
+    { memw(r2+#0) = r3; memw(r4+#0) = r5 }
+.endm
 .globl modem_boot_dispatch
 modem_boot_dispatch:
 .set modem_ready_handler, modem_boot_dispatch+0x5c4
@@ -611,3 +624,32 @@ HEX_SYSTEM_WRITE 0,29
 HEX_EXTENDED_CALL 0x74f20,0x3bfc
 .set modem_hold_forever, modem_boot_dispatch+(0x3c04-0x3644)
 { jump modem_hold_forever }
+// Hardware memory map synchronization: capture physical MPU state and copy
+// validated controller page entries into their assigned hardware slots.
+HEX_SYSTEM_READ 1,27,1
+{ r2 = #0 }
+{ r1 = insert(r2,#12,#20) }
+{
+ r1 = asl(r1,#5)
+ r0 = ##8
+}
+HEX_PHYSICAL_WORD_LOAD 2,0,1
+{ r0 = asl(r2,#5) }
+{
+ r7 = add(r0,#66)
+ r6 = #4
+ r4 = #0
+}
+.set physical_snapshot_retry, modem_boot_dispatch+(0x3c30-0x3644)
+physical_snapshot_retry:
+HEX_PHYSICAL_WORD_LOAD 1,6,7
+HEX_PHYSICAL_WORD_LOAD 0,4,7
+HEX_PHYSICAL_WORD_LOAD 2,6,7
+{ p0 = cmp.eq(r2,r1); if (!p0.new) jump:nt physical_snapshot_retry }
+{ memd(r25+##-1064891952) = r1:0 }
+{ r1 = memw(r25+##-1064935420) }
+HEX_COPY_MAP_PAIR 256,260,-1064891904,-1064891900
+HEX_COPY_MAP_PAIR 264,268,-1064891896,-1064891892
+HEX_COPY_MAP_PAIR 272,276,-1064891888,-1064891884
+HEX_COPY_MAP_PAIR 4096,8192,-1064891880,-1064891876
+HEX_COPY_MAP_PAIR 12288,16384,-1064891872,-1064891868

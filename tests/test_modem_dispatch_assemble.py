@@ -12,10 +12,10 @@ SPEC.loader.exec_module(modem)
 class DispatchChecks(unittest.TestCase):
     def test_contiguous_size(self):
         self.assertEqual(modem.FILE_START,0x3644)
-        self.assertEqual(modem.FILE_END,0x3c08)
-        self.assertEqual(modem.LENGTH,1476)
+        self.assertEqual(modem.FILE_END,0x3cdc)
+        self.assertEqual(modem.LENGTH,1688)
         self.assertEqual(modem.PREFIX_LENGTH,1604)
-        self.assertEqual(modem.LENGTH+modem.PREFIX_LENGTH,3080)
+        self.assertEqual(modem.LENGTH+modem.PREFIX_LENGTH,3292)
 
     def test_rejects_wrong_revision(self):
         with self.assertRaisesRegex(ValueError,'wrong modem reference'):
@@ -52,6 +52,9 @@ class DispatchChecks(unittest.TestCase):
         self.assertIn('HEX_EXTENDED_CALL 0x74f20,0x3bfc', text)
         self.assertIn('adjust_ptrs_one:', text)
         self.assertIn('adjust_ptrs_two:', text)
+        self.assertIn('HEX_COPY_MAP_PAIR 256,260', text)
+        self.assertIn('HEX_COPY_MAP_PAIR 12288,16384', text)
+        self.assertIn('physical_snapshot_retry:', text)
         self.assertIn('memd(r4++#8) = r1:0', text)
         self.assertNotIn('.incbin',text)
 
