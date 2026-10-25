@@ -370,3 +370,9 @@ Original reference: private `map220v-nabu-firmware/venus.mbn`, SHA-256 `9d4af65d
 - Contiguous A32 reconstruction `[0x21c78,0x2f5b0)` = **55,608 exact bytes**; added `[0x2f394,0x2f5b0)` = **540 bytes** with **129 typed ARM32 instructions** and **6 non-executable data words**.
 - Includes four short ring-slot/callback routines, and the original single-predicate `BX` fast path. Data pools at `[0x2f3d8,0x2f3dc)` and `[0x2f578,0x2f58c)` are modeled separately.
 - First missing original instruction `0x2f5b0`. No bootable/signed OEM image claimed.
+
+## Checkpoint 56 — DMA controller initialization and resource barriers
+
+- Contiguous typed A32 interval `[0x21c78,0x2f7d0)` = **56,152 exact bytes**; newly added `[0x2f5b0,0x2f7d0)` = **544 bytes**, **117 instructions** and **19 data words**.
+- Builds controller DMA input mappings, conditional queue/resource barriers, and trivial buffer getters. Five literal address words at `[0x2f658,0x2f66c)` and fourteen at `[0x2f788,0x2f7c0)` are separately modeled.
+- The next actual function starts at `0x2f7d0`. Only instruction-byte equality is verified, not OEM signature, hardware boot or high-level behavior.
