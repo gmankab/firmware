@@ -99,3 +99,11 @@ git diff --check
 - Contiguous generated Venus region `[0x40a2c,0x45800)` now comprises **19,924 byte-identical bytes**: **4,954 A32 instructions (19,816 bytes) plus 27 non-executable literal words (108 bytes)**. The enclosing controller format routine still has branches beyond `0x45800`, and this is **partial-function** coverage.
 - Repository tests passed, including offline Rust/Python. The release profile built successfully with `CARGO_PROFILE_RELEASE_OPT_LEVEL=0`; do not imply a default optimized release build completed. No proprietary raw executable bytes are embedded in any source module.
 - Next runtime address is `0x45800` (MBN file `0x49800`); Agent 04's upper reservation boundary remains `0x68000`.
+
+## Checkpoint 10 — controller capability checks and literal pools
+
+- Added runtime `[0x45800,0x46000)` = **2,048 exact bytes** (original MBN `[0x49800,0x4a000)`). Correct classification is **509 typed A32 instructions (2,036 bytes)** and **three inline literal words (12 bytes)** at `0x45c80`, `0x45c84`, and `0x45f14`.
+- The two words `[0x45c80,0x45c88)` are branch-skipped data (`0x00ff03ff`, `0x40820826`), not the apparent invalid `LDRSHT PC` ARM opcode. The third word `0x807fffff` at `0x45f14` follows a branch to `0x4600c` and is likewise non-executable data. Source code names these values explicitly and tests their positions.
+- Independent Clang/LLVM assembler checks of three executable intervals, plus separate checks of all literal words, reproduce **all 2,048 bytes**. The typed Rust output matches original `venus.mbn` with zero byte differences.
+- New verified contiguous Agent 04 output `[0x40a2c,0x46000)` = **21,972 bytes**: **5,463 A32 instructions (21,852 bytes)** and **30 non-executable data words (120 bytes)**. No proprietary opcode bytes or unknown zero-filled fragments are in the source. The enclosing controller configuration function continues past `0x46000`.
+- Python/offline Rust tests pass. Release-profile compilation passes with `CARGO_PROFILE_RELEASE_OPT_LEVEL=0`; default optimized release still has not completed within the available execution limit. Next uncovered runtime `0x46000` (MBN offset `0x4a000`).
