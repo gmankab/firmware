@@ -112,8 +112,9 @@ class ADSPBootstrapTests(unittest.TestCase):
                      adsp.assemble(LLVM_MC, adsp.CONTROLLER_RESTORE_PADDING_SOURCE, 0x100) +
                      adsp.assemble_context_save(LLVM_MC) +
                      adsp.assemble_context_capture(LLVM_MC) +
-                     adsp.assemble_processor_startup(LLVM_MC))
-        self.assertEqual(len(generated), 0xdb0)
+                     adsp.assemble_processor_startup(LLVM_MC) +
+                     adsp.assemble_startup_poll(LLVM_MC))
+        self.assertEqual(len(generated), 0xe44)
         original = Path(REFERENCE).read_bytes()
         adsp.verify_reference(generated, original, 0x41e0)
         mutated = bytearray(generated)
@@ -389,6 +390,28 @@ class ADSPBootstrapTests(unittest.TestCase):
                 "{ isync } // V66 instruction-cache kill",1))
             with self.assertRaisesRegex(adsp.AdspError,"processor startup privilege slot"):
                 adsp.assemble_processor_startup(LLVM_MC,bad)
+
+    def test_startup_poll_has_architectural_controller_state_loops(self) -> None:
+        src=adsp.CONTROLLER_STARTUP_POLL_SOURCE.read_text()
+        for phrase in ("V66 r23 = S54", "V66 r1 = MODECTL", "retry_counter:",
+                       "if (!cmp.eq(r2.new,#0)) jump:t retry_counter",
+                       "second_stage", "third_stage"):
+            self.assertIn(phrase,src)
+        self.assertNotIn(".word",src)
+        self.assertNotIn(".incbin",src)
+
+    @unittest.skipUnless(LLVM_MC and REFERENCE,"Assembler and reference required")
+    def test_startup_poll_byte_identity_and_three_privilege_guards(self) -> None:
+        output=adsp.assemble_startup_poll(LLVM_MC)
+        self.assertEqual(len(output),0x94)
+        adsp.verify_reference(output,Path(REFERENCE).read_bytes(),0x4f90)
+        self.assertEqual(output[0x38:0x3c],struct.pack("<I",0x6e91c001))
+        with tempfile.TemporaryDirectory() as td:
+            bad=Path(td)/"bad-startup-poll.S"
+            bad.write_text(adsp.CONTROLLER_STARTUP_POLL_SOURCE.read_text().replace(
+                "{ nop } // V66 r1 = MODECTL", "{ isync } // V66 r1 = MODECTL",1))
+            with self.assertRaisesRegex(adsp.AdspError,"state polling privileged slot"):
+                adsp.assemble_startup_poll(LLVM_MC,bad)
 
     @unittest.skipUnless(LLVM_MC, "Hexagon-capable llvm-mc unavailable")
     def test_syscfg_handoff_uses_typed_and_source_assembly(self) -> None:

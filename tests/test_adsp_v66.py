@@ -68,6 +68,22 @@ class V66BootstrapTests(unittest.TestCase):
                 if cont:value=v66.packet_continuation(value)
                 self.assertEqual(struct.unpack_from("<I",b,offset)[0],value)
 
+    def test_mode_control_system_register_fields(self) -> None:
+        self.assertEqual(v66.read_system_register(1,v66.SystemRegister.MODECTL),0x6e91c001)
+        self.assertEqual(v66.packet_continuation(v66.read_system_register(
+            23,v66.SystemRegister.S54)),0x6eb64017)
+
+    @unittest.skipUnless(REFERENCE,"Nabu firmware required")
+    def test_poll_read_register_variants_match_three_sites(self) -> None:
+        b=Path(REFERENCE).read_bytes()
+        target={0x4fa4:v66.packet_continuation(
+                    v66.read_system_register(23,v66.SystemRegister.S54)),
+                0x4fc8:v66.read_system_register(1,v66.SystemRegister.MODECTL),
+                0x5010:v66.read_system_register(23,v66.SystemRegister.S54)}
+        for off,w in target.items():
+            with self.subTest(offset=hex(off)):
+                self.assertEqual(struct.unpack_from("<I",b,off)[0],w)
+
     def test_system_register_pair_rejects_invalid_register_width(self) -> None:
         for dst,sys in [(-1,48),(1,48),(31,44),(32,44),(0,-2),(0,45),(0,64),
                         (0,"S48"),("r0",44)]:

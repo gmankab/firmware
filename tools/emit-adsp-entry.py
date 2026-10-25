@@ -51,10 +51,11 @@ CONTROLLER_RESTORE_PADDING_SOURCE = pathlib.Path(__file__).with_name("adsp-contr
 CONTROLLER_CONTEXT_SAVE_SOURCE = pathlib.Path(__file__).with_name("adsp-controller-context-save.S")
 CONTROLLER_CONTEXT_CAPTURE_SOURCE = pathlib.Path(__file__).with_name("adsp-controller-context-capture.S")
 CONTROLLER_PROCESSOR_STARTUP_SOURCE = pathlib.Path(__file__).with_name("adsp-controller-processor-startup.S")
+CONTROLLER_STARTUP_POLL_SOURCE = pathlib.Path(__file__).with_name("adsp-controller-startup-poll.S")
 FRAGMENTS = {
     "vectors": (ASM_SOURCE, OEM_FILE_OFFSET, GENERATED_LENGTH),
     "boot-prefix": (ASM_SOURCE, OEM_FILE_OFFSET, 0x44),
-    "counter-controller": (CONTROLLER_SOURCE, 0x41e0, 0xdb0),
+    "counter-controller": (CONTROLLER_SOURCE, 0x41e0, 0xe44),
     "controller-bootstrap": (CONTROLLER_BOOTSTRAP_SOURCE, 0x4980, 0x2c),
     "controller-cache-copy": (CONTROLLER_CACHE_COPY_SOURCE, 0x49ac, 0x5c),
     "controller-physical-copy": (CONTROLLER_PHYSICAL_COPY_SOURCE, 0x4a08, 0x4c),
@@ -69,6 +70,7 @@ FRAGMENTS = {
     "controller-context-save": (CONTROLLER_CONTEXT_SAVE_SOURCE, 0x4e1c, 0x44),
     "controller-context-capture": (CONTROLLER_CONTEXT_CAPTURE_SOURCE, 0x4e60, 0xbc),
     "controller-processor-startup": (CONTROLLER_PROCESSOR_STARTUP_SOURCE, 0x4f1c, 0x74),
+    "controller-startup-poll": (CONTROLLER_STARTUP_POLL_SOURCE, 0x4f90, 0x94),
     "tlb-reconcile": (TLB_RECONCILE_SOURCE, 0x48d0, 0xb0),
     "cacheline-copy": (CACHELINE_COPY_SOURCE, 0x4818, 0x78),
     "tlb-flush": (TLB_FLUSH_SOURCE, 0x4788, 0x90),
@@ -623,6 +625,26 @@ def assemble_processor_startup(
     return bytes(out)
 
 
+def assemble_startup_poll(
+    llvm_mc: str, source: pathlib.Path = CONTROLLER_STARTUP_POLL_SOURCE
+) -> bytes:
+    """Source-generated state polling with three checked system-register reads."""
+    from adsp_hexagon_v66 import (
+        SystemRegister, read_system_register, packet_continuation,
+    )
+    out=bytearray(assemble(llvm_mc, source, 0x94))
+    for at, sentinel, ins in (
+        (0x14, 0x7f004000, packet_continuation(
+            read_system_register(23, SystemRegister.S54))),
+        (0x38, 0x7f00c000, read_system_register(1, SystemRegister.MODECTL)),
+        (0x80, 0x7f00c000, read_system_register(23, SystemRegister.S54)),
+    ):
+        if out[at:at+4] != struct.pack("<I", sentinel):
+            raise AdspError(f"Expected state polling privileged slot at 0x{at:x}")
+        out[at:at+4] = struct.pack("<I", ins)
+    return bytes(out)
+
+
 def run(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--llvm-mc", required=True,
@@ -665,6 +687,8 @@ def run(argv: list[str] | None = None) -> int:
             out = assemble_context_capture(args.llvm_mc, args.source or source)
         elif args.segment == "controller-processor-startup":
             out = assemble_processor_startup(args.llvm_mc, args.source or source)
+        elif args.segment == "controller-startup-poll":
+            out = assemble_startup_poll(args.llvm_mc, args.source or source)
         elif args.segment == "controller-debug-check":
             out = assemble_controller_debug_check(args.llvm_mc, args.source or source)
         elif args.segment == "controller-startup":
@@ -702,7 +726,8 @@ def run(argv: list[str] | None = None) -> int:
                    assemble(args.llvm_mc, CONTROLLER_RESTORE_PADDING_SOURCE, 0x100) +
                    assemble_context_save(args.llvm_mc) +
                    assemble_context_capture(args.llvm_mc) +
-                   assemble_processor_startup(args.llvm_mc))
+                   assemble_processor_startup(args.llvm_mc) +
+                   assemble_startup_poll(args.llvm_mc))
         else:
             out = assemble(args.llvm_mc, args.source or source, expected_length)
         if len(out) != expected_length:

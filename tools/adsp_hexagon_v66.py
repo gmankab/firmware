@@ -35,6 +35,7 @@ class SystemRegister(IntEnum):
     ELR = 3
     BADVA = 9
     STID = 2
+    MODECTL = 17
 
 
 class CacheCommand(IntEnum):
