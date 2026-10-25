@@ -14,6 +14,7 @@ QCOM="$FW/qcom/sm8150/Xiaomi/nabu"
 EXE="$ROOT/target/release/firmware-tools"
 "$EXE" verify-modemuw "$QCOM/modemuw.jsn"
 "$EXE" verify-a640-routines "$QCOM/a640_zap.mbn"
+"$EXE" verify-a640-complete "$QCOM/a640_zap.mbn"
 "$EXE" verify-venus-contiguous-boot "$QCOM/venus.mbn"
 for name in a640_zap.mbn adsp.mbn cdsp.mbn modem.mbn venus.mbn wlanmdsp.mbn; do
   "$EXE" verify-elf-prefix "$name" "$QCOM/$name"

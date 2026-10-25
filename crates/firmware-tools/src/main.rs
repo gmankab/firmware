@@ -85,6 +85,21 @@ fn run() -> Result<(), Box<dyn Error>> {
         println!("SHA-384 ELF segment integrity verified. OEM signature, certificate trust, and hardware acceptance were NOT verified.");
         return Ok(());
     }
+    if args.len() == 2 && args[0] == "verify-a640-complete" {
+        let original = fs::read(&args[1])?;
+        let audit = firmware_tools::devices::xiaomi_nabu::a640_container::
+            audit_complete_reference(&original)?;
+        println!("A640 complete byte comparison: {} / {} identical bytes.",
+            audit.matching_file_bytes, audit.original_file_bytes);
+        println!("  INDEPENDENT SOURCE/STRUCTURE: {} bytes.",
+            audit.independently_generated_file_bytes);
+        println!("  BORROWED ORIGINAL AUTHENTICATION: {} bytes at 0x{:x}..0x{:x}.",
+            audit.original_oem_authentication_bytes,
+            audit.authentication_file_range.start, audit.authentication_file_range.end);
+        println!("Byte identity reuses OEM signing material from the original input; it does NOT create a signature or establish hardware trust.");
+        println!("Run tools/verify-mbn-signatures.py independently to test embedded-chain RSA-PSS consistency.");
+        return Ok(());
+    }
     if args.len() == 2 && args[0] == "verify-mbnv6-hashes" {
         let firmware = fs::read(&args[1])?;
         let report = firmware_tools::qcom_mbn_validation::verify_elf32_mbnv6_hashes(&firmware)?;
@@ -336,7 +351,7 @@ fn run() -> Result<(), Box<dyn Error>> {
     if args.len() != 2 {
         return Err("usage: firmware-tools a640-coverage OR a640-container-coverage \
             OR emit-a640-executable OUTPUT_BIN OR emit-a640-fragments OUTDIR \
-            OR verify-a640-routines ORIGINAL_MBN \
+            OR verify-a640-routines ORIGINAL_MBN OR verify-a640-complete ORIGINAL_MBN \
             OR verify-mbnv6-hashes ORIGINAL_MBN \
             OR <rebuild-modemuw|verify-modemuw|inspect-elf32|inspect-image> PATH \
             OR make-ghidra-bootstrap ORIGINAL OUTPUT-ANALYSIS-ONLY \

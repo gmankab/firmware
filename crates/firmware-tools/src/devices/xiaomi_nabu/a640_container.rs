@@ -154,6 +154,50 @@ pub fn assemble_with_external_authentication(external_auth: &[u8]) -> Result<Vec
     Ok(image)
 }
 
+/// External-auth bytes are *borrowed from the original reference* solely
+/// to prove that every other byte can be regenerated. Passing this check is
+/// **not** equivalent to deriving the signature, validating device secure
+/// boot policy, or producing a new signed firmware release.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct A640ReferenceAudit {
+    pub original_file_bytes: usize,
+    pub independently_generated_file_bytes: usize,
+    pub original_oem_authentication_bytes: usize,
+    pub authentication_file_range: std::ops::Range<usize>,
+    pub matching_file_bytes: usize,
+}
+
+/// Reconstruct a complete bytewise comparison image *in memory* using only
+/// externally borrowed OEM authentication. Refuse a mismatching revision at
+/// the first offset and leave the private reference untouched.
+pub fn audit_complete_reference(reference: &[u8]) -> Result<A640ReferenceAudit, String> {
+    let partial = partial_container()?;
+    let holes = partial.holes();
+    if holes.len() != 1 || holes[0] != (0x1138..0x2a38) {
+        return Err("unexpected A640 authentication boundary".into());
+    }
+    if reference.len() != partial.total_bytes() {
+        return Err(format!("wrong A640 reference revision or length: expected {}, got {}",
+            partial.total_bytes(), reference.len()));
+    }
+    // This compares all source-generated regions before referencing any
+    // signature bytes; no unknown firmware byte is allowed to match by fiat.
+    partial.compare_known(reference)?;
+    let borrowed_auth = &reference[holes[0].clone()];
+    let result = assemble_with_external_authentication(borrowed_auth)?;
+    if let Some(offset) = result.iter().zip(reference).position(|(a,b)| a != b) {
+        return Err(format!("full A640 reassembly differs at file offset 0x{offset:x}"));
+    }
+    let coverage = partial.coverage();
+    Ok(A640ReferenceAudit {
+        original_file_bytes: reference.len(),
+        independently_generated_file_bytes: coverage.generated_bytes,
+        original_oem_authentication_bytes: borrowed_auth.len(),
+        authentication_file_range: holes[0].clone(),
+        matching_file_bytes: result.len(),
+    })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -193,6 +237,19 @@ mod tests {
         assert!(derived.build_independently_generated().is_err());
     }
 
+    #[test]
+    fn reference_audit_rejects_wrong_revision_and_modified_generated_bytes() {
+        let mut reference=assemble_with_external_authentication(&vec![0x44;EXTERNAL_AUTH_SIZE]).unwrap();
+        let stats=audit_complete_reference(&reference).unwrap();
+        assert_eq!(stats.original_file_bytes,0x37b0);
+        assert_eq!(stats.independently_generated_file_bytes,7856);
+        assert_eq!(stats.original_oem_authentication_bytes,6400);
+        assert_eq!(stats.matching_file_bytes,0x37b0);
+        assert_eq!(stats.authentication_file_range,0x1138..0x2a38);
+        assert!(audit_complete_reference(&reference[..reference.len()-1]).is_err());
+        reference[0x3000]^=1;
+        assert!(audit_complete_reference(&reference).unwrap_err().contains("byte mismatch"));
+    }
     #[test]
     fn generated_mbn_hashes_track_payload_bytes() {
         let plan = partial_container().unwrap();
