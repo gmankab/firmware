@@ -9,6 +9,7 @@ pub mod image_plan;
 pub mod sha384;
 pub mod qcom_mbn;
 pub mod qcom_mbn_validation;
+pub mod qcom_mbn_profiles;
 pub mod elf32_prefix;
 pub mod elf_file_coverage;
 pub mod devices;

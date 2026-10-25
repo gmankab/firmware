@@ -9,7 +9,7 @@
 use crate::{
     elf32_prefix::write_elf32_first_page,
     image_plan::ImagePlan,
-    qcom_mbn::{V6Header, V6Metadata120},
+    qcom_mbn_profiles::unsigned_header_and_policy,
     qcom_mbn_validation::sha384_table_from_generated_plan,
     parse_elf32,
 };
@@ -18,42 +18,6 @@ use super::{a640_plan, elf_specs::KNOWN_ELFS};
 pub const HEADER_BYTES: usize = 0x1000;
 pub const AUTHENTICATION_OFFSET: usize = 0x1000;
 pub const EXECUTABLE_OFFSET: usize = 0x3000;
-
-/// A640-specific public MBNv6 header fields. These describe lengths and
-/// placement only; they cannot authorize any firmware under secure boot.
-fn mbn_header() -> V6Header {
-    V6Header {
-        image_id: 0,
-        version: 6,
-        qti_signature_size: 0,
-        qti_certificate_size: 0,
-        declared_payload_size: 0x1990,
-        hash_table_size: 3 * 48,
-        oem_signature_pointer: u32::MAX,
-        oem_signature_size: 0x100,
-        oem_certificate_pointer: u32::MAX,
-        oem_certificate_size: 0x1800,
-        qti_metadata_size: 0,
-        oem_metadata_size: 0x78,
-    }
-}
-
-/// Image-policy fields recovered from the signed image and expressed using
-/// the public MBNv6 metadata format. Changing them would require a new valid
-/// signature; these are not generated OEM signing credentials.
-fn metadata() -> V6Metadata120 {
-    let mut signed_policy = V6Metadata120 {
-        software_id: 20,
-        hardware_id: 0x0a50e1,
-        oem_id: 0x72,
-        policy_flags: V6Metadata120::FLAG_USE_SOC_VERSION
-            | (1 << V6Metadata120::DEBUG_POLICY_SHIFT),
-        anti_rollback_version: 1,
-        ..Default::default()
-    };
-    signed_policy.supported_soc_versions[0] = 0x6003;
-    signed_policy
-}
 
 /// Construct only bytes we can produce through structured code and hashing.
 /// None of the missing authentication bytes are sourced from reference input.
@@ -82,7 +46,7 @@ pub fn partial_container() -> Result<ImagePlan, String> {
     if prefix.len() != HEADER_BYTES { return Err("unexpected ELF header page size".into()); }
     let program = a640_plan::partial_executable()?.build_complete()?;
 
-    let signed_header = mbn_header();
+    let (signed_header, signed_policy) = unsigned_header_and_policy(spec)?;
     let signed_layout = signed_header.layout(hash.filesz as usize)?;
     if signed_layout.padding.len() != 0 || signed_layout.hashes.len() != 3 * 48 {
         return Err("unexpected A640 signed segment layout".into());
@@ -95,7 +59,7 @@ pub fn partial_container() -> Result<ImagePlan, String> {
     if elf_header_len != spec.headers[0].filesz as usize {
         return Err("A640 ELF header hash span changed".into());
     }
-    let oem_metadata = metadata().encode();
+    let oem_metadata = signed_policy.encode();
     if oem_metadata.len() != signed_layout.oem_metadata.len() {
         return Err("MBNv6 OEM metadata size mismatch".into());
     }

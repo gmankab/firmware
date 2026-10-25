@@ -313,6 +313,23 @@ fn run() -> Result<(), Box<dyn Error>> {
         println!("Generated {} bytes of metadata-only ELF header for {} (NOT firmware)", 4096, spec.name);
         return Ok(());
     }
+    if args.len() == 3 && args[0] == "audit-mbn-unsigned" {
+        let spec = KNOWN_ELFS.iter().find(|s|s.name==args[1])
+            .ok_or("unknown Xiaomi Nabu MBN profile")?;
+        let reference = fs::read(&args[2])?;
+        let plan = firmware_tools::qcom_mbn_profiles::unsigned_metadata_plan(spec,reference.len())?;
+        plan.compare_known(&reference)?;
+        let coverage = plan.coverage();
+        println!("{}: {} source-described ELF+MBNv6 bytes / {} original file bytes.",
+            spec.name, coverage.generated_bytes, coverage.total_bytes);
+        println!("Signed fields such as SoC policy were generated structurally, but signatures/certificates and executable segments remain UNRECONSTRUCTED.");
+        if let Some(first)=coverage.holes.first() {
+            println!("FIRST MISSING FILE SPAN: 0x{:x}..0x{:x} ({} bytes).",
+                first.start,first.end,first.len());
+        }
+        println!("External-authentication bytes: 0; signing material is never copied into generated source coverage.");
+        return Ok(());
+    }
     if args.len() == 3 && args[0] == "audit-elf-coverage" {
         let spec = KNOWN_ELFS.iter().find(|x| x.name == args[1])
             .ok_or("unknown ELF32 firmware filename")?;
@@ -355,7 +372,7 @@ fn run() -> Result<(), Box<dyn Error>> {
             OR verify-mbnv6-hashes ORIGINAL_MBN \
             OR <rebuild-modemuw|verify-modemuw|inspect-elf32|inspect-image> PATH \
             OR make-ghidra-bootstrap ORIGINAL OUTPUT-ANALYSIS-ONLY \
-            OR rebuild-elf-prefix NAME OUTPUT OR verify-elf-prefix NAME ORIGINAL             OR audit-elf-coverage NAME ORIGINAL \
+            OR rebuild-elf-prefix NAME OUTPUT OR verify-elf-prefix NAME ORIGINAL             OR audit-elf-coverage NAME ORIGINAL OR audit-mbn-unsigned NAME ORIGINAL \
             OR extract-a640-isa ORIGINAL_MBN OUTDIR OR verify-a640-isa-fields ORIGINAL_MBN".into());
     }
     let target = PathBuf::from(&args[1]);
