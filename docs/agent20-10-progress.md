@@ -223,3 +223,54 @@ Agent 20-10 owns only new `cdsp_late_*` sources, its verification tool, focused 
 - Contiguous RWE file prefix is now `[0x56000,0x563c0)` = **960 file bytes**, consisting of **928 independently emitted executable bytes plus 32 NOP/fill bytes**. The other disjoint, fully rebuilt 1,200-byte controller segment yields **2,128 cumulative independently generated CDSP executable bytes** in this agent.
 - Unit tests check checked operand ranges and packet-relative branch targets; all direct emitted bytes are compared against original `cdsp.mbn`. Reproduce with `cdsp-late-rng-init verify-prefix /private/cdsp.mbn` and `tools/verify-agent20-10-cdsp-rng-init.py --llvm-mc /private/llvm6/bin/llvm-mc --rz-asm /private/rz-asm --generated /private/rng-state-92.bin --prefix /private/cdsp-rwe-960.bin --reference /private/cdsp.mbn`.
 - Next code at file `0x563c0`: the data-dependent shift/XOR state-update loop and a callback dispatch/return path; the full function starting at `0x56320` remains **incomplete**. This branch remains **provisional** because it derives from Agent05's CDSP checkpoint 17, not checkpoint 50 integration.
+
+## Checkpoint 19 — complete seeded CDSP controller update and return, 2,264 executable bytes
+
+- Source-encoded the final **136 Hexagon V66 executable bytes** at CDSP MBN
+  file `[0x563c0,0x56448)` (physical `[0x96cc83c0,0x96cc8448)`, ELF virtual
+  `[0xc00c83c0,0xc00c8448)`). Direct comparison to the pinned private
+  `cdsp.mbn` is exact, with **zero mismatching bytes**. The full seeded-state
+  function `[0x56320,0x56448)` is now independently emitted as **296 executable bytes**.
+- The new code uses the documented 32-bit V66 xorshift/insert instructions,
+  checked Hexagon `immext` assignment, `.new` word stores for all three state
+  slots, a `P0.new` backward branch from physical `0x96cc841c` to
+  `0x96cc8368`, two physical controller service calls (`0x96dc0680`,
+  `0x96dc4acc`), stack-spill and packed duplex ABI restore instructions.
+  The checked operand encoder validates register IDs, branch bounds, packet
+  placements and callback targets; unsupported operands are rejected.
+- Source-generated **contiguous RWE file prefix** is `[0x56000,0x56448)` =
+  **1,096 bytes**, comprising **1,064 executable source bytes and 32
+  separately identified layout NOP/fill bytes**. The other disjoint completed
+  controller segment `[0x55000,0x554b0)` contributes 1,200 executable bytes,
+  for **2,264 independently generated code bytes** in two disjoint regions.
+  Structural NOPs are not counted as functional executable code.
+- Independent LLVM6 semantic source `tools/agent20-10-cdsp-rwe-seed-update.s`
+  compiles to 136 bytes, with **24 original-order matching instruction-word
+  encodings**. LLVM6 reschedules an extended GP assignment and uses different
+  packet parse markers and branch placement for some words; it is not claimed
+  to be an exact, unchanged full LLVM6 binary reassembly.
+  `tools/verify-agent20-10-cdsp-rng-update.py` independently checks those
+  24 unchanged LLVM word encodings, all **34 original source-built words**
+  decoded by Rizin V66 in their authentic packet order, both physical call
+  targets and the conditional backedge, and full byte equality of the
+  296-byte function and 1,096-byte RWE file prefix.
+- Verified with `cargo test --workspace --offline --locked` (**225 Rust tests**),
+  Python discovery (**23 tests**), and the offline workspace release build.
+  Reproduce via:
+
+  ```sh
+  cargo run --offline --locked -p firmware-tools --bin cdsp-late-rng-update -- verify /private/cdsp.mbn
+  cargo run --offline --locked -p firmware-tools --bin cdsp-late-rng-update -- verify-seed /private/cdsp.mbn
+  cargo run --offline --locked -p firmware-tools --bin cdsp-late-rng-update -- verify-prefix /private/cdsp.mbn
+  python3 tools/verify-agent20-10-cdsp-rng-update.py \
+    --llvm-mc /private/llvm6/bin/llvm-mc --rz-asm /private/rz-asm \
+    --generated /private/rng-update-136.bin \
+    --whole /private/seed-full-296.bin --prefix /private/cdsp-rwe-1096.bin \
+    --reference /private/cdsp.mbn
+  ```
+
+- This is **still a provisional branch from Agent05 CDSP checkpoint 17**, not
+  a checkpoint-50-rooted integrated firmware. Original signed payload remains
+  outside Git; no OEM-authenticated new CDSP file or hardware behavior is
+  claimed. **Next missing CDSP executable code starts at file offset `0x56448`**
+  (physical `0x96cc8448`).
