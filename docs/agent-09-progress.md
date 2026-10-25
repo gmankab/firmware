@@ -688,3 +688,35 @@ images with zero mismatches in this external-input structural test.
 Rust tests: 197 passed; Python tests: 13; offline release build and
 `verify-envelope` for both references pass. All new original firmware bytes
 remain outside the repository.
+
+## Checkpoint 17 — Typed controller-state reset, 140 executable bytes
+
+Source-derived routine **`[0x5de,0x66a)`** independently emits NDS32
+`PUSH25`, `MOVI55`, 32 `SWI.GP` word stores and four `EX9.IT` service
+instructions. Rather than embedding firmware instructions, the source
+represents the action sequence with absolute SRAM state addresses and
+software-service identifiers; the encoder translates each absolute address
+via the independently verified linker GP profile into a signed word offset.
+
+The postmarketOS firmware and older map220v revision each have 32 clear
+operations and four services, but their order, addresses and service IDs
+are **revision-specific**. The source provides separate semantic action
+plans for both and refuses an unknown profile. Both independently generated
+140-byte streams are byte-identical to their respective references.
+
+Commands:
+
+```sh
+cargo run --offline --locked -p firmware-tools --bin novatek-nabu -- \
+  emit-nds32-reset-globals postmarketos /tmp/nds32-reset-140.bin
+cargo run --offline --locked -p firmware-tools --bin novatek-nabu -- \
+  verify-nds32-reset-globals /private/novatek_nt36523_fw.bin postmarketos
+```
+
+**538 executable bytes** (`[0x450,0x66a)`) are now reconstructed as named
+NDS32 source operations; this latest 140-byte reset function is standalone
+and has not yet been integrated into the strict full-image provenance map.
+The remaining firmware remains *not flashable*.
+
+Tests: Rust workspace, Python and offline release build pass. Strict checked
+GP displacement rejects misaligned and out-of-range addresses.

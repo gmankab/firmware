@@ -287,6 +287,16 @@ pub fn jump(at:usize,target:usize)->Result<u32,String>{
     Ok((0b100100_u32<<25)|(delta as u32 & 0xff_ffff))
 }
 
+/// GP-relative `swi.gp`: emit a word store to an absolute SRAM address,
+/// translating that semantic destination via the selected linker GP base.
+pub fn gp_relative_word_store(rt:Gpr,gp_base:i32,target_address:i32)->Result<u32,String>{
+    let delta=target_address.checked_sub(gp_base).ok_or("GP-relative store overflow")?;
+    if delta&3!=0{return Err("GP-relative word store requires word alignment".into());}
+    let units=delta/4;
+    if !(-65536..=65535).contains(&units){return Err("NDS32 SWI.GP offset overflow".into());}
+    Ok((0b011110_u32<<25)|(rt.number()<<20)|(0b111<<17)|(units as u32 &0x1_ffff))
+}
+
 /// NDS32 GP-relative word read from the SRAM address `target_address`.
 /// An *address difference* is encoded, not an original instruction word.
 pub fn gp_relative_word_load(rt:Gpr,gp_address:i32,target_address:i32)->Result<u32,String>{
@@ -427,6 +437,125 @@ pub fn boot_control_setup(profile:BootProfile)->Result<Vec<u8>,String>{
         return Err(format!("boot setup length {} != {}",out.len(),BOOT_SETUP_END-THIRD_INTERRUPT_END));
     }
     Ok(out)
+}
+
+/// The reset helper clears all control-state words and calls four embedded
+/// NDS32 EX9 services. The absolute SRAM targets reflect linker layout;
+/// they are *not* stored instruction bytes and each SWI.GP is re-encoded.
+#[derive(Clone,Copy,Debug,PartialEq,Eq)]
+enum InitAction { ZeroWordAt(i32), Service(u16) }
+const RESET_POSTMARKETOS:&[InitAction]=&[
+    InitAction::ZeroWordAt(0x2c584),
+    InitAction::ZeroWordAt(0x2c5b0),
+    InitAction::ZeroWordAt(0x2c5c0),
+    InitAction::ZeroWordAt(0x2c5d0),
+    InitAction::Service(0x16f),
+    InitAction::ZeroWordAt(0x2c614),
+    InitAction::ZeroWordAt(0x2c5a8),
+    InitAction::ZeroWordAt(0x2c5d4),
+    InitAction::ZeroWordAt(0x2c5c4),
+    InitAction::ZeroWordAt(0x2c5f4),
+    InitAction::ZeroWordAt(0x2c5c8),
+    InitAction::ZeroWordAt(0x2c5b8),
+    InitAction::ZeroWordAt(0x2c5ac),
+    InitAction::ZeroWordAt(0x2c590),
+    InitAction::ZeroWordAt(0x2c60c),
+    InitAction::ZeroWordAt(0x2c620),
+    InitAction::ZeroWordAt(0x2c5ec),
+    InitAction::ZeroWordAt(0x2c5f0),
+    InitAction::ZeroWordAt(0x2c5e4),
+    InitAction::ZeroWordAt(0x2c57c),
+    InitAction::Service(0x177),
+    InitAction::ZeroWordAt(0x2c5cc),
+    InitAction::ZeroWordAt(0x2c5a4),
+    InitAction::Service(0x1bc),
+    InitAction::Service(0xdc),
+    InitAction::ZeroWordAt(0x2c598),
+    InitAction::ZeroWordAt(0x2c5a0),
+    InitAction::ZeroWordAt(0x2c61c),
+    InitAction::ZeroWordAt(0x2c5e8),
+    InitAction::ZeroWordAt(0x2c608),
+    InitAction::ZeroWordAt(0x2c5bc),
+    InitAction::ZeroWordAt(0x2c594),
+    InitAction::ZeroWordAt(0x2c5dc),
+    InitAction::ZeroWordAt(0x2c59c),
+    InitAction::ZeroWordAt(0x2c5d8),
+    InitAction::ZeroWordAt(0x2c5f8),
+];
+const RESET_MAP220V:&[InitAction]=&[
+    InitAction::ZeroWordAt(0x2c55c),
+    InitAction::Service(0x1fb),
+    InitAction::ZeroWordAt(0x2c598),
+    InitAction::ZeroWordAt(0x2c5a8),
+    InitAction::Service(0x1cc),
+    InitAction::ZeroWordAt(0x2c5ec),
+    InitAction::ZeroWordAt(0x2c580),
+    InitAction::ZeroWordAt(0x2c5ac),
+    InitAction::ZeroWordAt(0x2c59c),
+    InitAction::ZeroWordAt(0x2c5cc),
+    InitAction::ZeroWordAt(0x2c5a0),
+    InitAction::ZeroWordAt(0x2c590),
+    InitAction::ZeroWordAt(0x2c584),
+    InitAction::ZeroWordAt(0x2c568),
+    InitAction::ZeroWordAt(0x2c5e4),
+    InitAction::ZeroWordAt(0x2c5f8),
+    InitAction::ZeroWordAt(0x2c5c4),
+    InitAction::ZeroWordAt(0x2c5c8),
+    InitAction::ZeroWordAt(0x2c5bc),
+    InitAction::ZeroWordAt(0x2c554),
+    InitAction::Service(0x16b),
+    InitAction::ZeroWordAt(0x2c5a4),
+    InitAction::ZeroWordAt(0x2c57c),
+    InitAction::ZeroWordAt(0x2c564),
+    InitAction::Service(0xda),
+    InitAction::ZeroWordAt(0x2c570),
+    InitAction::ZeroWordAt(0x2c578),
+    InitAction::ZeroWordAt(0x2c5f4),
+    InitAction::ZeroWordAt(0x2c5c0),
+    InitAction::ZeroWordAt(0x2c5e0),
+    InitAction::ZeroWordAt(0x2c594),
+    InitAction::ZeroWordAt(0x2c56c),
+    InitAction::ZeroWordAt(0x2c5b4),
+    InitAction::ZeroWordAt(0x2c574),
+    InitAction::ZeroWordAt(0x2c5b0),
+    InitAction::ZeroWordAt(0x2c5d0),
+];
+
+pub const RESET_RUNTIME_START:usize=0x5de;
+pub const RESET_RUNTIME_END:usize=0x66a;
+
+/// Two linker revisions initialize the same controller roles with different
+/// absolute SRAM addresses and software-service IDs. Strictly refuse a
+/// foreign profile rather than emitting guesses in a CPU-executable section.
+pub fn reset_runtime_globals(profile:BootProfile)->Result<Vec<u8>,String>{
+    let actions=if profile==POSTMARKETOS_BOOT {RESET_POSTMARKETOS}
+        else if profile==MAP220V_BOOT {RESET_MAP220V}
+        else {return Err("unknown Novatek NDS32 reset profile".into());};
+    let mut output=Vec::with_capacity(RESET_RUNTIME_END-RESET_RUNTIME_START);
+    be16(&mut output,short_push_pop(false,0,0)?);
+    be16(&mut output,short_move_immediate(Gpr::A0,0)?);
+    for action in actions {
+        match action {
+            InitAction::ZeroWordAt(destination)=>be32(&mut output,
+                gp_relative_word_store(Gpr::A0,profile.global_pointer,*destination)?),
+            InitAction::Service(id)=>be16(&mut output,short_ex9(*id)?),
+        }
+    }
+    if output.len()!=RESET_RUNTIME_END-RESET_RUNTIME_START{
+        return Err(format!("reset runtime source generated {} instead of {} bytes",
+            output.len(),RESET_RUNTIME_END-RESET_RUNTIME_START));
+    }
+    Ok(output)
+}
+
+pub fn verify_reset_runtime_globals(firmware:&[u8],profile:BootProfile)->Result<(),String>{
+    if firmware.len()<RESET_RUNTIME_END{return Err("firmware too short for reset routine".into());}
+    let code=reset_runtime_globals(profile)?;
+    let original=&firmware[RESET_RUNTIME_START..RESET_RUNTIME_END];
+    if let Some(i)=code.iter().zip(original).position(|(a,b)|a!=b){
+        return Err(format!("NDS32 reset routine differs at file offset 0x{:x}",RESET_RUNTIME_START+i));
+    }
+    Ok(())
 }
 
 pub fn verify_boot_control_setup(firmware:&[u8],profile:BootProfile)->Result<(),String>{
@@ -692,6 +821,23 @@ pub fn verify_first_handler(firmware:&[u8])->Result<(),String>{
         assert_eq!(disable_global_interrupts(),0x64020043);
         assert_eq!(data_synchronization_barrier(),0x64000008);
         assert_eq!(interrupt_return(),0x64000004);
+    }
+    #[test]fn gp_reset_writes_are_derived_from_absolute_sram_addresses(){
+        assert_eq!(gp_relative_word_store(Gpr::A0,POSTMARKETOS_GP_BASE,0x2c584).unwrap(),0x3c0f_fae9);
+        assert_eq!(gp_relative_word_store(Gpr::A0,MAP220V_GP_BASE,0x2c55c).unwrap(),0x3c0f_fb5b);
+        assert!(gp_relative_word_store(Gpr::A0,POSTMARKETOS_GP_BASE,0x2c585).is_err());
+        assert!(gp_relative_word_store(Gpr::A0,POSTMARKETOS_GP_BASE,0x7fffffc).is_err());
+        for profile in [POSTMARKETOS_BOOT,MAP220V_BOOT]{
+            let output=reset_runtime_globals(profile).unwrap();
+            assert_eq!(output.len(),140);
+            assert_eq!(&output[..2],&short_push_pop(false,0,0).unwrap().to_be_bytes());
+            assert_eq!(&output[2..4],&short_move_immediate(Gpr::A0,0).unwrap().to_be_bytes());
+            let mut image=vec![0;RESET_RUNTIME_END];
+            image[RESET_RUNTIME_START..RESET_RUNTIME_END].copy_from_slice(&output);
+            verify_reset_runtime_globals(&image,profile).unwrap();
+            image[0x604]^=1;
+            assert!(verify_reset_runtime_globals(&image,profile).unwrap_err().contains("0x604"));
+        }
     }
     #[test]fn initial_reset_and_service_control_have_no_hidden_opcodes(){
         assert_eq!(boot_control_setup(POSTMARKETOS_BOOT).unwrap().len(),0x56);

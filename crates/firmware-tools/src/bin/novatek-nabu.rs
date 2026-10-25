@@ -51,6 +51,34 @@ fn run() -> Result<(), String> {
         println!("Wrote {} structural bytes; hardware CRC verified: {}. WARNING: remaining ILM/DLM provenance and behavior NOT verified; do NOT flash.", built.bytes.len(),built.is_hardware_crc_verified());
         return Ok(());
     }
+    if args.first().map(String::as_str)==Some("emit-nds32-reset-globals") && args.len()==3 {
+        let profile=match args[1].as_str(){
+            "postmarketos"=>novatek_nds32::POSTMARKETOS_BOOT,
+            "map220v"=>novatek_nds32::MAP220V_BOOT,
+            _=>return Err("reset-globals profile must be postmarketos or map220v".into()),
+        };
+        let bytes=novatek_nds32::reset_runtime_globals(profile)?;
+        fs::write(&args[2],&bytes).map_err(|e|e.to_string())?;
+        println!("Generated {} source-derived NDS32 control reset bytes [0x{:x},0x{:x})",
+            bytes.len(),novatek_nds32::RESET_RUNTIME_START,novatek_nds32::RESET_RUNTIME_END);
+        return Ok(());
+    }
+    if args.first().map(String::as_str)==Some("verify-nds32-reset-globals") && args.len()==3 {
+        let profile=match args[2].as_str(){
+            "postmarketos"=>novatek_nds32::POSTMARKETOS_BOOT,
+            "map220v"=>novatek_nds32::MAP220V_BOOT,
+            _=>return Err("reset-globals profile must be postmarketos or map220v".into()),
+        };
+        let firmware=fs::read(&args[1]).map_err(|e|e.to_string())?;
+        let layout=NabuNovatekLayout::parse(&firmware)?;
+        if layout.ilm.end()? < novatek_nds32::RESET_RUNTIME_END {
+            return Err("NDS32 runtime-reset code exceeds ILM".into());
+        }
+        novatek_nds32::verify_reset_runtime_globals(&firmware,profile)?;
+        println!("NDS32 reset globals: {} independently generated executable bytes verified for {}",
+            novatek_nds32::RESET_RUNTIME_END-novatek_nds32::RESET_RUNTIME_START,args[2]);
+        return Ok(());
+    }
     if args.first().map(String::as_str)==Some("emit-nds32-boot-control") && args.len()==3 {
         let profile=match args[1].as_str(){
             "postmarketos"=>novatek_nds32::POSTMARKETOS_BOOT,
