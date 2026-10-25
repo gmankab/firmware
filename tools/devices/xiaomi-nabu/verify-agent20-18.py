@@ -23,6 +23,7 @@ BASE_COMMIT = "51b1f91f32d32542aa03e114f5a2f4d94b559e2a"
 EXPECTED_SPANS = [
     (0x10016,0x17dc0,32102,67,1,11506),
     (0x17dc0,0x185c0,2048,0,0,512),
+    (0x185c0,0x18620,0,96,0,0),
     (0x195b0,0x19614,0,100,0,0),
     (0x19614,0x19678,0,100,0,0),
     (0x19678,0x196b8,0,64,0,0),
@@ -33,10 +34,11 @@ EXPECTED_SPANS = [
     (0x19b04,0x19bbc,0,182,2,0),
     (0x19bf0,0x1ac80,0,4240,0,0),
 ]
-EXPECTED_GAPS = [(0x10000,0x10016),(0x185c0,0x195b0),(0x196f8,0x198dc),(0x19bbc,0x19bf0)]
+EXPECTED_GAPS = [(0x10000,0x10016),(0x18620,0x195b0),(0x196f8,0x198dc),(0x19bbc,0x19bf0)]
 EXPECTED_HASHES = {
     0x10016: "6b78bd0f2cd788b7c82a65119859a5e70111dd496f986b1727daed13e6f2aab4",
     0x17dc0: "a58613094f4ce93767d70120205520453bc193fea1c7f0fcaf7f1f0cb124a23c",
+    0x185c0: "74f24e4c3557fc128a16f3e76414fd1856327262f3dd49e937c54edf6a755637",
     0x19bf0: "c26af2ad9c57bf0b64d2d1b93b1e911170e63c39d7bf69bfe423b9e8770a8f4c",
 }
 
@@ -74,8 +76,8 @@ def validate_manifest(manifest):
         raise ValueError("unresolved gaps were changed or silently filled")
     if any(g["bytes"] != g["file_end"]-g["file_start"] for g in manifest["unresolved"]):
         raise ValueError("incorrect gap byte count")
-    for field,expected in [("covered_bytes",39522),("executable_bytes",34150),
-                           ("data_bytes",5363),("layout_fill_bytes",9)]:
+    for field,expected in [("covered_bytes",39618),("executable_bytes",34150),
+                           ("data_bytes",5459),("layout_fill_bytes",9)]:
         if manifest[field] != expected:
             raise ValueError(f"incorrect {field}")
     if manifest["complete_image"] or manifest["checkpoint50_integration"]:
@@ -117,6 +119,8 @@ def main():
     p.add_argument("--objcopy",default="nds32le-elf-objcopy")
     p.add_argument("--rustc",default=os.environ.get("RUSTC","rustc"))
     p.add_argument("--report",type=Path)
+    p.add_argument("--source-only",action="store_true",
+        help="explicitly skip GNU assembler/synthetic ISA checks when NDS32 tools are unavailable")
     p.add_argument("--fragment-dir",type=Path)
     args=p.parse_args()
     root=Path(__file__).resolve().parents[3]
@@ -139,40 +143,55 @@ def main():
             generated[start]=content
             digest_list.append(dict(fragment,sha256=digest,byte_mismatches=0))
         sources=root/"reference/xiaomi-nabu/agent20-18"
-        gnu_main=assemble(args,sources/"upper-ilm-main.S",0xfe16,"agent18_upper_start",temp,"main")
-        gnu_ex9=assemble(args,sources/"upper-ilm-ex9.S",0x17bc0,"agent18_ex9_table",temp,"ex9")
-        compare(generated[0x10016],gnu_main,"GNU main",0x10016)
-        compare(generated[0x17dc0],gnu_ex9,"GNU EX9",0x17dc0)
+        gnu_bytes=0
+        if not args.source_only:
+            gnu_main=assemble(args,sources/"upper-ilm-main.S",0xfe16,"agent18_upper_start",temp,"main")
+            gnu_ex9=assemble(args,sources/"upper-ilm-ex9.S",0x17bc0,"agent18_ex9_table",temp,"ex9")
+            compare(generated[0x10016],gnu_main,"GNU main",0x10016)
+            compare(generated[0x17dc0],gnu_ex9,"GNU EX9",0x17dc0)
+            gnu_bytes=len(gnu_main)+len(gnu_ex9)
         independent=data_validator().independent_fragments(root)
-        if set(independent) != set(generated)-{0x10016,0x17dc0}:
+        path=Path(__file__).with_name("verify_agent20_18_allocations.py")
+        spec=importlib.util.spec_from_file_location("agent18_reference_decoded_allocations",path)
+        module=importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        allocation_bytes=module.serialize()
+        compare(generated[0x185c0],allocation_bytes,"decoded controller allocation address structure",0x185c0)
+        if set(independent) != set(generated)-{0x10016,0x17dc0,0x185c0}:
             raise ValueError("independent data validator does not cover exactly the declared data spans")
         for start,content in independent.items():
             compare(generated[start],content,"independent data",start)
         # Exercise each of the 161 encoding variants on synthetic operands,
         # independent of the actual firmware's chosen operands.
-        run(args.rustc,"--edition=2021","--crate-name","agent18_isa_matrix",
-            sources/"upper-isa-matrix.rs","-o",temp/"isa-matrix")
-        run(temp/"isa-matrix",temp/"isa-rust.bin")
-        matrix=assemble(args,sources/"upper-isa-matrix.S",0x10000,"_start",temp,"isa-gnu")
-        compare((temp/"isa-rust.bin").read_bytes(),matrix,"synthetic ISA matrix",0x10000)
-        if len(matrix)!=522:
-            raise ValueError("synthetic ISA matrix unexpectedly changed length")
+        matrix_bytes=0
+        if not args.source_only:
+            run(args.rustc,"--edition=2021","--crate-name","agent18_isa_matrix",
+                sources/"upper-isa-matrix.rs","-o",temp/"isa-matrix")
+            run(temp/"isa-matrix",temp/"isa-rust.bin")
+            matrix=assemble(args,sources/"upper-isa-matrix.S",0x10000,"_start",temp,"isa-gnu")
+            compare((temp/"isa-rust.bin").read_bytes(),matrix,"synthetic ISA matrix",0x10000)
+            if len(matrix)!=522:
+                raise ValueError("synthetic ISA matrix unexpectedly changed length")
+            matrix_bytes=len(matrix)
         report={
-            "agent":"20-18","checkpoint":2,
+            "agent":"20-18","checkpoint":3,
             "git_head":run("git","-C",root,"rev-parse","HEAD"),
             "actual_parent":BASE_COMMIT,"checkpoint50_integration":False,
             "reference_sha256":PINNED_SHA256,"reference_size":len(reference),
             "reserved_file_start":0x10000,"reserved_file_end":0x1ac80,
             "ordinary_instructions":11506,"ex9_instructions":512,
-            "executable_bytes":34150,"data_bytes":5363,"layout_fill_bytes":9,
-            "covered_bytes":39522,"uncovered_bytes":4638,
+            "executable_bytes":34150,"data_bytes":5459,"layout_fill_bytes":9,
+            "covered_bytes":39618,"uncovered_bytes":4542,
             "reference_payload_bytes_embedded":0,"byte_mismatches":0,
-            "first_uncovered_file":0x10000,"first_uncovered_data_file":0x185c0,
-            "gnu_assembled_bytes":len(gnu_main)+len(gnu_ex9),
+            "first_uncovered_file":0x10000,"first_uncovered_data_file":0x18620,
+            "reference_decoded_absolute_metadata_bytes":96,
+            "gnu_assembled_bytes_this_run":gnu_bytes,
+            "gnu_checks_explicitly_skipped":args.source_only,
             "independently_generated_data_and_alignment_bytes":sum(map(len,independent.values())),
-            "synthetic_isa_variants":161,"synthetic_isa_bytes":len(matrix),
+            "synthetic_isa_variants_this_run":0 if args.source_only else 161,
+            "synthetic_isa_bytes_this_run":matrix_bytes,
             "rust_version":run(args.rustc,"--version"),
-            "assembler_version":run(args.assembler,"--version").splitlines()[0],
+            "assembler_version":None if args.source_only else run(args.assembler,"--version").splitlines()[0],
             "fragments":digest_list,"unresolved":manifest["unresolved"],
             "behavior_verified_on_hardware":False,"complete_firmware":False,
         }

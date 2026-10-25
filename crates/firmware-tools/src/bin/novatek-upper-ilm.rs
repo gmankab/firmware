@@ -11,6 +11,8 @@ mod novatek_upper_ex9;
 mod novatek_upper_log_data;
 #[path = "../devices/xiaomi_nabu/novatek_upper_math_data.rs"]
 mod novatek_upper_math_data;
+#[path = "../devices/xiaomi_nabu/novatek_upper_allocations.rs"]
+mod novatek_upper_allocations;
 #[path = "../devices/xiaomi_nabu/novatek_upper_catalog.rs"]
 mod novatek_upper_catalog;
 

@@ -260,3 +260,26 @@ reservation and is not included in this checkpoint's new executable count.
 
 No hardware execution, complete-image provenance, firmware signing, or
 flashability is established.
+
+## Checkpoint 03 — checked controller address-allocation metadata
+
+- Commit from checkpoint 02 `4d74c67127752f62186a9e9c6e5633c0f419dcad`.
+- New **96-byte** fragment at file `[0x185c0,0x18620)` (runtime `[0x183c0,0x18420)`), constructed by typed 24-word little-endian address serialization rather than copying an OEM data blob.
+- Reconstructed layout: four address pairs with `0x190` stride, two four-address groups with `0xc80` stride, four plane buffers with `0x640` stride, four separately decoded allocations.
+- **Important provenance distinction:** the 4+2+1+4 base/standalone values are decoded **from the pinned reference**, *not* independently recovered symbolic original vendor source. These are reference-decoded metadata constants, not native NDS32 executable instructions or independent mathematical tables. They are counted separately from 34,150 reconstructed executable bytes and 5,304 mathematically/public-source-derived bytes.
+- Sparse generated total increases from 39,522 to **39,618 bytes** with zero reference differences; remaining holes shrink from 4,638 to **4,542 bytes**: `[0x10000,0x10016)`, `[0x18620,0x195b0)`, `[0x196f8,0x198dc)`, `[0x19bbc,0x19bf0)`.
+- The validator's strict/default GNU NDS32 assembly requirement remains mandatory when GNU binutils 2.30 is available. This checkpoint also adds an **explicit** `--source-only` mode for environments without that toolchain; the report records GNU verification as skipped rather than claiming an independent assembler run. Prior checkpoint 02 recorded a successful independent 34,218-byte GNU check, and checkpoint 03 adds no executable instructions.
+- Tests added for correct stride constraints, little-endian address layout, pinned metadata digest and source-only verification. No OEM firmware or private full reference was committed.
+
+Run in an isolated checkout:
+
+```sh
+cargo test --workspace --offline --locked
+cargo build --workspace --release --offline --locked
+python3 -m unittest discover -s tests -p 'test_*.py'
+python3 tools/devices/xiaomi-nabu/verify-agent20-18.py /private/novatek_nt36523_fw.bin \
+  --emitter "$CARGO_TARGET_DIR/release/novatek-upper-ilm" --source-only \
+  --report /tmp/agent20-18-checkpoint03.json
+```
+
+`--source-only` is a reduced verification gate, not a replacement for the full GNU verification. The 3,984 bytes of per-cell irregular calibration in `[0x18620,0x195b0)` remain unresolved until independently source-derived or provided as an explicitly external, original-data dependency.
