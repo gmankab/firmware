@@ -187,6 +187,22 @@ class V66BootstrapTests(unittest.TestCase):
                 self.assertEqual(struct.unpack_from("<I",b,at)[0],
                                  v66.read_system_register(dst,reg))
 
+    def test_v66_global_l2_nullary_commands(self) -> None:
+        self.assertEqual(int(v66.L2GlobalCommand.UNLOCK),0xa820c800)
+        self.assertEqual(int(v66.L2GlobalCommand.CLEAN),0xa820d000)
+        for code in v66.L2GlobalCommand:
+            self.assertEqual((int(code)>>14)&3,3)
+
+    @unittest.skipUnless(REFERENCE,"Exact firmware reference required")
+    def test_global_l2_opcodes_match_distinct_locations(self) -> None:
+        b=Path(REFERENCE).read_bytes()
+        self.assertEqual(struct.unpack_from("<I",b,0x5120)[0],v66.L2GlobalCommand.UNLOCK)
+        self.assertEqual(struct.unpack_from("<I",b,0x5124)[0],v66.L2GlobalCommand.CLEAN)
+        for off,opcode in ((0x5108,v66.read_system_register(0,v66.SystemRegister.SYSCFG)),
+                           (0x5118,v66.write_system_register(v66.SystemRegister.SYSCFG,0)),
+                           (0x5128,v66.read_system_register(0,v66.SystemRegister.SYSCFG))):
+            self.assertEqual(struct.unpack_from("<I",b,off)[0],opcode)
+
     def test_near_jump_alignment_and_range(self) -> None:
         self.assertEqual(v66.jump_near(0x40, 0x63c), 0x5800C2FE)
         with self.assertRaises(v66.HexagonEncodingError):

@@ -115,8 +115,9 @@ class ADSPBootstrapTests(unittest.TestCase):
                      adsp.assemble_processor_startup(LLVM_MC) +
                      adsp.assemble_startup_poll(LLVM_MC) +
                      adsp.assemble_syscfg_update(LLVM_MC) +
-                     adsp.assemble_save_control(LLVM_MC))
-        self.assertEqual(len(generated), 0xf28)
+                     adsp.assemble_save_control(LLVM_MC) +
+                     adsp.assemble_l2_global(LLVM_MC))
+        self.assertEqual(len(generated), 0xf58)
         original = Path(REFERENCE).read_bytes()
         adsp.verify_reference(generated, original, 0x41e0)
         mutated = bytearray(generated)
@@ -458,6 +459,27 @@ class ADSPBootstrapTests(unittest.TestCase):
                 "{ nop } // r18 = PMUCFG", "{ isync } // r18 = PMUCFG",1))
             with self.assertRaisesRegex(adsp.AdspError,"controller state save sentinel"):
                 adsp.assemble_save_control(LLVM_MC,bad)
+
+    def test_l2_global_source_has_polling_and_privileged_markers(self) -> None:
+        src=adsp.CONTROLLER_L2_GLOBAL_SOURCE.read_text()
+        for phrase in ("V66 SYSCFG = r0", "V66 l2gunlock", "V66 l2gclean",
+                       "if (p0.new) jump:t poll", "insert(r1,#3,#16)"):
+            self.assertIn(phrase,src)
+        self.assertNotIn(".word",src)
+        self.assertNotIn(".incbin",src)
+
+    @unittest.skipUnless(LLVM_MC and REFERENCE,"Hexagon assembler and reference required")
+    def test_l2_global_recreates_privileged_operations_exactly(self) -> None:
+        out=adsp.assemble_l2_global(LLVM_MC)
+        self.assertEqual(len(out),0x30)
+        adsp.verify_reference(out,Path(REFERENCE).read_bytes(),0x5108)
+        self.assertEqual(out[0x18:0x20],struct.pack("<II",0xa820c800,0xa820d000))
+        with tempfile.TemporaryDirectory() as td:
+            bad=Path(td)/"bad-l2.S"
+            bad.write_text(adsp.CONTROLLER_L2_GLOBAL_SOURCE.read_text().replace(
+                "{ nop } // V66 l2gclean", "{ isync } // V66 l2gclean",1))
+            with self.assertRaisesRegex(adsp.AdspError,"L2 global privilege slot"):
+                adsp.assemble_l2_global(LLVM_MC,bad)
 
     @unittest.skipUnless(LLVM_MC, "Hexagon-capable llvm-mc unavailable")
     def test_syscfg_handoff_uses_typed_and_source_assembly(self) -> None:

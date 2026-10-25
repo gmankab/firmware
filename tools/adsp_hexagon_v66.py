@@ -181,6 +181,12 @@ def tlb_write_pair_r3_r2_index_r0() -> int:
     return 0x6C02C000
 
 
+class L2GlobalCommand(IntEnum):
+    """Hexagon V66 global L2 commands with no operands or immediate fields."""
+    UNLOCK = 0xA820C800
+    CLEAN = 0xA820D000
+
+
 class TlbControl(IntEnum):
     """Nullary v66 privileged TLB synchronization operations."""
     LOCK = 0x6C20C020

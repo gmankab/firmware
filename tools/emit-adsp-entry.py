@@ -54,10 +54,11 @@ CONTROLLER_PROCESSOR_STARTUP_SOURCE = pathlib.Path(__file__).with_name("adsp-con
 CONTROLLER_STARTUP_POLL_SOURCE = pathlib.Path(__file__).with_name("adsp-controller-startup-poll.S")
 CONTROLLER_SYSCFG_UPDATE_SOURCE = pathlib.Path(__file__).with_name("adsp-controller-syscfg-update.S")
 CONTROLLER_SAVE_CONTROL_SOURCE = pathlib.Path(__file__).with_name("adsp-controller-save-control.S")
+CONTROLLER_L2_GLOBAL_SOURCE = pathlib.Path(__file__).with_name("adsp-controller-l2-global.S")
 FRAGMENTS = {
     "vectors": (ASM_SOURCE, OEM_FILE_OFFSET, GENERATED_LENGTH),
     "boot-prefix": (ASM_SOURCE, OEM_FILE_OFFSET, 0x44),
-    "counter-controller": (CONTROLLER_SOURCE, 0x41e0, 0xf28),
+    "counter-controller": (CONTROLLER_SOURCE, 0x41e0, 0xf58),
     "controller-bootstrap": (CONTROLLER_BOOTSTRAP_SOURCE, 0x4980, 0x2c),
     "controller-cache-copy": (CONTROLLER_CACHE_COPY_SOURCE, 0x49ac, 0x5c),
     "controller-physical-copy": (CONTROLLER_PHYSICAL_COPY_SOURCE, 0x4a08, 0x4c),
@@ -75,6 +76,7 @@ FRAGMENTS = {
     "controller-startup-poll": (CONTROLLER_STARTUP_POLL_SOURCE, 0x4f90, 0x94),
     "controller-syscfg-update": (CONTROLLER_SYSCFG_UPDATE_SOURCE, 0x5024, 0x38),
     "controller-save-control": (CONTROLLER_SAVE_CONTROL_SOURCE, 0x505c, 0xac),
+    "controller-l2-global": (CONTROLLER_L2_GLOBAL_SOURCE, 0x5108, 0x30),
     "tlb-reconcile": (TLB_RECONCILE_SOURCE, 0x48d0, 0xb0),
     "cacheline-copy": (CACHELINE_COPY_SOURCE, 0x4818, 0x78),
     "tlb-flush": (TLB_FLUSH_SOURCE, 0x4788, 0x90),
@@ -709,6 +711,28 @@ def assemble_save_control(
     return bytes(out)
 
 
+def assemble_l2_global(
+    llvm_mc: str, source: pathlib.Path = CONTROLLER_L2_GLOBAL_SOURCE
+) -> bytes:
+    """Recreate L2 maintenance and poll SYSCFG state with source-level branches."""
+    from adsp_hexagon_v66 import (
+        SystemRegister, L2GlobalCommand, read_system_register, write_system_register,
+    )
+    output=bytearray(assemble(llvm_mc,source,0x30))
+    instructions=(
+        (0x00,read_system_register(0,SystemRegister.SYSCFG)),
+        (0x10,write_system_register(SystemRegister.SYSCFG,0)),
+        (0x18,int(L2GlobalCommand.UNLOCK)),
+        (0x1c,int(L2GlobalCommand.CLEAN)),
+        (0x20,read_system_register(0,SystemRegister.SYSCFG)),
+    )
+    for at, opcode in instructions:
+        if output[at:at+4] != struct.pack("<I",0x7f00c000):
+            raise AdspError(f"Expected L2 global privilege slot at 0x{at:x}")
+        output[at:at+4]=struct.pack("<I",opcode)
+    return bytes(output)
+
+
 def run(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--llvm-mc", required=True,
@@ -757,6 +781,8 @@ def run(argv: list[str] | None = None) -> int:
             out = assemble_syscfg_update(args.llvm_mc, args.source or source)
         elif args.segment == "controller-save-control":
             out = assemble_save_control(args.llvm_mc, args.source or source)
+        elif args.segment == "controller-l2-global":
+            out = assemble_l2_global(args.llvm_mc, args.source or source)
         elif args.segment == "controller-debug-check":
             out = assemble_controller_debug_check(args.llvm_mc, args.source or source)
         elif args.segment == "controller-startup":
@@ -797,7 +823,8 @@ def run(argv: list[str] | None = None) -> int:
                    assemble_processor_startup(args.llvm_mc) +
                    assemble_startup_poll(args.llvm_mc) +
                    assemble_syscfg_update(args.llvm_mc) +
-                   assemble_save_control(args.llvm_mc))
+                   assemble_save_control(args.llvm_mc) +
+                   assemble_l2_global(args.llvm_mc))
         else:
             out = assemble(args.llvm_mc, args.source or source, expected_length)
         if len(out) != expected_length:
