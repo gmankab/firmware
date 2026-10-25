@@ -499,3 +499,37 @@ python3 tools/verify-cdsp-controller-table.py \
   --llvm-mc /path/to/llvm-mc --rz-asm /path/to/rz-asm \
   --rust-output /tmp/cdsp-table-clear-32.bin --reference /private/cdsp.mbn
 ```
+
+## Checkpoint 15 — First controller descriptor and feature flags
+
+Reconstructed **108 exact CDSP executable bytes** at `[0x3fec,0x4058)`
+(physical `[0x96c00fec,0x96c01058)`) following the cache-table clear loop.
+The routine loads the descriptor area, emits two header fields with `.new`
+word stores, conditionally selects 5 or 10 according to two per-device feature
+flags, combines a third feature flag into a shifted bitfield at byte offset
+`0x28`, and advances the descriptor pointer by `0x100`. All operands and
+signed offsets are emitted from checked Rust Hexagon packet constructors.
+
+**Independent verification:** LLVM6 assembles the full 27-instruction
+108-byte routine exactly, including both `cmp.eq(R22.new,#0)` branches and
+extended word stores. Rizin V66 confirms all 27 operations and the two
+forward-branch targets. The same 108 bytes compare byte-identically to the
+correct private CDSP revision. The contiguous supervisor/TLB/cache/first-
+descriptor span is now **792 bytes** at `[0x3d40,0x4058)`, plus the
+68-byte entry prefix: **860 CDSP source-reconstructed executable bytes** in
+two disjoint regions. Further descriptors immediately follow `0x4058`.
+
+```sh
+cargo run --offline --locked -p firmware-tools --bin cdsp-rebuild -- \
+  emit-cluster-with-first-descriptor /tmp/cdsp-cluster-792.bin
+cargo run --offline --locked -p firmware-tools --bin cdsp-rebuild -- \
+  verify-cluster-with-first-descriptor /private/cdsp.mbn
+python3 tools/verify-cdsp-controller-first-descriptor.py \
+  --llvm-mc /path/to/llvm-mc --rz-asm /path/to/rz-asm \
+  --rust-output /tmp/first-controller-descriptor-108.bin \
+  --reference /private/cdsp.mbn
+```
+
+This agent's Git parent remains the older `69ebf0d` branch, requiring source
+change review or cherry-pick for checkpoint 50. No OEM signature or full CDSP
+image is generated.

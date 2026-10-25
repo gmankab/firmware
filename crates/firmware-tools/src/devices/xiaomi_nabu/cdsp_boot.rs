@@ -147,6 +147,11 @@ pub enum ScalarPacket {
     /// this privileged operation; register fields were checked with the
     /// Rizin Hexagon decoder by varying each register independently.
     ReadPhysicalWord { dst: GeneralRegister, offset: GeneralRegister, base: GeneralRegister },
+    /// 12-bit positive ADD immediate, independently checked with LLVM6.
+    AddUnsignedImmediate12 { dst:GeneralRegister, src:GeneralRegister, value:u16 },
+    /// Conditional jump on an updated .new load equal to zero. The register
+    /// number is implicit from the same-packet producer's position.
+    BranchIfNewLoadZeroForward { displacement_bytes:u16 },
     /// Small negative Hexagon ADD-immediate. Negative bits are sign-split
     /// across the instruction; LLVM6 independently confirmed -1..-128.
     AddSignedSmallImmediate { dst: GeneralRegister, src: GeneralRegister, value: i16 },
@@ -416,6 +421,19 @@ impl ScalarPacket {
                 Ok(0x9200_f000 | (u32::from(offset.number()) << 16)
                     | (u32::from(base.number()) << 8) | u32::from(dst.number()))
             }
+            Self::AddUnsignedImmediate12 {dst,src,value} => {
+                if value>4095 {return Err("CDSP ADD immediate larger than 12 bits".into());}
+                let val=u32::from(value);
+                Ok(0xb000_c000 | (u32::from(src.number())<<16)
+                    | ((val&0x1ff)<<5) | ((val&0xe00)<<12)
+                    | u32::from(dst.number()))
+            }
+            Self::BranchIfNewLoadZeroForward{displacement_bytes} => {
+                if displacement_bytes==0 || displacement_bytes>0x1fe || displacement_bytes%2!=0 {
+                    return Err("CDSP .new zero branch displacement outside checked forward range".into());
+                }
+                Ok(0x2402_e000 | u32::from(displacement_bytes/2))
+            }
             Self::AddSignedSmallImmediate { dst, src, value } => {
                 if !(-128..=-1).contains(&value) {
                     return Err("CDSP signed immediate currently only supports [-128,-1]".into());
@@ -466,6 +484,30 @@ impl ScalarPacket {
             Self::Isync => Ok(0x57c0_c002),
         }
     }
+}
+
+/// V66 positive-offset extended word store of the previous `.new` value
+/// (producer is inside the same packet). The V66 store form differs in its
+/// addressing selector from LLVM6's V60 spelling; Rizin independently
+/// confirms both source and destination registers and the encoded offsets.
+pub fn encode_v66_new_word_store(base:GeneralRegister, byte_offset:u16)->Result<[u32;2],String>{
+    if byte_offset>60 || byte_offset%4!=0 {
+        return Err("V66 extended store requires a word-aligned offset <=60".into());
+    }
+    Ok([0x4000,0xa1a0_d200 | (u32::from(base.number())<<16)
+       | u32::from(byte_offset)])
+}
+
+/// V66 positive-offset extended `memw(Rbase + ##offset) = Rsrc` form.
+/// Its offset occupies bits [5:0], with the source in bits [12:8]; this
+/// differs from the extended LOAD's signed offset bits.
+pub fn encode_v66_plain_word_store(base:GeneralRegister,src:GeneralRegister,
+                                   byte_offset:u16)->Result<[u32;2],String>{
+    if byte_offset>60 || byte_offset%4!=0 {
+        return Err("V66 plain word store requires a word-aligned offset <=60".into());
+    }
+    Ok([0x4000,0xa180_d000 | (u32::from(base.number())<<16)
+       | (u32::from(src.number())<<8) |u32::from(byte_offset)])
 }
 
 /// Build an indexed word load with a forced 32-bit signed offset. This

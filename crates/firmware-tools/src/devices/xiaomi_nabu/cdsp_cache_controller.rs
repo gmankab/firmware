@@ -248,3 +248,89 @@ pub fn verify_joined_table_clear(reference:&[u8])->Result<(),String>{
         assert!(H::MemDoubleStorePostIncrement{low:r(21),base:r(21),increment:8}.encode().is_err());
     }
 }
+
+/// First descriptor of the controller's static four-entry configuration
+/// table. The controller writes two class/header words, queries three
+/// independent feature flags, and computes `memw(base+0x28)` from flags.
+/// This is a partial initialization routine until the other entries follow.
+pub const FIRST_DESCRIPTOR_BYTES:usize=108;
+pub fn build_first_controller_descriptor()->Result<Vec<u8>,String>{
+    let r=|n|Gpr::new(n);
+    let mut out=Vec::with_capacity(FIRST_DESCRIPTOR_BYTES);
+    for word in cdsp_boot::encode_extended_word_load(r(21)?,r(25)?,-0x1fe92a4)?{
+        out.extend_from_slice(&word.to_le_bytes());
+    }
+    for (val,off) in [(0xaa,0x2c),(0xa,0x30)] {
+        put(&mut out,H::AssignUnsignedImmediate{dst:r(23)?,value:val},P::ContinuationA)?;
+        for word in cdsp_boot::encode_v66_new_word_store(r(21)?,off)? {
+            out.extend_from_slice(&word.to_le_bytes());
+        }
+    }
+    put(&mut out,H::AssignUnsignedImmediate{dst:r(23)?,value:5},P::ContinuationA)?;
+    for word in cdsp_boot::encode_extended_word_load(r(22)?,r(25)?,-0x1fd92bc)? {
+        out.extend_from_slice(&P::ContinuationA.apply(word).to_le_bytes());
+    }
+    put(&mut out,H::BranchIfNewLoadZeroForward{displacement_bytes:20},P::Final)?;
+    put(&mut out,H::AssignUnsignedImmediate{dst:r(23)?,value:10},P::Final)?;
+    for word in cdsp_boot::encode_v66_plain_word_store(r(21)?,r(23)?,0)?{
+        out.extend_from_slice(&word.to_le_bytes());
+    }
+    put(&mut out,H::AssignUnsignedImmediate{dst:r(23)?,value:5},P::ContinuationA)?;
+    for word in cdsp_boot::encode_extended_word_load(r(22)?,r(25)?,-0x1fd92b8)? {
+        out.extend_from_slice(&P::ContinuationA.apply(word).to_le_bytes());
+    }
+    put(&mut out,H::BranchIfNewLoadZeroForward{displacement_bytes:20},P::Final)?;
+    put(&mut out,H::AssignUnsignedImmediate{dst:r(23)?,value:10},P::Final)?;
+    for word in cdsp_boot::encode_extended_word_load(r(22)?,r(25)?,-0x1fd92b4)? {
+        out.extend_from_slice(&word.to_le_bytes());
+    }
+    put(&mut out,H::ArithmeticShiftLeft{dst:r(22)?,src:r(22)?,amount:4},P::Final)?;
+    put(&mut out,H::AddRegisters{dst:r(23)?,left:r(23)?,right:r(22)?},P::Final)?;
+    for word in cdsp_boot::encode_v66_plain_word_store(r(21)?,r(23)?,0x28)? {
+        out.extend_from_slice(&word.to_le_bytes());
+    }
+    put(&mut out,H::AddUnsignedImmediate12{dst:r(21)?,src:r(21)?,value:256},P::Final)?;
+    if out.len()!=FIRST_DESCRIPTOR_BYTES {
+        return Err(format!("CDSP descriptor emitted {} instead of 108 bytes",out.len()));
+    }
+    Ok(out)
+}
+
+pub fn build_joined_first_descriptor()->Result<Vec<u8>,String>{
+    let mut output=build_joined_cache_and_table_clear()?;
+    if 0x3fcc+TABLE_CLEAR_SIZE!=0x3fec {return Err("table clear gap".into());}
+    output.extend(build_first_controller_descriptor()?);
+    if output.len()!=792 {return Err("CDSP controller first descriptor gap".into());}
+    Ok(output)
+}
+
+pub fn verify_first_descriptor(reference:&[u8])->Result<(),String>{
+    cdsp_boot::validate_reference(reference)?;
+    let built=build_first_controller_descriptor()?;
+    if reference.get(0x3fec..0x3fec+built.len())!=Some(built.as_slice()) {
+        return Err("CDSP controller first static descriptor mismatch".into());
+    }
+    Ok(())
+}
+
+pub fn verify_joined_first_descriptor(reference:&[u8])->Result<(),String>{
+    cdsp_boot::validate_reference(reference)?;
+    let built=build_joined_first_descriptor()?;
+    if reference.get(0x3d40..0x3d40+built.len())!=Some(built.as_slice()) {
+        return Err("CDSP entire supervisor/TLB/cache/static-descriptor cluster mismatch".into());
+    }
+    Ok(())
+}
+
+#[cfg(test)]mod descriptor_tests{
+    use super::*;
+    #[test]fn controller_descriptor_uses_checked_offsets(){
+        let r=|n|Gpr::new(n).unwrap();
+        assert_eq!(build_first_controller_descriptor().unwrap().len(),108);
+        assert_eq!(build_joined_first_descriptor().unwrap().len(),792);
+        assert_eq!(H::AddUnsignedImmediate12{dst:r(21),src:r(21),value:256}.encode().unwrap(),0xb015_e015);
+        assert!(cdsp_boot::encode_v66_new_word_store(r(21),3).is_err());
+        assert!(cdsp_boot::encode_v66_plain_word_store(r(21),r(23),64).is_err());
+        assert!(H::BranchIfNewLoadZeroForward{displacement_bytes:0}.encode().is_err());
+    }
+}

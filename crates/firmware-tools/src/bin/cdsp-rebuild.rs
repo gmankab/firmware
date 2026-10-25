@@ -26,6 +26,22 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
                 privileged::FUNCTION_SIZE, privileged::FILE_OFFSET,
                 privileged::FILE_OFFSET + privileged::FUNCTION_SIZE);
         }
+        [action, output] if action == "emit-first-controller-descriptor" => {
+            fs::write(output,cache_ctl::build_first_controller_descriptor()?)?;
+            println!("Generated 108 checked Hexagon descriptor bytes at CDSP file 0x3fec..0x4058.");
+        }
+        [action, reference] if action == "verify-first-controller-descriptor" => {
+            cache_ctl::verify_first_descriptor(&fs::read(reference)?)?;
+            println!("Verified CDSP first controller descriptor, 108 bytes, file 0x3fec..0x4058.");
+        }
+        [action, output] if action == "emit-cluster-with-first-descriptor" => {
+            fs::write(output,cache_ctl::build_joined_first_descriptor()?)?;
+            println!("Generated 792 contiguous CDSP supervisor/TLB/cache/descriptor bytes 0x3d40..0x4058.");
+        }
+        [action, reference] if action == "verify-cluster-with-first-descriptor" => {
+            cache_ctl::verify_joined_first_descriptor(&fs::read(reference)?)?;
+            println!("Verified 792 contiguous CDSP supervisor/TLB/cache/descriptor bytes 0x3d40..0x4058.");
+        }
         [action, output] if action == "emit-controller-table-clear" => {
             fs::write(output,cache_ctl::build_controller_table_clear()?)?;
             println!("Emitted independently encoded 32-byte CDSP table-zero loop, file 0x3fcc..0x3fec.");
