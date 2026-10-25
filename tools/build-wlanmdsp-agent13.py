@@ -61,6 +61,10 @@ FRAGMENTS = (
     ("record-status-handler", WLAN_SRC / "agent13-runtime-record-status-handler.S", 0x43e4, 0x58),
     ("state-notify-a", WLAN_SRC / "agent13-runtime-state-notify-a.S", 0x443c, 0x10),
     ("state-notify-b", WLAN_SRC / "agent13-runtime-state-notify-b.S", 0x444c, 0x10),
+    ("controller-command-setup", WLAN_SRC / "agent13-runtime-controller-command.S", 0x445c, 0x154),
+    ("state-callback-tail-a", WLAN_SRC / "agent13-runtime-state-callback-a.S", 0x45b0, 0x08),
+    ("state-callback-tail-b", WLAN_SRC / "agent13-runtime-state-callback-b.S", 0x45b8, 0x08),
+    ("record-bitmap-shift", WLAN_SRC / "agent13-runtime-bitmap-shift.S", 0x45c0, 0x54),
 )
 
 

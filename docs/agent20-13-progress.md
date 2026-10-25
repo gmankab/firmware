@@ -165,3 +165,13 @@ python3 tools/build-wlanmdsp-agent13.py /tmp/wlan-prefix-through-27a0.bin \
 - Agent13 source assembled `[file 0x42708,0x4445c)` = **7,508 instruction bytes**. Joined Agent7+13 `[file 0x40000,0x4445c)` is **17,500 exact layout bytes**, comprising **13,724 genuine instruction bytes** and **3,776 separately modeled linker fill**. Direct pinned revision compare: zero mismatched bytes; all source modules use semantic Hexagon packet syntax.
 - LLVM22 V66 assembler, 160 Rust tests, Python discovery 25 cases (**24 passed, 1 skipped**), release build and Git diff checks passed. Next routine starts file `0x4445c`, VMA `0xb000445c`; Agent13 exclusive ownership ends at file `0x100000`.
 - Portable Agent7 branch only, not checkpoint50-descended or signed/flashable WLAN firmware. Full executable and on-device behavioral verification remain unfinished.
+
+## Checkpoint 14 — controller command, notification thunks, bitmap shift
+
+- Four contiguous original Hexagon V66 routine encodings add **440 byte-identical instruction bytes**:
+  - `[file 0x4445c,0x445b0)` = **340 bytes**, controller mode processing, conditional descriptor/record operations, and callback dispatch.
+  - `[file 0x445b0,0x445b8)` and `[0x445b8,0x445c0)` = **8 bytes each**, distinct state-notification tail thunks with extended packet-relative jumps (`jump ##0x1ce980` and `jump ##0x1ce978`) targeting the same platform address.
+  - `[file 0x445c0,0x44614)` = **84 bytes**, bounded three-entry hardware-loop bitmap shift and result return.
+- Newly authored Agent13 Hexagon source totals **7,948 instruction bytes** `[file 0x42708,0x44614)`. Joined Agent7+13 executable layout `[file 0x40000,0x44614)` is **17,940 exact bytes**, made up of **14,164 independent instruction bytes** and **3,776 distinct linker-fill bytes**, with zero reference mismatches.
+- Independent LLVM22 reassembly, full 160 Rust tests and Python discovery 26 cases (**25 pass, 1 optional skip**), offline release build, and `git diff --check` passed.
+- The next function begins at `file 0x44614` / VMA `0xb0004614`; still below Agent13's `file 0x100000` ownership boundary. Branch remains Agent7-derived; no checkpoint50 integration, OEM signing, whole WLAN executable completion, or on-device execution established.
