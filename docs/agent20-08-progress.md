@@ -69,3 +69,23 @@ The first late RX executable text now has source-generated functions through ori
 **Checkpoint 08:** Two more true Hexagon helpers in the middle RX load are independently reconstructed: a **16-byte indexed callback descriptor copy** `[file 0x39490,0x394a0)` and a **20-byte LL/SC atomic increment** `[file 0x394a0,0x394b4)`. The latter uses `memw_locked`, `memw_locked(...,p0)` and a retry branch, all reassembled by LLVM6 with the original packet parse markers. They form a **36-byte contiguous source-generated helper cluster**, separate from prior firmware intervals. No source-generated code claims are made for the intervening `[0x39318,0x39490)` span.
 
 **Cumulative Agent 20-08 contribution: 1,048 byte-identical, independently assembled executable bytes in 13 fragments**, with a full pinned-reference verification and machine-readable inventory ledger. Most of the 0x1b97e8-byte middle RX and 0x94b790-byte large late RX remain *unreconstructed*; they cannot be labeled source-derived merely because a tool can copy/repack the original image.
+
+
+**Checkpoint 09:** Rebuilt the 136-byte QuRT platform-buffer handoff function at
+ADSP file `[0x394b8,0x39540)` as Hexagon assembly, SHA-256
+`a342e82ea1f2a1b11b39c7358d9b44cf68b4002301dfb29c8a712764c3cafe1c`.
+The routine performs three original `trap0` transitions, preserves/restores
+callee registers, captures the active GP-relative status word and calls the
+platform allocation routine using a symbolic target. Explicit
+`immext(#0xf01f1000)` is necessary for the original full-width GP address;
+assembling a mathematically equivalent shorter memory operand would drop an
+instruction and change the packet encoding. Source packet ordering (`r0`,
+`r19`, `memw`) was chosen to retain the original signed Hexagon V66 packet
+parse bits. LLVM6 assembler and the independent Rizin disassembler reproduce
+all 136 instruction bytes exactly. This function has no reconstructed opaque
+raw opcode values; external platform or OEM authentication is not generated.
+The preceding `[0x394b4,0x394b8)` consists of an isolated `jumpr LR` whose
+function context has not been established, so it is not counted.
+
+**Total independently assembled executable coverage is now 1,184 bytes in 14
+function fragments**. The next instruction after this handoff is at `0x39540`.
