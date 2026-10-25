@@ -385,3 +385,35 @@ The source's firmware-SHA binding ensures only the intended WLAN revision
 passes opt-in reference checking. The next executable routine begins at
 runtime `0xb0002208` (file `0x42208`); all later ELF load segments and
 OEM authentication remain unrebuilt. This is not flashable firmware.
+
+### Checkpoint L: Hexagon v66 format-state selector and three return trampolines
+
+The contiguous independently generated WLAN executable-layout prefix extends
+from virtual `[0xb0000000,0xb0002208)` to `[0xb0000000,0xb0002340)`;
+file offsets `[0x40000,0x42340)` now comprise **9,024 byte-identical bytes**.
+The 312 additional executable bytes at offsets `[0x42208,0x42340)` implement
+codec format-state selection (NULL guard, tagged mode 0/1/2, global validation,
+record reporting, and a direct fast path), with three relative tail-call
+trampolines and six actual Hexagon `nop` instruction packets. Their source is
+`wlan-runtime-format-handler.S`, assembled independently with LLVM22 v66.
+
+No OEM executable opcode words are imported. Exactly **5,248 executable-code
+bytes** are independently regenerated and **3,776 bytes** are identified
+linker fill/alignment. Both strict firmware-SHA-matched reference comparison
+and the source-level assembler byte comparison show **zero differences**.
+
+```sh
+LD_LIBRARY_PATH=/private/nabu-runtime/flat \
+python3 tools/build-wlanmdsp-startup.py /tmp/wlan-9024.bin \
+  --with-runtime-format-handler \
+  --llvm-mc /private/llvm6/bin/llvm-mc \
+  --llvm-mc-v66 /private/llvm22/bin/llvm-mc \
+  --reference /private/wlanmdsp.mbn \
+  --manifest /tmp/wlan-9024.json
+```
+
+SHA-256 for the independently generated 9,024 bytes:
+`8fd925f9e455b4fdd8b339a0ab7119e0f708c1ae32ef745a6f4fef9df7a4e942`.
+The next uncovered function begins at virtual **`0xb0002340`**, file offset
+**`0x42340`**. Firmware beyond this prefix and external authentication remain
+unreconstructed; this artifact is not a bootable/signed `wlanmdsp.mbn`.

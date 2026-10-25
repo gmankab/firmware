@@ -302,6 +302,53 @@ class WlanHexagonAssemblyTests(unittest.TestCase):
         if ref:
             fw.check_reference(complete, Path(ref).read_bytes())
 
+    def test_hexagonv66_runtime_format_handler_and_extended_prefix(self):
+        mc_v66 = os.environ.get("WLAN_LLVM_MC_V66")
+        if not mc_v66:
+            self.skipTest("set WLAN_LLVM_MC_V66 for Hexagon v66 assembler")
+        asm = fw.RUNTIME_FORMAT_HANDLER_SOURCE.read_text()
+        for forbidden in (".incbin", ".word", ".byte", ".long", ".quad"):
+            self.assertNotIn(forbidden, asm)
+        self.assertIn("r3 = memw(r18=##0xb06a2dc4)", asm)
+        self.assertIn("jump ##-0x1270", asm)
+        self.assertEqual(asm.count("{ nop }"), 1)
+        rebuilt = fw.assemble(fw.RUNTIME_FORMAT_HANDLER_SOURCE, mc_v66,
+                              "hexagonv66", fw.RUNTIME_FORMAT_HANDLER_LENGTH)
+        self.assertEqual(len(rebuilt), 0x138)
+        self.assertEqual(rebuilt[-24:], bytes.fromhex("00c0007f") * 6)
+        self.assertEqual(rebuilt[:8], bytes.fromhex("b85a545a04c09da0"))
+        self.assertEqual(fw.THROUGH_RUNTIME_FORMAT_HANDLER_LENGTH, 0x2340)
+        with self.assertRaisesRegex(fw.FragmentError, "prefix through 0x2208"):
+            fw.emit_with_runtime_format_handler(b"too short", mc_v66)
+        if os.environ.get("WLANMDSP_REFERENCE"):
+            fw.check_reference(rebuilt,
+                               Path(os.environ["WLANMDSP_REFERENCE"]).read_bytes(),
+                               runtime_offset=0x2208)
+
+    def test_runtime_format_handler_full_prefix_cli_manifest(self):
+        mc_v66 = os.environ.get("WLAN_LLVM_MC_V66")
+        if not mc_v66:
+            self.skipTest("set WLAN_LLVM_MC_V66 for Hexagon v66 assembler")
+        import subprocess, json
+        with tempfile.TemporaryDirectory() as work:
+            output, manifest = Path(work) / "wlan-through-format.bin", Path(work) / "format.json"
+            cmd = [sys.executable, str(fw.ROOT / "tools/build-wlanmdsp-startup.py"),
+                   str(output), "--with-runtime-format-handler",
+                   "--llvm-mc", self.mc, "--llvm-mc-v66", mc_v66,
+                   "--manifest", str(manifest)]
+            ref = os.environ.get("WLANMDSP_REFERENCE")
+            if ref:
+                cmd.extend(["--reference", ref])
+            subprocess.run(cmd, check=True, capture_output=True, text=True)
+            self.assertEqual(output.stat().st_size, 0x2340)
+            self.assertEqual(output.read_bytes()[-24:], bytes.fromhex("00c0007f")*6)
+            m = json.loads(manifest.read_text())
+            self.assertEqual(m["independently_encoded_runtime_format_handler_bytes"], 312)
+            self.assertEqual(m["linker_layout_fill_bytes"], 3776)
+            self.assertFalse(m["complete_firmware"])
+            if ref:
+                fw.check_reference(output.read_bytes(), Path(ref).read_bytes())
+
     def test_full_joined_prefix_cli_manifest_counts_code_and_linker_fill(self):
         mc_v66 = os.environ.get("WLAN_LLVM_MC_V66")
         if not mc_v66:
