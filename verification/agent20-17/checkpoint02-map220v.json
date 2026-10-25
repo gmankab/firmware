@@ -1,0 +1,2510 @@
+{
+  "actual_parent": "51b1f91f32d32542aa03e114f5a2f4d94b559e2a",
+  "checkpoint": "02",
+  "commands": [
+    {
+      "argv": [
+        "/workspace/scratch/c7bf61eee144/target-agent17/release/novatek-ilm-low",
+        "listing",
+        "map220v"
+      ],
+      "returncode": 0,
+      "stderr": "",
+      "stdout": "# profile=map220v gp=0x2d7f0 itb=0x17010 file_start=0x66a file_end=0x79c\n46a\t4\tsbi.gp $r0,[-5113]\n46e\t4\tmtsr $r0,$int_mask\n472\t2\tex9.it 122\n474\t2\tex9.it 365\n476\t4\tmfsr $r1,$ivb\n47a\t2\txlsb33 $r1,$r1\n47c\t2\tmov55 $r2,$r0\n47e\t2\tbeqz38 $r1,.+6\n480\t4\tmtsr $r0,$int_mask\n484\t4\tmtsr $r2,$ivb\n488\t4\tmfsr $r0,$psw\n48c\t4\tbitci $r0,$r0,6\n490\t4\tmtsr $r0,$psw\n494\t4\tdsb\n498\t4\tmfsr $r0,$int_mask2\n49c\t4\tsethi $r0,171024\n4a0\t4\taddi $r0,$r0,124\n4a4\t2\tex9.it 122\n4a6\t4\tmfsr $r0,0xc2\n4aa\t4\tmovi $r0,1587\n4ae\t2\tex9.it 365\n4b0\t4\tmfsr $r0,$psw\n4b4\t2\tex9.it 67\n4b6\t4\tmtsr $r0,$psw\n4ba\t2\tpop25 $r6,0\n4bc\t4\tmovi $r0,258285\n4c0\t2\tlbi333 $r1,[$r0+0]\n4c2\t4\tbnec $r1,1,.+8\n4c6\t2\tmovi55 $r1,0\n4c8\t2\tsbi333 $r1,[$r0+0]\n4ca\t4\tmovi $r1,258266\n4ce\t2\tlbi333 $r0,[$r1+0]\n4d0\t2\tex9.it 289\n4d2\t2\tsbi333 $r0,[$r1+0]\n4d4\t2\tmovi55 $r0,4\n4d6\t2\tex9.it 122\n4d8\t2\tmovi55 $r1,5\n4da\t4\tmovi $r0,258121\n4de\t2\tsbi333 $r1,[$r0+0]\n4e0\t4\tmovi $r1,83\n4e4\t2\tex9.it 3\n4e6\t2\tsbi333 $r1,[$r0+0]\n4e8\t2\tret5 $r30\n4ea\t2\tret5 $r30\n4ec\t4\tmovi $r4,258324\n4f0\t2\tlwi450 $r3,[$r4]\n4f2\t2\tsrli45 $r3,24\n4f4\t4\tor_slli $r0,$r0,$r3,24\n4f8\t2\tswi450 $r0,[$r4]\n4fa\t4\tmovi $r0,258360\n4fe\t2\tshi333 $r1,[$r0+0]\n500\t2\tmovi55 $r1,0\n502\t4\tmovi $r0,258362\n506\t2\tsbi333 $r1,[$r0+0]\n508\t4\tmovi $r0,258308\n50c\t2\tswi450 $r2,[$r0]\n50e\t2\tmovi55 $r1,1\n510\t4\tmovi $r0,258358\n514\t2\tsbi333 $r1,[$r0+0]\n516\t2\tifcall9 16\n518\t2\tlbi333 $r1,[$r0+0]\n51a\t2\txlsb33 $r1,$r1\n51c\t2\tbeqz38 $r1,.+6\n51e\t2\tsbi333 $r3,[$r2+0]\n520\t2\tj8 .-8\n522\t4\tmovi $r1,258356\n526\t2\tex9.it 54\n528\t2\tex9.it 49\n52a\t2\tifret16\n52c\t2\tlbi333 $r0,[$r1+0]\n52e\t2\tbmski33 $r0,1\n530\t2\tbnez38 $r0,.+6\n532\t2\tsbi333 $r3,[$r2+0]\n534\t2\tj8 .-8\n536\t4\tmovi $r0,258356\n53a\t2\tlbi333 $r0,[$r0+0]\n53c\t2\txlsb33 $r0,$r0\n53e\t2\tret5 $r30\n540\t2\tmovi55 $r5,0\n542\t2\tbeqs38 $r2,.+14\n544\t4\tlb $r3,[$r0+($r5<<0)]\n548\t4\tsb $r3,[$r1+($r5<<0)]\n54c\t2\taddi45 $r5,1\n54e\t2\tj8 .-12\n550\t2\tret5 $r30\n552\t2\tpush25 $r6,0\n554\t2\tex9.it 2\n556\t2\tbeqz38 $r0,.+24\n558\t2\tmovi55 $r0,7\n55a\t2\tex9.it 10\n55c\t2\tmovi55 $r0,0\n55e\t2\tex9.it 10\n560\t4\tmovi $r1,180856\n564\t2\tmovi55 $r0,2\n566\t2\tmov55 $r2,$r1\n568\t4\tmovi $r3,256\n56c\t2\tex9.it 5\n56e\t2\tpop25 $r6,0\n570\t2\tpush25 $r6,0\n572\t2\tmov55 $r6,$r0\n574\t2\tex9.it 2\n576\t2\tbeqz38 $r0,.+36\n578\t4\tmovi $r1,-97\n57c\t2\tex9.it 451\n57e\t2\tsbi333 $r1,[$r0+0]\n580\t2\tzeb33 $r0,$r6\n582\t4\tmovi $r1,196193\n586\t2\tsbi333 $r0,[$r1+0]\n588\t2\tex9.it 371\n58a\t4\tmovi $r1,196194\n58e\t2\tsbi333 $r0,[$r1+0]\n590\t2\tex9.it 3\n592\t2\tex9.it 4\n594\t2\tbeqz38 $r6,.+6\n596\t2\tsbi333 $r1,[$r0+0]\n598\t2\tj8 .-4\n59a\t2\tpop25 $r6,0\n"
+    },
+    {
+      "argv": [
+        "/workspace/scratch/c7bf61eee144/target-agent17/release/novatek-ilm-low",
+        "emit",
+        "map220v",
+        "/workspace/scratch/c7bf61eee144/audit17-private/verify-cp02-map220v/generated.bin"
+      ],
+      "returncode": 0,
+      "stderr": "",
+      "stdout": "map220v: 306 instruction bytes, file [0x66a,0x79c), runtime [0x46a,0x59c)\n"
+    },
+    {
+      "argv": [
+        "/workspace/scratch/c7bf61eee144/toolchain17/nds32-225/bin/nds32le-elf-as",
+        "--version"
+      ],
+      "returncode": 0,
+      "stderr": "",
+      "stdout": "GNU assembler (GNU Binutils) 2.25.1\nCopyright (C) 2014 Free Software Foundation, Inc.\nThis program is free software; you may redistribute it under the terms of\nthe GNU General Public License version 3 or later.\nThis program has absolutely no warranty.\nThis assembler was configured for a target of `nds32le-elf'.\n"
+    },
+    {
+      "argv": [
+        "/workspace/scratch/c7bf61eee144/toolchain17/nds32-225/bin/nds32le-elf-objcopy",
+        "--version"
+      ],
+      "returncode": 0,
+      "stderr": "",
+      "stdout": "GNU objcopy (GNU Binutils) 2.25.1\nCopyright (C) 2014 Free Software Foundation, Inc.\nThis program is free software; you may redistribute it under the terms of\nthe GNU General Public License version 3 or (at your option) any later version.\nThis program has absolutely no warranty.\n"
+    },
+    {
+      "argv": [
+        "/workspace/scratch/c7bf61eee144/toolchain17/nds32-225/bin/nds32le-elf-ld",
+        "--version"
+      ],
+      "returncode": 0,
+      "stderr": "",
+      "stdout": "GNU ld (GNU Binutils) 2.25.1\nCopyright (C) 2014 Free Software Foundation, Inc.\nThis program is free software; you may redistribute it under the terms of\nthe GNU General Public License version 3 or (at your option) a later version.\nThis program has absolutely no warranty.\n"
+    },
+    {
+      "argv": [
+        "/workspace/scratch/c7bf61eee144/toolchain17/nds32-225/bin/nds32le-elf-objdump",
+        "--version"
+      ],
+      "returncode": 0,
+      "stderr": "",
+      "stdout": "GNU objdump (GNU Binutils) 2.25.1\nCopyright (C) 2014 Free Software Foundation, Inc.\nThis program is free software; you may redistribute it under the terms of\nthe GNU General Public License version 3 or (at your option) any later version.\nThis program has absolutely no warranty.\n"
+    },
+    {
+      "argv": [
+        "/workspace/scratch/c7bf61eee144/toolchain17/nds32-225/bin/nds32le-elf-as",
+        "-march=v3",
+        "-mno-all-relax",
+        "-EL",
+        "-mall-ext",
+        "-o",
+        "/workspace/scratch/c7bf61eee144/audit17-private/verify-cp02-map220v/independent.o",
+        "/workspace/scratch/c7bf61eee144/audit17-private/verify-cp02-map220v/independent.s"
+      ],
+      "returncode": 0,
+      "stderr": "",
+      "stdout": ""
+    },
+    {
+      "argv": [
+        "/workspace/scratch/c7bf61eee144/toolchain17/nds32-225/bin/nds32le-elf-ld",
+        "--no-relax",
+        "-T",
+        "/workspace/scratch/c7bf61eee144/audit17-private/verify-cp02-map220v/independent.ld",
+        "-o",
+        "/workspace/scratch/c7bf61eee144/audit17-private/verify-cp02-map220v/independent.elf",
+        "/workspace/scratch/c7bf61eee144/audit17-private/verify-cp02-map220v/independent.o"
+      ],
+      "returncode": 0,
+      "stderr": "",
+      "stdout": ""
+    },
+    {
+      "argv": [
+        "/workspace/scratch/c7bf61eee144/toolchain17/nds32-225/bin/nds32le-elf-objcopy",
+        "-O",
+        "binary",
+        "-j",
+        ".text",
+        "/workspace/scratch/c7bf61eee144/audit17-private/verify-cp02-map220v/independent.elf",
+        "/workspace/scratch/c7bf61eee144/audit17-private/verify-cp02-map220v/independent.bin"
+      ],
+      "returncode": 0,
+      "stderr": "",
+      "stdout": ""
+    },
+    {
+      "argv": [
+        "/workspace/scratch/c7bf61eee144/toolchain17/nds32-225/bin/nds32le-elf-objdump",
+        "-d",
+        "-z",
+        "/workspace/scratch/c7bf61eee144/audit17-private/verify-cp02-map220v/independent.elf"
+      ],
+      "returncode": 0,
+      "stderr": "",
+      "stdout": "\n/workspace/scratch/c7bf61eee144/audit17-private/verify-cp02-map220v/independent.elf:     file format elf32-nds32le\n\n\nDisassembly of section .text:\n\n0000046a <agent17_start>:\n 46a:\t3e 07 ec 07 \tsbi.gp $r0,[+#-5113]\n 46e:\t64 03 00 03 \tmtsr $r0,$int_mask\n 472:\tea 7a       \tex9.it #122\n 474:\teb 6d       \tex9.it #365\n 476:\t64 12 24 02 \tmfsr $r1,$ivb\n 47a:\t96 4c       \txlsb33 $r1,$r1\n 47c:\t80 40       \tmov55 $r2,$r0\n 47e:\tc1 03       \tbeqz38 $r1,484 <agent17_start+0x1a>\n 480:\t64 03 00 03 \tmtsr $r0,$int_mask\n 484:\t64 22 24 03 \tmtsr $r2,$ivb\n 488:\t64 02 00 02 \tmfsr $r0,$psw\n 48c:\t66 00 00 06 \tbitci $r0,$r0,#0x6\n 490:\t64 02 00 03 \tmtsr $r0,$psw\n 494:\t64 00 00 08 \tdsb\n 498:\t64 03 04 02 \tmfsr $r0,$int_mask2\n 49c:\t46 02 9c 10 \tsethi $r0,#0x29c10\n 4a0:\t50 00 00 7c \taddi $r0,$r0,#0x7c\n 4a4:\tea 7a       \tex9.it #122\n 4a6:\t64 03 08 02 \tmfsr $r0,194\n 4aa:\t44 00 06 33 \tmovi $r0,#0x633\n 4ae:\teb 6d       \tex9.it #365\n 4b0:\t64 02 00 02 \tmfsr $r0,$psw\n 4b4:\tea 43       \tex9.it #67\n 4b6:\t64 02 00 03 \tmtsr $r0,$psw\n 4ba:\tfc 80       \tpop25 $r6,#0    ! {$r6, $fp, $gp, $lp}\n 4bc:\t44 03 f0 ed \tmovi $r0,#0x3f0ed\n 4c0:\ta6 40       \tlbi333 $r1,[$r0+#0x0]\n 4c2:\t5a 18 01 04 \tbnec $r1,#0x1,4ca <agent17_start+0x60>\n 4c6:\t84 20       \tmovi55 $r1,#0x0\n 4c8:\tae 40       \tsbi333 $r1,[$r0+#0x0]\n 4ca:\t44 13 f0 da \tmovi $r1,#0x3f0da\n 4ce:\ta6 08       \tlbi333 $r0,[$r1+#0x0]\n 4d0:\teb 21       \tex9.it #289\n 4d2:\tae 08       \tsbi333 $r0,[$r1+#0x0]\n 4d4:\t84 04       \tmovi55 $r0,#0x4\n 4d6:\tea 7a       \tex9.it #122\n 4d8:\t84 25       \tmovi55 $r1,#0x5\n 4da:\t44 03 f0 49 \tmovi $r0,#0x3f049\n 4de:\tae 40       \tsbi333 $r1,[$r0+#0x0]\n 4e0:\t44 10 00 53 \tmovi $r1,#0x53\n 4e4:\tdd 43       \tex9.it #3\n 4e6:\tae 40       \tsbi333 $r1,[$r0+#0x0]\n 4e8:\tdd 9e       \tret5 $lp\n 4ea:\tdd 9e       \tret5 $lp\n 4ec:\t44 43 f1 14 \tmovi $r4,#0x3f114\n 4f0:\tb4 64       \tlwi450 $r3,[$r4]\n 4f2:\t92 78       \tsrli45 $r3,#0x18\n 4f4:\t40 00 0f 04 \tor_slli $r0,$r0,$r3,#0x18\n 4f8:\tb6 04       \tswi450 $r0,[$r4]\n 4fa:\t44 03 f1 38 \tmovi $r0,#0x3f138\n 4fe:\tac 40       \tshi333 $r1,[$r0+#0x0]\n 500:\t84 20       \tmovi55 $r1,#0x0\n 502:\t44 03 f1 3a \tmovi $r0,#0x3f13a\n 506:\tae 40       \tsbi333 $r1,[$r0+#0x0]\n 508:\t44 03 f1 04 \tmovi $r0,#0x3f104\n 50c:\tb6 40       \tswi450 $r2,[$r0]\n 50e:\t84 21       \tmovi55 $r1,#0x1\n 510:\t44 03 f1 36 \tmovi $r0,#0x3f136\n 514:\tae 40       \tsbi333 $r1,[$r0+#0x0]\n 516:\tf8 08       \tifcall9 526 <agent17_start+0xbc>\n 518:\ta6 40       \tlbi333 $r1,[$r0+#0x0]\n 51a:\t96 4c       \txlsb33 $r1,$r1\n 51c:\tc1 03       \tbeqz38 $r1,522 <agent17_start+0xb8>\n 51e:\tae d0       \tsbi333 $r3,[$r2+#0x0]\n 520:\td5 fc       \tj8 518 <agent17_start+0xae>\n 522:\t44 13 f1 34 \tmovi $r1,#0x3f134\n 526:\tea 36       \tex9.it #54\n 528:\tea 31       \tex9.it #49\n 52a:\t83 ff       \tifret16\n 52c:\ta6 08       \tlbi333 $r0,[$r1+#0x0]\n 52e:\t96 0e       \tbmski33 $r0,#0x1\n 530:\tc8 03       \tbnez38 $r0,536 <agent17_start+0xcc>\n 532:\tae d0       \tsbi333 $r3,[$r2+#0x0]\n 534:\td5 fc       \tj8 52c <agent17_start+0xc2>\n 536:\t44 03 f1 34 \tmovi $r0,#0x3f134\n 53a:\ta6 00       \tlbi333 $r0,[$r0+#0x0]\n 53c:\t96 04       \txlsb33 $r0,$r0\n 53e:\tdd 9e       \tret5 $lp\n 540:\t84 a0       \tmovi55 $r5,#0x0\n 542:\td2 07       \tbeqs38 $r2,550 <agent17_start+0xe6>\n 544:\t38 30 14 00 \tlb $r3,[$r0+($r5<<#0x0)]\n 548:\t38 30 94 08 \tsb $r3,[$r1+($r5<<#0x0)]\n 54c:\t8c a1       \taddi45 $r5,#0x1\n 54e:\td5 fa       \tj8 542 <agent17_start+0xd8>\n 550:\tdd 9e       \tret5 $lp\n 552:\tfc 00       \tpush25 $r6,#0    ! {$r6, $fp, $gp, $lp}\n 554:\tdd 42       \tex9.it #2\n 556:\tc0 0c       \tbeqz38 $r0,56e <agent17_start+0x104>\n 558:\t84 07       \tmovi55 $r0,#0x7\n 55a:\tdd 4a       \tex9.it #10\n 55c:\t84 00       \tmovi55 $r0,#0x0\n 55e:\tdd 4a       \tex9.it #10\n 560:\t44 12 c2 78 \tmovi $r1,#0x2c278\n 564:\t84 02       \tmovi55 $r0,#0x2\n 566:\t80 41       \tmov55 $r2,$r1\n 568:\t44 30 01 00 \tmovi $r3,#0x100\n 56c:\tdd 45       \tex9.it #5\n 56e:\tfc 80       \tpop25 $r6,#0    ! {$r6, $fp, $gp, $lp}\n 570:\tfc 00       \tpush25 $r6,#0    ! {$r6, $fp, $gp, $lp}\n 572:\t80 c0       \tmov55 $r6,$r0\n 574:\tdd 42       \tex9.it #2\n 576:\tc0 12       \tbeqz38 $r0,59a <_SDA_BASE_>\n 578:\t44 1f ff 9f \tmovi $r1,#-97\n 57c:\teb c3       \tex9.it #451\n 57e:\tae 40       \tsbi333 $r1,[$r0+#0x0]\n 580:\t96 30       \tzeb33 $r0,$r6\n 582:\t44 12 fe 61 \tmovi $r1,#0x2fe61\n 586:\tae 08       \tsbi333 $r0,[$r1+#0x0]\n 588:\teb 73       \tex9.it #371\n 58a:\t44 12 fe 62 \tmovi $r1,#0x2fe62\n 58e:\tae 08       \tsbi333 $r0,[$r1+#0x0]\n 590:\tdd 43       \tex9.it #3\n 592:\tdd 44       \tex9.it #4\n 594:\tc6 03       \tbeqz38 $r6,59a <_SDA_BASE_>\n 596:\tae 40       \tsbi333 $r1,[$r0+#0x0]\n 598:\td5 fe       \tj8 594 <agent17_start+0x12a>\n\n0000059a <_SDA_BASE_>:\n 59a:\tfc 80       \tpop25 $r6,#0    ! {$r6, $fp, $gp, $lp}\n"
+    }
+  ],
+  "control_flow": {
+    "direct_edges": [
+      {
+        "byte_displacement": 6,
+        "instruction": "beqz38 $r1,.+6",
+        "kind": "branch",
+        "outside_agent17_assignment": false,
+        "outside_emitted_interval": false,
+        "source_runtime_address": 1150,
+        "target_encoding": "explicit-PC-relative-target",
+        "target_file_offset": 1668,
+        "target_runtime_address": 1156
+      },
+      {
+        "byte_displacement": 8,
+        "instruction": "bnec $r1,1,.+8",
+        "kind": "branch",
+        "outside_agent17_assignment": false,
+        "outside_emitted_interval": false,
+        "source_runtime_address": 1218,
+        "target_encoding": "explicit-PC-relative-target",
+        "target_file_offset": 1738,
+        "target_runtime_address": 1226
+      },
+      {
+        "byte_displacement": 16,
+        "instruction": "ifcall9 16",
+        "kind": "call",
+        "outside_agent17_assignment": false,
+        "outside_emitted_interval": false,
+        "return_semantics": "IFC-state-dependent; ordinary call-stack semantics are not assumed",
+        "source_runtime_address": 1302,
+        "target_encoding": "unsigned-byte-displacement-from-instruction-PC",
+        "target_file_offset": 1830,
+        "target_runtime_address": 1318
+      },
+      {
+        "byte_displacement": 6,
+        "instruction": "beqz38 $r1,.+6",
+        "kind": "branch",
+        "outside_agent17_assignment": false,
+        "outside_emitted_interval": false,
+        "source_runtime_address": 1308,
+        "target_encoding": "explicit-PC-relative-target",
+        "target_file_offset": 1826,
+        "target_runtime_address": 1314
+      },
+      {
+        "byte_displacement": -8,
+        "instruction": "j8 .-8",
+        "kind": "branch",
+        "outside_agent17_assignment": false,
+        "outside_emitted_interval": false,
+        "source_runtime_address": 1312,
+        "target_encoding": "explicit-PC-relative-target",
+        "target_file_offset": 1816,
+        "target_runtime_address": 1304
+      },
+      {
+        "byte_displacement": 6,
+        "instruction": "bnez38 $r0,.+6",
+        "kind": "branch",
+        "outside_agent17_assignment": false,
+        "outside_emitted_interval": false,
+        "source_runtime_address": 1328,
+        "target_encoding": "explicit-PC-relative-target",
+        "target_file_offset": 1846,
+        "target_runtime_address": 1334
+      },
+      {
+        "byte_displacement": -8,
+        "instruction": "j8 .-8",
+        "kind": "branch",
+        "outside_agent17_assignment": false,
+        "outside_emitted_interval": false,
+        "source_runtime_address": 1332,
+        "target_encoding": "explicit-PC-relative-target",
+        "target_file_offset": 1836,
+        "target_runtime_address": 1324
+      },
+      {
+        "byte_displacement": 14,
+        "instruction": "beqs38 $r2,.+14",
+        "kind": "branch",
+        "outside_agent17_assignment": false,
+        "outside_emitted_interval": false,
+        "source_runtime_address": 1346,
+        "target_encoding": "explicit-PC-relative-target",
+        "target_file_offset": 1872,
+        "target_runtime_address": 1360
+      },
+      {
+        "byte_displacement": -12,
+        "instruction": "j8 .-12",
+        "kind": "branch",
+        "outside_agent17_assignment": false,
+        "outside_emitted_interval": false,
+        "source_runtime_address": 1358,
+        "target_encoding": "explicit-PC-relative-target",
+        "target_file_offset": 1858,
+        "target_runtime_address": 1346
+      },
+      {
+        "instruction": "ex9.it 2",
+        "kind": "call",
+        "outside_agent17_assignment": false,
+        "outside_emitted_interval": true,
+        "source_runtime_address": 1364,
+        "target_encoding": "EX9-call-site-PC-high7 | table-instruction-low24<<1",
+        "target_file_offset": 9388,
+        "target_runtime_address": 8876,
+        "via_ex9_index": 2
+      },
+      {
+        "byte_displacement": 24,
+        "instruction": "beqz38 $r0,.+24",
+        "kind": "branch",
+        "outside_agent17_assignment": false,
+        "outside_emitted_interval": false,
+        "source_runtime_address": 1366,
+        "target_encoding": "explicit-PC-relative-target",
+        "target_file_offset": 1902,
+        "target_runtime_address": 1390
+      },
+      {
+        "instruction": "ex9.it 10",
+        "kind": "call",
+        "outside_agent17_assignment": false,
+        "outside_emitted_interval": true,
+        "source_runtime_address": 1370,
+        "target_encoding": "EX9-call-site-PC-high7 | table-instruction-low24<<1",
+        "target_file_offset": 32694,
+        "target_runtime_address": 32182,
+        "via_ex9_index": 10
+      },
+      {
+        "instruction": "ex9.it 10",
+        "kind": "call",
+        "outside_agent17_assignment": false,
+        "outside_emitted_interval": true,
+        "source_runtime_address": 1374,
+        "target_encoding": "EX9-call-site-PC-high7 | table-instruction-low24<<1",
+        "target_file_offset": 32694,
+        "target_runtime_address": 32182,
+        "via_ex9_index": 10
+      },
+      {
+        "instruction": "ex9.it 5",
+        "kind": "call",
+        "outside_agent17_assignment": false,
+        "outside_emitted_interval": true,
+        "source_runtime_address": 1388,
+        "target_encoding": "EX9-call-site-PC-high7 | table-instruction-low24<<1",
+        "target_file_offset": 9922,
+        "target_runtime_address": 9410,
+        "via_ex9_index": 5
+      },
+      {
+        "instruction": "ex9.it 2",
+        "kind": "call",
+        "outside_agent17_assignment": false,
+        "outside_emitted_interval": true,
+        "source_runtime_address": 1396,
+        "target_encoding": "EX9-call-site-PC-high7 | table-instruction-low24<<1",
+        "target_file_offset": 9388,
+        "target_runtime_address": 8876,
+        "via_ex9_index": 2
+      },
+      {
+        "byte_displacement": 36,
+        "instruction": "beqz38 $r0,.+36",
+        "kind": "branch",
+        "outside_agent17_assignment": false,
+        "outside_emitted_interval": false,
+        "source_runtime_address": 1398,
+        "target_encoding": "explicit-PC-relative-target",
+        "target_file_offset": 1946,
+        "target_runtime_address": 1434
+      },
+      {
+        "byte_displacement": 6,
+        "instruction": "beqz38 $r6,.+6",
+        "kind": "branch",
+        "outside_agent17_assignment": false,
+        "outside_emitted_interval": false,
+        "source_runtime_address": 1428,
+        "target_encoding": "explicit-PC-relative-target",
+        "target_file_offset": 1946,
+        "target_runtime_address": 1434
+      },
+      {
+        "byte_displacement": -4,
+        "instruction": "j8 .-4",
+        "kind": "branch",
+        "outside_agent17_assignment": false,
+        "outside_emitted_interval": false,
+        "source_runtime_address": 1432,
+        "target_encoding": "explicit-PC-relative-target",
+        "target_file_offset": 1940,
+        "target_runtime_address": 1428
+      }
+    ],
+    "external_targets": [
+      {
+        "instruction": "ex9.it 2",
+        "kind": "call",
+        "outside_agent17_assignment": false,
+        "outside_emitted_interval": true,
+        "source_runtime_address": 1364,
+        "target_encoding": "EX9-call-site-PC-high7 | table-instruction-low24<<1",
+        "target_file_offset": 9388,
+        "target_runtime_address": 8876,
+        "via_ex9_index": 2
+      },
+      {
+        "instruction": "ex9.it 10",
+        "kind": "call",
+        "outside_agent17_assignment": false,
+        "outside_emitted_interval": true,
+        "source_runtime_address": 1370,
+        "target_encoding": "EX9-call-site-PC-high7 | table-instruction-low24<<1",
+        "target_file_offset": 32694,
+        "target_runtime_address": 32182,
+        "via_ex9_index": 10
+      },
+      {
+        "instruction": "ex9.it 10",
+        "kind": "call",
+        "outside_agent17_assignment": false,
+        "outside_emitted_interval": true,
+        "source_runtime_address": 1374,
+        "target_encoding": "EX9-call-site-PC-high7 | table-instruction-low24<<1",
+        "target_file_offset": 32694,
+        "target_runtime_address": 32182,
+        "via_ex9_index": 10
+      },
+      {
+        "instruction": "ex9.it 5",
+        "kind": "call",
+        "outside_agent17_assignment": false,
+        "outside_emitted_interval": true,
+        "source_runtime_address": 1388,
+        "target_encoding": "EX9-call-site-PC-high7 | table-instruction-low24<<1",
+        "target_file_offset": 9922,
+        "target_runtime_address": 9410,
+        "via_ex9_index": 5
+      },
+      {
+        "instruction": "ex9.it 2",
+        "kind": "call",
+        "outside_agent17_assignment": false,
+        "outside_emitted_interval": true,
+        "source_runtime_address": 1396,
+        "target_encoding": "EX9-call-site-PC-high7 | table-instruction-low24<<1",
+        "target_file_offset": 9388,
+        "target_runtime_address": 8876,
+        "via_ex9_index": 2
+      }
+    ],
+    "ifc_return_sites": [
+      {
+        "instruction": "ifret16",
+        "runtime_address": 1322,
+        "target_status": "IFC-state-dependent return or fallthrough; not resolved here"
+      }
+    ],
+    "indirect_transfers": [
+      {
+        "instruction": "pop25 $r6,0",
+        "runtime_address": 1210,
+        "target_status": "register-dependent; unresolved by static listing"
+      },
+      {
+        "instruction": "ret5 $r30",
+        "runtime_address": 1256,
+        "target_status": "register-dependent; unresolved by static listing"
+      },
+      {
+        "instruction": "ret5 $r30",
+        "runtime_address": 1258,
+        "target_status": "register-dependent; unresolved by static listing"
+      },
+      {
+        "instruction": "ret5 $r30",
+        "runtime_address": 1342,
+        "target_status": "register-dependent; unresolved by static listing"
+      },
+      {
+        "instruction": "ret5 $r30",
+        "runtime_address": 1360,
+        "target_status": "register-dependent; unresolved by static listing"
+      },
+      {
+        "instruction": "pop25 $r6,0",
+        "runtime_address": 1390,
+        "target_status": "register-dependent; unresolved by static listing"
+      },
+      {
+        "instruction": "pop25 $r6,0",
+        "runtime_address": 1434,
+        "target_status": "register-dependent; unresolved by static listing"
+      }
+    ],
+    "scope": "Explicit transfer targets including verified EX9 J/JAL effects; no full IFC state simulation."
+  },
+  "counts": {
+    "executable_bytes": 306,
+    "external_bytes_in_generated_span": 0,
+    "instruction_count": 117,
+    "instructions_16_bit": 81,
+    "instructions_32_bit": 36,
+    "layout_fill_bytes": 0,
+    "metadata_bytes": 0
+  },
+  "emitter": {
+    "path": "/workspace/scratch/c7bf61eee144/target-agent17/release/novatek-ilm-low",
+    "sha256": "767cf0feb9b1251b303040653441d9542cee8b4099d2060f3d6334cd9348e26b"
+  },
+  "ex9_dependencies": {
+    "control_transfer_uses": 5,
+    "counted_as_agent17_reconstructed_bytes": 0,
+    "distinct_entries": 13,
+    "entries": [
+      {
+        "bytes": 4,
+        "expected_effect": {
+          "operation": "jal",
+          "target_low25": 8876
+        },
+        "file_offset": 94744,
+        "index": 2,
+        "runtime_address": 94232,
+        "sha256": "cf4fc6c0e23538d386bfa1ba2acfdc483b9667b5538acba9cf878bf659e4c7a2"
+      },
+      {
+        "bytes": 4,
+        "expected_effect": {
+          "destination_register": 0,
+          "immediate": 258122,
+          "operation": "movi"
+        },
+        "file_offset": 94748,
+        "index": 3,
+        "runtime_address": 94236,
+        "sha256": "0db2dbcd30bc78953646402d427cd9dd4323b85342b3255622445a8fa9fb3ac1"
+      },
+      {
+        "bytes": 4,
+        "expected_effect": {
+          "destination_register": 1,
+          "immediate": 85,
+          "operation": "movi"
+        },
+        "file_offset": 94752,
+        "index": 4,
+        "runtime_address": 94240,
+        "sha256": "dbfcbca1fffb2eda4d28b96477b0f87b1cd41bcb5254186d135651623b5e4f52"
+      },
+      {
+        "bytes": 4,
+        "expected_effect": {
+          "operation": "jal",
+          "target_low25": 9410
+        },
+        "file_offset": 94756,
+        "index": 5,
+        "runtime_address": 94244,
+        "sha256": "63a375769888d0f38b30b658d80778d4680ffd9ad26d76133b76cfa68c4dc66a"
+      },
+      {
+        "bytes": 4,
+        "expected_effect": {
+          "operation": "jal",
+          "target_low25": 32182
+        },
+        "file_offset": 94776,
+        "index": 10,
+        "runtime_address": 94264,
+        "sha256": "e06cefee3baac7aeef0760049dd2bb705a8db03b2f4bbbf673408ebd370e8f5d"
+      },
+      {
+        "bytes": 4,
+        "expected_effect": {
+          "destination_register": 3,
+          "immediate": 85,
+          "operation": "movi"
+        },
+        "file_offset": 94932,
+        "index": 49,
+        "runtime_address": 94420,
+        "sha256": "2734cc260a8f07ec666b45eef99160bbc3c8e748956c8e8b1c018fce9b199891"
+      },
+      {
+        "bytes": 4,
+        "expected_effect": {
+          "destination_register": 2,
+          "immediate": 258122,
+          "operation": "movi"
+        },
+        "file_offset": 94952,
+        "index": 54,
+        "runtime_address": 94440,
+        "sha256": "c28553275e8420c0bc70e42bf45017fbc616d6e438f0fa0fd741e75ebd57fdab"
+      },
+      {
+        "bytes": 4,
+        "expected_effect": {
+          "destination_register": 0,
+          "immediate": 1,
+          "operation": "ori",
+          "source_register": 0
+        },
+        "file_offset": 95004,
+        "index": 67,
+        "runtime_address": 94492,
+        "sha256": "5965ce600a38a02341a567eee8b4d15a4614fcbeaea0cac0d377bd5a862b5a47"
+      },
+      {
+        "bytes": 4,
+        "expected_effect": {
+          "csr": 193,
+          "csr_name": "int_mask2",
+          "operation": "mtsr",
+          "source_register": 0
+        },
+        "file_offset": 95224,
+        "index": 122,
+        "runtime_address": 94712,
+        "sha256": "8a591b8f62b08a76d821ccf1a63c5af69189495aaf33955becf7eb556c515b00"
+      },
+      {
+        "bytes": 4,
+        "expected_effect": {
+          "destination_register": 0,
+          "immediate": 240,
+          "operation": "andi",
+          "source_register": 0
+        },
+        "file_offset": 95892,
+        "index": 289,
+        "runtime_address": 95380,
+        "sha256": "d14fc2dccca17decf6bff18087dc86b3d10397f44163a364f3dabc769a38924c"
+      },
+      {
+        "bytes": 4,
+        "expected_effect": {
+          "csr": 194,
+          "csr_name": "int_mask3",
+          "operation": "mtsr",
+          "source_register": 0
+        },
+        "file_offset": 96196,
+        "index": 365,
+        "runtime_address": 95684,
+        "sha256": "4d3b85a119b40fe98e693769fcde50e05bb8c622325729d0174520fcdfccf671"
+      },
+      {
+        "bytes": 4,
+        "expected_effect": {
+          "destination_register": 0,
+          "operation": "srli",
+          "shift": 8,
+          "source_register": 6
+        },
+        "file_offset": 96220,
+        "index": 371,
+        "runtime_address": 95708,
+        "sha256": "e4fbb5c235e06306272d63c32802edae636646cbd6bb79356973310d877af19e"
+      },
+      {
+        "bytes": 4,
+        "expected_effect": {
+          "destination_register": 0,
+          "immediate": 196192,
+          "operation": "movi"
+        },
+        "file_offset": 96540,
+        "index": 451,
+        "runtime_address": 96028,
+        "sha256": "35a88bdd337de1e7e44938583980b6407735678d0701d2aa973d0fe523a4874a"
+      }
+    ],
+    "external_reference_bytes": 52,
+    "jump_semantics_source": "https://chromium.googlesource.com/native_client/nacl-binutils/+/refs/tags/binutils-2_25_1/opcodes/nds32-dis.c",
+    "source_owner": "Agent 18",
+    "status": "passed",
+    "use_sites": [
+      {
+        "expected_effect": {
+          "csr": 193,
+          "csr_name": "int_mask2",
+          "operation": "mtsr",
+          "source_register": 0
+        },
+        "file_offset": 1650,
+        "index": 122,
+        "runtime_address": 1138
+      },
+      {
+        "expected_effect": {
+          "csr": 194,
+          "csr_name": "int_mask3",
+          "operation": "mtsr",
+          "source_register": 0
+        },
+        "file_offset": 1652,
+        "index": 365,
+        "runtime_address": 1140
+      },
+      {
+        "expected_effect": {
+          "csr": 193,
+          "csr_name": "int_mask2",
+          "operation": "mtsr",
+          "source_register": 0
+        },
+        "file_offset": 1700,
+        "index": 122,
+        "runtime_address": 1188
+      },
+      {
+        "expected_effect": {
+          "csr": 194,
+          "csr_name": "int_mask3",
+          "operation": "mtsr",
+          "source_register": 0
+        },
+        "file_offset": 1710,
+        "index": 365,
+        "runtime_address": 1198
+      },
+      {
+        "expected_effect": {
+          "destination_register": 0,
+          "immediate": 1,
+          "operation": "ori",
+          "source_register": 0
+        },
+        "file_offset": 1716,
+        "index": 67,
+        "runtime_address": 1204
+      },
+      {
+        "expected_effect": {
+          "destination_register": 0,
+          "immediate": 240,
+          "operation": "andi",
+          "source_register": 0
+        },
+        "file_offset": 1744,
+        "index": 289,
+        "runtime_address": 1232
+      },
+      {
+        "expected_effect": {
+          "csr": 193,
+          "csr_name": "int_mask2",
+          "operation": "mtsr",
+          "source_register": 0
+        },
+        "file_offset": 1750,
+        "index": 122,
+        "runtime_address": 1238
+      },
+      {
+        "expected_effect": {
+          "destination_register": 0,
+          "immediate": 258122,
+          "operation": "movi"
+        },
+        "file_offset": 1764,
+        "index": 3,
+        "runtime_address": 1252
+      },
+      {
+        "expected_effect": {
+          "destination_register": 2,
+          "immediate": 258122,
+          "operation": "movi"
+        },
+        "file_offset": 1830,
+        "index": 54,
+        "runtime_address": 1318
+      },
+      {
+        "expected_effect": {
+          "destination_register": 3,
+          "immediate": 85,
+          "operation": "movi"
+        },
+        "file_offset": 1832,
+        "index": 49,
+        "runtime_address": 1320
+      },
+      {
+        "expected_effect": {
+          "operation": "jal",
+          "target_low25": 8876
+        },
+        "file_offset": 1876,
+        "index": 2,
+        "runtime_address": 1364,
+        "target_encoding": "EX9-call-site-PC-high7 | table-instruction-low24<<1",
+        "target_file_offset": 9388,
+        "target_runtime_address": 8876
+      },
+      {
+        "expected_effect": {
+          "operation": "jal",
+          "target_low25": 32182
+        },
+        "file_offset": 1882,
+        "index": 10,
+        "runtime_address": 1370,
+        "target_encoding": "EX9-call-site-PC-high7 | table-instruction-low24<<1",
+        "target_file_offset": 32694,
+        "target_runtime_address": 32182
+      },
+      {
+        "expected_effect": {
+          "operation": "jal",
+          "target_low25": 32182
+        },
+        "file_offset": 1886,
+        "index": 10,
+        "runtime_address": 1374,
+        "target_encoding": "EX9-call-site-PC-high7 | table-instruction-low24<<1",
+        "target_file_offset": 32694,
+        "target_runtime_address": 32182
+      },
+      {
+        "expected_effect": {
+          "operation": "jal",
+          "target_low25": 9410
+        },
+        "file_offset": 1900,
+        "index": 5,
+        "runtime_address": 1388,
+        "target_encoding": "EX9-call-site-PC-high7 | table-instruction-low24<<1",
+        "target_file_offset": 9922,
+        "target_runtime_address": 9410
+      },
+      {
+        "expected_effect": {
+          "operation": "jal",
+          "target_low25": 8876
+        },
+        "file_offset": 1908,
+        "index": 2,
+        "runtime_address": 1396,
+        "target_encoding": "EX9-call-site-PC-high7 | table-instruction-low24<<1",
+        "target_file_offset": 9388,
+        "target_runtime_address": 8876
+      },
+      {
+        "expected_effect": {
+          "destination_register": 0,
+          "immediate": 196192,
+          "operation": "movi"
+        },
+        "file_offset": 1916,
+        "index": 451,
+        "runtime_address": 1404
+      },
+      {
+        "expected_effect": {
+          "destination_register": 0,
+          "operation": "srli",
+          "shift": 8,
+          "source_register": 6
+        },
+        "file_offset": 1928,
+        "index": 371,
+        "runtime_address": 1416
+      },
+      {
+        "expected_effect": {
+          "destination_register": 0,
+          "immediate": 258122,
+          "operation": "movi"
+        },
+        "file_offset": 1936,
+        "index": 3,
+        "runtime_address": 1424
+      },
+      {
+        "expected_effect": {
+          "destination_register": 1,
+          "immediate": 85,
+          "operation": "movi"
+        },
+        "file_offset": 1938,
+        "index": 4,
+        "runtime_address": 1426
+      }
+    ],
+    "uses": 19
+  },
+  "independent_assembly": {
+    "assembled_instructions": 117,
+    "binary": "/workspace/scratch/c7bf61eee144/audit17-private/verify-cp02-map220v/independent.bin",
+    "binary_data_fallback_used": false,
+    "comparison_with_rust": {
+      "actual_bytes": 306,
+      "actual_sha256": "b925ba7160eeba829cba6a25c11395453cddbd19d372f05effe5f3d67e8d720f",
+      "expected_bytes": 306,
+      "expected_sha256": "b925ba7160eeba829cba6a25c11395453cddbd19d372f05effe5f3d67e8d720f",
+      "first_mismatch_file_offset": null,
+      "mismatched_bytes": 0
+    },
+    "decoded": [
+      {
+        "assembly": "sbi.gp $r0,[+#-5113]",
+        "length": 4,
+        "mnemonic": "sbi.gp",
+        "runtime_address": 1130
+      },
+      {
+        "assembly": "mtsr $r0,$int_mask",
+        "length": 4,
+        "mnemonic": "mtsr",
+        "runtime_address": 1134
+      },
+      {
+        "assembly": "ex9.it #122",
+        "length": 2,
+        "mnemonic": "ex9.it",
+        "runtime_address": 1138
+      },
+      {
+        "assembly": "ex9.it #365",
+        "length": 2,
+        "mnemonic": "ex9.it",
+        "runtime_address": 1140
+      },
+      {
+        "assembly": "mfsr $r1,$ivb",
+        "length": 4,
+        "mnemonic": "mfsr",
+        "runtime_address": 1142
+      },
+      {
+        "assembly": "xlsb33 $r1,$r1",
+        "length": 2,
+        "mnemonic": "xlsb33",
+        "runtime_address": 1146
+      },
+      {
+        "assembly": "mov55 $r2,$r0",
+        "length": 2,
+        "mnemonic": "mov55",
+        "runtime_address": 1148
+      },
+      {
+        "assembly": "beqz38 $r1,484 <agent17_start+0x1a>",
+        "length": 2,
+        "mnemonic": "beqz38",
+        "runtime_address": 1150
+      },
+      {
+        "assembly": "mtsr $r0,$int_mask",
+        "length": 4,
+        "mnemonic": "mtsr",
+        "runtime_address": 1152
+      },
+      {
+        "assembly": "mtsr $r2,$ivb",
+        "length": 4,
+        "mnemonic": "mtsr",
+        "runtime_address": 1156
+      },
+      {
+        "assembly": "mfsr $r0,$psw",
+        "length": 4,
+        "mnemonic": "mfsr",
+        "runtime_address": 1160
+      },
+      {
+        "assembly": "bitci $r0,$r0,#0x6",
+        "length": 4,
+        "mnemonic": "bitci",
+        "runtime_address": 1164
+      },
+      {
+        "assembly": "mtsr $r0,$psw",
+        "length": 4,
+        "mnemonic": "mtsr",
+        "runtime_address": 1168
+      },
+      {
+        "assembly": "dsb",
+        "length": 4,
+        "mnemonic": "dsb",
+        "runtime_address": 1172
+      },
+      {
+        "assembly": "mfsr $r0,$int_mask2",
+        "length": 4,
+        "mnemonic": "mfsr",
+        "runtime_address": 1176
+      },
+      {
+        "assembly": "sethi $r0,#0x29c10",
+        "length": 4,
+        "mnemonic": "sethi",
+        "runtime_address": 1180
+      },
+      {
+        "assembly": "addi $r0,$r0,#0x7c",
+        "length": 4,
+        "mnemonic": "addi",
+        "runtime_address": 1184
+      },
+      {
+        "assembly": "ex9.it #122",
+        "length": 2,
+        "mnemonic": "ex9.it",
+        "runtime_address": 1188
+      },
+      {
+        "assembly": "mfsr $r0,194",
+        "length": 4,
+        "mnemonic": "mfsr",
+        "runtime_address": 1190
+      },
+      {
+        "assembly": "movi $r0,#0x633",
+        "length": 4,
+        "mnemonic": "movi",
+        "runtime_address": 1194
+      },
+      {
+        "assembly": "ex9.it #365",
+        "length": 2,
+        "mnemonic": "ex9.it",
+        "runtime_address": 1198
+      },
+      {
+        "assembly": "mfsr $r0,$psw",
+        "length": 4,
+        "mnemonic": "mfsr",
+        "runtime_address": 1200
+      },
+      {
+        "assembly": "ex9.it #67",
+        "length": 2,
+        "mnemonic": "ex9.it",
+        "runtime_address": 1204
+      },
+      {
+        "assembly": "mtsr $r0,$psw",
+        "length": 4,
+        "mnemonic": "mtsr",
+        "runtime_address": 1206
+      },
+      {
+        "assembly": "pop25 $r6,#0    ! {$r6, $fp, $gp, $lp}",
+        "length": 2,
+        "mnemonic": "pop25",
+        "runtime_address": 1210
+      },
+      {
+        "assembly": "movi $r0,#0x3f0ed",
+        "length": 4,
+        "mnemonic": "movi",
+        "runtime_address": 1212
+      },
+      {
+        "assembly": "lbi333 $r1,[$r0+#0x0]",
+        "length": 2,
+        "mnemonic": "lbi333",
+        "runtime_address": 1216
+      },
+      {
+        "assembly": "bnec $r1,#0x1,4ca <agent17_start+0x60>",
+        "length": 4,
+        "mnemonic": "bnec",
+        "runtime_address": 1218
+      },
+      {
+        "assembly": "movi55 $r1,#0x0",
+        "length": 2,
+        "mnemonic": "movi55",
+        "runtime_address": 1222
+      },
+      {
+        "assembly": "sbi333 $r1,[$r0+#0x0]",
+        "length": 2,
+        "mnemonic": "sbi333",
+        "runtime_address": 1224
+      },
+      {
+        "assembly": "movi $r1,#0x3f0da",
+        "length": 4,
+        "mnemonic": "movi",
+        "runtime_address": 1226
+      },
+      {
+        "assembly": "lbi333 $r0,[$r1+#0x0]",
+        "length": 2,
+        "mnemonic": "lbi333",
+        "runtime_address": 1230
+      },
+      {
+        "assembly": "ex9.it #289",
+        "length": 2,
+        "mnemonic": "ex9.it",
+        "runtime_address": 1232
+      },
+      {
+        "assembly": "sbi333 $r0,[$r1+#0x0]",
+        "length": 2,
+        "mnemonic": "sbi333",
+        "runtime_address": 1234
+      },
+      {
+        "assembly": "movi55 $r0,#0x4",
+        "length": 2,
+        "mnemonic": "movi55",
+        "runtime_address": 1236
+      },
+      {
+        "assembly": "ex9.it #122",
+        "length": 2,
+        "mnemonic": "ex9.it",
+        "runtime_address": 1238
+      },
+      {
+        "assembly": "movi55 $r1,#0x5",
+        "length": 2,
+        "mnemonic": "movi55",
+        "runtime_address": 1240
+      },
+      {
+        "assembly": "movi $r0,#0x3f049",
+        "length": 4,
+        "mnemonic": "movi",
+        "runtime_address": 1242
+      },
+      {
+        "assembly": "sbi333 $r1,[$r0+#0x0]",
+        "length": 2,
+        "mnemonic": "sbi333",
+        "runtime_address": 1246
+      },
+      {
+        "assembly": "movi $r1,#0x53",
+        "length": 4,
+        "mnemonic": "movi",
+        "runtime_address": 1248
+      },
+      {
+        "assembly": "ex9.it #3",
+        "length": 2,
+        "mnemonic": "ex9.it",
+        "runtime_address": 1252
+      },
+      {
+        "assembly": "sbi333 $r1,[$r0+#0x0]",
+        "length": 2,
+        "mnemonic": "sbi333",
+        "runtime_address": 1254
+      },
+      {
+        "assembly": "ret5 $lp",
+        "length": 2,
+        "mnemonic": "ret5",
+        "runtime_address": 1256
+      },
+      {
+        "assembly": "ret5 $lp",
+        "length": 2,
+        "mnemonic": "ret5",
+        "runtime_address": 1258
+      },
+      {
+        "assembly": "movi $r4,#0x3f114",
+        "length": 4,
+        "mnemonic": "movi",
+        "runtime_address": 1260
+      },
+      {
+        "assembly": "lwi450 $r3,[$r4]",
+        "length": 2,
+        "mnemonic": "lwi450",
+        "runtime_address": 1264
+      },
+      {
+        "assembly": "srli45 $r3,#0x18",
+        "length": 2,
+        "mnemonic": "srli45",
+        "runtime_address": 1266
+      },
+      {
+        "assembly": "or_slli $r0,$r0,$r3,#0x18",
+        "length": 4,
+        "mnemonic": "or_slli",
+        "runtime_address": 1268
+      },
+      {
+        "assembly": "swi450 $r0,[$r4]",
+        "length": 2,
+        "mnemonic": "swi450",
+        "runtime_address": 1272
+      },
+      {
+        "assembly": "movi $r0,#0x3f138",
+        "length": 4,
+        "mnemonic": "movi",
+        "runtime_address": 1274
+      },
+      {
+        "assembly": "shi333 $r1,[$r0+#0x0]",
+        "length": 2,
+        "mnemonic": "shi333",
+        "runtime_address": 1278
+      },
+      {
+        "assembly": "movi55 $r1,#0x0",
+        "length": 2,
+        "mnemonic": "movi55",
+        "runtime_address": 1280
+      },
+      {
+        "assembly": "movi $r0,#0x3f13a",
+        "length": 4,
+        "mnemonic": "movi",
+        "runtime_address": 1282
+      },
+      {
+        "assembly": "sbi333 $r1,[$r0+#0x0]",
+        "length": 2,
+        "mnemonic": "sbi333",
+        "runtime_address": 1286
+      },
+      {
+        "assembly": "movi $r0,#0x3f104",
+        "length": 4,
+        "mnemonic": "movi",
+        "runtime_address": 1288
+      },
+      {
+        "assembly": "swi450 $r2,[$r0]",
+        "length": 2,
+        "mnemonic": "swi450",
+        "runtime_address": 1292
+      },
+      {
+        "assembly": "movi55 $r1,#0x1",
+        "length": 2,
+        "mnemonic": "movi55",
+        "runtime_address": 1294
+      },
+      {
+        "assembly": "movi $r0,#0x3f136",
+        "length": 4,
+        "mnemonic": "movi",
+        "runtime_address": 1296
+      },
+      {
+        "assembly": "sbi333 $r1,[$r0+#0x0]",
+        "length": 2,
+        "mnemonic": "sbi333",
+        "runtime_address": 1300
+      },
+      {
+        "assembly": "ifcall9 526 <agent17_start+0xbc>",
+        "length": 2,
+        "mnemonic": "ifcall9",
+        "runtime_address": 1302
+      },
+      {
+        "assembly": "lbi333 $r1,[$r0+#0x0]",
+        "length": 2,
+        "mnemonic": "lbi333",
+        "runtime_address": 1304
+      },
+      {
+        "assembly": "xlsb33 $r1,$r1",
+        "length": 2,
+        "mnemonic": "xlsb33",
+        "runtime_address": 1306
+      },
+      {
+        "assembly": "beqz38 $r1,522 <agent17_start+0xb8>",
+        "length": 2,
+        "mnemonic": "beqz38",
+        "runtime_address": 1308
+      },
+      {
+        "assembly": "sbi333 $r3,[$r2+#0x0]",
+        "length": 2,
+        "mnemonic": "sbi333",
+        "runtime_address": 1310
+      },
+      {
+        "assembly": "j8 518 <agent17_start+0xae>",
+        "length": 2,
+        "mnemonic": "j8",
+        "runtime_address": 1312
+      },
+      {
+        "assembly": "movi $r1,#0x3f134",
+        "length": 4,
+        "mnemonic": "movi",
+        "runtime_address": 1314
+      },
+      {
+        "assembly": "ex9.it #54",
+        "length": 2,
+        "mnemonic": "ex9.it",
+        "runtime_address": 1318
+      },
+      {
+        "assembly": "ex9.it #49",
+        "length": 2,
+        "mnemonic": "ex9.it",
+        "runtime_address": 1320
+      },
+      {
+        "assembly": "ifret16",
+        "length": 2,
+        "mnemonic": "ifret16",
+        "runtime_address": 1322
+      },
+      {
+        "assembly": "lbi333 $r0,[$r1+#0x0]",
+        "length": 2,
+        "mnemonic": "lbi333",
+        "runtime_address": 1324
+      },
+      {
+        "assembly": "bmski33 $r0,#0x1",
+        "length": 2,
+        "mnemonic": "bmski33",
+        "runtime_address": 1326
+      },
+      {
+        "assembly": "bnez38 $r0,536 <agent17_start+0xcc>",
+        "length": 2,
+        "mnemonic": "bnez38",
+        "runtime_address": 1328
+      },
+      {
+        "assembly": "sbi333 $r3,[$r2+#0x0]",
+        "length": 2,
+        "mnemonic": "sbi333",
+        "runtime_address": 1330
+      },
+      {
+        "assembly": "j8 52c <agent17_start+0xc2>",
+        "length": 2,
+        "mnemonic": "j8",
+        "runtime_address": 1332
+      },
+      {
+        "assembly": "movi $r0,#0x3f134",
+        "length": 4,
+        "mnemonic": "movi",
+        "runtime_address": 1334
+      },
+      {
+        "assembly": "lbi333 $r0,[$r0+#0x0]",
+        "length": 2,
+        "mnemonic": "lbi333",
+        "runtime_address": 1338
+      },
+      {
+        "assembly": "xlsb33 $r0,$r0",
+        "length": 2,
+        "mnemonic": "xlsb33",
+        "runtime_address": 1340
+      },
+      {
+        "assembly": "ret5 $lp",
+        "length": 2,
+        "mnemonic": "ret5",
+        "runtime_address": 1342
+      },
+      {
+        "assembly": "movi55 $r5,#0x0",
+        "length": 2,
+        "mnemonic": "movi55",
+        "runtime_address": 1344
+      },
+      {
+        "assembly": "beqs38 $r2,550 <agent17_start+0xe6>",
+        "length": 2,
+        "mnemonic": "beqs38",
+        "runtime_address": 1346
+      },
+      {
+        "assembly": "lb $r3,[$r0+($r5<<#0x0)]",
+        "length": 4,
+        "mnemonic": "lb",
+        "runtime_address": 1348
+      },
+      {
+        "assembly": "sb $r3,[$r1+($r5<<#0x0)]",
+        "length": 4,
+        "mnemonic": "sb",
+        "runtime_address": 1352
+      },
+      {
+        "assembly": "addi45 $r5,#0x1",
+        "length": 2,
+        "mnemonic": "addi45",
+        "runtime_address": 1356
+      },
+      {
+        "assembly": "j8 542 <agent17_start+0xd8>",
+        "length": 2,
+        "mnemonic": "j8",
+        "runtime_address": 1358
+      },
+      {
+        "assembly": "ret5 $lp",
+        "length": 2,
+        "mnemonic": "ret5",
+        "runtime_address": 1360
+      },
+      {
+        "assembly": "push25 $r6,#0    ! {$r6, $fp, $gp, $lp}",
+        "length": 2,
+        "mnemonic": "push25",
+        "runtime_address": 1362
+      },
+      {
+        "assembly": "ex9.it #2",
+        "length": 2,
+        "mnemonic": "ex9.it",
+        "runtime_address": 1364
+      },
+      {
+        "assembly": "beqz38 $r0,56e <agent17_start+0x104>",
+        "length": 2,
+        "mnemonic": "beqz38",
+        "runtime_address": 1366
+      },
+      {
+        "assembly": "movi55 $r0,#0x7",
+        "length": 2,
+        "mnemonic": "movi55",
+        "runtime_address": 1368
+      },
+      {
+        "assembly": "ex9.it #10",
+        "length": 2,
+        "mnemonic": "ex9.it",
+        "runtime_address": 1370
+      },
+      {
+        "assembly": "movi55 $r0,#0x0",
+        "length": 2,
+        "mnemonic": "movi55",
+        "runtime_address": 1372
+      },
+      {
+        "assembly": "ex9.it #10",
+        "length": 2,
+        "mnemonic": "ex9.it",
+        "runtime_address": 1374
+      },
+      {
+        "assembly": "movi $r1,#0x2c278",
+        "length": 4,
+        "mnemonic": "movi",
+        "runtime_address": 1376
+      },
+      {
+        "assembly": "movi55 $r0,#0x2",
+        "length": 2,
+        "mnemonic": "movi55",
+        "runtime_address": 1380
+      },
+      {
+        "assembly": "mov55 $r2,$r1",
+        "length": 2,
+        "mnemonic": "mov55",
+        "runtime_address": 1382
+      },
+      {
+        "assembly": "movi $r3,#0x100",
+        "length": 4,
+        "mnemonic": "movi",
+        "runtime_address": 1384
+      },
+      {
+        "assembly": "ex9.it #5",
+        "length": 2,
+        "mnemonic": "ex9.it",
+        "runtime_address": 1388
+      },
+      {
+        "assembly": "pop25 $r6,#0    ! {$r6, $fp, $gp, $lp}",
+        "length": 2,
+        "mnemonic": "pop25",
+        "runtime_address": 1390
+      },
+      {
+        "assembly": "push25 $r6,#0    ! {$r6, $fp, $gp, $lp}",
+        "length": 2,
+        "mnemonic": "push25",
+        "runtime_address": 1392
+      },
+      {
+        "assembly": "mov55 $r6,$r0",
+        "length": 2,
+        "mnemonic": "mov55",
+        "runtime_address": 1394
+      },
+      {
+        "assembly": "ex9.it #2",
+        "length": 2,
+        "mnemonic": "ex9.it",
+        "runtime_address": 1396
+      },
+      {
+        "assembly": "beqz38 $r0,59a <_SDA_BASE_>",
+        "length": 2,
+        "mnemonic": "beqz38",
+        "runtime_address": 1398
+      },
+      {
+        "assembly": "movi $r1,#-97",
+        "length": 4,
+        "mnemonic": "movi",
+        "runtime_address": 1400
+      },
+      {
+        "assembly": "ex9.it #451",
+        "length": 2,
+        "mnemonic": "ex9.it",
+        "runtime_address": 1404
+      },
+      {
+        "assembly": "sbi333 $r1,[$r0+#0x0]",
+        "length": 2,
+        "mnemonic": "sbi333",
+        "runtime_address": 1406
+      },
+      {
+        "assembly": "zeb33 $r0,$r6",
+        "length": 2,
+        "mnemonic": "zeb33",
+        "runtime_address": 1408
+      },
+      {
+        "assembly": "movi $r1,#0x2fe61",
+        "length": 4,
+        "mnemonic": "movi",
+        "runtime_address": 1410
+      },
+      {
+        "assembly": "sbi333 $r0,[$r1+#0x0]",
+        "length": 2,
+        "mnemonic": "sbi333",
+        "runtime_address": 1414
+      },
+      {
+        "assembly": "ex9.it #371",
+        "length": 2,
+        "mnemonic": "ex9.it",
+        "runtime_address": 1416
+      },
+      {
+        "assembly": "movi $r1,#0x2fe62",
+        "length": 4,
+        "mnemonic": "movi",
+        "runtime_address": 1418
+      },
+      {
+        "assembly": "sbi333 $r0,[$r1+#0x0]",
+        "length": 2,
+        "mnemonic": "sbi333",
+        "runtime_address": 1422
+      },
+      {
+        "assembly": "ex9.it #3",
+        "length": 2,
+        "mnemonic": "ex9.it",
+        "runtime_address": 1424
+      },
+      {
+        "assembly": "ex9.it #4",
+        "length": 2,
+        "mnemonic": "ex9.it",
+        "runtime_address": 1426
+      },
+      {
+        "assembly": "beqz38 $r6,59a <_SDA_BASE_>",
+        "length": 2,
+        "mnemonic": "beqz38",
+        "runtime_address": 1428
+      },
+      {
+        "assembly": "sbi333 $r1,[$r0+#0x0]",
+        "length": 2,
+        "mnemonic": "sbi333",
+        "runtime_address": 1430
+      },
+      {
+        "assembly": "j8 594 <agent17_start+0x12a>",
+        "length": 2,
+        "mnemonic": "j8",
+        "runtime_address": 1432
+      },
+      {
+        "assembly": "pop25 $r6,#0    ! {$r6, $fp, $gp, $lp}",
+        "length": 2,
+        "mnemonic": "pop25",
+        "runtime_address": 1434
+      }
+    ],
+    "decoded_instructions": 117,
+    "elf": "/workspace/scratch/c7bf61eee144/audit17-private/verify-cp02-map220v/independent.elf",
+    "source": "/workspace/scratch/c7bf61eee144/audit17-private/verify-cp02-map220v/independent.s",
+    "status": "passed",
+    "tool_versions": {
+      "assembler": "GNU assembler (GNU Binutils) 2.25.1",
+      "linker": "GNU ld (GNU Binutils) 2.25.1",
+      "objcopy": "GNU objcopy (GNU Binutils) 2.25.1",
+      "objdump": "GNU objdump (GNU Binutils) 2.25.1"
+    }
+  },
+  "instructions": [
+    {
+      "assembly": "sbi.gp $r0,[-5113]",
+      "file_offset": 1642,
+      "length": 4,
+      "mnemonic": "sbi.gp",
+      "operands": "$r0,[-5113]",
+      "runtime_address": 1130
+    },
+    {
+      "assembly": "mtsr $r0,$int_mask",
+      "file_offset": 1646,
+      "length": 4,
+      "mnemonic": "mtsr",
+      "operands": "$r0,$int_mask",
+      "runtime_address": 1134
+    },
+    {
+      "assembly": "ex9.it 122",
+      "file_offset": 1650,
+      "length": 2,
+      "mnemonic": "ex9.it",
+      "operands": "122",
+      "runtime_address": 1138
+    },
+    {
+      "assembly": "ex9.it 365",
+      "file_offset": 1652,
+      "length": 2,
+      "mnemonic": "ex9.it",
+      "operands": "365",
+      "runtime_address": 1140
+    },
+    {
+      "assembly": "mfsr $r1,$ivb",
+      "file_offset": 1654,
+      "length": 4,
+      "mnemonic": "mfsr",
+      "operands": "$r1,$ivb",
+      "runtime_address": 1142
+    },
+    {
+      "assembly": "xlsb33 $r1,$r1",
+      "file_offset": 1658,
+      "length": 2,
+      "mnemonic": "xlsb33",
+      "operands": "$r1,$r1",
+      "runtime_address": 1146
+    },
+    {
+      "assembly": "mov55 $r2,$r0",
+      "file_offset": 1660,
+      "length": 2,
+      "mnemonic": "mov55",
+      "operands": "$r2,$r0",
+      "runtime_address": 1148
+    },
+    {
+      "assembly": "beqz38 $r1,.+6",
+      "file_offset": 1662,
+      "length": 2,
+      "mnemonic": "beqz38",
+      "operands": "$r1,.+6",
+      "runtime_address": 1150
+    },
+    {
+      "assembly": "mtsr $r0,$int_mask",
+      "file_offset": 1664,
+      "length": 4,
+      "mnemonic": "mtsr",
+      "operands": "$r0,$int_mask",
+      "runtime_address": 1152
+    },
+    {
+      "assembly": "mtsr $r2,$ivb",
+      "file_offset": 1668,
+      "length": 4,
+      "mnemonic": "mtsr",
+      "operands": "$r2,$ivb",
+      "runtime_address": 1156
+    },
+    {
+      "assembly": "mfsr $r0,$psw",
+      "file_offset": 1672,
+      "length": 4,
+      "mnemonic": "mfsr",
+      "operands": "$r0,$psw",
+      "runtime_address": 1160
+    },
+    {
+      "assembly": "bitci $r0,$r0,6",
+      "file_offset": 1676,
+      "length": 4,
+      "mnemonic": "bitci",
+      "operands": "$r0,$r0,6",
+      "runtime_address": 1164
+    },
+    {
+      "assembly": "mtsr $r0,$psw",
+      "file_offset": 1680,
+      "length": 4,
+      "mnemonic": "mtsr",
+      "operands": "$r0,$psw",
+      "runtime_address": 1168
+    },
+    {
+      "assembly": "dsb",
+      "file_offset": 1684,
+      "length": 4,
+      "mnemonic": "dsb",
+      "operands": "",
+      "runtime_address": 1172
+    },
+    {
+      "assembly": "mfsr $r0,$int_mask2",
+      "file_offset": 1688,
+      "length": 4,
+      "mnemonic": "mfsr",
+      "operands": "$r0,$int_mask2",
+      "runtime_address": 1176
+    },
+    {
+      "assembly": "sethi $r0,171024",
+      "file_offset": 1692,
+      "length": 4,
+      "mnemonic": "sethi",
+      "operands": "$r0,171024",
+      "runtime_address": 1180
+    },
+    {
+      "assembly": "addi $r0,$r0,124",
+      "file_offset": 1696,
+      "length": 4,
+      "mnemonic": "addi",
+      "operands": "$r0,$r0,124",
+      "runtime_address": 1184
+    },
+    {
+      "assembly": "ex9.it 122",
+      "file_offset": 1700,
+      "length": 2,
+      "mnemonic": "ex9.it",
+      "operands": "122",
+      "runtime_address": 1188
+    },
+    {
+      "assembly": "mfsr $r0,0xc2",
+      "file_offset": 1702,
+      "length": 4,
+      "mnemonic": "mfsr",
+      "operands": "$r0,0xc2",
+      "runtime_address": 1190
+    },
+    {
+      "assembly": "movi $r0,1587",
+      "file_offset": 1706,
+      "length": 4,
+      "mnemonic": "movi",
+      "operands": "$r0,1587",
+      "runtime_address": 1194
+    },
+    {
+      "assembly": "ex9.it 365",
+      "file_offset": 1710,
+      "length": 2,
+      "mnemonic": "ex9.it",
+      "operands": "365",
+      "runtime_address": 1198
+    },
+    {
+      "assembly": "mfsr $r0,$psw",
+      "file_offset": 1712,
+      "length": 4,
+      "mnemonic": "mfsr",
+      "operands": "$r0,$psw",
+      "runtime_address": 1200
+    },
+    {
+      "assembly": "ex9.it 67",
+      "file_offset": 1716,
+      "length": 2,
+      "mnemonic": "ex9.it",
+      "operands": "67",
+      "runtime_address": 1204
+    },
+    {
+      "assembly": "mtsr $r0,$psw",
+      "file_offset": 1718,
+      "length": 4,
+      "mnemonic": "mtsr",
+      "operands": "$r0,$psw",
+      "runtime_address": 1206
+    },
+    {
+      "assembly": "pop25 $r6,0",
+      "file_offset": 1722,
+      "length": 2,
+      "mnemonic": "pop25",
+      "operands": "$r6,0",
+      "runtime_address": 1210
+    },
+    {
+      "assembly": "movi $r0,258285",
+      "file_offset": 1724,
+      "length": 4,
+      "mnemonic": "movi",
+      "operands": "$r0,258285",
+      "runtime_address": 1212
+    },
+    {
+      "assembly": "lbi333 $r1,[$r0+0]",
+      "file_offset": 1728,
+      "length": 2,
+      "mnemonic": "lbi333",
+      "operands": "$r1,[$r0+0]",
+      "runtime_address": 1216
+    },
+    {
+      "assembly": "bnec $r1,1,.+8",
+      "file_offset": 1730,
+      "length": 4,
+      "mnemonic": "bnec",
+      "operands": "$r1,1,.+8",
+      "runtime_address": 1218
+    },
+    {
+      "assembly": "movi55 $r1,0",
+      "file_offset": 1734,
+      "length": 2,
+      "mnemonic": "movi55",
+      "operands": "$r1,0",
+      "runtime_address": 1222
+    },
+    {
+      "assembly": "sbi333 $r1,[$r0+0]",
+      "file_offset": 1736,
+      "length": 2,
+      "mnemonic": "sbi333",
+      "operands": "$r1,[$r0+0]",
+      "runtime_address": 1224
+    },
+    {
+      "assembly": "movi $r1,258266",
+      "file_offset": 1738,
+      "length": 4,
+      "mnemonic": "movi",
+      "operands": "$r1,258266",
+      "runtime_address": 1226
+    },
+    {
+      "assembly": "lbi333 $r0,[$r1+0]",
+      "file_offset": 1742,
+      "length": 2,
+      "mnemonic": "lbi333",
+      "operands": "$r0,[$r1+0]",
+      "runtime_address": 1230
+    },
+    {
+      "assembly": "ex9.it 289",
+      "file_offset": 1744,
+      "length": 2,
+      "mnemonic": "ex9.it",
+      "operands": "289",
+      "runtime_address": 1232
+    },
+    {
+      "assembly": "sbi333 $r0,[$r1+0]",
+      "file_offset": 1746,
+      "length": 2,
+      "mnemonic": "sbi333",
+      "operands": "$r0,[$r1+0]",
+      "runtime_address": 1234
+    },
+    {
+      "assembly": "movi55 $r0,4",
+      "file_offset": 1748,
+      "length": 2,
+      "mnemonic": "movi55",
+      "operands": "$r0,4",
+      "runtime_address": 1236
+    },
+    {
+      "assembly": "ex9.it 122",
+      "file_offset": 1750,
+      "length": 2,
+      "mnemonic": "ex9.it",
+      "operands": "122",
+      "runtime_address": 1238
+    },
+    {
+      "assembly": "movi55 $r1,5",
+      "file_offset": 1752,
+      "length": 2,
+      "mnemonic": "movi55",
+      "operands": "$r1,5",
+      "runtime_address": 1240
+    },
+    {
+      "assembly": "movi $r0,258121",
+      "file_offset": 1754,
+      "length": 4,
+      "mnemonic": "movi",
+      "operands": "$r0,258121",
+      "runtime_address": 1242
+    },
+    {
+      "assembly": "sbi333 $r1,[$r0+0]",
+      "file_offset": 1758,
+      "length": 2,
+      "mnemonic": "sbi333",
+      "operands": "$r1,[$r0+0]",
+      "runtime_address": 1246
+    },
+    {
+      "assembly": "movi $r1,83",
+      "file_offset": 1760,
+      "length": 4,
+      "mnemonic": "movi",
+      "operands": "$r1,83",
+      "runtime_address": 1248
+    },
+    {
+      "assembly": "ex9.it 3",
+      "file_offset": 1764,
+      "length": 2,
+      "mnemonic": "ex9.it",
+      "operands": "3",
+      "runtime_address": 1252
+    },
+    {
+      "assembly": "sbi333 $r1,[$r0+0]",
+      "file_offset": 1766,
+      "length": 2,
+      "mnemonic": "sbi333",
+      "operands": "$r1,[$r0+0]",
+      "runtime_address": 1254
+    },
+    {
+      "assembly": "ret5 $r30",
+      "file_offset": 1768,
+      "length": 2,
+      "mnemonic": "ret5",
+      "operands": "$r30",
+      "runtime_address": 1256
+    },
+    {
+      "assembly": "ret5 $r30",
+      "file_offset": 1770,
+      "length": 2,
+      "mnemonic": "ret5",
+      "operands": "$r30",
+      "runtime_address": 1258
+    },
+    {
+      "assembly": "movi $r4,258324",
+      "file_offset": 1772,
+      "length": 4,
+      "mnemonic": "movi",
+      "operands": "$r4,258324",
+      "runtime_address": 1260
+    },
+    {
+      "assembly": "lwi450 $r3,[$r4]",
+      "file_offset": 1776,
+      "length": 2,
+      "mnemonic": "lwi450",
+      "operands": "$r3,[$r4]",
+      "runtime_address": 1264
+    },
+    {
+      "assembly": "srli45 $r3,24",
+      "file_offset": 1778,
+      "length": 2,
+      "mnemonic": "srli45",
+      "operands": "$r3,24",
+      "runtime_address": 1266
+    },
+    {
+      "assembly": "or_slli $r0,$r0,$r3,24",
+      "file_offset": 1780,
+      "length": 4,
+      "mnemonic": "or_slli",
+      "operands": "$r0,$r0,$r3,24",
+      "runtime_address": 1268
+    },
+    {
+      "assembly": "swi450 $r0,[$r4]",
+      "file_offset": 1784,
+      "length": 2,
+      "mnemonic": "swi450",
+      "operands": "$r0,[$r4]",
+      "runtime_address": 1272
+    },
+    {
+      "assembly": "movi $r0,258360",
+      "file_offset": 1786,
+      "length": 4,
+      "mnemonic": "movi",
+      "operands": "$r0,258360",
+      "runtime_address": 1274
+    },
+    {
+      "assembly": "shi333 $r1,[$r0+0]",
+      "file_offset": 1790,
+      "length": 2,
+      "mnemonic": "shi333",
+      "operands": "$r1,[$r0+0]",
+      "runtime_address": 1278
+    },
+    {
+      "assembly": "movi55 $r1,0",
+      "file_offset": 1792,
+      "length": 2,
+      "mnemonic": "movi55",
+      "operands": "$r1,0",
+      "runtime_address": 1280
+    },
+    {
+      "assembly": "movi $r0,258362",
+      "file_offset": 1794,
+      "length": 4,
+      "mnemonic": "movi",
+      "operands": "$r0,258362",
+      "runtime_address": 1282
+    },
+    {
+      "assembly": "sbi333 $r1,[$r0+0]",
+      "file_offset": 1798,
+      "length": 2,
+      "mnemonic": "sbi333",
+      "operands": "$r1,[$r0+0]",
+      "runtime_address": 1286
+    },
+    {
+      "assembly": "movi $r0,258308",
+      "file_offset": 1800,
+      "length": 4,
+      "mnemonic": "movi",
+      "operands": "$r0,258308",
+      "runtime_address": 1288
+    },
+    {
+      "assembly": "swi450 $r2,[$r0]",
+      "file_offset": 1804,
+      "length": 2,
+      "mnemonic": "swi450",
+      "operands": "$r2,[$r0]",
+      "runtime_address": 1292
+    },
+    {
+      "assembly": "movi55 $r1,1",
+      "file_offset": 1806,
+      "length": 2,
+      "mnemonic": "movi55",
+      "operands": "$r1,1",
+      "runtime_address": 1294
+    },
+    {
+      "assembly": "movi $r0,258358",
+      "file_offset": 1808,
+      "length": 4,
+      "mnemonic": "movi",
+      "operands": "$r0,258358",
+      "runtime_address": 1296
+    },
+    {
+      "assembly": "sbi333 $r1,[$r0+0]",
+      "file_offset": 1812,
+      "length": 2,
+      "mnemonic": "sbi333",
+      "operands": "$r1,[$r0+0]",
+      "runtime_address": 1300
+    },
+    {
+      "assembly": "ifcall9 16",
+      "file_offset": 1814,
+      "length": 2,
+      "mnemonic": "ifcall9",
+      "operands": "16",
+      "runtime_address": 1302
+    },
+    {
+      "assembly": "lbi333 $r1,[$r0+0]",
+      "file_offset": 1816,
+      "length": 2,
+      "mnemonic": "lbi333",
+      "operands": "$r1,[$r0+0]",
+      "runtime_address": 1304
+    },
+    {
+      "assembly": "xlsb33 $r1,$r1",
+      "file_offset": 1818,
+      "length": 2,
+      "mnemonic": "xlsb33",
+      "operands": "$r1,$r1",
+      "runtime_address": 1306
+    },
+    {
+      "assembly": "beqz38 $r1,.+6",
+      "file_offset": 1820,
+      "length": 2,
+      "mnemonic": "beqz38",
+      "operands": "$r1,.+6",
+      "runtime_address": 1308
+    },
+    {
+      "assembly": "sbi333 $r3,[$r2+0]",
+      "file_offset": 1822,
+      "length": 2,
+      "mnemonic": "sbi333",
+      "operands": "$r3,[$r2+0]",
+      "runtime_address": 1310
+    },
+    {
+      "assembly": "j8 .-8",
+      "file_offset": 1824,
+      "length": 2,
+      "mnemonic": "j8",
+      "operands": ".-8",
+      "runtime_address": 1312
+    },
+    {
+      "assembly": "movi $r1,258356",
+      "file_offset": 1826,
+      "length": 4,
+      "mnemonic": "movi",
+      "operands": "$r1,258356",
+      "runtime_address": 1314
+    },
+    {
+      "assembly": "ex9.it 54",
+      "file_offset": 1830,
+      "length": 2,
+      "mnemonic": "ex9.it",
+      "operands": "54",
+      "runtime_address": 1318
+    },
+    {
+      "assembly": "ex9.it 49",
+      "file_offset": 1832,
+      "length": 2,
+      "mnemonic": "ex9.it",
+      "operands": "49",
+      "runtime_address": 1320
+    },
+    {
+      "assembly": "ifret16",
+      "file_offset": 1834,
+      "length": 2,
+      "mnemonic": "ifret16",
+      "operands": "",
+      "runtime_address": 1322
+    },
+    {
+      "assembly": "lbi333 $r0,[$r1+0]",
+      "file_offset": 1836,
+      "length": 2,
+      "mnemonic": "lbi333",
+      "operands": "$r0,[$r1+0]",
+      "runtime_address": 1324
+    },
+    {
+      "assembly": "bmski33 $r0,1",
+      "file_offset": 1838,
+      "length": 2,
+      "mnemonic": "bmski33",
+      "operands": "$r0,1",
+      "runtime_address": 1326
+    },
+    {
+      "assembly": "bnez38 $r0,.+6",
+      "file_offset": 1840,
+      "length": 2,
+      "mnemonic": "bnez38",
+      "operands": "$r0,.+6",
+      "runtime_address": 1328
+    },
+    {
+      "assembly": "sbi333 $r3,[$r2+0]",
+      "file_offset": 1842,
+      "length": 2,
+      "mnemonic": "sbi333",
+      "operands": "$r3,[$r2+0]",
+      "runtime_address": 1330
+    },
+    {
+      "assembly": "j8 .-8",
+      "file_offset": 1844,
+      "length": 2,
+      "mnemonic": "j8",
+      "operands": ".-8",
+      "runtime_address": 1332
+    },
+    {
+      "assembly": "movi $r0,258356",
+      "file_offset": 1846,
+      "length": 4,
+      "mnemonic": "movi",
+      "operands": "$r0,258356",
+      "runtime_address": 1334
+    },
+    {
+      "assembly": "lbi333 $r0,[$r0+0]",
+      "file_offset": 1850,
+      "length": 2,
+      "mnemonic": "lbi333",
+      "operands": "$r0,[$r0+0]",
+      "runtime_address": 1338
+    },
+    {
+      "assembly": "xlsb33 $r0,$r0",
+      "file_offset": 1852,
+      "length": 2,
+      "mnemonic": "xlsb33",
+      "operands": "$r0,$r0",
+      "runtime_address": 1340
+    },
+    {
+      "assembly": "ret5 $r30",
+      "file_offset": 1854,
+      "length": 2,
+      "mnemonic": "ret5",
+      "operands": "$r30",
+      "runtime_address": 1342
+    },
+    {
+      "assembly": "movi55 $r5,0",
+      "file_offset": 1856,
+      "length": 2,
+      "mnemonic": "movi55",
+      "operands": "$r5,0",
+      "runtime_address": 1344
+    },
+    {
+      "assembly": "beqs38 $r2,.+14",
+      "file_offset": 1858,
+      "length": 2,
+      "mnemonic": "beqs38",
+      "operands": "$r2,.+14",
+      "runtime_address": 1346
+    },
+    {
+      "assembly": "lb $r3,[$r0+($r5<<0)]",
+      "file_offset": 1860,
+      "length": 4,
+      "mnemonic": "lb",
+      "operands": "$r3,[$r0+($r5<<0)]",
+      "runtime_address": 1348
+    },
+    {
+      "assembly": "sb $r3,[$r1+($r5<<0)]",
+      "file_offset": 1864,
+      "length": 4,
+      "mnemonic": "sb",
+      "operands": "$r3,[$r1+($r5<<0)]",
+      "runtime_address": 1352
+    },
+    {
+      "assembly": "addi45 $r5,1",
+      "file_offset": 1868,
+      "length": 2,
+      "mnemonic": "addi45",
+      "operands": "$r5,1",
+      "runtime_address": 1356
+    },
+    {
+      "assembly": "j8 .-12",
+      "file_offset": 1870,
+      "length": 2,
+      "mnemonic": "j8",
+      "operands": ".-12",
+      "runtime_address": 1358
+    },
+    {
+      "assembly": "ret5 $r30",
+      "file_offset": 1872,
+      "length": 2,
+      "mnemonic": "ret5",
+      "operands": "$r30",
+      "runtime_address": 1360
+    },
+    {
+      "assembly": "push25 $r6,0",
+      "file_offset": 1874,
+      "length": 2,
+      "mnemonic": "push25",
+      "operands": "$r6,0",
+      "runtime_address": 1362
+    },
+    {
+      "assembly": "ex9.it 2",
+      "file_offset": 1876,
+      "length": 2,
+      "mnemonic": "ex9.it",
+      "operands": "2",
+      "runtime_address": 1364
+    },
+    {
+      "assembly": "beqz38 $r0,.+24",
+      "file_offset": 1878,
+      "length": 2,
+      "mnemonic": "beqz38",
+      "operands": "$r0,.+24",
+      "runtime_address": 1366
+    },
+    {
+      "assembly": "movi55 $r0,7",
+      "file_offset": 1880,
+      "length": 2,
+      "mnemonic": "movi55",
+      "operands": "$r0,7",
+      "runtime_address": 1368
+    },
+    {
+      "assembly": "ex9.it 10",
+      "file_offset": 1882,
+      "length": 2,
+      "mnemonic": "ex9.it",
+      "operands": "10",
+      "runtime_address": 1370
+    },
+    {
+      "assembly": "movi55 $r0,0",
+      "file_offset": 1884,
+      "length": 2,
+      "mnemonic": "movi55",
+      "operands": "$r0,0",
+      "runtime_address": 1372
+    },
+    {
+      "assembly": "ex9.it 10",
+      "file_offset": 1886,
+      "length": 2,
+      "mnemonic": "ex9.it",
+      "operands": "10",
+      "runtime_address": 1374
+    },
+    {
+      "assembly": "movi $r1,180856",
+      "file_offset": 1888,
+      "length": 4,
+      "mnemonic": "movi",
+      "operands": "$r1,180856",
+      "runtime_address": 1376
+    },
+    {
+      "assembly": "movi55 $r0,2",
+      "file_offset": 1892,
+      "length": 2,
+      "mnemonic": "movi55",
+      "operands": "$r0,2",
+      "runtime_address": 1380
+    },
+    {
+      "assembly": "mov55 $r2,$r1",
+      "file_offset": 1894,
+      "length": 2,
+      "mnemonic": "mov55",
+      "operands": "$r2,$r1",
+      "runtime_address": 1382
+    },
+    {
+      "assembly": "movi $r3,256",
+      "file_offset": 1896,
+      "length": 4,
+      "mnemonic": "movi",
+      "operands": "$r3,256",
+      "runtime_address": 1384
+    },
+    {
+      "assembly": "ex9.it 5",
+      "file_offset": 1900,
+      "length": 2,
+      "mnemonic": "ex9.it",
+      "operands": "5",
+      "runtime_address": 1388
+    },
+    {
+      "assembly": "pop25 $r6,0",
+      "file_offset": 1902,
+      "length": 2,
+      "mnemonic": "pop25",
+      "operands": "$r6,0",
+      "runtime_address": 1390
+    },
+    {
+      "assembly": "push25 $r6,0",
+      "file_offset": 1904,
+      "length": 2,
+      "mnemonic": "push25",
+      "operands": "$r6,0",
+      "runtime_address": 1392
+    },
+    {
+      "assembly": "mov55 $r6,$r0",
+      "file_offset": 1906,
+      "length": 2,
+      "mnemonic": "mov55",
+      "operands": "$r6,$r0",
+      "runtime_address": 1394
+    },
+    {
+      "assembly": "ex9.it 2",
+      "file_offset": 1908,
+      "length": 2,
+      "mnemonic": "ex9.it",
+      "operands": "2",
+      "runtime_address": 1396
+    },
+    {
+      "assembly": "beqz38 $r0,.+36",
+      "file_offset": 1910,
+      "length": 2,
+      "mnemonic": "beqz38",
+      "operands": "$r0,.+36",
+      "runtime_address": 1398
+    },
+    {
+      "assembly": "movi $r1,-97",
+      "file_offset": 1912,
+      "length": 4,
+      "mnemonic": "movi",
+      "operands": "$r1,-97",
+      "runtime_address": 1400
+    },
+    {
+      "assembly": "ex9.it 451",
+      "file_offset": 1916,
+      "length": 2,
+      "mnemonic": "ex9.it",
+      "operands": "451",
+      "runtime_address": 1404
+    },
+    {
+      "assembly": "sbi333 $r1,[$r0+0]",
+      "file_offset": 1918,
+      "length": 2,
+      "mnemonic": "sbi333",
+      "operands": "$r1,[$r0+0]",
+      "runtime_address": 1406
+    },
+    {
+      "assembly": "zeb33 $r0,$r6",
+      "file_offset": 1920,
+      "length": 2,
+      "mnemonic": "zeb33",
+      "operands": "$r0,$r6",
+      "runtime_address": 1408
+    },
+    {
+      "assembly": "movi $r1,196193",
+      "file_offset": 1922,
+      "length": 4,
+      "mnemonic": "movi",
+      "operands": "$r1,196193",
+      "runtime_address": 1410
+    },
+    {
+      "assembly": "sbi333 $r0,[$r1+0]",
+      "file_offset": 1926,
+      "length": 2,
+      "mnemonic": "sbi333",
+      "operands": "$r0,[$r1+0]",
+      "runtime_address": 1414
+    },
+    {
+      "assembly": "ex9.it 371",
+      "file_offset": 1928,
+      "length": 2,
+      "mnemonic": "ex9.it",
+      "operands": "371",
+      "runtime_address": 1416
+    },
+    {
+      "assembly": "movi $r1,196194",
+      "file_offset": 1930,
+      "length": 4,
+      "mnemonic": "movi",
+      "operands": "$r1,196194",
+      "runtime_address": 1418
+    },
+    {
+      "assembly": "sbi333 $r0,[$r1+0]",
+      "file_offset": 1934,
+      "length": 2,
+      "mnemonic": "sbi333",
+      "operands": "$r0,[$r1+0]",
+      "runtime_address": 1422
+    },
+    {
+      "assembly": "ex9.it 3",
+      "file_offset": 1936,
+      "length": 2,
+      "mnemonic": "ex9.it",
+      "operands": "3",
+      "runtime_address": 1424
+    },
+    {
+      "assembly": "ex9.it 4",
+      "file_offset": 1938,
+      "length": 2,
+      "mnemonic": "ex9.it",
+      "operands": "4",
+      "runtime_address": 1426
+    },
+    {
+      "assembly": "beqz38 $r6,.+6",
+      "file_offset": 1940,
+      "length": 2,
+      "mnemonic": "beqz38",
+      "operands": "$r6,.+6",
+      "runtime_address": 1428
+    },
+    {
+      "assembly": "sbi333 $r1,[$r0+0]",
+      "file_offset": 1942,
+      "length": 2,
+      "mnemonic": "sbi333",
+      "operands": "$r1,[$r0+0]",
+      "runtime_address": 1430
+    },
+    {
+      "assembly": "j8 .-4",
+      "file_offset": 1944,
+      "length": 2,
+      "mnemonic": "j8",
+      "operands": ".-4",
+      "runtime_address": 1432
+    },
+    {
+      "assembly": "pop25 $r6,0",
+      "file_offset": 1946,
+      "length": 2,
+      "mnemonic": "pop25",
+      "operands": "$r6,0",
+      "runtime_address": 1434
+    }
+  ],
+  "interval": {
+    "file_end": 1948,
+    "file_start": 1642,
+    "runtime_end": 1436,
+    "runtime_start": 1130
+  },
+  "limitations": [
+    "EX9 instruction-table entries remain external Agent 18 dependencies; their bytes are not generated by this span.",
+    "The interval is a partial firmware reconstruction; byte equality does not establish complete high-level semantics or hardware execution.",
+    "The inherited routine prefix before file 0x66a is not rebuilt by this verifier.",
+    "IFCALL9 targets and IFRET16 sites are recorded, but nested/implicit IFC return state is not simulated."
+  ],
+  "overall_status": "passed",
+  "reference": {
+    "expected_sha256": "72364eca0a91855d59e043371aca774354e5ad0885df5024edcec8f976543ad2",
+    "expected_size": 196608,
+    "path": "/workspace/scratch/c7bf61eee144/private-reference/nabu-codex-bootstrap/workspace/sources/map220v-nabu-firmware/novatek_nt36523_fw.bin",
+    "profile": "map220v",
+    "sha256": "72364eca0a91855d59e043371aca774354e5ad0885df5024edcec8f976543ad2",
+    "size": 196608
+  },
+  "schema": "agent20-17-novatek-ilm-low-verification-v1",
+  "source_reference_comparison": {
+    "actual_bytes": 306,
+    "actual_sha256": "b925ba7160eeba829cba6a25c11395453cddbd19d372f05effe5f3d67e8d720f",
+    "expected_bytes": 306,
+    "expected_sha256": "b925ba7160eeba829cba6a25c11395453cddbd19d372f05effe5f3d67e8d720f",
+    "first_mismatch_file_offset": null,
+    "mismatched_bytes": 0
+  }
+}

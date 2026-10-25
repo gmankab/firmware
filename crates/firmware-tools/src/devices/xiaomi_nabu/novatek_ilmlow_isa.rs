@@ -24,6 +24,20 @@ impl Reg {
 pub const R0: Reg = Reg::new(0);
 pub const R1: Reg = Reg::new(1);
 pub const R2: Reg = Reg::new(2);
+pub const R3: Reg = Reg::new(3);
+pub const R4: Reg = Reg::new(4);
+pub const R5: Reg = Reg::new(5);
+pub const R6: Reg = Reg::new(6);
+pub const LP: Reg = Reg::new(30);
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Width { Byte, Half, Word }
+impl Width {
+    fn scale(self)->u8 {match self{Self::Byte=>1,Self::Half=>2,Self::Word=>4}}
+    fn letter(self)->char {match self{Self::Byte=>'b',Self::Half=>'h',Self::Word=>'w'}}
+}
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum AluOp { Add, Or }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Csr { Psw, Ivb, IntMask, IntMask2, IntMask3 }
@@ -52,6 +66,31 @@ pub enum Insn {
     SetHigh { dest: Reg, value: u32 },
     AddImmediate { dest: Reg, source: Reg, value: i32 },
     MoveImmediate { dest: Reg, value: i32 },
+    MoveSmall { dest: Reg, value: i8 },
+    LoadWordGp { dest: Reg, address: u32 },
+    ShortMemory { store: bool, width: Width, reg: Reg, base: Reg, offset: u8 },
+    WordAtRegister { store: bool, reg: Reg, base: Reg },
+    WordAtFrame { store: bool, reg: Reg, offset: u16 },
+    ShiftRightSmall { reg: Reg, amount: u8 },
+    AluShiftLeft { op: AluOp, dest: Reg, left: Reg, right: Reg, shift: u8 },
+    VariableShiftLeft { dest: Reg, source: Reg, amount: Reg },
+    BranchImmediate { reg: Reg, value: i16, nonzero: bool, target: u32 },
+    BranchA5 { reg: Reg, nonzero: bool, target: u32 },
+    AddSmall { reg: Reg, value: u8, subtract: bool },
+    ZeroExtend { dest: Reg, source: Reg, half: bool },
+    BitMaskShort { reg: Reg, bit: u8 },
+    CompactOr { dest: Reg, source: Reg },
+    OrImmediate { dest: Reg, source: Reg, value: u16 },
+    BitSet { dest: Reg, source: Reg, bit: u8 },
+    IndexedByte { store: bool, reg: Reg, base: Reg, index: Reg, shift: u8 },
+    JumpShort { target: u32 },
+    JumpRelative { target: u32, link: bool },
+    /// IFC_LP/IFC_ON state differs from conventional JAL/RET.
+    InlineCall { target: u32 },
+    /// Conditional return through IFC_LP; falls through with IFC_ON clear.
+    InlineReturn,
+    Return { reg: Reg },
+    JumpRegisterLink { reg: Reg },
     DataSync,
     Stack { pop: bool, last: Reg, extra: u16 },
 }
@@ -88,6 +127,30 @@ impl Insn {
             AddImmediate { dest, source, value } => (0x28 << 25) | (dest.number()<<20)
                 | (source.number()<<15) | signed(i64::from(value),15)?,
             MoveImmediate { dest, value } => (0x22 << 25) | (dest.number()<<20) | signed(i64::from(value),20)?,
+            LoadWordGp { dest,address } => {
+                let delta=i64::from(address)-i64::from(gp);
+                if delta%4!=0{return Err("unaligned GP word address".into());}
+                (0x1e<<25)|(dest.number()<<20)|(6<<17)|signed(delta/4,17)?
+            }
+            AluShiftLeft { op,dest,left,right,shift } => {
+                if shift>31{return Err("ALU shift exceeds 31".into());}
+                (0x20<<25)|(dest.number()<<20)|(left.number()<<15)|(right.number()<<10)
+                    |(u32::from(shift)<<5)|match op{AluOp::Add=>0,AluOp::Or=>4}
+            }
+            VariableShiftLeft { dest,source,amount } => (0x20<<25)|(dest.number()<<20)|(source.number()<<15)|(amount.number()<<10)|12,
+            BranchImmediate { reg,value,nonzero,target } => (0x2d<<25)|(reg.number()<<20)
+                |(u32::from(nonzero)<<19)|(signed(i64::from(value),11)?<<8)|displacement(pc,target,8)?,
+            OrImmediate { dest,source,value } => (0x2c<<25)|(dest.number()<<20)|(source.number()<<15)|u15(value)?,
+            BitSet { dest,source,bit } => {
+                if bit>31{return Err("BSET bit exceeds 31".into());}
+                (0x21<<25)|(dest.number()<<20)|(source.number()<<15)|(u32::from(bit)<<10)|8
+            }
+            IndexedByte { store,reg,base,index,shift } => {
+                if shift>3{return Err("indexed byte shift exceeds 3".into());}
+                (0x1c<<25)|(reg.number()<<20)|(base.number()<<15)|(index.number()<<10)
+                    |(u32::from(shift)<<8)|(u32::from(store)<<3)
+            }
+            JumpRelative { target,link } => (0x24<<25)|(u32::from(link)<<24)|displacement(pc,target,24)?,
             DataSync => (0x32 << 25) | 8,
             _ => return Ok(self.short(pc)?.to_be_bytes().to_vec()),
         };
@@ -109,6 +172,43 @@ impl Insn {
             }
             BranchZero { reg, nonzero, target } => (if nonzero {0xc800} else {0xc000})
                 | reg.small()?<<8 | displacement(pc,target,8)? as u16,
+            MoveSmall { dest,value } => 0x8400 | (dest.number() as u16)<<5 | signed(i64::from(value),5)? as u16,
+            ShortMemory { store,width,reg,base,offset } => {
+                if offset%width.scale()!=0 || offset/width.scale()>7{return Err("invalid compact memory offset".into());}
+                let operation=match width{Width::Word=>0xa000,Width::Half=>0xa400,Width::Byte=>0xa600};
+                operation | (u16::from(store)<<11) | reg.small()?<<6 | base.small()?<<3 | u16::from(offset/width.scale())
+            }
+            WordAtRegister { store,reg,base } => 0xb400|(u16::from(store)<<9)|(reg.compact()?<<5)|base.number() as u16,
+            WordAtFrame { store,reg,offset } => {
+                if offset%4!=0 || offset>508{return Err("invalid FP-relative compact word offset".into());}
+                0xb800 | reg.small()?<<8 | u16::from(store)<<7 | offset/4
+            }
+            ShiftRightSmall { reg,amount } => {
+                if amount>31{return Err("SRLI45 amount exceeds 31".into());}
+                0x9200 | reg.compact()?<<5 | u16::from(amount)
+            }
+            BranchA5 { reg,nonzero,target } => {
+                if reg.number()==5{return Err("r5 selects a reserved BEQS38/BNES38 opcode subspace".into());}
+                (if nonzero{0xd800}else{0xd000})|reg.small()?<<8|displacement(pc,target,8)? as u16
+            }
+            AddSmall { reg,value,subtract } => {
+                if value>31{return Err("ADDI45/SUBI45 value exceeds 31".into());}
+                0x8c00|u16::from(subtract)<<9|reg.compact()?<<5|u16::from(value)
+            }
+            ZeroExtend { dest,source,half } => 0x9600|dest.small()?<<6|source.small()?<<3|u16::from(half),
+            BitMaskShort { reg,bit } => {
+                if bit>7{return Err("BMSKI33 bit exceeds 7".into());}
+                0x9606|reg.small()?<<6|u16::from(bit)<<3
+            }
+            CompactOr { dest,source } => 0xfe07|dest.small()?<<6|source.small()?<<3,
+            JumpShort { target } => 0xd500|displacement(pc,target,8)? as u16,
+            InlineCall { target } => {
+                if (pc|target)&1!=0 || target<pc || target-pc>1022{return Err("invalid IFCALL9 forward target".into());}
+                0xf800 | ((target-pc)/2) as u16
+            }
+            InlineReturn => 0x83ff,
+            Return { reg } => 0xdd80|reg.number() as u16,
+            JumpRegisterLink { reg } => 0xdd20|reg.number() as u16,
             Stack { pop, last, extra } => {
                 let group = match last.number() { 6=>0, 8=>1, 10=>2, 14=>3,
                     _=>return Err("PUSH25/POP25 last register must be r6/r8/r10/r14".into()) };
@@ -136,6 +236,30 @@ impl Insn {
             SetHigh { dest,value } => format!("sethi {},{}",r(dest),value),
             AddImmediate { dest,source,value } => format!("addi {},{},{}",r(dest),r(source),value),
             MoveImmediate { dest,value } => format!("movi {},{}",r(dest),value),
+            MoveSmall { dest,value } => format!("movi55 {},{}",r(dest),value),
+            LoadWordGp { dest,address } => format!("lwi.gp {},[{}]",r(dest),i64::from(address)-i64::from(gp)),
+            ShortMemory { store,width,reg,base,offset } => format!("{}{}i333 {},[{}+{}]",if store{"s"}else{"l"},width.letter(),r(reg),r(base),offset),
+            WordAtRegister { store,reg,base } => format!("{}wi450 {},[{}]",if store{"s"}else{"l"},r(reg),r(base)),
+            WordAtFrame { store,reg,offset } => format!("{}wi37 {},[$fp+{}]",if store{"s"}else{"l"},r(reg),offset),
+            ShiftRightSmall { reg,amount } => format!("srli45 {},{}",r(reg),amount),
+            AluShiftLeft { op,dest,left,right,shift } => format!("{}_slli {},{},{},{}",match op{AluOp::Add=>"add",AluOp::Or=>"or"},r(dest),r(left),r(right),shift),
+            VariableShiftLeft { dest,source,amount } => format!("sll {},{},{}",r(dest),r(source),r(amount)),
+            BranchImmediate { reg,value,nonzero,target } => format!("{} {},{},.{:+}",if nonzero{"bnec"}else{"beqc"},r(reg),value,i64::from(target)-i64::from(pc)),
+            BranchA5 { reg,nonzero,target } => format!("{} {},.{:+}",if nonzero{"bnes38"}else{"beqs38"},r(reg),i64::from(target)-i64::from(pc)),
+            AddSmall { reg,value,subtract } => format!("{} {},{}",if subtract{"subi45"}else{"addi45"},r(reg),value),
+            ZeroExtend { dest,source,half } => format!("{} {},{}",if half{"zeh33"}else{"zeb33"},r(dest),r(source)),
+            BitMaskShort { reg,bit } => format!("bmski33 {},{}",r(reg),bit),
+            CompactOr { dest,source } => format!("or33 {},{}",r(dest),r(source)),
+            OrImmediate { dest,source,value } => format!("ori {},{},{}",r(dest),r(source),value),
+            BitSet { dest,source,bit } => format!("bset {},{},{}",r(dest),r(source),bit),
+            IndexedByte { store,reg,base,index,shift } => format!("{}b {},[{}+({}<<{})]",if store{"s"}else{"l"},r(reg),r(base),r(index),shift),
+            JumpShort { target } => format!("j8 .{:+}",i64::from(target)-i64::from(pc)),
+            JumpRelative { target,link } => format!("{} .{:+}",if link{"jal"}else{"j"},i64::from(target)-i64::from(pc)),
+            // GNU's IFCALL9 operand is a displacement, not a target expression.
+            InlineCall { target } => format!("ifcall9 {}",i64::from(target)-i64::from(pc)),
+            InlineReturn => "ifret16".into(),
+            Return { reg } => format!("ret5 {}",r(reg)),
+            JumpRegisterLink { reg } => format!("jral5 {}",r(reg)),
             DataSync => "dsb".into(),
             Stack { pop,last,extra } => format!("{} {},{}",if pop{"pop25"}else{"push25"},r(last),extra),
         }
@@ -169,5 +293,27 @@ mod tests {
         assert!(Insn::Move{dest:Reg::new(31),source:Reg::new(31)}.encode(0,0).is_err());
         assert!(Insn::MoveImmediate{dest:R0,value:0x80000}.encode(0,0).is_err());
         assert!(Insn::StoreByteGp{source:R0,address:0x80000}.encode(0,0).is_err());
+    }
+    #[test]
+    fn reserved_branch_register_is_not_an_indirect_call() {
+        for nonzero in [false,true] {
+            assert!(Insn::BranchA5{reg:R5,nonzero,target:0x4c8}.encode(0x484,0).is_err());
+        }
+        assert_eq!(Insn::JumpRegisterLink{reg:R2}.encode(0,0).unwrap(),[0xdd,0x22]);
+        assert_eq!(Insn::JumpRegisterLink{reg:Reg::new(15)}.encode(0,0).unwrap(),[0xdd,0x2f]);
+    }
+    #[test]
+    fn inline_calls_are_unsigned_and_return_alias_is_explicit() {
+        assert_eq!(Insn::InlineCall{target:0x526}.encode(0x516,0).unwrap(),[0xf8,8]);
+        assert!(Insn::InlineCall{target:0x514}.encode(0x516,0).is_err());
+        assert!(Insn::InlineCall{target:0x916}.encode(0x516,0).is_err());
+        assert_eq!(Insn::InlineReturn.encode(0,0).unwrap(),[0x83,0xff]);
+    }
+    #[test]
+    fn compact_memory_checks_width_and_register_holes() {
+        assert!(Insn::ShortMemory{store:false,width:Width::Half,reg:R0,base:R1,offset:3}.encode(0,0).is_err());
+        assert!(Insn::WordAtRegister{store:false,reg:Reg::new(12),base:R0}.encode(0,0).is_err());
+        assert_eq!(Insn::WordAtRegister{store:false,reg:Reg::new(16),base:R0}.encode(0,0).unwrap(),[0xb5,0x80]);
+        assert!(Insn::LoadWordGp{dest:R0,address:3}.encode(0,0).is_err());
     }
 }

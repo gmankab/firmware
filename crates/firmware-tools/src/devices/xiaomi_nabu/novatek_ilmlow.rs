@@ -4,9 +4,11 @@
 //! EX9 table source remains owned by Agent 18 and is an explicit dependency.
 #[path="novatek_ilmlow_isa.rs"]
 pub mod isa;
+#[path="novatek_ilmlow_helpers.rs"]
+mod helpers;
 use isa::{Csr,Insn,Reg,R0,R1,R2};
 pub const FILE_START: usize = 0x66a;
-pub const FILE_END: usize = 0x6bc;
+pub const FILE_END: usize = 0x79c;
 pub const ILM_FILE_BASE: usize = 0x200;
 pub const ASSIGNED_END: usize = 0x10000;
 
@@ -60,7 +62,9 @@ pub fn program(profile:Profile)->Vec<Located>{
         (0x4b6,WriteSystem{source:R0,csr:Csr::Psw}),
         (0x4ba,Stack{pop:true,last:Reg::new(6),extra:0}),
     ];
-    source.into_iter().map(|(pc,instruction)|Located{pc,instruction}).collect()
+    let mut instructions:Vec<_>=source.into_iter().map(|(pc,instruction)|Located{pc,instruction}).collect();
+    instructions.extend(helpers::instructions(profile));
+    instructions
 }
 pub fn build(profile:Profile)->Result<Vec<u8>,String>{
     let mut output=Vec::new();
@@ -83,7 +87,7 @@ mod tests{
     use super::*;
     #[test]fn source_intervals_and_profile_selection(){
         let p=build(Profile::Postmarketos).unwrap();let m=build(Profile::Map220v).unwrap();
-        assert_eq!(p.len(),82);assert_eq!(m.len(),82);assert_ne!(p,m);
+        assert_eq!(p.len(),306);assert_eq!(m.len(),306);assert_ne!(p,m);
         assert!(Profile::parse("unknown").is_err());
         let mut f=vec![0;FILE_END];f[FILE_START..FILE_END].copy_from_slice(&p);
         assert!(compare(&f,Profile::Postmarketos).is_ok());

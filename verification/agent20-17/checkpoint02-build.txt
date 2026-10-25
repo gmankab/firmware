@@ -1,0 +1,54 @@
+   Compiling firmware-tools v0.1.0 (/workspace/scratch/c7bf61eee144/nabu-agent17/crates/firmware-tools)
+warning: variant `Word` is never constructed
+  --> crates/firmware-tools/src/bin/../devices/xiaomi_nabu/novatek_ilmlow_isa.rs:34:30
+   |
+34 | pub enum Width { Byte, Half, Word }
+   |          -----               ^^^^
+   |          |
+   |          variant in this enum
+   |
+   = note: `Width` has derived impls for the traits `Debug` and `Clone`, but these are intentionally ignored during dead code analysis
+   = note: `#[warn(dead_code)]` on by default
+
+warning: variant `Add` is never constructed
+  --> crates/firmware-tools/src/bin/../devices/xiaomi_nabu/novatek_ilmlow_isa.rs:40:18
+   |
+40 | pub enum AluOp { Add, Or }
+   |          -----   ^^^
+   |          |
+   |          variant in this enum
+   |
+   = note: `AluOp` has derived impls for the traits `Debug` and `Clone`, but these are intentionally ignored during dead code analysis
+
+warning: multiple variants are never constructed
+  --> crates/firmware-tools/src/bin/../devices/xiaomi_nabu/novatek_ilmlow_isa.rs:70:5
+   |
+56 | pub enum Insn {
+   |          ---- variants in this enum
+...
+70 |     LoadWordGp { dest: Reg, address: u32 },
+   |     ^^^^^^^^^^
+...
+73 |     WordAtFrame { store: bool, reg: Reg, offset: u16 },
+   |     ^^^^^^^^^^^
+...
+76 |     VariableShiftLeft { dest: Reg, source: Reg, amount: Reg },
+   |     ^^^^^^^^^^^^^^^^^
+...
+82 |     CompactOr { dest: Reg, source: Reg },
+   |     ^^^^^^^^^
+83 |     OrImmediate { dest: Reg, source: Reg, value: u16 },
+   |     ^^^^^^^^^^^
+84 |     BitSet { dest: Reg, source: Reg, bit: u8 },
+   |     ^^^^^^
+...
+87 |     JumpRelative { target: u32, link: bool },
+   |     ^^^^^^^^^^^^
+...
+93 |     JumpRegisterLink { reg: Reg },
+   |     ^^^^^^^^^^^^^^^^
+   |
+   = note: `Insn` has derived impls for the traits `Debug` and `Clone`, but these are intentionally ignored during dead code analysis
+
+warning: `firmware-tools` (bin "novatek-ilm-low") generated 3 warnings
+    Finished `release` profile [optimized] target(s) in 0.36s
