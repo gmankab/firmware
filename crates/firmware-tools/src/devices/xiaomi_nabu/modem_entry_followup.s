@@ -86,3 +86,33 @@ translation_copy_word:
 }:endloop0
 modem_translation_copy_done:
 { jumpr lr }
+
+// Update a packed 64-bit controller format descriptor. The protected word
+// is selected by the active S27 register and a high-halfword table index.
+.globl agent11_modem_rewrite_packed_descriptor
+agent11_modem_rewrite_packed_descriptor:
+MODEM_SYS_READ 6,27,1
+{
+    r3 = add(r25,##-1064894464)
+    r1 = memw(r2+#4)
+}
+{
+    p0 = cmpb.eq(r1,#0)
+    r1 = lsr(r1,#16)
+    if (p0.new) r3 = add(r25,##-1046887928)
+}
+{
+    r6 = asl(r6,#5)
+    r5:4 = memd(r3+r1<<#3)
+}
+{ r1 = extract(r4,#8,#8) }
+MODEM_PHY_WORD_LOAD 6,1,6
+{ r1 = memw(r2+#4) }
+{
+    r4 = insert(r6,#16,#5)
+    r1 = lsr(r1,#16)
+}
+{
+    jumpr lr
+    memd(r3+r1<<#3) = r5:4
+}
