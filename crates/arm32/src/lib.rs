@@ -208,6 +208,17 @@ pub fn transfer_halfword_register(condition: Condition, load: bool,
        | (rn.number() << 16) | (rd.number() << 12) | rm.number())
 }
 
+/// A32 LDRSH signed halfword with unshifted register offset.
+/// The architecture uses the extra-load/store group with S/H opcode bits.
+pub fn load_signed_halfword_register(condition: Condition,rd:Register,
+                                     rn:Register,rm:Register) -> Result<u32,String> {
+    if [rd,rn,rm].contains(&Register::PC) {
+        return Err("A32 LDRSH register offset must not use PC".into());
+    }
+    Ok(cond(condition) | 0x0190_00f0 | (rn.number()<<16)
+       | (rd.number()<<12) | rm.number())
+}
+
 /// A32 aligned LDRD or STRD: the pair is always Rt and Rt+1.
 /// Invalid odd or high register pairs, PC bases and large displacements are
 /// rejected instead of silently encoding unpredictable instructions.
@@ -594,6 +605,17 @@ mod tests {
         assert!(store_halfword(Condition::Al, Register::R1,
             Register::R0, -256).is_err());
     }
+    #[test]
+    fn signed_halfword_register_offset_encoding() {
+        let r9=Register::new(9).unwrap();
+        assert_eq!(load_signed_halfword_register(Condition::Al,
+            Register::R0,r9,Register::R0).unwrap(),0xe199_00f0);
+        assert_eq!(load_signed_halfword_register(Condition::Al,
+            Register::R1,r9,Register::R1).unwrap(),0xe199_10f1);
+        assert!(load_signed_halfword_register(Condition::Al,
+            Register::PC,r9,Register::R0).is_err());
+    }
+
     #[test]
     fn register_halfword_and_byte_preindexed_writeback_encoders() {
         let r3=Register::new(3).unwrap();
