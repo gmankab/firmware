@@ -27,6 +27,13 @@ class SystemRegister(IntEnum):
     PMUCFG = 53
     S54 = 54
     ISDBEN = 42
+    ISDBCFG0 = 33
+    ISDBCFG1 = 34
+    BRKPTPC0 = 36
+    BRKPTCFG0 = 37
+    BRKPTPC1 = 38
+    BRKPTCFG1 = 39
+    ISDBGPR = 43
     EVB = 16
     PMUEVTCFG = 52
     S47 = 47

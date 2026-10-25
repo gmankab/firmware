@@ -17,7 +17,7 @@ from adsp_hexagon_v66 import (SystemRegister, read_system_register,
     read_system_register_pair, write_system_register, packet_continuation)
 SOURCE=TOOLS/'adsp-agent20-rwe-next-getter.S'
 FILE_START=0x10330
-FILE_END=0x10460
+FILE_END=0x104b8
 SIZE=FILE_END-FILE_START
 GETTER_SIZE=0x1c
 THREAD_CYCLES_SOURCE=TOOLS/'adsp-agent20-rwe-next-thread-cycles.S'
@@ -28,6 +28,8 @@ SRAM_CLONE_SOURCE=TOOLS/'adsp-agent20-rwe-next-sram-clone.S'
 SRAM_CLONE_SIZE=0x60
 CONTROLLER_POLL_SOURCE=TOOLS/'adsp-agent20-rwe-next-status-poll.S'
 CONTROLLER_POLL_SIZE=0x30
+DEBUG_SNAPSHOT_SOURCE=TOOLS/'adsp-agent20-rwe-next-debug-snapshot.S'
+DEBUG_SNAPSHOT_SIZE=0x58
 PHYS_START=0x8be0d330
 SHA256_REFERENCE='4b579e5dc1333d634e5bdc93f3314e357e0e30dab7140833f6cc7aef086b1c1e'
 FILL_START=0x6c6c
@@ -69,6 +71,29 @@ def isdb_guard(llvm_mc:str,previous)->bytes:
     return bytes(b)
 
 
+def debug_snapshot(llvm_mc:str,previous)->bytes:
+    """Snapshot seven V66 debug/breakpoint registers with `.new` stores.
+
+    LLVM6 emits an independently source-assembled add-by-zero producer at
+    each operation's exact location because it cannot assemble these V66
+    privileged registers. The checked typed encoder supplies the original
+    side-effecting register read while retaining the source's `.new`
+    consumer and original continuing packet marker.
+    """
+    b=bytearray(previous.assemble(llvm_mc,DEBUG_SNAPSHOT_SOURCE,DEBUG_SNAPSHOT_SIZE))
+    expected=struct.pack('<I',0xb0004000)
+    regs=(SystemRegister.ISDBCFG0,SystemRegister.ISDBCFG1,
+          SystemRegister.BRKPTPC0,SystemRegister.BRKPTCFG0,
+          SystemRegister.BRKPTPC1,SystemRegister.BRKPTCFG1,
+          SystemRegister.ISDBGPR)
+    for i,which in enumerate(regs):
+        at=0x08+i*8
+        if b[at:at+4]!=expected:
+            raise previous.AdspError(f'V66 debugger producer position changed +0x{at:x}')
+        b[at:at+4]=struct.pack('<I',packet_continuation(read_system_register(0,which)))
+    return bytes(b)
+
+
 def render(llvm_mc: str)->bytes:
     # All seven V66 instructions are independently LLVM6-assembled, with no
     # reference bytes. The first packet sequence crosses a C function
@@ -96,7 +121,8 @@ def render(llvm_mc: str)->bytes:
     # The packet continuation bit comes from the typed architecture encoder.
     return (getter+bytes(trace)+isdb_guard(llvm_mc,b)
             +b.assemble(llvm_mc,SRAM_CLONE_SOURCE,SRAM_CLONE_SIZE)
-            +b.assemble(llvm_mc,CONTROLLER_POLL_SOURCE,CONTROLLER_POLL_SIZE))
+            +b.assemble(llvm_mc,CONTROLLER_POLL_SOURCE,CONTROLLER_POLL_SIZE)
+            +debug_snapshot(llvm_mc,b))
 
 def verify(reference:bytes,built:bytes)->None:
     if hashlib.sha256(reference).hexdigest()!=SHA256_REFERENCE:

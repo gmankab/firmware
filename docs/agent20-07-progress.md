@@ -536,3 +536,25 @@ source-generated executable bytes** (not including zeros or the unknown
 144-byte table). The next unimplemented ADSP instruction starts at file
 `0x10460`. Rust 160 tests, Python 164 tests, release build and reference
 comparison all pass.
+
+## Checkpoint 29: V66 debugger/breakpoint register snapshot `[0x10460,0x104b8)`
+
+Added **88 independently source-assembled, reference-identical bytes** to
+serialize seven privilege-bank registers (`ISDBCFG0/1`, `BRKPTPC0/1`,
+`BRKPTCFG0/1`, `ISDBGPR`) into a controller register table using `.new`
+postincrement memory stores. The source runs a three-iteration D-cache
+cleaning loop over the saved register array. For these seven unsupported
+V66 instructions, the normal LLVM6 mnemonic source deliberately emits a
+checked `R0=add(R0,#0)` `.new` producer so LLVM6 can assemble each paired
+store with correct packet parse markers. The source-only generator checks
+each exact producer location, then replaces it with a strictly typed
+`packet_continuation(read_system_register(0,named_special_register))`.
+No proprietary OEM instruction bytes are included.
+
+The disjoint source-built interval `[0x10330,0x104b8)` is now **392 exact
+executable bytes**, SHA-256
+`f8701109d3ab5c63be6a0308d20f9a46cc42ce9d0b364a8e94242fc589974a77`.
+Together with `[0x6030,0x6c6c)`, that is **3,524 source-derived executable
+bytes** across two intentionally disconnected RWE code spans. The next
+unimplemented instruction is file `0x104b8`. Rust 160 tests, Python 165
+tests, the offline release build and strict ADSP revision comparison pass.
