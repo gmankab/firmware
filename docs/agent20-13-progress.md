@@ -131,3 +131,13 @@ python3 tools/build-wlanmdsp-agent13.py /tmp/wlan-prefix-through-27a0.bin \
 - Source-generated Agent13 code is now `[file 0x42708,0x43af4)` **5,100 bytes**; combined Agent7+13 executable layout prefix `[0x40000,0x43af4)` is **15,092 byte-identical bytes**, including **11,316 independently encoded instruction bytes** and **3,776 separate linker-fill bytes**. Whole-prefix SHA-256 `0fd8383ee9ffa3ab7b15b9688382770734597198b3b7d28df4d61c8994aa3f8d`.
 - Full strict firmware checksum and direct byte verification, LLVM22 assembly, **160 Rust tests**, **21 passing Python tests with 1 optional skip**, release build and `git diff --check` all passed. The next function begins at **file `0x43af4` / VMA `0xb0003af4`**. Agent13's owned upper bound remains `0x100000`; the file is still partial and not OEM-signed.
 - Git branch remains an Agent7-based portable continuation; integration against absent checkpoint-50 requires an independent merge and full retest.
+
+## Checkpoint 11 — record unlinking, popcount and session traversal
+
+- Three complete Hexagon V66 routines add **784 independently assembled instruction bytes** contiguous with checkpoint 10:
+  - `[file 0x43af4,0x43c30)` **316 bytes**: unlinks session/record chains, runs callbacks, and releases record state. Its conditional store/load uses `:mem_noshuf`; the three-operation packet at runtime `0x3b88` has explicit source ordering to preserve the original immediate extension and duplex load.
+  - `[file 0x43c30,0x43c8c)` **92 bytes**: callback/count wrapper, eight-entry bounded popcount `loop0` and tail return. Source operand ordering preserves a conditional duplex packet at `0x3c58`.
+  - `[file 0x43c8c,0x43e04)` **376 bytes**: linked session traversal, bounded record cleanup and predicate/status guards.
+- Agent13 code `[file 0x42708,0x43e04)` totals **5,884 independently encoded instruction bytes**. Joined Agent7+13 executable layout `[file 0x40000,0x43e04)` totals **15,876 byte-identical bytes**: **12,100 instruction bytes** + **3,776 separately modeled linker fill**, zero difference from pinned `wlanmdsp.mbn`.
+- `--join-agent07 --reference`, LLVM22 V66 packet assembler, `cargo test --workspace --offline --locked` (**160 passing Rust tests**), Python discovery (**22 passed, 1 optional skip**), release build and `git diff --check` all passed. Fragment sources contain no `.incbin` or opaque opcode-word directives.
+- Next function begins **file `0x43e04` / VMA `0xb0003e04`**. Independent firmware completion and OEM signing remain out of scope; branch is still based on Agent7 `d6104bb`, not checkpoint50.

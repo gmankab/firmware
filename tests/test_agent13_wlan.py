@@ -17,8 +17,8 @@ spec.loader.exec_module(builder)
 class Agent13WlanTests(unittest.TestCase):
     def test_starts_after_agent07_and_ends_at_full_function_return(self):
         self.assertEqual(builder.START, 0x2708)
-        self.assertEqual(builder.validate_fragment_layout(), 0x3af4)
-        self.assertEqual(sum(length for _, _, _, length in builder.FRAGMENTS), 5100)
+        self.assertEqual(builder.validate_fragment_layout(), 0x3e04)
+        self.assertEqual(sum(length for _, _, _, length in builder.FRAGMENTS), 5884)
         self.assertEqual(builder.FILE_OFFSET + builder.START, 0x42708)
 
     def test_does_not_embed_opaque_instructions(self):
@@ -66,6 +66,20 @@ class Agent13WlanTests(unittest.TestCase):
         self.assertIn("dealloc_return",guard["bounded-record-counter"].read_text())
         self.assertIn("record-query",str(guard["record-query-dispatch"]))
 
+    def test_session_walk_packet_constraints(self):
+        index={name:source for name,source,_,_ in builder.FRAGMENTS}
+        traverse=index["record-chain-unlink"].read_text()
+        self.assertIn(":mem_noshuf", traverse)
+        self.assertIn("r1 = ##0xb00035e0", traverse)
+        self.assertIn("r2 = r16", traverse)
+        self.assertIn("jump 0x21e4a4",traverse)
+        count=index["record-query-popcount"].read_text()
+        self.assertIn("popcount",count)
+        self.assertIn(":endloop0",count)
+        walk=index["session-chain-walk"].read_text()
+        self.assertIn("memw(r19",walk)
+        self.assertIn("allocframe",walk)
+
     def test_explicit_gap_rejected(self):
         old = builder.FRAGMENTS[0]
         with self.assertRaisesRegex(ValueError, "not adjacent"):
@@ -80,7 +94,7 @@ class Agent13WlanTests(unittest.TestCase):
     def test_optional_independent_assembler(self):
         parent=builder.load_parent()
         program=b"".join(parent.assemble(source,os.environ["HEXAGON_LLVM22"],"hexagonv66",expected_length=length) for _,source,_,length in builder.FRAGMENTS)
-        self.assertEqual(len(program),5100)
+        self.assertEqual(len(program),5884)
         firmware=os.getenv("NABU_WLAN_REFERENCE")
         if firmware:
             parent.check_reference(program,Path(firmware).read_bytes(),runtime_offset=builder.START)
