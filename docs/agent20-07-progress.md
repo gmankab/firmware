@@ -223,3 +223,25 @@ RWE fragment: **1,516 contiguous bytes** `[0x6030,0x661c)` (physical
 The following controller diagnostic/cache routine starts at `0x661c` and has
 not yet been rebuilt. Firmwares beyond the selected fragment and OEM signing
 remain outside this checkpoint.
+
+## Checkpoint 15: V66 diagnostic cache-bank scanner `[0x661c,0x6734)`
+
+Added **280 exact source-generated executable bytes** for the ADSP controller
+cache/tag scan. A 70-word LLVM6 packetized assembly models controller
+boot calls, revision-dependent cache layout, two nested hardware loops,
+MMIO result buffers and SYSCFG toggling. **62 ordinary instruction words**
+(including authentic two-level endloop NOP packet) compile directly from
+mnemonics; **eight privileged reads/writes** are checked register encoders:
+`SYSCFG` read/write, `LC0`/`LC1` control reads, and `ictagr`/`icdatar`
+cache-bank reads. Every original register/packet position is checked against
+an exact LLVM6 NOP placeholder before encoding. A real terminal NOP at
++0xd8 is intentionally preserved and tested separately, not treated as a
+missing privileged operation. All 70 resulting words independently decode
+with Rizin V66 and match the pinned reference.
+
+RWE continuous code `[0x6030,0x6734)` now has **1,796 bytes**, SHA-256
+`9a8d8dabdc7d76572dfd2b2a6671061e79fd74211c3c4c3565faf2d9738ef360`.
+Physical mapping is `[0x8be03030,0x8be03734)`. The next independent
+routine starts at file `0x6734`; the original 0x30-byte boot metadata, other
+ADSP segments and OEM auth are still not independently rebuilt. This branch
+remains provisional on the older Agent 04 base rather than checkpoint 50.

@@ -22,8 +22,8 @@ class RevisionGuardTests(unittest.TestCase):
 
     def test_revision_guard_bounds(self):
         self.assertEqual(module.REVISION_GUARD_SIZE,40)
-        self.assertEqual(module.FILE_END,0x661c)
-        self.assertEqual(module.SIZE,1516)
+        self.assertEqual(module.REVISION_GUARD_END,0x661c)
+        self.assertGreaterEqual(module.SIZE,1516)
 
     def test_revision_register_encoder(self):
         self.assertEqual(module.read_system_register(0,module.SystemRegister.REV),0x6e9dc000)

@@ -86,6 +86,8 @@ def read_system_register_pair(destination_even: int, system_even: int) -> int:
 
 class ControlRegister(IntEnum):
     """Special control registers exported through the Hexagon control bank."""
+    LC0 = 1
+    LC1 = 3
     P3_0 = 4
     USR = 8
     GP = 11
@@ -110,6 +112,25 @@ def read_control_register(destination: int, source: ControlRegister) -> int:
     if not isinstance(source, ControlRegister):
         raise HexagonEncodingError("Expected named Hexagon control register")
     return 0x6A00C000 | (int(source) << 16) | gpr(destination)
+
+
+class InstructionCacheRead(IntEnum):
+    """V66 instruction-cache tag/data hardware read families."""
+    TAG = 0x55E0C000
+    DATA = 0x55A0C000
+
+
+def read_instruction_cache_word(destination: int, index_register: int,
+                                bank: InstructionCacheRead) -> int:
+    """Encode ``Rd = ictagr(Rs)`` or ``Rd = icdatar(Rs)``.
+
+    The two checked 5-bit register fields encode destination [4:0] and index
+    source [20:16]. The packet ends at this special instruction. A prior
+    LLVM6 source-assembled NOP must still occupy the exact command slot.
+    """
+    if not isinstance(bank, InstructionCacheRead):
+        raise HexagonEncodingError("Expected named instruction cache bank")
+    return int(bank) | (gpr(index_register) << 16) | gpr(destination)
 
 
 def read_control_register_pair(destination_even: int, source: ControlRegisterPair) -> int:

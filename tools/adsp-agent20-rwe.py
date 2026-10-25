@@ -19,12 +19,13 @@ import tempfile
 TOOLS=Path(__file__).resolve().parent
 if str(TOOLS) not in sys.path:
     sys.path.insert(0,str(TOOLS))
-from adsp_hexagon_v66 import (SystemRegister, ControlRegister, read_system_register,
+from adsp_hexagon_v66 import (SystemRegister, ControlRegister, InstructionCacheRead,
+                              read_instruction_cache_word, read_system_register,
                               write_system_register,read_control_register,
                               write_predicate_group_from_gpr,packet_continuation)
 
 FILE_START=0x6030
-FILE_END=0x661c
+FILE_END=0x6734
 SIZE=FILE_END-FILE_START
 PADDR=0x8BE03030
 REFERENCE_SHA='4b579e5dc1333d634e5bdc93f3314e357e0e30dab7140833f6cc7aef086b1c1e'
@@ -65,6 +66,9 @@ REGISTER_SNAPSHOT_SIZE=0x8c
 REGISTER_SNAPSHOT_END=0x65f4
 REVISION_GUARD_SOURCE=TOOLS/'adsp-agent20-rwe-revision-guard.S'
 REVISION_GUARD_SIZE=0x28
+REVISION_GUARD_END=0x661c
+CACHE_DIAGNOSTICS_SOURCE=TOOLS/'adsp-agent20-rwe-cache-diagnostics.S'
+CACHE_DIAGNOSTICS_SIZE=0x118
 
 
 def baseline():
@@ -300,6 +304,41 @@ def revision_guard(llvm_mc:str,previous)->bytes:
     return bytes(code)
 
 
+
+def cache_diagnostics(llvm_mc:str,previous)->bytes:
+    """Source-generate dual-loop V66 cache diagnostics, 280 executable bytes.
+
+    LLVM6 independently assembles all normal packets: nested endloop0/1,
+    GP-relative MMIO and register new-value branches. Eight unsupported V66
+    privileged instructions use bounded register-field encoders, each at a
+    fixed, verified LLVM6 NOP sentinel. No OEM instruction bytes are pasted.
+    """
+    b=bytearray(previous.assemble(llvm_mc,CACHE_DIAGNOSTICS_SOURCE,
+                                  CACHE_DIAGNOSTICS_SIZE))
+    sentinel=struct.pack('<I',0x7f00c000)
+    checks={
+        0x38:read_system_register(0,SystemRegister.SYSCFG),
+        0x40:write_system_register(SystemRegister.SYSCFG,0),
+        0x54:read_control_register(10,ControlRegister.LC1),
+        0x5c:read_control_register(10,ControlRegister.LC0),
+        0x68:read_instruction_cache_word(1,10,InstructionCacheRead.TAG),
+        0x7c:read_instruction_cache_word(1,10,InstructionCacheRead.DATA),
+        0xdc:read_system_register(1,SystemRegister.SYSCFG),
+        0xe4:write_system_register(SystemRegister.SYSCFG,1),
+    }
+    for at,word in checks.items():
+        if b[at:at+4]!=sentinel:
+            raise previous.AdspError(f'V66 diagnostic cache privilege marker moved +0x{at:x}')
+        b[at:at+4]=struct.pack('<I',word)
+    # The endloop0/endloop1 triple-NOP packet has an authentic terminal NOP
+    # at +0xd8; it is executable padding, not an unresolved register slot.
+    if b[0xd8:0xdc]!=sentinel:
+        raise previous.AdspError('dual hardware-loop terminal nop changed')
+    if any(b[i:i+4]==sentinel for i in range(0,len(b),4) if i!=0xd8):
+        raise previous.AdspError('unresolved V66 controller diagnostics privileged operation')
+    return bytes(b)
+
+
 def render(llvm_mc:str)->bytes:
     previous=baseline()
     output=bytearray(previous.assemble(llvm_mc,SOURCE,STARTUP_SIZE))
@@ -332,6 +371,7 @@ def render(llvm_mc:str)->bytes:
     output.extend(reset_controller(llvm_mc,previous))
     output.extend(register_snapshot(llvm_mc,previous))
     output.extend(revision_guard(llvm_mc,previous))
+    output.extend(cache_diagnostics(llvm_mc,previous))
     if len(output)!=SIZE:
         raise previous.AdspError("RWE source fragments are not contiguous")
     return bytes(output)
