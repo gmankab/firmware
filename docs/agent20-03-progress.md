@@ -217,3 +217,10 @@ Original reference: private `map220v-nabu-firmware/venus.mbn`, SHA-256 `9d4af65d
 - New `[0x290a4,0x2929c)` = **504 bytes**, **115 typed A32 instructions** and **11 named MMIO/diagnostic data words** in pools `[0x291d4,0x291f0)` and `[0x2928c,0x2929c)`. Includes controller and output-channel release handlers with queue-state rechecks.
 - Full Clang/LLVM independent mnemonic linked reconstruction matches **7,028 instructions and 533 non-instruction data words across 116 classified pools**, zero differences. Existing absolute external BLX symbol warnings affect only symbol metadata, not emitted bytes.
 - All 194 Rust tests, 13 Python tests and release build pass. Next missing routine begins at `0x2929c`.
+
+## Checkpoint 30 (recreated from available checkpoint 29) — primary MMIO status reporter
+
+- Source-generated `[0x21c78,0x29474)` = **30,716 bytes**. New `[0x2929c,0x29474)` is **472 bytes**, consisting of **114 typed A32 instructions** and **4 named diagnostic-address words** at `[0x29464,0x29474)`.
+- Writes per-channel codec status registers, prepares logs, and conditionally captures another controller bank. Functions/ABI were inferred from instruction behavior; output is instruction-byte identity, **not** proof of source-level semantic equivalence or new OEM authentication.
+- Strictly reference-exact from a private `venus.mbn`, including all earlier code; independent Clang/LLD round-trip driven by `agent20-03-venus-mid-ranges.json` is required for release.
+- The previous conversation reported checkpoint 30, but that bundle was **not** mounted in the present session. This is a new explicitly recreated checkpoint on top of the mounted checkpoint 29 branch, not a claim that the missing previous checkpoint archive was retrieved.
