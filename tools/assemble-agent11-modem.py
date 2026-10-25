@@ -117,6 +117,21 @@ def restore_original_legal_hexagon_packet_order(code: bytes) -> bytes:
         compare5=(compare5&~marker)|(1<<14)
         branch5=(branch5&~marker)|(3<<14)
         struct.pack_into('<IIII',out,rel5,extender5,address5,compare5,branch5)
+    # Indexed pagewalk: packet-local conditional count compare and its
+    # backedge branch are legal in either LLVM6 order. The original places
+    # the compare first. Preserve exclusively source-authored operand bits.
+    rel6=0x47c4-FILE_START
+    if len(out)>=rel6+8:
+        branch6,compare6=struct.unpack_from('<II',out,rel6)
+        if ((branch6&0xff000000)!=0x5c000000 or
+            (branch6&marker)!=(1<<14) or
+            (compare6&0xff000000)!=0xf2000000 or
+            (compare6&0x001f0000)!=0x00080000 or
+            (compare6&marker)!=(3<<14)):
+            raise ValueError('unexpected Hexagon pagewalk count/backedge packet at 0x47c4')
+        compare6=(compare6&~marker)|(1<<14)
+        branch6=(branch6&~marker)|(3<<14)
+        struct.pack_into('<II',out,rel6,compare6,branch6)
     return bytes(out)
 
 

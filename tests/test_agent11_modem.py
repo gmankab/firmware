@@ -33,7 +33,7 @@ class ModemAgent11Tests(unittest.TestCase):
         if not llvm: self.skipTest("set AGENT11_LLVM_MC for external tool verification")
         source=SCRIPT.parent.parent/"crates/firmware-tools/src/devices/xiaomi_nabu/modem_entry_followup.s"
         data=module.assemble(Path(llvm),source)
-        self.assertEqual(len(data),1736)
+        self.assertEqual(len(data),1912)
         # Structural assertion checks the two adjacent word loads are in
         # one duplex slot and the final instruction is a packet-ending return.
         words=[int.from_bytes(data[n:n+4],"little") for n in range(0,len(data),4)]
@@ -66,5 +66,15 @@ class ModemAgent11Tests(unittest.TestCase):
                          [0x4000,0x4000,0x4000,0xc000])
         self.assertEqual(words[(0x444c-module.FILE_START)//4]&0xc000,0x4000)
         self.assertEqual(words[(0x4454-module.FILE_START)//4]&0xc000,0xc000)
+        # The next pagewalk has one packet joining loop0 and its R2/R3 setup.
+        self.assertEqual(words[(0x4744-module.FILE_START)//4]&0xc000,0x4000)
+        self.assertEqual(words[(0x474c-module.FILE_START)//4]&0xc000,0xc000)
+        # Independently specified Hexagon V60 TLBR / TLBLOCK / TLBUNLOCK.
+        self.assertEqual(words[(0x4750-module.FILE_START)//4],0x6c43c004)
+        self.assertEqual(words[(0x4778-module.FILE_START)//4],0x6c20c020)
+        self.assertEqual(words[(0x477c-module.FILE_START)//4],0x6c06c300)
+        self.assertEqual(words[(0x4780-module.FILE_START)//4],0x6c20c040)
+        self.assertEqual([words[(0x47c4-module.FILE_START)//4+j]&0xc000 for j in range(2)],
+                         [0x4000,0xc000])
 
 if __name__=='__main__':unittest.main()

@@ -714,3 +714,105 @@ modem_copy_protected_next:
 }:endloop0
 modem_protected_copy_exit:
 { jumpr lr }
+
+// First protected memory-page scan following the previously rebuilt copies.
+// Read up to 191 indexed Hexagon TLB entries, inspect the nonzero low word,
+// count trailing zero bits and conditionally update a zero translation pair.
+// The three exceptional TLB operations follow the independent Hexagon ISA
+// decoder tests: tlbr (Y2_tlbr), tlblock and tlbunlock (rz-hexagon corpus).
+// `tlblock`/`tlbunlock` are instruction classes, not original byte slices.
+.macro MODEM_TLB_READ pair_low, index, marker=3
+    .if (\pair_low < 0) || (\pair_low > 30) || ((\pair_low & 1) != 0) || (\index < 0) || (\index > 31)
+        .error "invalid modem Hexagon indexed TLB read operand"
+    .endif
+    .word (0x6c400000 | (\index << 16) | (\marker << 14) | \pair_low)
+.endm
+.macro MODEM_TLB_LOCK marker=3
+    .if (\marker != 1) && (\marker != 3)
+        .error "invalid Hexagon TLBlock parse marker"
+    .endif
+    .word (0x6c200020 | (\marker << 14))
+.endm
+.macro MODEM_TLB_UNLOCK marker=3
+    .if (\marker != 1) && (\marker != 3)
+        .error "invalid Hexagon TLBUnlock parse marker"
+    .endif
+    .word (0x6c200040 | (\marker << 14))
+.endm
+
+.globl agent11_modem_protected_pagewalk
+agent11_modem_protected_pagewalk:
+{
+    r0 = memw(##3230081860)
+    r1 = memw(##3249316576)
+}
+{
+    p0 = cmp.eq(r1,#0)
+    if (p0.new) jump:nt modem_pagewalk_return
+}
+{
+    r0 = lsr(r0,#12)
+    r1 = lsr(r1,#12)
+    r10 = ##4194303
+}
+{
+    loop0(modem_pagewalk_scan,#191)
+    r2 = add(r0,r1)
+    r3 = #0
+}
+modem_pagewalk_scan:
+MODEM_TLB_READ 4,3
+{
+    p0 = cmp.eq(r5,#0)
+    if (p0.new) jump:nt modem_pagewalk_loop_next
+}
+{ r6 = ct0(r4) }
+{ r4 = clrbit(r4,r6) }
+{ r4 = asr(r4,#1) }
+{ r4 = and(r4,r10) }
+{
+    p0 = cmp.eq(r4,r0)
+    if (p0.new) jump:nt modem_pagewalk_write_zero
+}
+{
+    p0 = cmp.gtu(r4,r2)
+    if (p0.new) jump:t modem_pagewalk_loop_next
+}
+{
+    p1 = cmp.gtu(r0,r4)
+    if (p1.new) jump:t modem_pagewalk_loop_next
+}
+modem_pagewalk_write_zero:
+{ r7:6 = combine(#0,#0) }
+MODEM_TLB_LOCK
+MODEM_TLB_WRITE 6,3
+MODEM_TLB_UNLOCK
+modem_pagewalk_loop_next:
+{
+    r3 = add(r3,#1)
+    nop
+}:endloop0
+// Reset all translations from the zero-terminated GP table, locking each
+// slot during privileged TLB writes, until its original low word is empty.
+{ r4 = ##-1064885576; r5 = memw(##3249316816) }
+{ r10 = #5; r8 = #0 }
+modem_pagewalk_restore_next:
+{ r1:0 = memd(r4++#8) }
+{
+    p0 = cmp.eq(r0,#0)
+    if (p0.new) jump:t modem_pagewalk_return
+}
+MODEM_TLB_LOCK
+MODEM_TLB_WRITE 0,3
+MODEM_TLB_UNLOCK
+{ r3 = add(r3,#-1); r8 = add(r8,#1) }
+{
+    p1 = cmp.eq(r3,r5)
+    if (p1.new) jump:nt modem_pagewalk_return
+}
+{
+    p0 = cmp.eq(r8,r10)
+    if (!p0.new) jump:nt modem_pagewalk_restore_next
+}
+modem_pagewalk_return:
+{ jumpr lr }
