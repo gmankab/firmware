@@ -172,9 +172,20 @@ class SourceOutputTests(unittest.TestCase):
             MODULE.segment_inventory([base], 9)
 
 
+def minimal_readiness_fixture():
+    return [{"image": name, "file_bytes": MODULE.FILE_BYTES[name],
+             "ready_entries": 1, "ready_hashed_bytes": 148, "pending_entries": 0,
+             "zero_placeholders": 0, "all_input_hashes_ready": True,
+             "segments": [{"index": 0, "kind": 0, "file_range": [0, 148],
+                           "status": "ready", "sha384": "a" * 96}]}
+            for name in MODULE.IMAGES]
+
+
 class ReproducibilityTests(unittest.TestCase):
     def test_firmware_difference_fails_but_host_difference_is_separately_reported(self):
-        first = {"source_output": [{"sha256": "a" * 64}], "host_artifacts": {"firmware-tools": "b" * 64}}
+        first = {"source_output": [{"sha256": "a" * 64}],
+                 "hash_readiness": minimal_readiness_fixture(),
+                 "host_artifacts": {"firmware-tools": "b" * 64}}
         second = copy.deepcopy(first)
         second["source_output"][0]["sha256"] = "c" * 64
         with self.assertRaisesRegex(MODULE.ReproducibilityError, "disagree"):
@@ -184,6 +195,33 @@ class ReproducibilityTests(unittest.TestCase):
         report = MODULE.compare_builds(first, second)
         self.assertTrue(report["firmware_source_outputs_byte_identical"])
         self.assertFalse(report["host_tools_byte_identical"])
+        self.assertTrue(report["per_segment_sha384_readiness_identical"])
+        second = copy.deepcopy(first)
+        second["hash_readiness"][0]["segments"][0]["sha384"] = "b" * 96
+        with self.assertRaisesRegex(MODULE.ReproducibilityError, "per-segment SHA-384"):
+            MODULE.compare_builds(first, second)
+        second = copy.deepcopy(first)
+        second.pop("hash_readiness")
+        with self.assertRaisesRegex(MODULE.ReproducibilityError, "missing"):
+            MODULE.compare_builds(first, second)
+
+
+    def test_partial_hash_readiness_rejects_forged_complete_and_bad_geometry(self):
+        original = minimal_readiness_fixture()
+        self.assertEqual(MODULE.validate_readiness_rows(copy.deepcopy(original)), original)
+        for edit in [
+            lambda rows: rows[0].update(ready_hashed_bytes=999),
+            lambda rows: rows[0]["segments"][0].update(file_range=[0, 999_999_999]),
+            lambda rows: rows[0].update(all_input_hashes_ready=False),
+            lambda rows: rows[0]["segments"][0].update(sha384="not a digest"),
+            lambda rows: rows[0]["segments"][0].update(index=3),
+            lambda rows: rows[0]["segments"][0].update(status="placeholder"),
+            lambda rows: rows[0].update(image="different.mbn"),
+        ]:
+            bad = copy.deepcopy(original)
+            edit(bad)
+            with self.subTest(bad=bad), self.assertRaises(MODULE.ReproducibilityError):
+                MODULE.validate_readiness_rows(bad)
 
     def test_canonical_output_does_not_depend_on_mapping_insertion_order(self):
         self.assertEqual(MODULE.canonical_json({"z": 1, "a": {"y": 2, "x": 3}}),

@@ -303,3 +303,30 @@ build and the pinned A640 direct-reference check.
 Signed firmware, OEM private keys or claims about device hardware trust. The
 base remains Agent 10 portable commit `78a6ab7`, with checkpoint-50
 repository merging delegated to Agent 01.
+
+## Checkpoint 04 — reproduce all source-hash and pinned-original gates twice
+
+The isolated reproducibility harness now **builds the two new verification
+examples** (`mbn_hash_readiness` and `mbn_verify_pinned_a640`) from each exact
+committed Git snapshot, alongside the existing firmware-tools executable and
+standalone source probe. All four host tool hashes are compared between runs.
+The new SHA-384 readiness JSONL rows are structurally validated, compared
+between both clean builds, and (only when explicitly supplied) independently
+compared with the six pinned original ELF headers/segments. The standalone
+A640 pinned-original guard is executed in **both** builds against the private
+reference, and the resulting exact-equivalence receipts are compared. False
+ready-digest claims, wrong segment lengths, altered status/counts and missing
+guard binaries fail the entire proof rather than being silently omitted.
+
+The original reproduction source-output fingerprint is preserved; the new
+checks concern reproducibility of additional **metadata/audit outputs**, not
+newly recovered firmware executable bytes. The manifest continues to record
+external OEM authentication, original signatures and hardware trust as
+separate concepts. The compiler environment is recorded but is not claimed
+to be fully hermetic. No firmware binaries, certificates, signatures or
+private keys are committed or embedded in the audit output.
+
+Checkpoint implementation gate: **194 Rust tests and 56 Python tests**, zero
+failures or skips; offline locked release build passes. The per-revision,
+exact-two-build full proof is recorded in the separately attached JSON after
+a committed source revision was archived and rebuilt from scratch.

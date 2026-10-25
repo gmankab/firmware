@@ -48,6 +48,10 @@ FILE_BYTES = {
 AUTH_RANGE = (0x1138, 0x2A38)
 EMBEDDED_ROOT_SHA256 = "c924a35f39ce1cdd1b8d5a9f3b8e3c51317930431d7a9dd5a55028cf6965fe65"
 BUILD_COMMAND = ["cargo", "build", "--workspace", "--release", "--offline", "--locked"]
+EXAMPLE_BUILD_COMMAND = ["cargo", "build", "-p", "firmware-tools",
+                         "--release", "--offline", "--locked",
+                         "--example", "mbn_hash_readiness",
+                         "--example", "mbn_verify_pinned_a640"]
 
 # Kept in this standalone tool to avoid editing the shared CLI. It links only
 # the just-built library, and exports generated slices through the checked API.
@@ -242,6 +246,24 @@ def build_once(folder, archive, epoch, cargo, rustc):
     library = folder / "target" / "release" / "libfirmware_tools.rlib"
     if not executable.is_file() or not library.is_file():
         raise ReproducibilityError("offline build did not produce its executable and library")
+    # Build the actual source-hash / original-identity helpers from the same
+    # committed snapshot. Otherwise only the legacy standalone probe and CLI
+    # would be in the two-build proof, silently excluding newly added gates.
+    run([str(cargo), *EXAMPLE_BUILD_COMMAND[1:]], cwd=checkout, env=env)
+    examples = folder / "target" / "release" / "examples"
+    hash_readiness = examples / "mbn_hash_readiness"
+    pinned_a640 = examples / "mbn_verify_pinned_a640"
+    if not hash_readiness.is_file() or not pinned_a640.is_file():
+        raise ReproducibilityError("new source-readiness and pinned-original verifier examples were not built")
+    # Do not read original firmware in this stage: the source-readiness tool
+    # emits only source-derived hashes and holes. Strict reference comparisons
+    # happen later and require explicitly supplied pinned firmware files.
+    readiness_bytes = run([str(hash_readiness)], cwd=checkout, env=env)
+    try:
+        readiness_rows = [json.loads(line) for line in readiness_bytes.splitlines() if line.strip()]
+    except json.JSONDecodeError as exc:
+        raise ReproducibilityError("source-hash readiness tool emitted invalid JSONL") from exc
+    validate_readiness_rows(readiness_rows)
     probe_source = folder / "source-probe.rs"
     probe_source.write_text(PROBE_SOURCE, encoding="utf-8")
     probe = folder / "source-probe"
@@ -253,8 +275,74 @@ def build_once(folder, archive, epoch, cargo, rustc):
     output = folder / "source-output"
     report = validate_probe_output(run([str(probe), str(output)], cwd=checkout, env=env), output)
     return {"checkout": checkout, "executable": executable, "source_output": report,
+            "hash_readiness": readiness_rows, "pinned_a640_example": pinned_a640,
             "host_artifacts": {"firmware-tools": digest_file(executable),
-                               "source-probe": digest_file(probe)}}
+                               "source-probe": digest_file(probe),
+                               "mbn-hash-readiness": digest_file(hash_readiness),
+                               "mbn-pinned-a640": digest_file(pinned_a640)}}
+
+
+def validate_readiness_rows(rows):
+    """Check deterministic source-hash JSONL structure without OEM references.
+
+    SHA-384 values here are independently generated claims, *not* reference
+    equality. When --references is supplied, verify_originals cross-checks
+    each claimed ready hash against the pinned original ELF bytes.
+    """
+    if not isinstance(rows, list) or len(rows) != len(IMAGES):
+        raise ReproducibilityError("source-hash readiness must list all six Nabu images")
+    for expected_name, row in zip(IMAGES, rows):
+        if not isinstance(row, dict) or row.get("image") != expected_name:
+            raise ReproducibilityError("source-hash readiness images are missing or out of order")
+        total = integer(row.get("file_bytes"), "source readiness file size")
+        if total != FILE_BYTES[expected_name]:
+            raise ReproducibilityError("source readiness file length differs from pinned MBN policy")
+        segments = row.get("segments")
+        if not isinstance(segments, list) or not segments or len(segments) > 256:
+            raise ReproducibilityError("source readiness is missing bounded program-header list")
+        ready = pending = skipped = ready_bytes = 0
+        for index, segment in enumerate(segments):
+            if not isinstance(segment, dict) or integer(segment.get("index"), "source segment index") != index:
+                raise ReproducibilityError("source readiness contains duplicate/disordered segment indices")
+            integer(segment.get("kind"), "source segment type")
+            pair = segment.get("file_range")
+            if not isinstance(pair, list) or len(pair) != 2:
+                raise ReproducibilityError("source readiness has malformed file span")
+            start, end = [integer(v, "source segment offset") for v in pair]
+            if start > end or (start != end and end > total):
+                raise ReproducibilityError("source readiness segment extends outside original file")
+            status = segment.get("status")
+            if status == "ready":
+                digest = segment.get("sha384")
+                if (start == end or not isinstance(digest, str) or len(digest) != 96 or
+                        any(c not in "0123456789abcdef" for c in digest)):
+                    raise ReproducibilityError("source readiness has malformed SHA-384 digest")
+                ready += 1
+                ready_bytes += end - start
+            elif status == "pending":
+                if start == end:
+                    raise ReproducibilityError("source readiness cannot have pending empty segment")
+                hole = segment.get("first_missing")
+                if not isinstance(hole, list) or len(hole) != 2:
+                    raise ReproducibilityError("source readiness missing first unimplemented range")
+                low, high = [integer(v, "source missing byte") for v in hole]
+                missing = integer(segment.get("missing_bytes"), "source missing bytes")
+                if not (start <= low < high <= end) or not high - low <= missing <= end - start:
+                    raise ReproducibilityError("source readiness first hole/count is inconsistent")
+                pending += 1
+            elif status == "placeholder":
+                if "sha384" in segment or "first_missing" in segment:
+                    raise ReproducibilityError("source readiness placeholder cannot claim generated bytes")
+                skipped += 1
+            else:
+                raise ReproducibilityError("source readiness has unknown entry status")
+        for key, expected in (("ready_entries", ready), ("pending_entries", pending),
+                              ("zero_placeholders", skipped), ("ready_hashed_bytes", ready_bytes)):
+            if integer(row.get(key), key) != expected:
+                raise ReproducibilityError(f"source readiness has inconsistent {key}")
+        if row.get("all_input_hashes_ready") is not (pending == 0):
+            raise ReproducibilityError("source readiness falsely claims all input hashes complete")
+    return rows
 
 
 def integer(value, label, minimum=0):
@@ -453,8 +541,15 @@ def validate_probe_output(output, directory):
 def compare_builds(first, second):
     if first["source_output"] != second["source_output"]:
         raise ReproducibilityError("independent builds disagree on generated firmware bytes or geometry")
+    if "hash_readiness" not in first or "hash_readiness" not in second:
+        raise ReproducibilityError("new per-segment source-hash readiness is missing")
+    if first["hash_readiness"] != second["hash_readiness"]:
+        raise ReproducibilityError("independent builds disagree on generated per-segment SHA-384 readiness")
+    validate_readiness_rows(first["hash_readiness"])
     return {"firmware_source_outputs_byte_identical": True, "build_count": 2,
             "source_output_fingerprint_sha256": sha256(canonical_json(first["source_output"])),
+            "per_segment_sha384_readiness_identical": True,
+            "per_segment_sha384_readiness_fingerprint_sha256": sha256(canonical_json(first["hash_readiness"])),
             "host_tools_byte_identical": first["host_artifacts"] == second["host_artifacts"],
             "host_tool_sha256s": [first["host_artifacts"], second["host_artifacts"]]}
 
@@ -526,6 +621,33 @@ def verify_originals(directory, builds, temporary, epoch):
     for build in builds:
         strict_comparisons.append({report["image"]: compare_source_with_reference(
             report, originals[report["image"]]) for report in build["source_output"]})
+    readiness_checker = load_module(checkout / "tools" / "verify-mbn-hash-readiness.py",
+                                    "mbn_repro_readiness_checker")
+    source_hash_comparisons = [readiness_checker.verify_reports(
+        build["hash_readiness"], private, revisions) for build in builds]
+    if source_hash_comparisons[0] != source_hash_comparisons[1]:
+        raise ReproducibilityError("independent source-hash reports disagree on the pinned originals")
+    # This independent checked Rust command has a SHA-384 pin built into its
+    # source; no source or authentication bytes are written to the manifest.
+    pinned_a640_guards = []
+    for build in builds:
+        raw = run([str(build["pinned_a640_example"]), str(private / "a640_zap.mbn")])
+        try:
+            receipt = json.loads(raw)
+        except json.JSONDecodeError as exc:
+            raise ReproducibilityError("pinned A640 exact-original helper did not emit JSON") from exc
+        if (receipt.get("image") != "a640_zap.mbn" or receipt.get("file_bytes") != 14_256 or
+                receipt.get("generated_bytes") != 7_856 or
+                receipt.get("borrowed_oem_authentication_bytes") != 6_400 or
+                receipt.get("external_auth_range") != list(AUTH_RANGE) or
+                receipt.get("byte_mismatches") != 0 or
+                receipt.get("original_sha384_pinned") is not True or
+                receipt.get("segment_hashes_verified") is not True or
+                receipt.get("hardware_trust_verified") is not False):
+            raise ReproducibilityError("pinned A640 helper returned incomplete or misleading original-equivalence receipt")
+        pinned_a640_guards.append(receipt)
+    if pinned_a640_guards[0] != pinned_a640_guards[1]:
+        raise ReproducibilityError("pinned A640 helper receipts differ across clean builds")
     verifications = []
     for report in reports[0]:
         name = report["image"]
@@ -559,6 +681,8 @@ def verify_originals(directory, builds, temporary, epoch):
         rebuilt.append(sha256(data))
     return {"verification_scope": "six_pinned_original_references",
             "certificate_validity_epoch": epoch, "images": verifications,
+            "per_segment_hash_readiness": source_hash_comparisons[0],
+            "pinned_original_a640_guard": pinned_a640_guards[0],
             "a640_reassembly": {"two_outputs_byte_identical": rebuilt[0] == rebuilt[1],
                 "sha256": rebuilt[0], "file_bytes": FILE_BYTES["a640_zap.mbn"],
                 "generated_bytes": 7856, "borrowed_original_authentication_bytes": 6400,
@@ -614,6 +738,7 @@ def reproduce(root, references=None, require_source_complete=False):
             raise ReproducibilityError("source revision changed while the proof was running")
         return {"schema": "nabu-mbn-reproducibility-v1", "source": identity,
                 "tools": tools, "build": {"command": BUILD_COMMAND,
+                    "example_command": EXAMPLE_BUILD_COMMAND,
                     "offline": True, "locked": True, "isolated_cargo_homes": True,
                     "isolated_target_directories": True, "source_path_remap": "/mbn-reproducibility",
                     "source_date_epoch": identity["commit_epoch"], "cargo_incremental": False,
@@ -623,6 +748,7 @@ def reproduce(root, references=None, require_source_complete=False):
                     "toolchain_scope": "Recorded compiler and Cargo versions; host linker, loader, system libraries and compiler installation are not packaged or digest-pinned.",
                     "probe_source_sha256": sha256(PROBE_SOURCE.encode("utf-8"))},
                 "reproducibility": comparison, "images": builds[0]["source_output"],
+                "per_segment_source_hash_readiness": builds[0]["hash_readiness"],
                 "original_reference_verification": original_audit,
                 "new_oem_signature_created": False, "device_hardware_trust_verified": False,
                 "full_images_published": [], "source_complete_images": []}
