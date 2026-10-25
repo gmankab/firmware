@@ -7,7 +7,7 @@
 use arm32::{Condition as C, DataOp as Op, Register as R, Shift, BlockMode};
 use super::Code;
 const START:usize = 0x1a1ec;
-const END:usize = 0x1a4d4;
+const END:usize = 0x1a670;
 const FORMAT_IDENTIFIER:u32=0x0401_1009;
 
 /// Validate session state and format, then submit hardware commands.
@@ -384,11 +384,224 @@ fn encode_codec_session_commands(c:&mut Code)->Result<(),String>{
     // 0x1a4cc: pop {r4, r5, r6, r7, r8, r9, r11, pc}
     c.emit(arm32::transfer_multiple(C::Al, true, R::SP, R::new(4)?.bit() | R::new(5)?.bit() | R::new(6)?.bit() | R::new(7)?.bit() | R::new(8)?.bit() | R::new(9)?.bit() | R::R11.bit() | R::PC.bit(), BlockMode::IncrementAfter, true)?)?;
     c.emit(FORMAT_IDENTIFIER)?;
+    c.check(0x1a4d4)
+}
+
+/// Aggregate two 18-entry codec weighting tables, determine median-like
+/// threshold indices and apply the hardware scan mode's sign/scale rules.
+/// The two trailing words reference runtime codec coefficient tables.
+fn emit_weighted_codec_statistics(c:&mut Code)->Result<(),String>{
+    c.check(0x1a4d4)?;
+    // 0x1a4d4: push {r4, r5, r6, r7, r8, r9, r10, r11, lr}
+    c.emit(arm32::push_registers(C::Al, R::new(4)?.bit() | R::new(5)?.bit() | R::new(6)?.bit() | R::new(7)?.bit() | R::new(8)?.bit() | R::new(9)?.bit() | R::new(10)?.bit() | R::R11.bit() | R::LR.bit())?)?;
+    // 0x1a4d8: add r11, sp, #28
+    c.emit(arm32::data_immediate(C::Al, Op::Add, R::R11, R::SP, 0x1c)?)?;
+    // 0x1a4dc: sub sp, sp, #4
+    c.emit(arm32::data_immediate(C::Al, Op::Sub, R::SP, R::SP, 0x4)?)?;
+    // 0x1a4e0: ldr r8, [r11, #0x8]
+    c.emit(arm32::transfer_word(C::Al, true, R::new(8)?, R::R11, 8)?)?;
+    // 0x1a4e4: mov r6, r1
+    c.emit(arm32::mov_register(C::Al, R::new(6)?, R::R1))?;
+    // 0x1a4e8: mov r10, r3
+    c.emit(arm32::mov_register(C::Al, R::new(10)?, R::new(3)?))?;
+    // 0x1a4ec: mov r9, r2
+    c.emit(arm32::mov_register(C::Al, R::new(9)?, R::R2))?;
+    // 0x1a4f0: mov r1, #0
+    c.emit(arm32::data_immediate(C::Al, Op::Mov, R::R1, R::R0, 0x0)?)?;
+    // 0x1a4f4: mov r7, #0
+    c.emit(arm32::data_immediate(C::Al, Op::Mov, R::new(7)?, R::R0, 0x0)?)?;
+    // 0x1a4f8: mov r2, r0
+    c.emit(arm32::mov_register(C::Al, R::R2, R::R0))?;
+    // 0x1a4fc: mov r5, #0
+    c.emit(arm32::data_immediate(C::Al, Op::Mov, R::new(5)?, R::R0, 0x0)?)?;
+    // 0x1a500: mov r3, r6
+    c.emit(arm32::mov_register(C::Al, R::new(3)?, R::new(6)?))?;
+    // 0x1a504: ldr r4, [r3], #4
+    c.emit(arm32::transfer_word_postindexed(C::Al, true, R::new(4)?, R::new(3)?, 4)?)?;
+    // 0x1a508: add r5, r5, #1
+    c.emit(arm32::data_immediate(C::Al, Op::Add, R::new(5)?, R::new(5)?, 0x1)?)?;
+    // 0x1a50c: cmp r5, #18
+    c.emit(arm32::data_immediate(C::Al, Op::Cmp, R::R0, R::new(5)?, 0x12)?)?;
+    // 0x1a510: add r7, r4, r7
+    c.emit(arm32::data_register(C::Al, Op::Add, R::new(7)?, R::new(4)?, R::new(7)?, Shift::Lsl, 0, false)?)?;
+    // 0x1a514: ldr r4, [r2], #4
+    c.emit(arm32::transfer_word_postindexed(C::Al, true, R::new(4)?, R::R2, 4)?)?;
+    // 0x1a518: add r1, r4, r1
+    c.emit(arm32::data_register(C::Al, Op::Add, R::R1, R::new(4)?, R::R1, Shift::Lsl, 0, false)?)?;
+    // 0x1a51c: bne 0x1a504 <entry+0x318>
+    c.b(C::Ne, 0x1a504)?;
+    // 0x1a520: cmp r1, #0
+    c.emit(arm32::data_immediate(C::Al, Op::Cmp, R::R0, R::R1, 0x0)?)?;
+    // 0x1a524: beq 0x1a564 <entry+0x378>
+    c.b(C::Eq, 0x1a564)?;
+    // 0x1a528: ldr r2, [pc, #0x138]
+    c.literal(R::R2, 0x1a668)?;
+    // 0x1a52c: add r1, r1, r1, lsr #31
+    c.emit(arm32::data_register(C::Al, Op::Add, R::R1, R::R1, R::R1, Shift::Lsr, 31, false)?)?;
+    // 0x1a530: mov r3, #0
+    c.emit(arm32::data_immediate(C::Al, Op::Mov, R::new(3)?, R::R0, 0x0)?)?;
+    // 0x1a534: mvn r5, #0
+    c.emit(arm32::data_immediate(C::Al, Op::Mvn, R::new(5)?, R::R0, 0x0)?)?;
+    // 0x1a538: asr r1, r1, #1
+    c.emit(arm32::mov_shifted_register(C::Al, R::R1, R::R1, Shift::Asr, 1)?)?;
+    // 0x1a53c: ldr r4, [r0]
+    c.emit(arm32::transfer_word(C::Al, true, R::new(4)?, R::R0, 0)?)?;
+    // 0x1a540: add r3, r4, r3
+    c.emit(arm32::data_register(C::Al, Op::Add, R::new(3)?, R::new(4)?, R::new(3)?, Shift::Lsl, 0, false)?)?;
+    // 0x1a544: cmp r3, r1
+    c.emit(arm32::data_register(C::Al, Op::Cmp, R::R0, R::new(3)?, R::R1, Shift::Lsl, 0, false)?)?;
+    // 0x1a548: bge 0x1a56c <entry+0x380>
+    c.b(C::Ge, 0x1a56c)?;
+    // 0x1a54c: add r5, r5, #1
+    c.emit(arm32::data_immediate(C::Al, Op::Add, R::new(5)?, R::new(5)?, 0x1)?)?;
+    // 0x1a550: add r2, r2, #4
+    c.emit(arm32::data_immediate(C::Al, Op::Add, R::R2, R::R2, 0x4)?)?;
+    // 0x1a554: add r0, r0, #4
+    c.emit(arm32::data_immediate(C::Al, Op::Add, R::R0, R::R0, 0x4)?)?;
+    // 0x1a558: cmp r5, #17
+    c.emit(arm32::data_immediate(C::Al, Op::Cmp, R::R0, R::new(5)?, 0x11)?)?;
+    // 0x1a55c: blt 0x1a53c <entry+0x350>
+    c.b(C::Lt, 0x1a53c)?;
+    // 0x1a560: b 0x1a584 <entry+0x398>
+    c.b(C::Al, 0x1a584)?;
+    // 0x1a564: mov r0, #0
+    c.emit(arm32::data_immediate(C::Al, Op::Mov, R::R0, R::R0, 0x0)?)?;
+    // 0x1a568: b 0x1a580 <entry+0x394>
+    c.b(C::Al, 0x1a580)?;
+    // 0x1a56c: ldr r2, [r2]
+    c.emit(arm32::transfer_word(C::Al, true, R::R2, R::R2, 0)?)?;
+    // 0x1a570: ldr r3, [r8, #0x64]
+    c.emit(arm32::transfer_word(C::Al, true, R::new(3)?, R::new(8)?, 100)?)?;
+    // 0x1a574: ldr r1, [r8, #0x170]
+    c.emit(arm32::transfer_word(C::Al, true, R::R1, R::new(8)?, 368)?)?;
+    // 0x1a578: mul r0, r3, r2
+    c.emit(arm32::multiply_register(C::Al, R::R0, R::new(3)?, R::R2)?)?;
+    // 0x1a57c: blx 0x82be4 <entry+0x689f8>
+    c.emit(arm32::branch_exchange_immediate(c.at() as u32, 0x82be4)?)?;
+    // 0x1a580: str r0, [r9]
+    c.emit(arm32::transfer_word(C::Al, false, R::R0, R::new(9)?, 0)?)?;
+    // 0x1a584: cmp r7, #0
+    c.emit(arm32::data_immediate(C::Al, Op::Cmp, R::R0, R::new(7)?, 0x0)?)?;
+    // 0x1a588: beq 0x1a5c8 <entry+0x3dc>
+    c.b(C::Eq, 0x1a5c8)?;
+    // 0x1a58c: ldr r1, [pc, #0xd8]
+    c.literal(R::R1, 0x1a66c)?;
+    // 0x1a590: add r0, r7, r7, lsr #31
+    c.emit(arm32::data_register(C::Al, Op::Add, R::R0, R::new(7)?, R::new(7)?, Shift::Lsr, 31, false)?)?;
+    // 0x1a594: mov r2, #0
+    c.emit(arm32::data_immediate(C::Al, Op::Mov, R::R2, R::R0, 0x0)?)?;
+    // 0x1a598: mvn r3, #0
+    c.emit(arm32::data_immediate(C::Al, Op::Mvn, R::new(3)?, R::R0, 0x0)?)?;
+    // 0x1a59c: asr r0, r0, #1
+    c.emit(arm32::mov_shifted_register(C::Al, R::R0, R::R0, Shift::Asr, 1)?)?;
+    // 0x1a5a0: ldr r7, [r6]
+    c.emit(arm32::transfer_word(C::Al, true, R::new(7)?, R::new(6)?, 0)?)?;
+    // 0x1a5a4: add r2, r7, r2
+    c.emit(arm32::data_register(C::Al, Op::Add, R::R2, R::new(7)?, R::R2, Shift::Lsl, 0, false)?)?;
+    // 0x1a5a8: cmp r2, r0
+    c.emit(arm32::data_register(C::Al, Op::Cmp, R::R0, R::R2, R::R0, Shift::Lsl, 0, false)?)?;
+    // 0x1a5ac: bge 0x1a5d0 <entry+0x3e4>
+    c.b(C::Ge, 0x1a5d0)?;
+    // 0x1a5b0: add r3, r3, #1
+    c.emit(arm32::data_immediate(C::Al, Op::Add, R::new(3)?, R::new(3)?, 0x1)?)?;
+    // 0x1a5b4: add r1, r1, #4
+    c.emit(arm32::data_immediate(C::Al, Op::Add, R::R1, R::R1, 0x4)?)?;
+    // 0x1a5b8: add r6, r6, #4
+    c.emit(arm32::data_immediate(C::Al, Op::Add, R::new(6)?, R::new(6)?, 0x4)?)?;
+    // 0x1a5bc: cmp r3, #17
+    c.emit(arm32::data_immediate(C::Al, Op::Cmp, R::R0, R::new(3)?, 0x11)?)?;
+    // 0x1a5c0: blt 0x1a5a0 <entry+0x3b4>
+    c.b(C::Lt, 0x1a5a0)?;
+    // 0x1a5c4: b 0x1a5e8 <entry+0x3fc>
+    c.b(C::Al, 0x1a5e8)?;
+    // 0x1a5c8: mov r0, #0
+    c.emit(arm32::data_immediate(C::Al, Op::Mov, R::R0, R::R0, 0x0)?)?;
+    // 0x1a5cc: b 0x1a5e4 <entry+0x3f8>
+    c.b(C::Al, 0x1a5e4)?;
+    // 0x1a5d0: ldr r2, [r1]
+    c.emit(arm32::transfer_word(C::Al, true, R::R2, R::R1, 0)?)?;
+    // 0x1a5d4: ldr r3, [r8, #0x68]
+    c.emit(arm32::transfer_word(C::Al, true, R::new(3)?, R::new(8)?, 104)?)?;
+    // 0x1a5d8: ldr r1, [r8, #0x1e8]
+    c.emit(arm32::transfer_word(C::Al, true, R::R1, R::new(8)?, 488)?)?;
+    // 0x1a5dc: mul r0, r3, r2
+    c.emit(arm32::multiply_register(C::Al, R::R0, R::new(3)?, R::R2)?)?;
+    // 0x1a5e0: blx 0x82be4 <entry+0x689f8>
+    c.emit(arm32::branch_exchange_immediate(c.at() as u32, 0x82be4)?)?;
+    // 0x1a5e4: str r0, [r10]
+    c.emit(arm32::transfer_word(C::Al, false, R::R0, R::new(10)?, 0)?)?;
+    // 0x1a5e8: ldr r0, [r8, #0x948]
+    c.emit(arm32::transfer_word(C::Al, true, R::R0, R::new(8)?, 2376)?)?;
+    // 0x1a5ec: tst r0, #1
+    c.emit(arm32::data_immediate(C::Al, Op::Tst, R::R0, R::R0, 0x1)?)?;
+    // 0x1a5f0: bne 0x1a5fc <entry+0x410>
+    c.b(C::Ne, 0x1a5fc)?;
+    // 0x1a5f4: lsr r1, r0, #2
+    c.emit(arm32::mov_shifted_register(C::Al, R::R1, R::R0, Shift::Lsr, 2)?)?;
+    // 0x1a5f8: b 0x1a610 <entry+0x424>
+    c.b(C::Al, 0x1a610)?;
+    // 0x1a5fc: ldr r1, [r10]
+    c.emit(arm32::transfer_word(C::Al, true, R::R1, R::new(10)?, 0)?)?;
+    // 0x1a600: ldr r2, [r9]
+    c.emit(arm32::transfer_word(C::Al, true, R::R2, R::new(9)?, 0)?)?;
+    // 0x1a604: str r2, [r10]
+    c.emit(arm32::transfer_word(C::Al, false, R::R2, R::new(10)?, 0)?)?;
+    // 0x1a608: str r1, [r9]
+    c.emit(arm32::transfer_word(C::Al, false, R::R1, R::new(9)?, 0)?)?;
+    // 0x1a60c: lsr r1, r0, #1
+    c.emit(arm32::mov_shifted_register(C::Al, R::R1, R::R0, Shift::Lsr, 1)?)?;
+    // 0x1a610: ldr r0, [r10]
+    c.emit(arm32::transfer_word(C::Al, true, R::R0, R::new(10)?, 0)?)?;
+    // 0x1a614: tst r1, #1
+    c.emit(arm32::data_immediate(C::Al, Op::Tst, R::R0, R::R1, 0x1)?)?;
+    // 0x1a618: mov r1, #1
+    c.emit(arm32::data_immediate(C::Al, Op::Mov, R::R1, R::R0, 0x1)?)?;
+    // 0x1a61c: rsbne r0, r0, #0
+    c.emit(arm32::data_immediate(C::Ne, Op::Rsb, R::R0, R::R0, 0x0)?)?;
+    // 0x1a620: strne r0, [r10]
+    c.emit(arm32::transfer_word(C::Ne, false, R::R0, R::new(10)?, 0)?)?;
+    // 0x1a624: cmp r0, #0
+    c.emit(arm32::data_immediate(C::Al, Op::Cmp, R::R0, R::R0, 0x0)?)?;
+    // 0x1a628: orr r1, r1, r0, asr #31
+    c.emit(arm32::data_register(C::Al, Op::Orr, R::R1, R::R1, R::R0, Shift::Asr, 31, false)?)?;
+    // 0x1a62c: rsbmi r0, r0, #0
+    c.emit(arm32::data_immediate(C::Mi, Op::Rsb, R::R0, R::R0, 0x0)?)?;
+    // 0x1a630: add r0, r0, #7
+    c.emit(arm32::data_immediate(C::Al, Op::Add, R::R0, R::R0, 0x7)?)?;
+    // 0x1a634: asr r2, r0, #4
+    c.emit(arm32::mov_shifted_register(C::Al, R::R2, R::R0, Shift::Asr, 4)?)?;
+    // 0x1a638: mul r0, r2, r1
+    c.emit(arm32::multiply_register(C::Al, R::R0, R::R2, R::R1)?)?;
+    // 0x1a63c: mvn r1, #3
+    c.emit(arm32::data_immediate(C::Al, Op::Mvn, R::R1, R::R0, 0x3)?)?;
+    // 0x1a640: cmn r0, #3
+    c.emit(arm32::data_immediate(C::Al, Op::Cmn, R::R0, R::R0, 0x3)?)?;
+    // 0x1a644: str r0, [r10]
+    c.emit(arm32::transfer_word(C::Al, false, R::R0, R::new(10)?, 0)?)?;
+    // 0x1a648: blt 0x1a658 <entry+0x46c>
+    c.b(C::Lt, 0x1a658)?;
+    // 0x1a64c: mov r1, #4
+    c.emit(arm32::data_immediate(C::Al, Op::Mov, R::R1, R::R0, 0x4)?)?;
+    // 0x1a650: cmp r0, #3
+    c.emit(arm32::data_immediate(C::Al, Op::Cmp, R::R0, R::R0, 0x3)?)?;
+    // 0x1a654: movle r1, r0
+    c.emit(arm32::mov_register(C::Le, R::R1, R::R0))?;
+    // 0x1a658: str r1, [r10]
+    c.emit(arm32::transfer_word(C::Al, false, R::R1, R::new(10)?, 0)?)?;
+    // 0x1a65c: mov r0, #1
+    c.emit(arm32::data_immediate(C::Al, Op::Mov, R::R0, R::R0, 0x1)?)?;
+    // 0x1a660: sub sp, r11, #28
+    c.emit(arm32::data_immediate(C::Al, Op::Sub, R::SP, R::R11, 0x1c)?)?;
+    // 0x1a664: pop {r4, r5, r6, r7, r8, r9, r10, r11, pc}
+    c.emit(arm32::transfer_multiple(C::Al, true, R::SP, R::new(4)?.bit() | R::new(5)?.bit() | R::new(6)?.bit() | R::new(7)?.bit() | R::new(8)?.bit() | R::new(9)?.bit() | R::new(10)?.bit() | R::R11.bit() | R::PC.bit(), BlockMode::IncrementAfter, true)?)?;
+    c.emit(0x000e_4654)?; // Codec diagnostic/lookup address
+    c.emit(0x000e_469c)?; // Complementary codec lookup address
     c.check(END)
 }
 
 pub(super) fn extend(c:&mut Code)->Result<(),String>{
     encode_codec_session_commands(c)?;
+    emit_weighted_codec_statistics(c)?;
     c.check(END)
 }
 #[cfg(test)]mod tests{
@@ -397,6 +610,8 @@ pub(super) fn extend(c:&mut Code)->Result<(),String>{
         let mut c=Code::new(START);
         extend(&mut c).unwrap();
         assert_eq!(c.bytes.len(),END-START);
-        assert_eq!(&c.bytes[c.bytes.len()-4..],&FORMAT_IDENTIFIER.to_le_bytes());
+        assert_eq!(&c.bytes[0x1a4d0-START..0x1a4d4-START],&FORMAT_IDENTIFIER.to_le_bytes());
+        assert_eq!(&c.bytes[c.bytes.len()-8..c.bytes.len()-4],&0x000e_4654_u32.to_le_bytes());
+        assert_eq!(&c.bytes[c.bytes.len()-4..],&0x000e_469c_u32.to_le_bytes());
     }
 }
