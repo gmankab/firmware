@@ -276,6 +276,17 @@ pub fn transfer_word_postindexed_register(condition: Condition, load: bool,
        | (rn.number() << 16) | (rd.number() << 12) | rm.number())
 }
 
+/// A32 post-indexed LDR/STR word with a scaled register offset.
+/// Address `[Rn], Rm, LSL #amount` updates Rn after the transfer. Only the
+/// architecture-defined shifted-register immediate form is supported.
+pub fn transfer_word_postindexed_scaled_register(condition: Condition, load: bool,
+      rd: Register, rn: Register, rm: Register, shift: Shift, amount: u8) -> Result<u32,String> {
+    if rn == Register::PC || rm == Register::PC || (load && rd == rn) {
+        return Err("unsafe A32 postindexed scaled register addressing".into());
+    }
+    Ok(transfer_word_register(condition,load,rd,rn,rm,shift,amount)? & !(1 << 24))
+}
+
 /// A32 register-offset post-indexed byte transfer (`[Rn], Rm`). The
 /// word variant validates unsafe register combinations before the byte bit
 /// is set, so unsupported modes cannot silently pass through.
@@ -798,6 +809,23 @@ mod tests {
         assert!(transfer_doubleword(Condition::Al, false, r2, Register::PC, 0).is_err());
         assert!(transfer_doubleword(Condition::Al, true, r2, Register::R0, 256).is_err());
     }
+    #[test]
+    fn scaled_postindexed_register_uses_architecture_fields() {
+        assert_eq!(transfer_word_postindexed_scaled_register(Condition::Al,true,
+            Register::R0,Register::R1,Register::R2,Shift::Lsl,2).unwrap(),0xe691_0102);
+        let r4=Register::new(4).unwrap();
+        assert_eq!(transfer_word_postindexed_scaled_register(Condition::Al,true,
+            Register::R1,r4,Register::R1,Shift::Lsl,2).unwrap(),0xe694_1101);
+        assert!(transfer_word_postindexed_scaled_register(Condition::Al,true,
+            Register::R1,Register::R1,Register::R2,Shift::Lsl,2).is_err());
+        assert!(transfer_word_postindexed_scaled_register(Condition::Al,true,
+            Register::R0,Register::PC,Register::R2,Shift::Lsl,2).is_err());
+        assert!(transfer_word_postindexed_scaled_register(Condition::Al,true,
+            Register::R0,Register::R1,Register::PC,Shift::Lsl,2).is_err());
+        assert!(transfer_word_postindexed_scaled_register(Condition::Al,true,
+            Register::R0,Register::R1,Register::R2,Shift::Lsl,32).is_err());
+    }
+
     #[test]
     fn signed_byte_postindexed_immediate_is_architecture_encoded() {
         let r3=Register::new(3).unwrap();
