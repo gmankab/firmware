@@ -175,3 +175,16 @@ python3 tools/build-wlanmdsp-agent13.py /tmp/wlan-prefix-through-27a0.bin \
 - Newly authored Agent13 Hexagon source totals **7,948 instruction bytes** `[file 0x42708,0x44614)`. Joined Agent7+13 executable layout `[file 0x40000,0x44614)` is **17,940 exact bytes**, made up of **14,164 independent instruction bytes** and **3,776 distinct linker-fill bytes**, with zero reference mismatches.
 - Independent LLVM22 reassembly, full 160 Rust tests and Python discovery 26 cases (**25 pass, 1 optional skip**), offline release build, and `git diff --check` passed.
 - The next function begins at `file 0x44614` / VMA `0xb0004614`; still below Agent13's `file 0x100000` ownership boundary. Branch remains Agent7-derived; no checkpoint50 integration, OEM signing, whole WLAN executable completion, or on-device execution established.
+
+## Checkpoint 15 — linked-record maintenance and status-mask fields
+
+- Six complete Hexagon V66 source routines add **844 instruction bytes**:
+  - `[file 0x44614,0x446f0)` **220 bytes** controller request and record status handling;
+  - `[0x446f0,0x44760)` **112 bytes** indexed record-list insertion (extended relative tail jump);
+  - `[0x44760,0x447dc)` **124 bytes** linked-record removal (explicit instruction/duplex source ordering);
+  - `[0x447dc,0x44804)` **40 bytes** record-list query;
+  - `[0x44804,0x4492c)` **296 bytes** controller mode/mask field updates;
+  - `[0x4492c,0x44960)` **52 bytes** status-bit query.
+- New Agent13 source `[file 0x42708,0x44960)` totals **8,792 independently assembled instruction bytes**. Combined Agent7+13 WLAN executable layout `[file 0x40000,0x44960)` totals **18,784 exact bytes**: **15,008 instruction bytes** + **3,776 separately modeled linker-fill bytes**, with zero reference-byte mismatches.
+- LLC Hexagon LLVM22 V66 source assembly, 160 Rust tests, Python discovery 27 cases (**26 passed, 1 optional skip**), release build and Git diff checks passed.
+- Next routine starts at file `0x44960` / VMA `0xb0004960`. Agent13 owns to `0x100000`, and this is an Agent7-derived portable branch only, not a complete or signed WLAN firmware.
