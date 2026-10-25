@@ -182,3 +182,34 @@ Combined Agent 03 late-runtime `[0x183e0,0x1e5c8)` (MBN file `[0x1c3e0,0x225c8)`
 The next self-contained routine `[0x1e5c8,0x1e704)` (file `[0x225c8,0x22704)`) adds **316 byte-identical bytes**, comprising 78 typed ARM32 instructions and one explicit diagnostic pointer at `[0x1e700,0x1e704)`. It reads controller feature bits and plane dimensions, derives plane-enable fields and flags oversize buffers. Both the Rust encoder and independently linked LLVM/Clang assembly produce exactly the private reference bytes.
 
 Combined late runtime `[0x183e0,0x1e704)` (MBN file `[0x1c3e0,0x22704)`) contains **25,380 bytes**, including 6,011 typed A32 instructions and 334 data words. Next function starts at `0x1e704`, with reservation `[0x1e704,0x24000)` still unimplemented and `[0x18000,0x183e0)` excluded for being a mid-function tail. Branch ancestry remains earlier `69ebf0d`, not the unavailable checkpoint-50 `b7ed4b5` commit; independent OEM authentication has not been produced.
+
+## Checkpoint 20 — codec process state machine and twenty-way dispatch
+
+A complete function `[0x1e704,0x213fc)` (file `[0x22704,0x253fc)`) adds
+**11,512 byte-identical bytes**: **2,828 typed ARM32 instruction encodings**
+and **50 separate non-instruction words** across eleven literal/data pools.
+The 20-way jump table occupies `[0x1e774,0x1e7c4)`; the remaining pools are
+`[0x1f630,0x1f63c)`, `[0x1f9f4,0x1f9f8)`, `[0x1fd4c,0x1fd58)`,
+`[0x20214,0x20224)`, `[0x204d8,0x204dc)`, `[0x2071c,0x20720)`,
+`[0x20878,0x2087c)`, `[0x20ba8,0x20bac)`, `[0x20d18,0x20d1c)`,
+and `[0x213c4,0x213fc)`. One apparent conditional store at `0x1f634`
+is **data**, not ARM code. The function configures codec sessions, distributes
+buffer descriptors, checks geometry, and controls the packet state machine;
+these are approximate data-flow descriptions, not source-level or hardware-
+execution proofs.
+
+The independently linked Clang/LLVM ARM assembly at `.text=0x1e704` matches
+all **11,512 bytes** of the original reference. The opt-in Rust emitter
+also verifies the **entire** contiguous Agent 03 range with zero byte
+differences, against pinned `venus.mbn` SHA-256
+`9d4af65d7ede845e900f1b29ff425b7a8e2947056e695e246e58a2091445a085`.
+Rust unit tests, Python tests, release build, and `git diff --check` passed.
+
+The combined region `[0x183e0,0x213fc)` (file `[0x1c3e0,0x253fc)`) now
+contains **36,892 bytes**: 8,839 A32 instruction words and 384 identified
+data words. Next uncovered runtime address is `0x213fc`; the assigned range
+extends to (but excludes) `0x24000`. Prefix `[0x18000,0x183e0)` remains
+uncovered because its initial address is mid-function. The Git branch is
+still anchored to `69ebf0d`, not unavailable checkpoint-50 `b7ed4b5`;
+cherry-pick isolated Agent 03 commits before integrating with other agents.
+**No independently signed or flashable OEM firmware has been produced.**
