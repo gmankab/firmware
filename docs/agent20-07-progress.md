@@ -245,3 +245,24 @@ Physical mapping is `[0x8be03030,0x8be03734)`. The next independent
 routine starts at file `0x6734`; the original 0x30-byte boot metadata, other
 ADSP segments and OEM auth are still not independently rebuilt. This branch
 remains provisional on the older Agent 04 base rather than checkpoint 50.
+
+## Checkpoint 16: physical memory and cacheline helpers `[0x6734,0x67e8)`
+
+Reconstructed **180 additional executable bytes** across three adjacent
+Hexagon v66 functions: a 56-byte hardware-loop word copier with D-cache
+cleaning; a 60-byte controller CFGBASE-to-physical-load program; and a 64-byte
+wrapper publishing two physical-bank pointers then copying/cleaning them.
+LLVM6 assembles 42 of 45 instruction words from packetized mnemonic source,
+including original loop packet parsing. Three privileged words are checked
+register/physical-load typed encodings (`r0=CFGBASE`, twice
+`r0=memw_phys(r2,r0)`) replacing strictly verified source NOPs. The initial
+CFGBASE read is *inside* a two-operation packet with an explicitly encoded
+packet-continuation bit. No reference opcode words are reused in the emitter.
+
+The cumulative rebuilt RWE code now covers **1,976 consecutive bytes** of
+file `[0x6030,0x67e8)` (phys `[0x8be03030,0x8be037e8)`), SHA-256
+`0bb7559997f4557ca8305eb05d95a999823b2812f4d6456c1df790a8428ada40`.
+The following routine begins at `0x67e8`. Tests include packet-boundary,
+physical register-field bounds, direct byte comparison, LLVM6 assembly and an
+independent Rizin V66 decoder check. The input MBN file remains outside Git;
+there is no newly OEM-signed firmware output.

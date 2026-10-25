@@ -20,12 +20,12 @@ TOOLS=Path(__file__).resolve().parent
 if str(TOOLS) not in sys.path:
     sys.path.insert(0,str(TOOLS))
 from adsp_hexagon_v66 import (SystemRegister, ControlRegister, InstructionCacheRead,
-                              read_instruction_cache_word, read_system_register,
+                              read_instruction_cache_word, physical_word_load, read_system_register,
                               write_system_register,read_control_register,
                               write_predicate_group_from_gpr,packet_continuation)
 
 FILE_START=0x6030
-FILE_END=0x6734
+FILE_END=0x67e8
 SIZE=FILE_END-FILE_START
 PADDR=0x8BE03030
 REFERENCE_SHA='4b579e5dc1333d634e5bdc93f3314e357e0e30dab7140833f6cc7aef086b1c1e'
@@ -69,6 +69,12 @@ REVISION_GUARD_SIZE=0x28
 REVISION_GUARD_END=0x661c
 CACHE_DIAGNOSTICS_SOURCE=TOOLS/'adsp-agent20-rwe-cache-diagnostics.S'
 CACHE_DIAGNOSTICS_SIZE=0x118
+CACHE_COPY_SOURCE=TOOLS/'adsp-agent20-rwe-cache-copy.S'
+CACHE_COPY_SIZE=0x38
+PHYSICAL_CONTROLLER_SOURCE=TOOLS/'adsp-agent20-rwe-physical-controller.S'
+PHYSICAL_CONTROLLER_SIZE=0x3c
+PHYSICAL_SYNC_SOURCE=TOOLS/'adsp-agent20-rwe-physical-sync.S'
+PHYSICAL_SYNC_SIZE=0x40
 
 
 def baseline():
@@ -339,6 +345,28 @@ def cache_diagnostics(llvm_mc:str,previous)->bytes:
     return bytes(b)
 
 
+
+def physical_controller(llvm_mc:str,previous)->bytes:
+    """Recreate the CFGBASE/page-selector translation and physical loads.
+
+    LLVM6 generates all ordinary packets. A continuing S27=CFGBASE read and
+    two typed memw_phys instructions replace exactly checked NOP markers.
+    """
+    b=bytearray(previous.assemble(llvm_mc,PHYSICAL_CONTROLLER_SOURCE,
+                                  PHYSICAL_CONTROLLER_SIZE))
+    checks={
+        0x00:(struct.pack('<I',0x7f004000),
+              packet_continuation(read_system_register(0,SystemRegister.CFGBASE))),
+        0x14:(struct.pack('<I',0x7f00c000),physical_word_load(0,2,0)),
+        0x28:(struct.pack('<I',0x7f00c000),physical_word_load(0,2,0)),
+    }
+    for at,(expected,word) in checks.items():
+        if b[at:at+4]!=expected:
+            raise previous.AdspError(f'V66 physical word sentinel moved +0x{at:x}')
+        b[at:at+4]=struct.pack('<I',word)
+    return bytes(b)
+
+
 def render(llvm_mc:str)->bytes:
     previous=baseline()
     output=bytearray(previous.assemble(llvm_mc,SOURCE,STARTUP_SIZE))
@@ -372,6 +400,9 @@ def render(llvm_mc:str)->bytes:
     output.extend(register_snapshot(llvm_mc,previous))
     output.extend(revision_guard(llvm_mc,previous))
     output.extend(cache_diagnostics(llvm_mc,previous))
+    output.extend(previous.assemble(llvm_mc,CACHE_COPY_SOURCE,CACHE_COPY_SIZE))
+    output.extend(physical_controller(llvm_mc,previous))
+    output.extend(previous.assemble(llvm_mc,PHYSICAL_SYNC_SOURCE,PHYSICAL_SYNC_SIZE))
     if len(output)!=SIZE:
         raise previous.AdspError("RWE source fragments are not contiguous")
     return bytes(output)
