@@ -46,3 +46,18 @@ The fragment is **instruction-level, byte-identical re-encoding**, not proof of 
 - Function boundaries at `0xa8cbc`, `0xa8d50`, `0xa8db4` and `0xa8de4`; the last function returns through `bx lr` at `0xa8e8c` and preserves its diagnostic literal pool.
 - Independent Clang/LLVM mnemonic reassembly and direct Rust byte comparison both match the entire newly added 484-byte interval exactly.
 - The next uncovered ARM32 runtime address is `0xa8ea0` (file offset `0xacea0`), a new codec-buffer helper.
+
+## Checkpoint 04 — indexed slot accessors and verifier
+
+- Byte-exact total ARM32 runtime `[0xa8000,0xa92c8)` = **4,808 bytes**, private original file `[0xac000,0xad2c8)`.
+- Newly independently built `[0xa8ea0,0xa92c8)` = **1,064 bytes**: 263 typed ARM32 instructions (1,052 bytes), and three separately identified repeated diagnostic pointers (12 bytes) at `0xa9034`, `0xa90d8`, `0xa911c`.
+- Function-level behavior: clear flags on codec command slots, derive indexed records using 84-byte strides, validate pointer initialization, update per-record metadata and report invalid use. Several helpers return via `bx lr` and others use guarded stack epilogues.
+- The new checked architecture encoder `arm32::transfer_byte_postindexed_register` uses public A32 register-offset addressing and rejects unsafe PC or load-into-base; committed separately from firmware work to isolate shared changes.
+- A new agent-local independent LLVM/Clang mnemonic round-trip helper `tools/agent20_06_a32_roundtrip.py` requires **explicit classification of every data pool** and errors on unsupported or unclassified instructions, using private reference bytes only for the validation process. It verifies all completed intervals individually with zero mismatches.
+- Next uncovered runtime address: `0xa92c8`, a new `push`-framed controller routine. The current source interval remains independently disjoint from other agents and has NOT been integrated atop checkpoint 50.
+
+```sh
+python3 tools/agent20_06_a32_roundtrip.py /private/venus.mbn 0xa8ea0 0xa92c8 \
+  --data-range 0xa9034:0xa9038 --data-range 0xa90d8:0xa90dc \
+  --data-range 0xa911c:0xa9120
+```
