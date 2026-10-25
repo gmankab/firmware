@@ -1,12 +1,13 @@
 // SPDX-License-Identifier: GPL-3.0-only
-use firmware_tools::devices::xiaomi_nabu::{cdsp_early_tlb as tlb,cdsp_early_cfgbase as cfgbase,cdsp_early_system_start as system_start,cdsp_early_interrupt_debug as interrupt_debug,cdsp_early_supervisor_vectors as vectors,cdsp_early_exception_entry as exception_entry,cdsp_early_exception_context as context,cdsp_early_exception_setup as setup,cdsp_early_exception_transition as transition,cdsp_early_exception_wait as wait,cdsp_early_exception_finalize as finalize,cdsp_early_context_snapshot as snapshot,cdsp_early_l2_sync as l2_sync,cdsp_early_phys_dump as dump,cdsp_early_runtime_maintenance as maintenance,cdsp_early_memory_dispatch as dispatcher};
+use firmware_tools::devices::xiaomi_nabu::{cdsp_early_tlb as tlb,cdsp_early_cfgbase as cfgbase,cdsp_early_system_start as system_start,cdsp_early_interrupt_debug as interrupt_debug,cdsp_early_supervisor_vectors as vectors,cdsp_early_exception_entry as exception_entry,cdsp_early_exception_context as context,cdsp_early_exception_setup as setup,cdsp_early_exception_transition as transition,cdsp_early_exception_wait as wait,cdsp_early_exception_finalize as finalize,cdsp_early_context_snapshot as snapshot,cdsp_early_l2_sync as l2_sync,cdsp_early_phys_dump as dump,cdsp_early_runtime_maintenance as maintenance,cdsp_early_memory_dispatch as dispatcher,cdsp_early_worker_bootstrap as worker};
 use std::{env,error::Error,fs};
 fn main()->Result<(),Box<dyn Error>>{
     let args:Vec<_>=env::args().skip(1).collect();
     if args.len()!=2{return Err("usage: agent20-09-cdsp emit FILE | verify REFERENCE".into());}
     match args[0].as_str(){
         "emit"=>fs::write(&args[1],cfgbase::build_joined()?)?,
-        "verify"=>dispatcher::verify_reference(&fs::read(&args[1])?)?,
+        "verify"=>worker::verify_reference(&fs::read(&args[1])?)?,
+        "emit-worker-bootstrap"=>fs::write(&args[1],worker::build_worker_bootstrap()?)?,
         "emit-memory-dispatch"=>fs::write(&args[1],dispatcher::build_full_memory_dispatch()?)?,
         "emit-maintenance"=>fs::write(&args[1],maintenance::build_maintenance_helpers()?)?,
         "emit-phys-dump"=>fs::write(&args[1],dump::build_physical_dump()?)?,
@@ -15,7 +16,7 @@ fn main()->Result<(),Box<dyn Error>>{
         "emit-exception-entry"=>fs::write(&args[1],exception_entry::build_exception_entry()?)?,
         "emit-context"=>fs::write(&args[1],context::build_context_save()?)?,
         "emit-controller-setup"=>fs::write(&args[1],setup::build_controller_setup()?)?,
-        "emit-supervisor"=>fs::write(&args[1],dispatcher::build_supervisor_with_dispatch()?)?,
+        "emit-supervisor"=>fs::write(&args[1],worker::build_supervisor_with_worker()?)?,
         "emit-snapshot"=>fs::write(&args[1],snapshot::build_context_snapshot()?)?,
         "emit-finalize"=>fs::write(&args[1],finalize::build_exception_finalize()?)?,
         "emit-wait"=>fs::write(&args[1],wait::build_exception_wait()?)?,
@@ -25,6 +26,6 @@ fn main()->Result<(),Box<dyn Error>>{
         "emit-system-start"=>fs::write(&args[1],system_start::build_system_start()?)?,
         _=>return Err("unsupported action: use emit, verify, emit-interrupt-debug, emit-supervisor or emit-vectors".into()),
     }
-    println!("CDSP typed functions: {:#x}..{:#x} and {:#x}..{:#x}, {}+{}={} generated executable bytes (232 separate linker-alignment bytes)",tlb::FILE_OFFSET,cfgbase::REGION_END,system_start::FILE_OFFSET,dispatcher::REGION_END,cfgbase::REGION_END-tlb::FILE_OFFSET,dispatcher::REGION_END-system_start::FILE_OFFSET,(cfgbase::REGION_END-tlb::FILE_OFFSET)+(dispatcher::REGION_END-system_start::FILE_OFFSET));
+    println!("CDSP typed functions: {:#x}..{:#x} and {:#x}..{:#x}, {}+{}={} generated executable bytes (240 separate linker-alignment bytes)",tlb::FILE_OFFSET,cfgbase::REGION_END,system_start::FILE_OFFSET,worker::REGION_END,cfgbase::REGION_END-tlb::FILE_OFFSET,worker::REGION_END-system_start::FILE_OFFSET,(cfgbase::REGION_END-tlb::FILE_OFFSET)+(worker::REGION_END-system_start::FILE_OFFSET));
     Ok(())
 }
