@@ -73,6 +73,28 @@ class WlanHexagonAssemblyTests(unittest.TestCase):
         with self.assertRaises(fw.FragmentError):
             fw.assemble(fw.SOURCE, self.mc, "hexagonv60")
 
+    def test_plt_has_linker_derived_got_slots(self):
+        asm = fw.plt_assembly()
+        self.assertEqual(asm.count('wlan_plt_'), 181)
+        self.assertIn('r14 = add(pc,##3403768)', asm)
+        self.assertIn('.space 20,0', asm)
+        self.assertEqual(fw.PLT_FIRST_ENTRY + fw.PLT_COUNT * fw.PLT_ENTRY_BYTES,
+                         fw.CODE_AND_PLT_LENGTH)
+
+    def test_complete_first_region_rebuild_is_deterministic(self):
+        boot = fw.assemble(fw.SOURCE, self.mc)
+        all_bytes = fw.emit_with_plt(boot, self.mc, 'hexagonv65')
+        self.assertEqual(len(all_bytes), 0x1b80)
+        pad = all_bytes[0x154:0x1000]
+        self.assertEqual(pad,
+                         fw.LINKER_GAP_WORD.to_bytes(4, 'little') * 939)
+        self.assertEqual(all_bytes[0x101c:0x1030], bytes(20))
+        self.assertEqual(all_bytes[0x1030:0x1040],
+                         fw.assemble_plt(self.mc, 'hexagonv65')[0x30:0x40])
+        ref = os.environ.get('WLANMDSP_REFERENCE')
+        if ref:
+            fw.check_reference(all_bytes, Path(ref).read_bytes())
+
     def test_unresolved_reference_is_rejected(self):
         with tempfile.TemporaryDirectory() as d:
             bad = Path(d) / "unresolved.S"

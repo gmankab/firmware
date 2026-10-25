@@ -39,6 +39,39 @@ Optionally supply `--reference /private/wlanmdsp.mbn` to compare the independent
 - Comparison: **340/340 identical bytes; first differing offset: none**.
 - Coverage excludes padding and every later program function; this is **not signed/bootable firmware**.
 
+### Checkpoint B: deterministic PLT and first-page layout
+
+The reference `DT_PLTGOT=0xb0340018`, `DT_PLTRELSZ=2172` and
+`DT_RELAENT=12` identify **181** Hexagon lazy binding entries. Re-implementing
+the actual PLT resolver and the 181 16-byte thunks from these ELF linker
+parameters produces exactly `0x1b80 - 0x1000 = 2944` bytes:
+
+- Resolver: 28 bytes of independently assembled Hexagon instructions.
+- Resolver-to-thunk alignment: 20 **zero-layout bytes**, not executable code.
+- Import stubs: 181 × 16 = 2896 bytes of independently generated instructions.
+- Each thunk reads one indexed PLTGOT entry and tail-jumps to the resolved
+  function pointer. The import-slot formula is `(PLTGOT+0x10 + 4*n) -
+  (0xb0001030+16*n)` for PC-relative displacements, with executable-vaddr
+  normalization applied by the build script.
+
+The preceding `[0x154,0x1000)` gap is exactly **939 repetitions** of the
+4-byte word `0x00c0007f`, structurally identified as *linker page-alignment
+fill*, not a reconstructed function or a Hexagon `nop` opcode. The generation
+rule models this observation; it is **not counted as executable logic**. Use
+`--with-plt` to regenerate the full `0x1b80`-byte first region, and
+`--emit-plt-assembly /tmp/wlan-plt.S` to inspect the generated PLT source.
+
+```sh
+python3 tools/build-wlanmdsp-startup.py /tmp/wlan-through-plt.bin   --with-plt --llvm-mc /path/to/llvm6/bin/llvm-mc   --reference /private/wlanmdsp.mbn
+```
+
+- File `[0x40000,0x41b80)`, vaddr `[0xb0000000,0xb0001b80)`: **7,040/7,040**
+  exact bytes, SHA-256 `7ac9069ef3adba598f1058276e7c6e8ad57ffa1a3dbc87ed66cbe729c050f0c9`.
+- Of these, independently authored executable code: 340 startup + 2924 PLT
+  bytes = **3,264 bytes**. Structural linker fill: 3756 patterned bytes +
+  20 zero-alignment bytes = **3,776 bytes**. These totals must never be
+  represented as 7040 bytes of decompiled independent functional code.
+
 ## Remaining work
 
-First examine the function after `0xb0000154` without mistaking padding for code: the following file bytes have large repeated `0x00c0007f` words. Program text is far larger than the initial verified fragment, and reconstructing 3.2 MiB of original functional source remains open. The signature/hash program header and the external DSP loader are also not independently reconstructed. Full image emission must be refused until all executable bytes, relocation/linker data and external authentication are accounted for.
+Continue with the first non-PLT routine at `0xb0001b80` (MBN offset `0x41b80`). The executable program is over 3.2 MiB; reconstructing the rest of its original functional source remains open. The signature/hash program header and the external DSP loader are also not independently reconstructed. Full image emission must be refused until all executable bytes, relocation/linker data and external authentication are accounted for.

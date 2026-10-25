@@ -21,6 +21,16 @@ SOURCE = ROOT / "sources/xiaomi-nabu/wlanmdsp/wlan-startup.S"
 FILE_OFFSET = 0x40000
 VADDR = 0xB0000000
 TEXT_LENGTH = 0x154
+PLT_START = 0x1000
+PLT_FIRST_ENTRY = 0x1030
+PLT_ENTRY_BYTES = 16
+PLT_COUNT = 181
+PLT_GOT = 0xB0340018
+PLT_LENGTH = PLT_FIRST_ENTRY + PLT_COUNT * PLT_ENTRY_BYTES - PLT_START
+CODE_AND_PLT_LENGTH = PLT_START + PLT_LENGTH
+# Identified uniform gap immediately following _init up to the linker PLT.
+# Treat this as layout fill, NEVER as independently reconstructed code.
+LINKER_GAP_WORD = 0x00c0007f
 FIRMWARE_SHA256 = "87c2c7bb1fe97eaf007a947832feba0898644b4d6626ac8ef49d8b94dd82604b"
 
 
@@ -67,7 +77,7 @@ def elf32_sections(image: bytes) -> list[dict[str, int | str]]:
     return out
 
 
-def read_resolved_text(obj: bytes) -> bytes:
+def read_resolved_text(obj: bytes, expected_length: int = TEXT_LENGTH) -> bytes:
     sections = elf32_sections(obj)
     matches = [s for s in sections if s["name"] == ".text" and s["kind"] == 1]
     if len(matches) != 1:
@@ -77,8 +87,8 @@ def read_resolved_text(obj: bytes) -> bytes:
         if section["kind"] in (4, 9) and section["info"] == text["index"] and section["size"]:
             raise FragmentError("unresolved text relocation: fragment is not byte-reproducible")
     offset, length = int(text["offset"]), int(text["size"])
-    if length != TEXT_LENGTH:
-        raise FragmentError(f"expected {TEXT_LENGTH} encoded bytes, got {length}")
+    if length != expected_length:
+        raise FragmentError(f"expected {expected_length} encoded bytes, got {length}")
     return obj[offset:offset + length]
 
 
@@ -110,7 +120,35 @@ def check_reference(fragment: bytes, firmware: bytes) -> None:
                                 f"vaddr 0x{VADDR+at:x}: built 0x{got:02x}, reference 0x{want:02x}")
 
 
-def assemble(source: Path, llvm_mc: str, cpu: str = "hexagonv65") -> bytes:
+def plt_assembly() -> str:
+    """Generate authentic Hexagon PLT semantics from its linker-derived layout.
+
+    PLTGOT=0xb0340018; the first lazy binding slot is PLTGOT+0x10. The
+    dynamic table advertises 0x87c JMPREL bytes / 12 bytes per RELA=181
+    imported symbols. We encode the resolver and one dispatch stub for each
+    slot, rather than importing original instruction bytes.
+    """
+    lines = [
+        "// SPDX-License-Identifier: GPL-3.0-only",
+        "// Reconstructed Hexagon ELF PLT from GOT layout and RELA count.",
+        ".text", ".globl wlan_plt", "wlan_plt:",
+        "{ r28 = add(pc,##3403800) }",  # PC-relative resolver GOT offset
+        "{ r14 -= add(r28,#16); r15 = memw(r28+#8); r28 = memw(r28+#4) }",
+        "{ r14 = asr(r14,#2); jumpr r28 }",
+        ".space 20,0",  # resolver is aligned to 0x30 before imports
+    ]
+    for idx in range(PLT_COUNT):
+        thunk_address = PLT_FIRST_ENTRY + PLT_ENTRY_BYTES * idx
+        slot_address = (PLT_GOT - VADDR) + 0x10 + 4 * idx
+        displacement = slot_address - thunk_address
+        lines.extend((f"wlan_plt_{idx:03}:",
+                      f"{{ r14 = add(pc,##{displacement}) }}",
+                      "{ r28 = memw(r14+#0) }", "{ jumpr r28 }"))
+    return "\n".join(lines) + "\n"
+
+
+def assemble(source: Path, llvm_mc: str, cpu: str = "hexagonv65",
+             expected_length: int = TEXT_LENGTH) -> bytes:
     asm = source.read_text(encoding="utf-8")
     forbidden = (".incbin", ".byte", ".short", ".word", ".long", ".quad")
     if any(token in asm for token in forbidden):
@@ -125,7 +163,24 @@ def assemble(source: Path, llvm_mc: str, cpu: str = "hexagonv65") -> bytes:
             raise FragmentError(f"Hexagon assembler unavailable: {llvm_mc}") from exc
         if proc.returncode != 0:
             raise FragmentError("Hexagon assembly failed: " + proc.stderr[:1000])
-        return read_resolved_text(obj_path.read_bytes())
+        return read_resolved_text(obj_path.read_bytes(), expected_length)
+
+
+def assemble_plt(llvm_mc: str, cpu: str) -> bytes:
+    with tempfile.TemporaryDirectory(prefix="wlan-plt-") as work:
+        source = Path(work) / "derived-plt.S"
+        source.write_text(plt_assembly())
+        return assemble(source, llvm_mc, cpu, expected_length=PLT_LENGTH)
+
+
+def emit_with_plt(startup: bytes, llvm_mc: str, cpu: str) -> bytes:
+    if len(startup) != TEXT_LENGTH:
+        raise FragmentError("startup fragment is not 0x154 bytes")
+    linker_gap = LINKER_GAP_WORD.to_bytes(4, "little") * ((PLT_START-TEXT_LENGTH)//4)
+    plt = assemble_plt(llvm_mc, cpu)
+    if len(startup) + len(linker_gap) + len(plt) != CODE_AND_PLT_LENGTH:
+        raise FragmentError("PLT layout has a hole or overlaps executable code")
+    return startup + linker_gap + plt
 
 
 def main() -> None:
@@ -136,8 +191,17 @@ def main() -> None:
     ap.add_argument("--source", default=SOURCE, type=Path)
     ap.add_argument("--reference", type=Path, help="optional WLAN MBN for strict revision comparison")
     ap.add_argument("--manifest", type=Path, help="optional JSON containing rebuild digest/coverage")
+    ap.add_argument("--with-plt", action="store_true",
+                    help="emit startup, isolated 0x154–0x1000 linker fill, and 181-symbol PLT")
+    ap.add_argument("--emit-plt-assembly", type=Path,
+                    help="write independently generated PLT source for inspection")
     args = ap.parse_args()
     fragment = assemble(args.source, args.llvm_mc, args.cpu)
+    if args.emit_plt_assembly is not None:
+        args.emit_plt_assembly.parent.mkdir(parents=True, exist_ok=True)
+        args.emit_plt_assembly.write_text(plt_assembly())
+    if args.with_plt:
+        fragment = emit_with_plt(fragment, args.llvm_mc, args.cpu)
     if args.reference is not None:
         check_reference(fragment, args.reference.read_bytes())
     args.output.parent.mkdir(parents=True, exist_ok=True)
@@ -147,11 +211,14 @@ def main() -> None:
               "vaddr": VADDR, "verified_bytes": len(fragment) if args.reference else None,
               "generated_bytes": len(fragment), "sha256": digest,
               "complete_firmware": False,
+              "independently_encoded_startup_bytes": TEXT_LENGTH,
+              "independently_encoded_plt_instruction_bytes": (PLT_LENGTH - 20) if args.with_plt else 0,
+              "linker_layout_fill_bytes": (PLT_START - TEXT_LENGTH + 20) if args.with_plt else 0,
               "provenance": "independently assembled Hexagon source; no OEM instruction bytes embedded"}
     if args.manifest is not None:
         args.manifest.parent.mkdir(parents=True, exist_ok=True)
         args.manifest.write_text(json.dumps(report, sort_keys=True, indent=2) + "\n")
-    print(f"WLAN Hexagon startup: {len(fragment)} independently encoded bytes "
+    print(f"WLAN Hexagon partial executable: {len(fragment)} layout bytes "
           f"(file 0x{FILE_OFFSET:x}–0x{FILE_OFFSET + len(fragment):x}; "
           f"vaddr 0x{VADDR:x}–0x{VADDR+len(fragment):x})")
     if args.reference is not None:
