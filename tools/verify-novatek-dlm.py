@@ -167,6 +167,15 @@ def generated_fragments():
         fragments.append((start, name, b"".join(pack_record(generator(row, translated)) for row in range(rows))))
     fragments.extend((start, "gaussian-half-kernel", gaussian_kernel(sigma)[0]) for start, sigma in KERNEL_PROFILES)
     fragments.append((0x2e130, "controller-idle-mailboxes", struct.pack("<II", 0x12345678, 0x12345678)))
+    for descriptor_start, schedule_start in ((0x22a64, 0x24904), (0x26a64, 0x28904)):
+        # NDS32 consumer masks record+0x50 to 15 bits and indexes DLM
+        # as index*4+0x20000. Higher 16 bits are deliberately unclaimed.
+        offset = schedule_start - DLM_START
+        if offset < 0 or offset % 4 or offset//4 > 0x7fff:
+            raise ValueError("invalid DLM schedule link")
+        for record in range(17):
+            fragments.append((descriptor_start+0x50+record*0x8c,
+                             "wide-schedule-word-link",struct.pack("<H",offset//4)))
     fragments.sort()
     cursor = DLM_START
     for start, _, data in fragments:
@@ -259,11 +268,11 @@ def fragment_metadata(fragment):
 
 EXPECTED_COUNTS = {
     "source_layout_bytes": 35136, "prior_source_executable_bytes": 538,
-    "new_executable_bytes": 0, "source_dlm_data_bytes": 9260,
+    "new_executable_bytes": 0, "source_dlm_data_bytes": 9328,
     "external_metadata_bytes": 1024, "unknown_ilm_bytes": 108054,
-    "unknown_dlm_bytes": 40292, "derived_mirror_bytes": 2304,
+    "unknown_dlm_bytes": 40224, "derived_mirror_bytes": 2304,
     "mirror_from_source_bytes": 648, "mirror_from_external_bytes": 1656,
-    "independent_unique_bytes": 44934, "total_bytes": 196608,
+    "independent_unique_bytes": 45002, "total_bytes": 196608,
     "first_unknown_dlm": DLM_START, "crc_stored_fields_checked": 0,
 }
 

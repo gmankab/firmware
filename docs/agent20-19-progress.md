@@ -188,3 +188,42 @@ checkpoint 50 `b7ed4b587633b9b475a40f5a3ace5cc90db620ff`. No other agent's
 ILM source or generic signing/image builder is modified. The branch and
 portable patches must be replayed and tested by Integration Agent 01 on the
 real integrated base.
+
+## Checkpoint 03 — Consumer-proven packed schedule links
+
+An additional **68 independently generated DLM bytes** are reconstructed as
+34 two-byte schedule-index fields, one in each of 17 descriptor records per
+bank. These fields belong at record displacement `+0x50` in the two descriptor
+banks beginning at file `0x22a64` and `0x26a64`, with stride `0x8c`. The
+observed NDS32 decoder at runtime `0xc7ea–0xc87a` loads the descriptor word,
+masks `0x7fff`, multiplies by four and adds DLM SRAM base `0x20000`. The
+sources independently reconstruct the low halfword as
+`(schedule_file_offset - 0x22000)/4`, where the wide schedule bases are file
+`0x24904` and `0x28904` respectively. The two computed indices are `0x0a41`
+and `0x1a41`, matching all 34 slots of the original firmware.
+
+The **upper 16 bits** of the enclosing 32-bit records are deliberately NOT
+claimed as authored source, despite their regular appearance. Their meaning
+is not demonstrated by this consumer and they remain in the unknown DLM
+ledger. No entire vendor records or calibration tables are copied into source
+modules; each claimed fragment is exactly **two** bytes long. The semantic
+model rejects misaligned, out-of-DLM or out-of-field index values. Independent
+Python construction verifies exact disjoint extents and comparison against
+the SHA-256 pinned postmarketOS firmware.
+
+| Checkpoint 03 accounting | Bytes |
+|---|---:|
+| Independently authored DLM data | **9,328** |
+| Unresolved DLM | **40,224** |
+| Prior authored ILM | 538 |
+| Unique source-generated image bytes including envelope | **45,002** |
+| External metadata/vector scalars | 1,024 |
+| Unresolved ILM (separate agents) | 108,054 |
+| Dependent mirror, NOT unique source | 2,304 |
+| Total image | 196,608 |
+
+The first DLM hole remains `0x22000`. Checkpoint 03 contributes zero executable
+instructions. Building a full Nabu Novatek image still requires actual ILM,
+independently sourced calibration data, and a separate device-validation gate.
+This remains an older-base **portable contribution**, not a descendant of
+checkpoint 50. The owner of shared integration must replay these commits.

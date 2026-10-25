@@ -8,6 +8,7 @@
 #[path = "../devices/xiaomi_nabu/novatek_nds32.rs"] mod novatek_nds32;
 #[path = "../devices/xiaomi_nabu/novatek_dlm.rs"] mod novatek_dlm;
 #[path = "../devices/xiaomi_nabu/novatek_dlm_gaussian.rs"] mod novatek_dlm_gaussian;
+#[path = "../devices/xiaomi_nabu/novatek_dlm_schedule_links.rs"] mod novatek_dlm_schedule_links;
 #[path = "../devices/xiaomi_nabu/novatek_dlm_envelope.rs"] mod novatek_dlm_envelope;
 #[path = "../devices/xiaomi_nabu/novatek_dlm_provenance.rs"] mod novatek_dlm_provenance;
 
@@ -24,6 +25,7 @@ fn generated_fragments() -> Result<Vec<DataFragment>,String> {
         parts.push(DataFragment { name:"gaussian-half-kernel", file_start:kernel.file_start,
             bytes:kernel.bytes, evidence:kernel.evidence });
     }
+    parts.extend(novatek_dlm_schedule_links::fragments()?);
     parts.sort_by_key(|part|part.file_start);
     // Build the same ledger used in reports to reject gaps in classification
     // and overlapping or out-of-scope source claims before any output write.
@@ -150,14 +152,14 @@ mod integration_tests {
     fn every_generated_span_is_dlm_data_and_mirror_credit_is_not_duplicated() {
         let parts=generated_fragments().unwrap();
         let t=ledger(&parts).unwrap().totals;
-        assert_eq!(parts.len(),23);
-        assert_eq!(t.source_dlm_data_bytes,9260);
+        assert_eq!(parts.len(),57);
+        assert_eq!(t.source_dlm_data_bytes,9328);
         assert_eq!(t.mirror_from_source_bytes,648);
         assert_eq!(t.mirror_from_external_bytes,1656);
-        assert_eq!(t.unknown_dlm_bytes,40292);
-        assert_eq!(t.unknown_payload_bytes(),148346);
+        assert_eq!(t.unknown_dlm_bytes,40224);
+        assert_eq!(t.unknown_payload_bytes(),148278);
         assert_eq!(t.total_bytes(),196608);
-        assert_eq!(t.independent_bytes(),44934);
+        assert_eq!(t.independent_bytes(),45002);
         let r=report(&parts,false).unwrap();
         assert!(r.contains("\"mismatched_source_bytes\": null"));
         assert!(r.contains("\"reference_verified\": false"));
