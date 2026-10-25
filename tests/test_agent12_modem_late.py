@@ -15,6 +15,41 @@ spec.loader.exec_module(agent12)
 
 
 class ModemLateTests(unittest.TestCase):
+    def test_insert_controller_source_and_guarded_packet_reordering(self):
+        self.assertEqual((agent12.AUX_INSERT_CONTROLLER_START,
+                          agent12.AUX_INSERT_CONTROLLER_END),(0x447234,0x4472d0))
+        source=agent12.AUX_INSERT_CONTROLLER_SOURCE.read_text()
+        self.assertIn('memw(r3+#0)',source)
+        self.assertIn('dealloc_return',source)
+        self.assertNotIn('.word',source)
+        words=[0x7800c000]*39
+        first=(0x44723c-agent12.AUX_INSERT_CONTROLLER_START)//4
+        branch=(0x4472a4-agent12.AUX_INSERT_CONTROLLER_START)//4
+        lo=(0x4472b0-agent12.AUX_INSERT_CONTROLLER_START)//4
+        last=(0x4472c4-agent12.AUX_INSERT_CONTROLLER_START)//4
+        words[first]=0xa1ddd200
+        words[branch:branch+2]=[0x5cdf78fa,0xf204c310]
+        words[lo:lo+2]=[0x91854084,0xa190c528]
+        words[last]=0xa183c200
+        assembled=struct.pack('<39I',*words)
+        reordered=struct.unpack('<39I',agent12.restore_aux_insert_controller_packets(assembled))
+        self.assertEqual(reordered[first],0xa1dd5200)
+        self.assertEqual(reordered[branch:branch+2],(0xf2044310,0x5cdff8fa))
+        self.assertEqual(reordered[lo:lo+2],(0xa1904528,0x9185c084))
+        self.assertEqual(reordered[last],0xa1834200)
+        for idx,wrong,pattern in [
+            (first,0x7800c000,'instruction semantics'),
+            (first,0xa1dd5200,'packet marker'),
+            (branch,0x7800c000,'opcode classes'),
+            (lo+1,0x7800c000,'opcode classes'),
+            (last,0xa1834200,'packet marker')
+        ]:
+            bad=words.copy();bad[idx]=wrong
+            with self.assertRaisesRegex(ValueError,pattern):
+                agent12.restore_aux_insert_controller_packets(struct.pack('<39I',*bad))
+        with self.assertRaisesRegex(ValueError,'156 compiled source bytes'):
+            agent12.restore_aux_insert_controller_packets(assembled[:-4])
+
     def test_remove_controller_reorders_only_checked_hexagon_ops(self):
         self.assertEqual((agent12.AUX_REMOVE_CONTROLLER_START,
                           agent12.AUX_REMOVE_CONTROLLER_END),(0x4472d0,0x447324))

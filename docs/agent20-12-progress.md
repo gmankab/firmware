@@ -622,3 +622,25 @@ coverage increases to **4,256 bytes** across eight nonoverlapping intervals.
 The earlier insertion routine `[0x447100,0x4472d0)` (464 bytes) and the
 `framekey` session gap `[0x446ee8,0x447028)` (320 bytes) remain explicitly
 unclaimed. No new OEM signature or complete modem firmware was produced.
+
+## Checkpoint 24 — Controller list insertion and 532-byte contiguous registry block
+
+Added a **156-byte** Hexagon V60 controller-list insertion routine
+`[file 0x447234,0x4472d0)` (VMA `[0x1e401234,0x1e4012d0)`). It inserts
+new controller metadata into the linked registry, guards against an invalid
+backing pointer, initializes callbacks and updates the preceding controller
+list link. LLVM6 originally collapsed two source memory operations into
+single duplex words at the entry and exit. The independent source explicitly
+retains both full-width operations; `restore_aux_insert_controller_packets`
+validates register/ISA classes before recombining parse markers and correcting
+original predicate/store/load order. The normal 156-byte source output and
+checked transformations match the pinned modem `modem.mbn` byte for byte.
+
+The reconstructed registry block is now **532 contiguous source-generated
+bytes** `[file 0x447234,0x447448)`, after the separate prefix
+`[0x447028,0x447100)`. Total verified later-modem executable coverage rises
+to **4,412 bytes** in eight disjoint fragments. The remaining controller
+session insertion gap `[0x447100,0x447234)` is 308 bytes, with an LLVM6
+unsupported compact duplex at file `0x447218`. The other session gap
+`[0x446ee8,0x447028)` remains 320 bytes including `r3=framekey`.
+No complete OEM firmware or signing credentials are present.

@@ -44,6 +44,7 @@ AUX_DIAGNOSTIC_HELPERS_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi
 AUX_SESSION_PREFIX_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_aux_session_prefix.s"
 AUX_FIND_FREE_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_aux_find_free_entry.s"
 AUX_RESOLVE_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_aux_resolve_handle.s"
+AUX_INSERT_CONTROLLER_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_aux_insert_controller.s"
 AUX_REMOVE_CONTROLLER_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_aux_remove_controller.s"
 AUX_CALLBACK_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_aux_register_callback.s"
 AUX_FIND_CONTROLLER_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_aux_find_controller.s"
@@ -100,6 +101,8 @@ AUX_FIND_FREE_START = 0x447028
 AUX_FIND_FREE_END = 0x447078
 AUX_RESOLVE_START = 0x447078
 AUX_RESOLVE_END = 0x447100
+AUX_INSERT_CONTROLLER_START = 0x447234
+AUX_INSERT_CONTROLLER_END = 0x4472D0
 AUX_REMOVE_CONTROLLER_START = 0x4472D0
 AUX_REMOVE_CONTROLLER_END = 0x447324
 AUX_CALLBACK_START = 0x447324
@@ -585,6 +588,54 @@ def restore_aux_registration_new_value_packet(assembled: bytes) -> bytes:
     return struct.pack('<'+'I'*len(words),*words)
 
 
+def restore_aux_insert_controller_packets(assembled: bytes) -> bytes:
+    """Correct LLVM6 packet order for original source-encoded list insertion.
+
+    The source is written to keep two full-width memory instructions that
+    LLVM6 normally packs as shorter duplexes. Only source-assembled opcode
+    classes and packet parse bits are changed here; new-value compares are
+    kept producer-first, and one independent load/store pair retains original
+    instruction order. No bytes from the reference are read or imported.
+    """
+    if len(assembled)!=AUX_INSERT_CONTROLLER_END-AUX_INSERT_CONTROLLER_START:
+        raise ValueError("aux insertion requires 156 compiled source bytes")
+    words=list(struct.unpack('<39I',assembled))
+    for addr,opcode,expected_source in [
+        (0x44723c,0xa1,0xa1dd1200),
+        (0x4472c4,0xa1,0xa1830200),
+    ]:
+        # `expected_source` carries opcode/register/offset/format fields
+        # with parse markers masked. These are ISA operand constraints, not
+        # reference opcode words; full source encoding is still from LLVM.
+        i=(addr-AUX_INSERT_CONTROLLER_START)//4
+        x=words[i]
+        if x>>24!=opcode or (x&~MARKER_MASK)!=expected_source:
+            raise ValueError(f"aux insertion store instruction semantics changed at {addr:#x}")
+        if x&MARKER_MASK!=END_MARKER:
+            raise ValueError(f"aux insertion full-width store packet marker changed at {addr:#x}")
+        words[i]=(x&~MARKER_MASK)|CONTINUE_MARKER
+    # Comparison should precede its new-predicate back-edge, rather than
+    # LLVM6's equivalent legal reversed order within one packet.
+    i=(0x4472a4-AUX_INSERT_CONTROLLER_START)//4
+    branch,pred=words[i:i+2]
+    if (branch>>24,pred>>24)!=(0x5c,0xf2):
+        raise ValueError("aux insertion new-value compare/branch opcode classes changed")
+    if (branch&MARKER_MASK,pred&MARKER_MASK)!=(CONTINUE_MARKER,END_MARKER):
+        raise ValueError("aux insertion new-value compare/branch packet markers changed")
+    words[i:i+2]=[(pred&~MARKER_MASK)|CONTINUE_MARKER,
+                  (branch&~MARKER_MASK)|END_MARKER]
+    # Producer store precedes neighboring array read in the original packet.
+    i=(0x4472b0-AUX_INSERT_CONTROLLER_START)//4
+    array_load,tail_store=words[i:i+2]
+    if (array_load>>24,tail_store>>24)!=(0x91,0xa1):
+        raise ValueError("aux insertion list-store/load opcode classes changed")
+    if (array_load&MARKER_MASK,tail_store&MARKER_MASK)!=(CONTINUE_MARKER,END_MARKER):
+        raise ValueError("aux insertion list-store/load packet markers changed")
+    words[i:i+2]=[(tail_store&~MARKER_MASK)|CONTINUE_MARKER,
+                  (array_load&~MARKER_MASK)|END_MARKER]
+    return struct.pack('<39I',*words)
+
+
 def restore_aux_remove_controller_packets(assembled: bytes) -> bytes:
     """Preserve separate 32-bit store/restore instructions and producer order.
 
@@ -686,6 +737,9 @@ def output_fragments(llvm_mc: Path) -> dict[int, bytes]:
     aux_session_prefix=assemble(llvm_mc,AUX_SESSION_PREFIX_SOURCE)
     aux_find_free=assemble(llvm_mc,AUX_FIND_FREE_SOURCE)
     aux_resolve=assemble(llvm_mc,AUX_RESOLVE_SOURCE)
+    aux_insert_controller=restore_aux_insert_controller_packets(assemble(llvm_mc,AUX_INSERT_CONTROLLER_SOURCE))
+    if len(aux_insert_controller)!=AUX_INSERT_CONTROLLER_END-AUX_INSERT_CONTROLLER_START:
+        raise ValueError("aux insert-controller length mismatch")
     aux_remove_controller=restore_aux_remove_controller_packets(assemble(llvm_mc,AUX_REMOVE_CONTROLLER_SOURCE))
     if len(aux_remove_controller)!=AUX_REMOVE_CONTROLLER_END-AUX_REMOVE_CONTROLLER_START:
         raise ValueError("aux remove-controller length mismatch")
@@ -726,7 +780,7 @@ def output_fragments(llvm_mc: Path) -> dict[int, bytes]:
             AUX_GUARD_START: aux_guard+aux_stage+aux_mmio+aux_heap+aux_worker+aux_lookup,
             AUX_DISPATCH_START:aux_dispatch+aux_type+aux_notify+aux_entry+aux_validator+aux_runtime_init+aux_veneers+aux_registration+aux_diagnostic_helpers+aux_session_prefix,
             AUX_FIND_FREE_START:aux_find_free+aux_resolve,
-            AUX_REMOVE_CONTROLLER_START:aux_remove_controller+aux_callback+aux_find_controller+aux_release_registry}
+            AUX_INSERT_CONTROLLER_START:aux_insert_controller+aux_remove_controller+aux_callback+aux_find_controller+aux_release_registry}
 
 
 def executable_segments(reference: bytes) -> dict[int, tuple[int, int, int, int]]:
