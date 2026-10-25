@@ -47,6 +47,8 @@ FRAGMENTS = {
     'bounded-copy': (TOOLS / 'adsp-late-bounded-copy.S', 0x395C0, 0x3C),
     # Several disjoint small helpers after the large unreconstructed codec
     # buffer manager; no bytes from that manager are included in the output.
+    'global-pointer': (TOOLS / 'adsp-late-global-pointer.S', 0x3A7E0, 0x08),
+    'format-buffer-context': (TOOLS / 'adsp-late-format-buffer-context.S', 0x3A7F0, 0x7C),
     'status-nibbles': (TOOLS / 'adsp-late-hex-prefix.S', 0x3A86C, 0x60),
     'create-context': (TOOLS / 'adsp-late-create-context.S', 0x3A090, 0xFC),
     'release-session': (TOOLS / 'adsp-late-release-session.S', 0x3A18C, 0x88),

@@ -195,3 +195,25 @@ The vast majority of the large ADSP executable segments remains unknown.
 All 160 Rust and 141 Python tests, the release build, pinned-reference
 byte-compare and source-only assembler checks pass. Provisional old-base
 branch, not checkpoint 50 integrated.
+
+**Checkpoint 15 — contextual descriptor traversal and a controller-global accessor:**
+Source-assembled an 8-byte control-table pointer helper at `[file 0x3a7e0,0x3a7e8)`
+(SHA-256 `d0857940dd31103d52be479feb42a84ecbe355de9155b4e1c183677ab17fa53d`)
+and a 124-byte codec-buffer context traversal routine at
+`[file 0x3a7f0,0x3a86c)` (SHA-256
+`ccf7d38f4190bd77aea761db977518dd7170de7f0fbcd0a56a30cffc64ca8684`).
+The latter scans controller descriptors, creates missing buffer handles,
+links callback state and logs mismatches. Exact packet reproduction required
+placing an `immext` with both a register load and memory-store packet, grouping
+an `r20` update with its `.new` dependent store, and grouping a platform
+call with its subsequent argument computation. All semantic instructions
+assemble independently with LLVM6, then match the private pinned `adsp.mbn`
+byte-for-byte; original OEM opcode bytes are never included in generator
+source. The 124-byte routine connects directly to the previously rebuilt
+96-byte nibble-status formatter, making **220 contiguous source-authored code
+bytes `[file 0x3a7f0,0x3a8cc)`**. The 8-byte alignment gap at
+`[0x3a7e8,0x3a7f0)` consists of NOPs and is not counted.
+Total Agent 20-08: **2,288 independently source-assembled executable bytes
+across 28 disjoint fragments**; verified zero mismatches, 160 Rust tests,
+143 Python tests and release build. Checkpoint-50-based integration is not yet
+established; this remains the provisional Agent04-descended branch.
