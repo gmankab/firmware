@@ -774,3 +774,32 @@ OEM payload bytes are copied into compiled fragments.
 All 160 Rust tests passed; Python discovered 112 tests with 90 executed
 and passed, 22 skipped for optional external capabilities. The release build
 passed. The next complete function begins at file `0x103110`.
+
+## Checkpoint 15 — status frame command and duplex mini-packets
+
+The complete 692-byte Hexagon function `[0x103110,0x1033c4)` (runtime
+`[0xb00c3110,0xb00c33c4)`) parses a counted response, tests the record
+signature and subtype, checks frame boundaries and dispatches an appropriate
+status/diagnostic command. It ends in the original explicit extended
+`jump ##1975360` to a shared return/error handler. The observed register
+and memory dataflow supports these descriptions, not recovered high-level C
+function names or on-device behavior.
+
+Two three-word packets at local offsets `0x4c` and `0x14c` rely on the Hexagon
+duplex selection. LLVM's default shuffler selects a different legal
+three-word grouping, even with identical source instructions. Two short
+source-authored assembly fixtures express the intended operations using
+three legal mini-packets (ordinary/ordinary/duplex). The builder verifies
+packet parse kinds `11/11/00` and transforms only the first two packet-ending
+markers into continuation kinds (`01/01/00`); **no raw OEM instruction words,
+`.word` overrides or vendor byte arrays** are inserted. The resulting typed
+instruction stream is byte-for-byte identical to the pinned reference and
+independently agrees under LLVM 22/V66 and LLVM 6/V65.
+
+The verified adjacent executable code total is **12,800 bytes** over
+`[0x1001c4,0x1033c4)`. The 496-byte separate source-derived dispatch tables
+remain unchanged: total **13,296 independently source-derived bytes**, of
+which none are padding or external payload bytes. In-scope leading gap
+`[0x100000,0x1001c4)` remains 452 bytes and depends on Agent 13's crossing
+function. The next uncovered file offset is `0x1033c4`. Full firmware and
+hardware operation are not established.

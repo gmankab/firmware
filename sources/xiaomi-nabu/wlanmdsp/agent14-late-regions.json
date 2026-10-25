@@ -519,6 +519,26 @@
       "sha256": "4501722c33d77c0b336d4366209cf4e025437b8c36be9ab91838cfd4abdc7857",
       "checkpoint": 14,
       "classification": "executable"
+    },
+    {
+      "name": "controller-frame-command",
+      "file_start": 1061136,
+      "file_end": 1061828,
+      "source": "sources/xiaomi-nabu/wlanmdsp/agent14-late-controller-frame-command.S",
+      "symbol": "agent14_late_controller_frame_command",
+      "sha256": "c7f29969e7cb8aab6fe8c3166be1644eec5c3653d784de61ae23c90229dc5a91",
+      "checkpoint": 15,
+      "classification": "executable",
+      "packet_joins": [
+        {
+          "offset": 76,
+          "fixture": "sources/xiaomi-nabu/wlanmdsp/agent14-late-controller-frame-duplex-a.S"
+        },
+        {
+          "offset": 332,
+          "fixture": "sources/xiaomi-nabu/wlanmdsp/agent14-late-controller-frame-duplex-b.S"
+        }
+      ]
     }
   ]
 }
