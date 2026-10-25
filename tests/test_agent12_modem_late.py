@@ -15,6 +15,30 @@ spec.loader.exec_module(agent12)
 
 
 class ModemLateTests(unittest.TestCase):
+    def test_aux_runtime_predicate_and_store_rewrites_fail_closed(self):
+        words=[0x7800c000]*93
+        first=(0x446a84-agent12.AUX_RUNTIME_INIT_START)//4
+        second=(0x446ab8-agent12.AUX_RUNTIME_INIT_START)//4
+        tail=(0x446b4c-agent12.AUX_RUNTIME_INIT_START)//4
+        words[first:first+2]=[0x5c0058a4,0x7e00e032]
+        words[second:second+2]=[0x10406188,0x7800c012]
+        words[tail:tail+3]=[0x91934000,0x01e4467c,0x4800d228]
+        packed=struct.pack('<93I',*words)
+        rewritten=struct.unpack('<93I',agent12.restore_aux_runtime_init_packets(packed))
+        self.assertEqual([x>>24 for x in rewritten[first:first+2]],[0x7e,0x5c])
+        self.assertEqual([x>>24 for x in rewritten[second:second+2]],[0x78,0x10])
+        self.assertEqual([x>>24 for x in rewritten[tail:tail+3]],[0x01,0x48,0x91])
+        self.assertEqual([x&agent12.MARKER_MASK for x in rewritten[tail:tail+3]],
+                         [agent12.CONTINUE_MARKER,agent12.CONTINUE_MARKER,agent12.END_MARKER])
+        bad=words.copy();bad[first]=0x78004000
+        with self.assertRaisesRegex(ValueError,'opcode classes'):
+            agent12.restore_aux_runtime_init_packets(struct.pack('<93I',*bad))
+        bad=words.copy();bad[tail+1]=0x01e4c67c
+        with self.assertRaisesRegex(ValueError,'packet markers'):
+            agent12.restore_aux_runtime_init_packets(struct.pack('<93I',*bad))
+        with self.assertRaisesRegex(ValueError,'372 source bytes'):
+            agent12.restore_aux_runtime_init_packets(bytes(368))
+
     def test_aux_validator_predicate_packet_guard(self):
         words=[0x7800c000]*153
         i=(0x4468f0-agent12.AUX_VALIDATOR_START)//4
@@ -98,6 +122,9 @@ class ModemLateTests(unittest.TestCase):
         self.assertEqual((agent12.AUX_VALIDATOR_START,agent12.AUX_VALIDATOR_END),
                          (0x446804,0x446A68))
         self.assertEqual(agent12.AUX_ENTRY_END,agent12.AUX_VALIDATOR_START)
+        self.assertEqual((agent12.AUX_RUNTIME_INIT_START,agent12.AUX_RUNTIME_INIT_END),
+                         (0x446A68,0x446BDC))
+        self.assertEqual(agent12.AUX_VALIDATOR_END,agent12.AUX_RUNTIME_INIT_START)
 
     def test_atomic_packet_reorder_checks_opcode_class_and_parse_bits(self):
         words = [0x7800C000] * 16  # synthetic A2_tfrsi instruction for surrounding words

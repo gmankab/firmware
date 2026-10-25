@@ -469,3 +469,28 @@ source-assembled bytes**; cumulative Agent 12 coverage is **2,512 bytes**
 across the same six disjoint executable regions as checkpoint 15. The next
 function starts at original modem file offset `0x446a68`. This is partial
 firmware only, not a new OEM-signed modem image.
+
+## Checkpoint 17: auxiliary controller runtime initialization
+
+Reconstructed another **372 source-assembled Hexagon V60 executable bytes**
+in modem file `[0x446a68,0x446bdc)` (VMA `[0x1e400a68,0x1e400bdc)`,
+physical `[0x90000a68,0x90000bdc)`). The routine allocates a controller
+context, initializes MMIO/global fields and callback defaults, validates
+state, registers resources and returns through original `dealloc_return`.
+Its final 8 bytes are two explicit Hexagon NOP instructions, not OEM
+padding reused as an opaque reference slice.
+
+LLVM6 schedules two new-value compare/branch packets in reverse producer
+order and one MMIO write after an independent register load; the checked
+`restore_aux_runtime_init_packets` conversion verifies opcode classes,
+correct parse-marker fields and exact length, then restores the original
+producer-first legal packet encoding. Synthetic tests reject altered classes,
+markers and length. The produced fragment compares byte-identically with
+original pinned modem firmware, **zero mismatch bytes**.
+
+The auxiliary callback/validation/initialization interval
+`[0x446650,0x446bdc)` now contains **1,420 contiguous source-assembled
+bytes**, and total independently generated later-modem coverage is **2,884
+bytes across six disjoint executable spans**. The next unclaimed instruction at file `0x446bdc` is the third alignment
+NOP, followed by a standalone helper at `0x446be0`. Whole modem
+executable and OEM authentication remain unimplemented.

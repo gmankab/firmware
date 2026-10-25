@@ -37,6 +37,7 @@ AUX_TYPE_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_la
 AUX_NOTIFY_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_aux_controller_notify.s"
 AUX_ENTRY_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_aux_entry.s"
 AUX_VALIDATOR_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_aux_input_validator.s"
+AUX_RUNTIME_INIT_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_aux_runtime_init.s"
 ATOMIC_START = 0x7C000
 ATOMIC_END = 0x7C040
 SERVICE_START = 0x7C2EC
@@ -75,6 +76,8 @@ AUX_ENTRY_START = 0x4467F0
 AUX_ENTRY_END = 0x446804
 AUX_VALIDATOR_START = 0x446804
 AUX_VALIDATOR_END = 0x446A68
+AUX_RUNTIME_INIT_START = 0x446A68
+AUX_RUNTIME_INIT_END = 0x446BDC
 MARKER_MASK = 3 << 14
 CONTINUE_MARKER = 1 << 14
 END_MARKER = 3 << 14
@@ -457,6 +460,39 @@ def restore_aux_validator_predicate_packets(assembled: bytes) -> bytes:
     return struct.pack('<'+'I'*len(words),*words)
 
 
+def restore_aux_runtime_init_packets(assembled: bytes) -> bytes:
+    """Preserve producer-first packets and one late controller-state store.
+
+    LLVM6 schedules two single-register parameter producers after their
+    predicated uses. It also places an independent memory load before the
+    accompanying 32-bit absolute-address write. Validate the original
+    SOURCE-assembled operation classes and packet markers, then reorder
+    them to the target compiler's legal Hexagon V60 packet order. Each
+    rewrite manipulates only assembled instructions and 2-bit parse fields.
+    """
+    if len(assembled) != AUX_RUNTIME_INIT_END - AUX_RUNTIME_INIT_START:
+        raise ValueError("aux runtime initializer requires 372 source bytes")
+    words=list(struct.unpack('<'+'I'*(len(assembled)//4),assembled))
+    for off,branch_class,param_class in [(0x1c,0x5c,0x7e),(0x50,0x10,0x78)]:
+        i=off//4
+        branch,parameter=words[i:i+2]
+        if (branch>>24,parameter>>24)!=(branch_class,param_class):
+            raise ValueError("aux runtime predicate opcode classes changed")
+        if (branch&MARKER_MASK,parameter&MARKER_MASK)!=(CONTINUE_MARKER,END_MARKER):
+            raise ValueError("aux runtime predicate packet markers changed")
+        words[i]=(parameter&~MARKER_MASK)|CONTINUE_MARKER
+        words[i+1]=(branch&~MARKER_MASK)|END_MARKER
+    i=0xe4//4
+    early_load,extender,write=words[i:i+3]
+    if (early_load>>24,extender>>24,write>>24)!=(0x91,0x01,0x48):
+        raise ValueError("aux runtime MMIO packet opcode classes changed")
+    if (early_load&MARKER_MASK,extender&MARKER_MASK,write&MARKER_MASK)!=       (CONTINUE_MARKER,CONTINUE_MARKER,END_MARKER):
+        raise ValueError("aux runtime MMIO packet markers changed")
+    words[i:i+3]=[extender,(write&~MARKER_MASK)|CONTINUE_MARKER,
+                  (early_load&~MARKER_MASK)|END_MARKER]
+    return struct.pack('<'+'I'*len(words),*words)
+
+
 def assemble(llvm_mc: Path, source: Path) -> bytes:
     with tempfile.TemporaryDirectory(prefix="nabu-modem-late-") as tmp:
         obj = Path(tmp) / "late.o"
@@ -488,6 +524,7 @@ def output_fragments(llvm_mc: Path) -> dict[int, bytes]:
     aux_notify = restore_aux_controller_notify_packets(assemble(llvm_mc,AUX_NOTIFY_SOURCE))
     aux_entry = assemble(llvm_mc,AUX_ENTRY_SOURCE)
     aux_validator = restore_aux_validator_predicate_packets(assemble(llvm_mc,AUX_VALIDATOR_SOURCE))
+    aux_runtime_init = restore_aux_runtime_init_packets(assemble(llvm_mc,AUX_RUNTIME_INIT_SOURCE))
     if len(aux_entry)!=AUX_ENTRY_END-AUX_ENTRY_START:
         raise ValueError("auxiliary entry veneer must compile to 20 bytes")
     if len(aux_dispatch) != AUX_DISPATCH_END-AUX_DISPATCH_START:
@@ -507,7 +544,7 @@ def output_fragments(llvm_mc: Path) -> dict[int, bytes]:
     return {ATOMIC_START: atomic + controller, SERVICE_START: service+service_mmio+service_flags+service_alloc,
             AUX_START: auxiliary, AUX_INIT_START: aux_init,
             AUX_GUARD_START: aux_guard+aux_stage+aux_mmio+aux_heap+aux_worker+aux_lookup,
-            AUX_DISPATCH_START:aux_dispatch+aux_type+aux_notify+aux_entry+aux_validator}
+            AUX_DISPATCH_START:aux_dispatch+aux_type+aux_notify+aux_entry+aux_validator+aux_runtime_init}
 
 
 def executable_segments(reference: bytes) -> dict[int, tuple[int, int, int, int]]:
