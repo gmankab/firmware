@@ -180,3 +180,11 @@ Original reference: private `map220v-nabu-firmware/venus.mbn`, SHA-256 `9d4af65d
 - Reconstructed typed A32 covers frame and codec IRQ queue allocation, hardware MMIO transactions, record count and timeout reporting, and conditional callback registration. Data literals remain separated from executable code.
 - Independent Clang/LLD linked mnemonic reassembly matches the complete fragment: **5,967 instructions and 463 data words in 106 literal pools**, zero byte differences. Three external BLX relocations raise linker symbol-type interworking warnings but do not affect exact output.
 - Rust 194 tests, Python 13 tests and release build pass. Next uncovered function begins at `0x280f0`.
+
+## Checkpoint 25 — codec DMA input planes and descriptor-registry helpers
+
+- Contiguous typed A32 runtime `[0x21c78,0x28568)` = **26,864 byte-identical bytes**, original MBN `[0x25c78,0x2c568)`.
+- Newly reconstructed `[0x280f0,0x28568)` = **1,144 bytes**, **262 A32 instructions** and **24 independent data words** in four pools: plane reset `[0x28290,0x282b0)`, DMA bindings `[0x28450,0x28478)`, queue-channel map `[0x28510,0x28520)`, and register diagnostics `[0x28560,0x28568)`.
+- Includes controller plane descriptors, codec DMA queues, platform callback registration and bounded channel reporting, with literal tables separated from actual executable A32 instructions.
+- Full Clang/LLVM mnemonic reassembly independently matches **6,229 instructions and 487 non-instruction data words** across **110 literal pools**. Three external BLX linker warnings remain harmless for byte identity, not a hardware semantics claim.
+- All 194 Rust tests, 13 Python tests and release build pass; next executable routine begins at `0x28568`.
