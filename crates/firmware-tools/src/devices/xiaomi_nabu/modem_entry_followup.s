@@ -1437,3 +1437,231 @@ MODEM_SYS_WRITE 18,0
 
 .globl agent11_modem_exception_capture_control_regs
 agent11_modem_exception_capture_control_regs:
+
+// Source-level Hexagon Y2_getimask reads the selected irq mask register.
+// Valid destination/source GPRs and the packet parse field are mandatory.
+.macro MODEM_GET_IRQ_MASK destination,selector,marker=3
+    .if (\destination < 0) || (\destination > 31) || (\selector < 0) || (\selector > 31)
+        .error "invalid Hexagon IRQ-mask operand"
+    .endif
+    .word (0x66000000 | (\selector << 16) | (\marker << 14) | \destination)
+.endm
+
+// Copy selected PMU, counter, special-register and interrupt mask fields
+// into the host snapshot. Hexagon loop/controller regs use checked ISA reads.
+.globl agent11_modem_capture_processor_state
+agent11_modem_capture_processor_state:
+{
+    r19 = p3:0
+    r18 = r28
+    allocframe(#8)
+}
+{ memd(sp+#0) = r19:18 }
+MODEM_SYS_READ 18,53
+MODEM_SYS_READ 19,17
+{ memd(r0+#0) = r19:18 }
+MODEM_CONTROL_PAIR_READ 18,30 // UTIMER
+{ memd(r0+#8) = r19:18 }
+MODEM_SYS_READ 18,16 // EVB
+MODEM_SYS_READ 19,28 // DIAG
+{ memd(r0+#16) = r19:18 }
+MODEM_SYS_READ 18,20
+MODEM_SYS_READ 19,20
+{ memd(r0+#24) = r19:18 }
+MODEM_SYS_READ 18,29 // REV
+MODEM_SYS_READ 19,0  // SGP0
+{
+    r18 = r1
+    r19 = #0
+    memd(r0+#40) = r19:18
+}
+{
+    r1 = #0
+    memd(r0+#64) = r19:18
+}
+MODEM_GET_IRQ_MASK 28,1
+{
+    r1 = #1
+    memw(r0+#48) = r28
+}
+MODEM_GET_IRQ_MASK 28,1
+{
+    r1 = #2
+    memw(r0+#52) = r28
+}
+MODEM_GET_IRQ_MASK 28,1
+{
+    r1 = #3
+    memw(r0+#56) = r28
+}
+MODEM_GET_IRQ_MASK 28,1
+{
+    r19:18 = memd(sp+#0)
+    memw(r0+#60) = r28
+}
+MODEM_SYS_READ 28,63
+{ memw(r0+#68) = r28 }
+MODEM_SYS_READ 28,60
+{ memw(r0+#72) = r28 }
+MODEM_SYS_READ 28,35
+{ memw(r0+#88) = r28 }
+{
+    p3:0 = r19
+    r28 = r18
+    dealloc_return
+}
+
+// Invalidate caches while synchronizing the controller's protected SYSCFG
+// word. The L2 global operations are Y2 architecture instructions with no
+// operands; they are kept as named operations in the original packet order.
+.globl agent11_modem_exception_reconcile_caches
+agent11_modem_exception_reconcile_caches:
+MODEM_SYS_READ 0,18 // SYSCFG
+{ r1 = memw(r23+##-0x3f4c9adc) }
+{ r0 = insert(r1,#3,#16) }
+MODEM_SYS_WRITE 18,0
+{ isync }
+// Hexagon Y2 L2 global unlock/clean are operand-free control operations.
+// LLVM6 does not accept their mnemonics, so emit checked architecture fields.
+.macro MODEM_L2G_UNLOCK marker=3
+    .if (\marker < 0) || (\marker > 3)
+        .error "invalid packet marker on L2 global unlock"
+    .endif
+    .word (0xa8200800 | (\marker << 14))
+.endm
+.macro MODEM_L2G_CLEAN marker=3
+    .if (\marker < 0) || (\marker > 3)
+        .error "invalid packet marker on L2 global clean"
+    .endif
+    .word (0xa8201000 | (\marker << 14))
+.endm
+MODEM_L2G_UNLOCK
+MODEM_L2G_CLEAN
+modem_exception_sync_wait:
+MODEM_SYS_READ 0,18
+{
+    p0 = tstbit(r0,#31)
+    if (p0.new) jump:t modem_exception_sync_wait
+}
+{ jumpr lr }
+
+// Copy physical controller words into the synchronized host-side table, one
+// word per hardware-loop iteration. The physical load macro rejects invalid
+// architectural operands rather than importing undocumented opcode bytes.
+.globl agent11_modem_exception_phys_copy
+agent11_modem_exception_phys_copy:
+MODEM_SYS_READ 23,54
+{
+    r1 = memw(r23+##-0x3e527d38)
+    r3 = memw(r23+##-0x3e535d20)
+}
+{
+    p0 = cmp.gt(r3,#32)
+    if (!p0.new) jump:nt modem_exception_phys_copy_done
+}
+{
+    r1 = add(r1,r23)
+    r0 = memw(r23+##-0x3f78dcbc)
+}
+{
+    r2 = lsr(r3,#2)
+    p0 = cmp.eq(r0,#0)
+    if (p0.new) jump:nt modem_exception_phys_copy_done
+}
+{
+    loop0(modem_exception_phys_copy_next,r2)
+    r2 = #11
+}
+modem_exception_phys_copy_next:
+{ r4 = lsr(r0,r2) }
+MODEM_PHY_WORD_LOAD 5,0,4
+{
+    r0 = add(r0,#4)
+    memw(r1++#4) = r5
+}:endloop0
+modem_exception_phys_copy_done:
+{ jumpr lr }
+
+// Drain the second exception-controller cache entry and perform a protected
+// D-cache clean/invalidate. This is a separate callable helper.
+.globl agent11_modem_exception_status_cache
+agent11_modem_exception_status_cache:
+MODEM_SYS_READ 23,54
+{ r22 = add(r23,##-0x3f788288) }
+{ r22 = memw(r22+#0) }
+{ r23 = add(r22,##-0x3f78fa00) }
+{
+    r22 = #4
+    memw(r23+#0) = r22.new
+}
+{ dccleana(r23) }
+{ dcinva(r23) }
+{ jumpr lr }
+
+// The original exception handler dispatches two controller cleanup routes
+// and then stops the core. Stop is privileged Hexagon Y4_stop(Rs), not NOP.
+.macro MODEM_STOP_PROCESS general, marker=3
+    .if (\general < 0) || (\general > 31)
+        .error "invalid Hexagon stop process operand"
+    .endif
+    .word (0x64600000 | (\general << 16) | (\marker << 14))
+.endm
+
+.globl agent11_modem_exception_mode_two_route
+agent11_modem_exception_mode_two_route:
+{ call agent11_modem_exception_phys_copy }
+{ call agent11_modem_exception_status_cache }
+{ r0 = #0 }
+{ jump modem_exception_stop_loop }
+.globl agent11_modem_exception_mode_other_route
+agent11_modem_exception_mode_other_route:
+{ call agent11_modem_exception_phys_copy }
+{ call agent11_modem_exception_reconcile_caches }
+{ call agent11_modem_exception_status_cache }
+{ r0 = #0 }
+{ jump modem_exception_stop_loop }
+.globl agent11_modem_exception_stop_loop
+modem_exception_stop_loop:
+agent11_modem_exception_stop_loop:
+MODEM_STOP_PROCESS 0
+{ jump modem_exception_stop_loop }
+
+// Snapshot all indexed TLB entries before flushing the controller's caches.
+// A 192-entry table is transferred into host memory using an architecture
+// Y2_tlbr pair, then each written cache line is explicitly cleaned.
+.globl agent11_modem_exception_snapshot_tlb
+agent11_modem_exception_snapshot_tlb:
+MODEM_SYS_READ 23,54
+{
+    r0 = #192
+    r1 = add(r23,##-0x3f790000)
+}
+{ r4 = lsr(r0,#2) }
+{
+    loop0(modem_exception_tlb_snapshot_next,r0)
+    r0 = #0
+}
+modem_exception_tlb_snapshot_next:
+MODEM_TLB_READ 2,0
+{
+    r0 = add(r0,#1)
+    memd(r1++#8) = r3:2
+}:endloop0
+{ r1 = add(r23,##-0x3f790000) }
+{ loop0(modem_exception_tlb_clean_next,r4) }
+modem_exception_tlb_clean_next:
+{
+    r1 = add(r1,#32)
+    dccleana(r1)
+}:endloop0
+{ jumpr lr }
+
+// The first duplex operation of the next routine lies just before the
+// executable PT_LOAD's file boundary. Do not cross file 0x5020: the next
+// mapped RWE segment begins at file 0xa000, independently of this code.
+.globl agent11_modem_next_duplex_entry
+agent11_modem_next_duplex_entry:
+{
+    r0 = memw(r20+#0)
+    r20 = memh(r6+#0)
+}

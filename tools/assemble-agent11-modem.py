@@ -211,6 +211,21 @@ def restore_original_legal_hexagon_packet_order(code: bytes) -> bytes:
         decrement11=(decrement11&~marker)|(1<<14)
         branch11=(branch11&~marker)|(3<<14)
         struct.pack_into('<II',out,rel11,decrement11,branch11)
+    # The physical controller copy has a compact new-predicate check on R3
+    # and its forward branch. LLVM6 places branch before predicate; retain
+    # the source packet's predicate-first form after architecture checks.
+    rel12=0x4f4c-FILE_START
+    if len(out)>=rel12+8:
+        branch12,compare12=struct.unpack_from('<II',out,rel12)
+        if ((branch12&0xff000000)!=0x5c000000 or
+            (branch12&marker)!=(1<<14) or
+            (compare12&0xff000000)!=0x75000000 or
+            ((compare12>>16)&31)!=3 or
+            (compare12&marker)!=(3<<14)):
+            raise ValueError('unexpected Hexagon exception physical-copy branch packet at 0x4f4c')
+        compare12=(compare12&~marker)|(1<<14)
+        branch12=(branch12&~marker)|(3<<14)
+        struct.pack_into('<II',out,rel12,compare12,branch12)
     return bytes(out)
 
 

@@ -33,7 +33,7 @@ class ModemAgent11Tests(unittest.TestCase):
         if not llvm: self.skipTest("set AGENT11_LLVM_MC for external tool verification")
         source=SCRIPT.parent.parent/"crates/firmware-tools/src/devices/xiaomi_nabu/modem_entry_followup.s"
         data=module.assemble(Path(llvm),source)
-        self.assertEqual(len(data),3588)
+        self.assertEqual(len(data),4040)
         # Structural assertion checks the two adjacent word loads are in
         # one duplex slot and the final instruction is a packet-ending return.
         words=[int.from_bytes(data[n:n+4],"little") for n in range(0,len(data),4)]
@@ -97,7 +97,7 @@ class ModemAgent11Tests(unittest.TestCase):
         self.assertEqual(words[(0x4acc-module.FILE_START)//4]&0xc000,0xc000)
         # The exception state transition requires the original R24/P3:0 and
         # control-register operands, followed by exactly 14 NOP packets.
-        assert len(data) == 0x4e5c-module.FILE_START
+        assert len(data) == 0x5020-module.FILE_START
         for offset,sys,reg in [(0x4ae8,52,24),(0x4af8,47,29)]:
             code=words[(offset-module.FILE_START)//4]
             self.assertEqual(code & ~(0x7f<<16 | 0x1f),0x6e80c000)
@@ -135,6 +135,18 @@ class ModemAgent11Tests(unittest.TestCase):
         # A numerical LLVM target would encode the wrong PC-relative branch.
         # The monitor address is reconstructed from an explicit packet base.
         self.assertEqual(w(0x4e50)&0xc000,0x4000) # call extender continues
+        self.assertEqual(w(0x4f4c)&0xc000,0x4000) # predicate first
+        self.assertEqual(w(0x4f50)&0xc000,0xc000) # branch last
+        # The special control L2 global operations have no runtime operands.
+        self.assertEqual(w(0x4f20), 0xa8200800 | (3<<14))
+        self.assertEqual(w(0x4f24), 0xa8201000 | (3<<14))
+        self.assertEqual(w(0x4fd4), 0x64600000 | (3<<14)) # stop(r0)
+        # The final TLB read is a source-encoded architectural instruction.
+        self.assertEqual(w(0x4ff8), 0x6c400000 | (3<<14) | 2)
+        self.assertEqual(w(0x5018), 0x52800000 | 31<<16 | (3<<14))
+        # One final duplex instruction is file-backed; do not include the
+        # following RWE segment or zero-fill at the 0x5020 file boundary.
+        self.assertEqual(w(0x501c)&0xc000,0)
 
 
 if __name__=='__main__':unittest.main()
