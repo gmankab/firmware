@@ -61,3 +61,11 @@ python3 tools/agent20_06_a32_roundtrip.py /private/venus.mbn 0xa8ea0 0xa92c8 \
   --data-range 0xa9034:0xa9038 --data-range 0xa90d8:0xa90dc \
   --data-range 0xa911c:0xa9120
 ```
+
+## Checkpoint 05 — indexed codec map and packed hardware fields
+
+- Total Venus tail byte-identical runtime `[0xa8000,0xa9578)` = **5,496 bytes**, original MBN file `[0xac000,0xad578)`.
+- Added `[0xa92c8,0xa9578)` = 688 bytes consisting of **171 ARM32 instructions (684 bytes)** and **one global-pointer data word** (`0xa9514`, value `0x0010dd64`).
+- Controller mapping calculates bit-packed codec indices and three register fields from 84-byte per-slot structures; short resolver functions publish allocated slot pointers and a hardware fallback.
+- The Rust emitter and independent Clang/LLVM assembly both match the private `venus.mbn` exactly, with no copied instruction opcode words in the source. The verifier was updated to normalize ARM's `BLO` (carry clear) branch alias, ensuring the independently assembled branch at `0xa9504` is checked correctly.
+- Next uncovered ARM runtime address `0xa9578` (MBN file offset `0xad578`), a new `push`-framed function.
