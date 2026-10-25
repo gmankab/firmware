@@ -91,3 +91,11 @@ git diff --check
 - New **contiguous** source-derived fragment `[0x40a2c,0x45000)` = **17,876 byte-identical bytes**, of which **4,443 ARM32 instructions (17,772 bytes)** and 26 literal-data words (104 bytes). No OEM executable words, unknown gaps or original-file payload arrays are imported into source. The bytes before runtime `0x40a2c` remain unknown in this agent's reservation.
 - Testing: normal offline workspace Rust and Python suites pass. The default optimized release compile exceeded this execution session's per-command time limit; `CARGO_PROFILE_RELEASE_OPT_LEVEL=0 cargo build --workspace --release --offline --locked` succeeds. Do **not** claim default optimized release compilation passed at this checkpoint.
 - Next uncovered runtime `0x45000`, file offset `0x49000`. Agent 04 still owns through `0x68000` exclusively.
+
+## Checkpoint 09 — codec command-mode and register capability fields
+
+- New typed region `[0x45000,0x45800)` = **2,048 bytes**: 511 executable A32 instructions (2,044 bytes) and one independently classified 4-byte inline data word `0xfe0f83e0` at runtime address `0x4509c`. Its predecessor branches explicitly skip the word; blindly interpreting the word as `CDP2` would be incorrect.
+- Clang/LLVM independently reassembled the two code intervals `[0x45000,0x4509c)` and `[0x450a0,0x45800)`. Their 511 instructions and the separately compared literal word match both the typed Rust emitter and original `venus.mbn` with zero differences.
+- Contiguous generated Venus region `[0x40a2c,0x45800)` now comprises **19,924 byte-identical bytes**: **4,954 A32 instructions (19,816 bytes) plus 27 non-executable literal words (108 bytes)**. The enclosing controller format routine still has branches beyond `0x45800`, and this is **partial-function** coverage.
+- Repository tests passed, including offline Rust/Python. The release profile built successfully with `CARGO_PROFILE_RELEASE_OPT_LEVEL=0`; do not imply a default optimized release build completed. No proprietary raw executable bytes are embedded in any source module.
+- Next runtime address is `0x45800` (MBN file `0x49800`); Agent 04's upper reservation boundary remains `0x68000`.
