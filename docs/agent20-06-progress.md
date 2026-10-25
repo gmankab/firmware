@@ -219,3 +219,11 @@ python3 tools/agent20_06_a32_roundtrip.py /private/venus.mbn 0xa8ea0 0xa92c8 \
 - New checked A32 `transfer_word_register_offset` supports **negative** shifted-register offsets without writeback. Unit tests validate exact architectural opcodes and reject unsafe PC operands; byte transfer reuses existing signed-index checked encoder. Shared encoder change committed separately for integration review.
 - Direct typed Rust bytes match reference exactly. Clang/LLVM independently reassembles 1,288 instruction bytes and 20 data bytes (`--data-range 0xb0c50:0xb0c64`) with no differences. Regression test checks the five diagnostic literal words.
 - Next uncovered VMA `0xb0c64`, MBN file `0xb4c64`, a short guarded codec helper. Work remains provisional from older Agent 03, not checkpoint-50 merge; is byte-identical instruction encoding, not independent high-level source reconstruction or OEM-authenticated image.
+
+## Checkpoint 24 — guarded plane sizes, codec descriptors, stream line accounting
+
+- Total contiguous byte-identical ARM runtime `[0xa8000,0xb11b4)` = **37,300 bytes**, MBN original `[0xac000,0xb51b4)`.
+- New interval `[0xb0c64,0xb11b4)` = 1,360 bytes: **331 typed ARM32 instructions (1,324 bytes)** and 9 non-instruction data words (36 bytes) at `[0xb0d00,0xb0d0c)`, `[0xb0f40,0xb0f50)`, `[0xb11ac,0xb11b4)`.
+- Functions verify codec plane-length limits, correct out-of-range counts with hardware diagnostics, update buffer-command checksums and dispatch callbacks. A conditional `STRH [R7],#2` is encoded using an existing checked halfword-postindex architecture helper; the retained after-return error branch is not discarded.
+- Direct generated Rust comparison and independent Clang/LLVM round-trip of all 1,360 bytes give **zero mismatches**. Rust regression covers all three new diagnostic data pools.
+- Next missing VMA `0xb11b4` (MBN file `0xb51b4`). Still a provisional old-branch instruction-byte re-encoding, not a fully recovered high-level source, not OEM signed.
