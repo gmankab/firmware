@@ -13,6 +13,13 @@
     .endif
     .word (0x67000000 | (\general << 16) | (\marker << 14) | \system)
 .endm
+.macro HEX_PHYSICAL_WORD_LOAD dst, address, offset_reg, marker=3
+    // Y2_memw_phys: 10010010000sssssPP1ttttt---ddddd.
+    .if (\dst < 0) || (\dst > 31) || (\address < 0) || (\address > 31) || (\offset_reg < 0) || (\offset_reg > 31)
+        .error "Hexagon physical-register operands out of range"
+    .endif
+    .word (0x92002000 | (\address << 16) | (\marker << 14) | (\offset_reg << 8) | \dst)
+.endm
 .globl modem_boot_dispatch
 modem_boot_dispatch:
 .set modem_ready_handler, modem_boot_dispatch+0x5c4
@@ -230,3 +237,39 @@ HEX_SYSTEM_READ 0,18
 { r0 = setbit(r0,#1) }
 HEX_SYSTEM_WRITE 18,0
 { isync }
+// Poll controller readiness and collect two physical architecture-control
+// registers. Each result is shifted and stored into the early boot vectors.
+.set modem_boot_is_ready, modem_boot_dispatch+0x274
+.set modem_boot_spin, modem_boot_dispatch+0x270
+{
+ r0 = memw(r25+##-1065353148)
+ if (cmp.eq(r0.new,#0)) jump:t modem_boot_is_ready
+}
+modem_boot_spin:
+{ jump modem_boot_spin }
+modem_boot_is_ready:
+.set modem_boot_helper, modem_boot_dispatch+0x94c
+{
+ call modem_boot_helper
+ r0 = #13
+}
+HEX_SYSTEM_READ 1,27
+{
+ r1 = asl(r1,#5)
+ r0 = ##12
+}
+HEX_PHYSICAL_WORD_LOAD 2,0,1
+{
+ r2 = asl(r2,#16)
+ memw(r25+##-1064935424) = r2.new
+}
+HEX_SYSTEM_READ 1,27
+{
+ r1 = asl(r1,#5)
+ r0 = ##16
+}
+HEX_PHYSICAL_WORD_LOAD 2,0,1
+{
+ r2 = asl(r2,#16)
+ memw(r25+##-1064935420) = r2.new
+}
