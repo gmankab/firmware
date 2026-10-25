@@ -29,6 +29,9 @@ pub const SHARED_CLEAR_FLAGS_END:usize=0x5532c;
 pub const FLAG_CLEAR_PREFIX_LEN:usize=SHARED_CLEAR_FLAGS_END-FILE_OFFSET;
 pub const ENABLE_AND_WAIT_END:usize=0x5539c;
 pub const ENABLE_AND_WAIT_LEN:usize=ENABLE_AND_WAIT_END-FILE_OFFSET;
+pub const FEATURE_SPIN_END:usize=0x55408;
+pub const FEATURE_SPIN_LEN:usize=FEATURE_SPIN_END-FILE_OFFSET;
+
 
 /// Checked Hexagon `memw(Rbase + #offset) = ##value` with an immediate extender.
 /// Only the small verified 32-bit, word-aligned addressing form is admitted;
@@ -399,6 +402,70 @@ pub fn build_controller_through_wait_handoff()->Result<Vec<u8>,String>{
     Ok(out)
 }
 
+/// A short Hexagon new-value predicate comparison followed by a backwards
+/// conditional branch. Validated independently by LLVM6 and Rizin V66.
+/// Only even backwards branches within one signed 8-bit halfword field are
+/// accepted; no raw instruction operands are imported from OEM firmware.
+pub fn encode_wait_if_mask_not_set(left:GeneralRegister,right:GeneralRegister,
+                                   displacement_bytes:i16)->Result<u32,String>{
+    if displacement_bytes>=0 || displacement_bytes< -32 || displacement_bytes%2!=0{
+        return Err("Hexagon predicate loop displacement must be even and in [-32,-2]".into());
+    }
+    Ok(0x1470_e000|(u32::from(left.number())<<16)
+        |(u32::from(right.number())<<8)
+        |((i32::from(displacement_bytes)/2) as u32&0xff))
+}
+
+/// Update the controller cache and set one validated feature bit in the
+/// selected MMIO register. Instructions share packets according to V66 parse
+/// markers as independently emitted by LLVM6, not reconstructed by copying
+/// original instruction words.
+pub fn build_cache_invalidate_bit_set(mmio_addr:u32,mask:u8)->Result<Vec<u8>,String>{
+    if ![0x0830_020c,0x0830_0200].contains(&mmio_addr) || mask!=1{
+        return Err("CDSP cache feature setter admits only MMIO offsets 0x20c and 0x200, bit 0".into());
+    }
+    let r=|n|GeneralRegister::new(n);
+    let mut out=Vec::with_capacity(0x30);
+    for word in cdsp_boot::encode_extended_assignment(r(0)?,mmio_addr as i32,true){push_word(&mut out,word);}
+    push_word(&mut out,PacketMarker::ContinuationA.apply(
+        ScalarPacket::AssignRegister{dst:r(7)?,src:r(0)?}.encode()?));
+    push_word(&mut out,encode_halfword_literal(r(5)?,true,0));
+    push_word(&mut out,PacketMarker::ContinuationA.apply(encode_halfword_literal(r(5)?,false,mask)));
+    push_word(&mut out,0xa020_c000|(u32::from(r(7)?.number())<<16)); // dcinva(R7)
+    // R6=sub(-1,R5) and the following load form one two-word packet.
+    push_word(&mut out,PacketMarker::ContinuationA.apply(encode_not_via_sub_neg1(r(6)?,r(5)?)));
+    push_word(&mut out,encode_word_load_immediate(r(4)?,r(0)?,0)?);
+    // AND, OR and store are each independently terminated packet slots.
+    push_word(&mut out,encode_register_logic(RegisterLogic::And,r(4)?,r(4)?,r(6)?));
+    push_word(&mut out,encode_register_logic(RegisterLogic::Or,r(4)?,r(4)?,r(5)?));
+    push_word(&mut out,encode_word_store_register(r(0)?,r(4)?));
+    push_word(&mut out,0xa800_c000); // barrier
+    if out.len()!=0x30 {return Err("CDSP MMIO bit setter should contain 48 bytes".into());}
+    Ok(out)
+}
+
+/// Check the controller's asserted bitmask and set bits in two MMIO registers
+/// after cache invalidation before continuing to final control registers.
+pub fn build_feature_spin_and_cache_updates()->Result<Vec<u8>,String>{
+    let r=|n|GeneralRegister::new(n);
+    let mut out=build_controller_through_wait_handoff()?;
+    push_word(&mut out,encode_word_load_immediate(r(1)?,r(4)?,0)?);
+    push_word(&mut out,encode_register_logic(RegisterLogic::And,r(3)?,r(1)?,r(2)?));
+    push_word(&mut out,encode_wait_if_mask_not_set(r(2)?,r(3)?,-0x18)?);
+    for addr in [0x0830_020c,0x0830_0200]{out.extend(build_cache_invalidate_bit_set(addr,1)?);}
+    if out.len()!=FEATURE_SPIN_LEN{return Err("CDSP feature-spin and cache MMIO prefix length mismatch".into());}
+    Ok(out)
+}
+
+pub fn verify_feature_spin_and_cache_updates(reference:&[u8])->Result<(),String>{
+    cdsp_boot::validate_reference(reference)?;
+    let actual=build_feature_spin_and_cache_updates()?;
+    if reference.get(FILE_OFFSET..FILE_OFFSET+actual.len())!=Some(actual.as_slice()){
+        return Err("CDSP feature-spin plus cache update differs from reference".into());
+    }
+    Ok(())
+}
+
 pub fn verify_controller_through_wait_handoff(reference:&[u8])->Result<(),String>{
     cdsp_boot::validate_reference(reference)?;
     let out=build_controller_through_wait_handoff()?;
@@ -444,6 +511,21 @@ mod tests {
         assert_eq!(read(0x55394),0x6a49_c40d); // R13=add(PC,#8)
         assert_eq!(read(0x55398),0x59ff_fe50); // jump to physical 0x96cc7038
     }
+    #[test]
+    fn cache_feature_spin_uses_checked_packet_and_branch_fields(){
+        let r=|n|GeneralRegister::new(n).unwrap();
+        assert_eq!(encode_wait_if_mask_not_set(r(2),r(3),-0x18).unwrap(),0x1472_e3f4);
+        assert!(encode_wait_if_mask_not_set(r(2),r(3),0).is_err());
+        assert!(encode_wait_if_mask_not_set(r(2),r(3),-35).is_err());
+        assert!(build_cache_invalidate_bit_set(0x0830_0210,1).is_err());
+        assert!(build_cache_invalidate_bit_set(0x0830_0200,8).is_err());
+        let all=build_feature_spin_and_cache_updates().unwrap();
+        assert_eq!(all.len(),FEATURE_SPIN_LEN);
+        assert_eq!(&all[0x39c..0x3a8],&[0x01,0xc0,0x84,0x91,
+                     0x03,0xc2,0x01,0xf1,0xf4,0xe3,0x72,0x14]);
+        assert_eq!(FILE_OFFSET+FEATURE_SPIN_LEN,FEATURE_SPIN_END);
+    }
+
     #[test]
     fn reset_and_clear_mmio_source_encoding_is_bounded(){
         let r=|n|GeneralRegister::new(n).unwrap();

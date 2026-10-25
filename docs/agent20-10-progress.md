@@ -69,3 +69,11 @@ Agent 20-10 owns only new `cdsp_late_*` sources, its verification tool, focused 
 - `tools/verify-agent20-10-cdsp-handoff.py` independently assembles all 112 bytes with LLVM6 and decodes 28 words with Rizin V66; direct reference comparison reports zero differing bytes.
 - The remaining short `R E` segment is file `[0x5539c,0x554b0)` = 276 bytes. The previous `R E` region `[0x3b000,0x5475c)` is non-executable metadata despite flag `R E`; not counted.
 - The checkpoint remains a **provisional preparation branch** based on Agent 05 `a02618f…`, not the absent checkpoint-50 integrated base. `git -c commit.gpgsign=false` uses author and committer identity `Codex <codex@openai.com>`; there is no new OEM signature.
+
+## Checkpoint 07 — feature-spin and two cache-invalidate bit sets, 1,032 bytes
+
+- Independently encoded CDSP controller text `[0x55000,0x55408)` = **1,032 bytes** matching the exact original image, VMA `[0xc00c7000,0xc00c7408)` and physical `[0x96cc7000,0x96cc7408)`.
+- New **108-byte** interval `[0x5539c,0x55408)`: read controller bitmask from R4, test `R2 & R1`, conditional P0 `.new` backwards branch to physical `0x96cc738c`, then set feature mask `1` after `dcinva(R7)` in MMIO `0x0830020c` and `0x08300200`. Each 48-byte MMIO sequence is constructed from hardware addresses and named operations, with strict address/mask input validation.
+- Packet-marker bit grouping is critical: `sub(-1,R5)` and the following `memw` load share a two-word packet; separate AND, OR and MMIO store instructions each terminate their own packets. This was verified against **independent LLVM6 assembly of all 108 bytes** and checked by Rizin V66 decoding all 27 four-byte instruction words.
+- The next missing bytes are `[0x55408,0x554b0)` (168 bytes remaining in this executable `PT_LOAD`).
+- Test and release build status: all offline workspace Rust and Python tests and release build pass. This remains a provisional Agent-05-descended branch, not checkpoint-50 Git ancestry, and not an authenticated/flashable CDSP image.
