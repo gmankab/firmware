@@ -1198,3 +1198,113 @@ modem_reserved_vector_6: { jump modem_reserved_vector_6 }
 .globl agent11_modem_exception_handler_entry
 modem_exception_handler_entry:
 agent11_modem_exception_handler_entry:
+
+// Preserve a full nested Hexagon interrupt context in the controller's
+// per-hardware-thread stack. All control-register transfer encodings follow
+// the public Y2 special-register and C0 control-pair architecture fields.
+.macro MODEM_CONTROL_PAIR_READ general_low, control_low, marker=3
+    .if (\general_low < 0) || (\general_low > 30) || ((\general_low & 1) != 0)
+        .error "invalid even general register pair"
+    .endif
+    .if (\control_low < 0) || (\control_low > 30) || ((\control_low & 1) != 0)
+        .error "invalid even control register pair"
+    .endif
+    .word (0x68000000 | (\control_low << 16) | (\marker << 14) | \general_low)
+.endm
+
+.globl agent11_modem_exception_handler_snapshot
+agent11_modem_exception_handler_snapshot:
+MODEM_SYS_READ 23,8   // HTID
+{ r23 = asl(r23,#2) }
+{ r23 = asl(r23,#18) }
+{ r23.l = #4352 }
+{ r23 |= lsr(r23,#16) }
+{ r23.h = #49287 }
+MODEM_SYS_READ 22,54
+{ r23 = add(r23,r22) }
+{
+    r23 = add(r22,##-1064891264)
+    memd(r23+#0) = r1:0
+}
+MODEM_SYS_READ 22,8,1
+{
+    r1 = add(r23,#104)
+}
+{
+    r1 += mpyi(r22,#224)
+    jump modem_exception_stack_switched
+}
+modem_exception_stack_switched:
+{
+    r1 = r29
+    r29 = r1
+}
+MODEM_SYS_READ 23,8
+{ r23 = asl(r23,#2) }
+{ r23 = asl(r23,#18) }
+{ r23.l = #4352 }
+{ r23 |= lsr(r23,#16) }
+{ r23.h = #49287 }
+MODEM_SYS_READ 22,54
+{
+    r23 = add(r23,r22)
+    memd(r29+#8) = r3:2
+}
+{ r3:2 = memd(r23+#0) }
+{
+    r2 = r28
+    memd(r29+#0) = r3:2
+    memd(r29+#88) = r23:22
+}
+{
+    r3 = r1
+    memd(r29+#96) = r25:24
+    memd(r29+#104) = r27:26
+}
+{ memd(r29+#112) = r3:2 }
+{
+    r2 = p3:0
+    memd(r29+#120) = r31:30
+    memd(r29+#72) = r19:18
+}
+{
+    r3 = usr
+    memd(r29+#64) = r17:16
+    memd(r29+#56) = r15:14
+}
+{
+    r2 = gp
+    memd(r29+#48) = r13:12
+    memd(r29+#168) = r3:2
+}
+{
+    r3 = ugp
+    memd(r29+#40) = r11:10
+    memd(r29+#32) = r9:8
+}
+MODEM_CONTROL_PAIR_READ 2,0,1  // LC0:SA0
+{
+    memd(r29+#24) = r7:6
+    memd(r29+#136) = r3:2
+}
+MODEM_CONTROL_PAIR_READ 2,2,1  // LC1:SA1
+{
+    memd(r29+#16) = r5:4
+    memd(r29+#144) = r3:2
+}
+MODEM_CONTROL_PAIR_READ 2,6,1  // M1:0
+{ memd(r29+#152) = r3:2 }
+{ memd(r29+#160) = r3:2 }
+MODEM_CONTROL_PAIR_READ 2,12 // CS1:0
+MODEM_SYS_READ 2,7,1  // CCR
+{ memd(r29+#184) = r3:2 }
+MODEM_SYS_READ 3,6,1  // SSR
+{ memw(r29+#192) = r2 }
+MODEM_SYS_READ 2,3     // ELR
+MODEM_SYS_READ 2,9,1   // BADVA
+{ memd(r29+#128) = r3:2 }
+MODEM_SYS_READ 3,2    // STID
+{
+    memd(r29+#176) = r3:2
+    memd(r29+#80) = r21:20
+}
