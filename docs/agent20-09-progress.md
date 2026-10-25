@@ -37,3 +37,11 @@
 - `tools/verify-agent20-09-physcopy.py` confirms all 19 V66 instruction words via Rizin, and independently LLVM6-assembles variable shift and post-increment store exactly. `MEMW_PHYS` cannot be assembled by LLVM6 and is correctly labeled decoder-correlated only. No original OEM instruction opcodes are stored in the Git source.
 - Full 388-byte regenerated interval matches SHA-256-pinned original `cdsp.mbn` with **zero byte mismatches**; note `0x4364` starts the next separate controller function.
 - The shared module registration remains limited to adding three dedicated Agent 09 modules; the generic `cdsp_boot.rs` and previous Agent 05 code remain unchanged to reduce merge conflicts.
+
+## Checkpoint 05 — controller physical-memory comparison loop
+
+- The complete contiguous code span is `[file 0x41e0,0x43f4)` = **532 independently generated and reference-exact executable bytes**, physical `[0x96c011e0,0x96c013f4)`, ELF virtual `[0xfe0011e0,0xfe0013f4)`.
+- Added function `[0x4364,0x43f4)` (144 bytes, 36 Hexagon instruction words): bounded physical-memory word comparison, retry counter, expected vs mapped physical memory, and error-ring records using a hardware loop.
+- Hexagon duplex paired immediate assignments, compressed paired adds, and extended assignment + register add are assembled from checked operands. Original packet-end marker appears on the NOP just before final duplex ADD. Independent LLVM6 confirms exact duplex encodings and Rizin V66 decodes all 36 instructions. **Privileged MEMW_PHYS remains Rizin-only corroboration** because LLVM6 does not assemble it.
+- No external OEM instruction bytes copied into Git or declared regenerated; strict output comparison against the pinned `cdsp.mbn` returns zero mismatches.
+- Next distinct routine begins at file offset `0x43f4` (physical `0x96c013f4`). The rest of first executable `PT_LOAD` through `0x3ab34` remains largely unimplemented.
