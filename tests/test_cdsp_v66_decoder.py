@@ -20,5 +20,7 @@ class CdspV66DecoderTests(unittest.TestCase):
         self.assertEqual(len(cdsp.EXPECTED_MNEMONICS), 17)
         self.assertEqual(len(cdsp.SYS_CFG_RESET_MNEMONICS), 11)
         self.assertEqual(cdsp.PROFILES["syscfg-reset"][1], 0x3d40)
+        self.assertEqual(len(cdsp.SYS_CFG_DISABLE_MNEMONICS), 5)
+        self.assertEqual(cdsp.PROFILES["syscfg-disable"][1], 0x3d80)
 
 if __name__=='__main__':unittest.main()

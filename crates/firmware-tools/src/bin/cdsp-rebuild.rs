@@ -26,6 +26,20 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
                 privileged::FUNCTION_SIZE, privileged::FILE_OFFSET,
                 privileged::FILE_OFFSET + privileged::FUNCTION_SIZE);
         }
+        [action, output] if action == "emit-syscfg-disable" => {
+            let bytes = privileged::build_syscfg_disable()?;
+            fs::write(output, bytes)?;
+            println!("Emitted {} separately reconstructed CDSP SYSCFG-disable bytes, file {:#x}..{:#x}.",
+                privileged::DISABLE_SIZE,privileged::DISABLE_OFFSET,
+                privileged::DISABLE_OFFSET+privileged::DISABLE_SIZE);
+        }
+        [action, original] if action == "verify-syscfg-disable" => {
+            let image=fs::read(original)?;
+            privileged::verify_syscfg_disable(&image)?;
+            println!("Verified {} disjoint CDSP SYSCFG-disable function bytes at file {:#x}..{:#x}.",
+                privileged::DISABLE_SIZE,privileged::DISABLE_OFFSET,
+                privileged::DISABLE_OFFSET+privileged::DISABLE_SIZE);
+        }
         [action, output] if action == "emit-init-prefix" => {
             let bytes = cdsp::build_init_prefix()?;
             fs::write(output, bytes)?;
@@ -51,7 +65,7 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
                 cdsp::HEXAGON_ELF_MACHINE, cdsp::CDSP_ELF_FLAGS, cdsp::ENTRY_PHYS,
                 cdsp::START_FILE_OFFSET, cdsp::ENTRY_ELF_VADDR, cdsp::ENTRY_PHYS, cdsp::FIRST_EXECUTABLE_SIZE);
         }
-        _ => return Err("Usage: cargo run -p firmware-tools --bin cdsp-rebuild -- [inspect REFERENCE | verify-entry REFERENCE | emit-entry OUTPUT | verify-init-prefix REFERENCE | emit-init-prefix OUTPUT | emit-syscfg-reset OUTPUT | verify-syscfg-reset REFERENCE]".into()),
+        _ => return Err("Usage: cargo run -p firmware-tools --bin cdsp-rebuild -- [inspect REFERENCE | verify-entry REFERENCE | emit-entry OUTPUT | verify-init-prefix REFERENCE | emit-init-prefix OUTPUT | emit-syscfg-reset OUTPUT | verify-syscfg-reset REFERENCE | emit-syscfg-disable OUTPUT | verify-syscfg-disable REFERENCE]".into()),
     }
     Ok(())
 }

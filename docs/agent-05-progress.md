@@ -93,3 +93,25 @@ python3 tools/verify-cdsp-v66-init.py --profile syscfg-reset \
 ```
 
 **Reconstructed original executable bytes so far: 112 total in two disjoint fragments** (68 and 44); **contiguous reconstructed prefix: 68 bytes only**. Do not sum these as a continuous firmware interval or claim that CDSP can boot. Earlier shared-base problem persists: agent branch descends from `69ebf0d`, not the requested checkpoint 50.
+
+## Checkpoint 04 — clear CDSP supervisor enable bit
+
+A third **disjoint 20-byte function** at file offset `0x3d80–0x3d94`,
+physical addresses `0x96c00d80–0x96c00d94`, reads `SYSCFG`, clears bit
+zero, writes it back, performs `isync` and `jumpr LR`. The code uses the same
+typed checked Hexagon constructors as checkpoint 03. Rizin decodes all five
+instructions via `--profile syscfg-disable`; the private original is compared
+byte-for-byte, and the unimplemented 20-byte interval `[0x3d6c,0x3d80)`
+is not silently filled.
+
+The verified CDSP code is **132 bytes in three nonadjacent fragments**
+(68 entry, 44 reset, 20 disable). Contiguous entry remains 68 bytes.
+Checkpoint 50 Git object remains unavailable; all commits are based on
+`69ebf0d`, requiring explicit integration on `b7ed4b5`.
+
+```sh
+cargo run --offline --locked -p firmware-tools --bin cdsp-rebuild -- emit-syscfg-disable /tmp/cdsp-syscfg-disable.bin
+cargo run --offline --locked -p firmware-tools --bin cdsp-rebuild -- verify-syscfg-disable /private/cdsp.mbn
+python3 tools/verify-cdsp-v66-init.py --profile syscfg-disable --rz-asm /path/to/rz-asm \
+  --rust-output /tmp/cdsp-syscfg-disable.bin --reference /private/cdsp.mbn
+```

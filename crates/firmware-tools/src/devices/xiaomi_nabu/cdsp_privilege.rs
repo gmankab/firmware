@@ -52,8 +52,50 @@ pub fn verify_syscfg_reset(reference: &[u8]) -> Result<(), String> {
     Ok(())
 }
 
+/// A second, standalone 20-byte function clears the SYSCFG low bit,
+/// synchronizes the instruction pipeline and returns to the caller. It is
+/// disjoint from the earlier 44-byte reset routine by 20 unreconstructed
+/// executable bytes; no bytes are silently filled.
+pub const DISABLE_OFFSET: usize = 0x3d80;
+pub const DISABLE_PHYSICAL_ADDRESS: u32 = 0x96c0_0d80;
+pub const DISABLE_SIZE: usize = 5 * 4;
+pub fn build_syscfg_disable() -> Result<Vec<u8>, String> {
+    let r15 = Gpr::new(15)?;
+    let lr = Gpr::new(31)?;
+    let program = [
+        Hexagon::ReadSyscfg { dst: r15 },
+        Hexagon::ClearBit { dst: r15, src: r15, position: 0 },
+        Hexagon::WriteSystem { system: SystemRegister::Syscfg, src: r15 },
+        Hexagon::Isync,
+        Hexagon::JumpRegister { source: lr },
+    ];
+    let mut output = Vec::with_capacity(DISABLE_SIZE);
+    for instruction in program { output.extend_from_slice(&instruction.encode()?.to_le_bytes()); }
+    if output.len() != DISABLE_SIZE { return Err("CDSP SYSCFG disable size mismatch".into()); }
+    Ok(output)
+}
+
+pub fn verify_syscfg_disable(reference: &[u8]) -> Result<(), String> {
+    cdsp_boot::validate_reference(reference)?;
+    let generated=build_syscfg_disable()?;
+    let found=reference.get(DISABLE_OFFSET..DISABLE_OFFSET+DISABLE_SIZE)
+        .ok_or("CDSP reference missing syscfg-disable function")?;
+    if let Some((i,(a,b)))=found.iter().zip(&generated).enumerate().find(|(_,(a,b))|a!=b) {
+        return Err(format!("CDSP SYSCFG disable byte differs at file {:#x}: {a:02x} != {b:02x}",DISABLE_OFFSET+i));
+    }
+    Ok(())
+}
+
 #[cfg(test)] mod tests {
     use super::*;
+    #[test] fn syscfg_disable_has_correct_size_and_singleton_packet_markers() {
+        let result=build_syscfg_disable().unwrap();
+        assert_eq!(result.len(), DISABLE_SIZE);
+        assert_eq!(DISABLE_PHYSICAL_ADDRESS,0x96c0_0000+0xd80);
+        for chunk in result.chunks_exact(4) {
+            assert_eq!(u32::from_le_bytes(chunk.try_into().unwrap())&0xc000,0xc000);
+        }
+    }
     #[test] fn syscfg_reset_fragment_has_exact_function_boundaries() {
         let code=build_syscfg_reset().unwrap();
         assert_eq!(code.len(),FUNCTION_SIZE);

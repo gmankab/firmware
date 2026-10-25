@@ -27,9 +27,14 @@ SYS_CFG_RESET_MNEMONICS = (
     "isync", "ickill", "isync", "r15 = or(r15,##0x3)",
     "syscfg = r15", "isync", "lr = sub(lr,r25)", "jumpr lr",
 )
+SYS_CFG_DISABLE_MNEMONICS = (
+    "r15 = syscfg", "r15 = clrbit(r15,#0x0)", "syscfg = r15",
+    "isync", "jumpr lr",
+)
 PROFILES = {
     "init": (PHYSICAL_ADDRESS, FILE_OFFSET, EXPECTED_MNEMONICS),
     "syscfg-reset": (0x96c00d40, 0x3d40, SYS_CFG_RESET_MNEMONICS),
+    "syscfg-disable": (0x96c00d80, 0x3d80, SYS_CFG_DISABLE_MNEMONICS),
 }
 
 
