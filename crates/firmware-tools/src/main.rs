@@ -286,6 +286,17 @@ fn run() -> Result<(), Box<dyn Error>> {
         println!("Generated 40-byte WMFW metadata header (NOT DSP firmware)");
         return Ok(());
     }
+    if args.len() == 3 && args[0] == "assemble-wmfw-with-compact-y" {
+        let output=firmware_tools::wmfw_compact_y::assemble_directory(std::path::Path::new(&args[1]))?;
+        fs::write(&args[2],output)?;
+        println!("Repacked exact WMFW: 3984 independently generated metadata bytes, 5748 reference-verified zeros, 24504 external DSP bytes. NOT independent HALO code.");
+        return Ok(());
+    }
+    if args.len() == 3 && args[0] == "extract-wmfw-compact-y-inputs" {
+        firmware_tools::wmfw_compact_y::extract_inputs(&fs::read(&args[1])?,std::path::Path::new(&args[2]))?;
+        println!("Extracted nine private external inputs (24504 bytes); 5748 reference-verified zeros are regenerated separately.");
+        return Ok(());
+    }
     if args.len() == 3 && args[0] == "assemble-wmfw-with-sparse-y" {
         let out=firmware_tools::wmfw_sparse_ym::assemble_directory(std::path::Path::new(&args[1]))?;
         fs::write(&args[2],out)?;

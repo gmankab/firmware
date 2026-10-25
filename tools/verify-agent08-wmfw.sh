@@ -45,6 +45,22 @@ sha256sum "$work/repacked-sparse.wmfw"
 [ "$(find "$work/sparse-y-external" -type f | wc -l)" -eq 8 ]
 [ "$(wc -c < "$work/repacked-sparse.wmfw")" -eq 34236 ]
 
+# More compact Y representation, with two source-confirmed zero intervals.
+cargo run --offline --locked -q -p firmware-tools -- extract-wmfw-compact-y-inputs "$ref" "$work/compact-y-external"
+cargo run --offline --locked -q -p firmware-tools -- assemble-wmfw-with-compact-y "$work/compact-y-external" "$work/repacked-compact-y.wmfw"
+cmp "$ref" "$work/repacked-compact-y.wmfw"
+sha256sum "$work/repacked-compact-y.wmfw"
+[ "$(find "$work/compact-y-external" -type f | wc -l)" -eq 9 ]
+[ "$(find "$work/compact-y-external" -type f -printf '%s\n' | awk '{s+=$1} END {print s}')" -eq 24504 ]
+
+# Reject a compact Y-memory input corrupted after extraction.
+printf '\001' | dd of="$work/compact-y-external/region-0f90-middle.bin" bs=1 seek=0 conv=notrunc status=none
+if cargo run --offline --locked -q -p firmware-tools -- assemble-wmfw-with-compact-y "$work/compact-y-external" "$work/should-fail-compact.wmfw" >/dev/null 2>&1; then
+    echo 'ERROR: altered compact-Y external payload was accepted' >&2
+    exit 1
+fi
+test ! -e "$work/should-fail-compact.wmfw"
+
 # Reject a payload corrupted after extraction, without overwriting reference.
 printf '\001' | dd of="$work/sparse-y-external/region-0f90-prefix.bin" bs=1 seek=0 conv=notrunc status=none
 if cargo run --offline --locked -q -p firmware-tools -- assemble-wmfw-with-sparse-y "$work/sparse-y-external" "$work/should-fail.wmfw" >/dev/null 2>&1; then
@@ -55,4 +71,5 @@ test ! -e "$work/should-fail.wmfw"
 git diff --check
 printf '\nAgent08 exact reference REPACK verified. Independent 3984 metadata bytes; 30252 externally supplied proprietary DSP bytes.\n'
 printf 'Sparse repack: 5445 reference-verified zero bytes emitted, 24807 proprietary external bytes required.\n'
+printf 'Compact repack: 5748 reference-verified zero bytes emitted, 24504 proprietary external bytes required.\n'
 printf 'HALO source reconstruction is not complete, regardless of byte-identical repack.\n'

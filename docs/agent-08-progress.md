@@ -220,3 +220,32 @@ cmp "$REF" "$PRIVATE/rebuilt.wmfw"
 
 `tools/verify-agent08-wmfw.sh` now checks both the original seven-input and
 new sparse eight-input repackers and tests altered sparse source rejection.
+
+## Checkpoint 08-14 — two checked packed-Y zero ranges
+
+In addition to the large `223..2038` zero run, the exact original Y-memory
+payload contains 101 all-zero 24-bit words at DSP indices `15..116` (303
+serialized bytes). The optional `wmfw_compact_y.rs` builder models both
+ranges explicitly. Its WMFW output consists of **3,984** source-derived WMFW
+metadata bytes, **5,748 reference-confirmed zero bytes** (no raw bytes
+copied), and **24,504 SHA-256-verified external DSP bytes** in nine private
+source files. The full 34,236-byte output has the exact original SHA-256.
+The original seven-region and single-run eight-file builders remain available.
+
+The two Y zero runs are an input-compaction technique learned by inspecting
+the proprietary reference, **not independently reverse-engineered DSP
+instructions or proof of original source code**. The program-memory block
+still has all 20,280 bytes externally supplied. Source-independent code
+coverage remains **zero**, and conservative source-derived WMFW metadata
+remains **3,984 bytes**, separate from the reference-confirmed zero runs.
+
+```sh
+cargo run --offline --locked -p firmware-tools -- \
+  extract-wmfw-compact-y-inputs "$REF" "$PRIVATE/compact-y"
+cargo run --offline --locked -p firmware-tools -- \
+  assemble-wmfw-with-compact-y "$PRIVATE/compact-y" "$PRIVATE/compact-rebuilt.wmfw"
+cmp "$REF" "$PRIVATE/compact-rebuilt.wmfw"
+```
+
+`tools/verify-agent08-wmfw.sh` checks all three workflows and deliberately
+corrupts an external compact Y part to confirm SHA-256 enforcement.

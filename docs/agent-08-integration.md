@@ -98,3 +98,13 @@ This zero interval was identified by comparing against the original and is
 coverage remains 3,984 bytes. Run `extract-wmfw-sparse-y-inputs` and
 `assemble-wmfw-with-sparse-y` for the reduced external input path. The full
 SHA-256 and each external fragment hash must match the pinned reference.
+
+
+## Checkpoint 08-14 — optional two-run packed-Y compaction
+
+The compact-Y builder (`wmfw_compact_y.rs`) preserves the earlier seven-whole
+and eight-sparse-input APIs, but adds an optional nine-input packaging mode:
+3,984 independent metadata bytes, 5,748 reference-confirmed zero bytes, and
+24,504 externally supplied DSP bytes. The zero-run positions were inferred
+from the exact reference and are not HALO source recovery. The audit script
+exercises all three modes, including deliberate source-corruption rejection.
