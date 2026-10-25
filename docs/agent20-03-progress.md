@@ -210,3 +210,10 @@ Original reference: private `map220v-nabu-firmware/venus.mbn`, SHA-256 `9d4af65d
 - New `[0x28c2c,0x290a4)` = **1,144 bytes**, **267 typed ARM32 instructions** plus **19 classified hardware/data words** in pools `[0x28e7c,0x28e9c)`, `[0x28fd4,0x28ff0)` and `[0x29094,0x290a4)`. Three adjacent routines release host/codec channels, clear stale buffer control flags and report completion.
 - Full independent LLVM/Clang mnemonic rebuild matches **6,913 instructions and 522 data words across 114 literal pools**, zero byte differences. Nine linker non-STT_FUNC external `BLX` target warnings do not affect equality.
 - Rust 194 tests, Python 13 tests and release build pass; next missing codec routine begins at runtime `0x290a4`.
+
+## Checkpoint 29 — codec callback release and MMIO reset
+
+- Continuous source-generated `[0x21c78,0x2929c)` = **30,244 byte-identical bytes**, reference MBN file `[0x25c78,0x2d29c)`.
+- New `[0x290a4,0x2929c)` = **504 bytes**, **115 typed A32 instructions** and **11 named MMIO/diagnostic data words** in pools `[0x291d4,0x291f0)` and `[0x2928c,0x2929c)`. Includes controller and output-channel release handlers with queue-state rechecks.
+- Full Clang/LLVM independent mnemonic linked reconstruction matches **7,028 instructions and 533 non-instruction data words across 116 classified pools**, zero differences. Existing absolute external BLX symbol warnings affect only symbol metadata, not emitted bytes.
+- All 194 Rust tests, 13 Python tests and release build pass. Next missing routine begins at `0x2929c`.
