@@ -13,18 +13,23 @@ class SparseRwe(unittest.TestCase):
         cls.mc=os.getenv('HEXAGON_LLVM_MC')
         cls.ref=os.getenv('NABU_ADSP_REFERENCE')
     def test_file_layout_is_explicit_and_disjoint(self):
-        self.assertEqual((sparse.FILE_START,sparse.FILE_END,sparse.SIZE),(0x10330,0x1034c,28))
+        self.assertEqual((sparse.FILE_START,sparse.FILE_END,sparse.SIZE),(0x10330,0x103a4,116))
         self.assertEqual(sparse.FILL_END-sparse.FILL_START,0xff20-0x6c6c)
         self.assertEqual(sparse.UNKNOWN_RECORD_END-sparse.UNKNOWN_RECORD_START,0x90)
         self.assertEqual(sparse.FILL2_END-sparse.FILL2_START,0x380)
     def test_source_packets_and_strict_reference(self):
         if not self.mc:self.skipTest('HEXAGON_LLVM_MC required')
         result=sparse.render(self.mc)
-        self.assertEqual(len(result),28)
+        self.assertEqual(len(result),116)
         # Function return is not a packet boundary: packet continues with
         # extended GP load from the next function, so no artificial split.
         self.assertEqual((struct.unpack_from('<I',result,0x10)[0]>>14)&3,1)
         self.assertEqual((struct.unpack_from('<I',result,0x18)[0]>>14)&3,3)
+        self.assertEqual(struct.unpack_from('<I',result,0x1c+0x1c)[0],0x6e88c006)
+        self.assertEqual(struct.unpack_from('<I',result,0x1c+0x20)[0],0x6f1ec004)
+        self.assertEqual(struct.unpack_from('<I',result,0x1c+0x40)[0],0x6e88400c)
+        self.assertEqual(struct.unpack_from('<I',result,0x1c+0x4c)[0],0x6f1e4004)
+        self.assertEqual((struct.unpack_from('<I',result,0x1c+0x4c)[0]>>14)&3,1)
         if self.ref:
             original=Path(self.ref).read_bytes()
             sparse.verify(original,result)

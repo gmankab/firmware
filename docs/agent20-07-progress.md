@@ -444,3 +444,35 @@ reference byte comparison pass.
 python3 -S tools/adsp-agent20-rwe-sparse.py --llvm-mc "$HEXAGON_LLVM_MC" \
   --reference "$NABU_ADSP_REFERENCE" --output /tmp/adsp-rwe-10330.bin
 ```
+
+## Checkpoint 25: thread cycle accounting after sparse ADSP layout `[0x1034c,0x103a4)`
+
+Another **88 byte-identical source-generated V66 bytes** track per-thread
+control-cycle counters. The routine reads `HTID` and the paired `PCYCLE`
+register, computes a delta from 64-bit controller state, accumulates it into
+per-thread SRAM and stores the absolute pair to a separate cycle table. It
+retains the original `.new` predicate branch, 64-bit operations and packet
+parse markers. The four privileged slots are generated with checked typed
+V66 operations (`read_system_register`, `read_system_register_pair` and
+`packet_continuation`); all other 18 instruction words come from LLVM6
+source-assembled mnemonics. The final `PCYCLE` read and `mpyi` form a single
+hardware packet. LLVM6 cannot assemble the privileged read, so the compiler
+emits a standalone checked NOP and separately assembles `mpyi`; the typed
+source-level encoder changes **only the PCYCLE read's packet continuation
+field** before joining the two instructions. No OEM opcodes are copied.
+
+The disjoint RWE region `[0x10330,0x103a4)` is now **116 exact executable
+bytes**, SHA-256 `f86d4af99e535fc517e115e7fb65ce710440482faf52754e6ed195ef09c35b0d`.
+Rizin independently decodes `HTID`, `PCYCLE`, accumulation and branch
+patterns, and comparison to the pinned ADSP image is byte-identical. Total
+source-generated ADSP RWE executable coverage is **3,248 bytes** across
+two disjoint intervals `[0x6030,0x6c6c)` and `[0x10330,0x103a4)`.
+The linker fill / unclassified table between the intervals is excluded.
+The next uncovered instruction is at file offset `0x103a4`.
+
+Reproduce with:
+
+```sh
+python3 -S tools/adsp-agent20-rwe-sparse.py --llvm-mc "$HEXAGON_LLVM_MC" \
+  --reference "$NABU_ADSP_REFERENCE" --output /tmp/adsp-sparse-116.bin
+```
