@@ -284,3 +284,11 @@ python3 tools/agent20_06_a32_roundtrip.py /private/venus.mbn 0xa8ea0 0xa92c8 \
 - New shared architecture encoder `arm32::transfer_word_postindexed_scaled_register` supports `[Rn], Rm, LSL #amount`, required by the real hardware loop at `0xb40d4` and a later record scan. It has a separate focused ISA commit and tests rejecting unsafe PC/alias/shift arguments.
 - Whole generated fragment and independent Clang/LLVM mnemonic reassembly with two `--data-range` flags match the pinned reference with zero mismatches. **203 Rust tests** and **13 Python tests** passed; the release-build check is not claimed as passed for this checkpoint.
 - Next uncovered runtime is `0xb46cc` (file `0xb86cc`). Source is provisional older-base ARM32 instruction-level encoding and not high-level semantic decompilation, on-device proof, authenticated firmware or checkpoint-50 merge.
+
+## Checkpoint 32 — codec record ordering, stream feedback and controller flush
+
+- Full contiguous Venus executable-tail region `[0xa8000,0xb5008)` = **53,256 exactly matching bytes**, original MBN file `[0xac000,0xb9008)`.
+- Newly source-encoded `[0xb46cc,0xb5008)` = **2,364 bytes**, consisting of **577 typed A32 instructions (2,308 bytes)** and **14 separately classified non-code data words (56 bytes)**. Literal pools are `[0xb48ac,0xb48bc)` (four), `[0xb4e0c,0xb4e24)` (six), and `[0xb4ff8,0xb5008)` (four); no OEM instruction words are copied into Rust.
+- Rebuilt record-index compaction, active-record registration, two plane/line byte-count helpers, controller flush, and stream-feedback state updates. Branches into previous routines and the original return paths are preserved.
+- Direct `agent20_06_venus_tail verify` and independent Clang/LLVM `tools/agent20_06_a32_roundtrip.py` with the **three declared data ranges** both report **zero differing bytes**. Full offline Rust suite **204 tests**, Python suite **13 tests** pass; release-build status not claimed here.
+- Next uncovered ARM runtime is `0xb5008` (reference file offset `0xb9008`), beginning another controller routine. The branch remains provisional old-base A32 instruction-level reconstruction, not genuine high-level semantic decompilation, newly signed OEM firmware, on-device execution, or a checkpoint-50-rooted integration.
