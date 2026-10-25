@@ -141,3 +141,21 @@ The trailing one-word no-progress polling loop is genuine firmware control
 flow; the next independent routine starts at file `0x6474`. Metadata
 `[0x6000,0x6030)` is still not reconstructed, and complete ADSP code and
 authentication are not implied.
+
+## Checkpoint 11: thread launch, mode register handoff `[0x6474,0x64d8)`
+
+**100 additional exact executable bytes** reset event memory, clean it,
+read V66 `HTID` and `MODECTL`, persist thread-specific controller state and
+invoke a controller service. The source has two separate original functions:
+`[0x6474,0x64b4)` (64 bytes, thread-control and wait loop) and
+`[0x64b4,0x64d8)` (36 bytes, controller-ready update and physical branch
+trampoline). LLVM6 generates all ordinary Hexagon packets; only the two
+privileged V66 operations are checked typed encodings, preserving the `.new`
+producer/consumer packet of the MODECTL write. All 25 packet words match the
+original reference; an independent Rizin decode checks controller flow.
+
+RWE source-built code now covers **1,192 consecutive bytes** in file range
+`[0x6030,0x64d8)` (physical `[0x8be03030,0x8be034d8)`), SHA-256
+`839bee5dbdc28d7f2f92a96808a57e7a64ce2bb7bcdc9bb2792e869820733679`.
+The next code begins at `0x64d8`, which is separate from the preceding short
+physical-branch trampoline; whole ADSP ELF/auth data remain incomplete.

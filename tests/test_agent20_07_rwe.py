@@ -21,9 +21,9 @@ class RweEntryTests(unittest.TestCase):
         cls.ref=os.environ.get('NABU_ADSP_REFERENCE')
     def test_ptload_offset_mapping(self):
         self.assertEqual(module.FILE_START,0x6030)
-        self.assertEqual(module.FILE_END,0x6474)
+        self.assertEqual(module.FILE_END,0x64d8)
         self.assertEqual(module.PADDR,0x8BE03030)
-        self.assertEqual(module.SIZE,1092)
+        self.assertEqual(module.SIZE,1192)
     def test_source_assembler_with_checked_v66_registers(self):
         if not self.mc:self.skipTest('HEXAGON_LLVM_MC missing')
         b=module.render(self.mc)
@@ -148,10 +148,26 @@ class RweEntryTests(unittest.TestCase):
         self.assertEqual(struct.unpack_from('<I',fragment,off+0x24)[0],
                          module.packet_continuation(module.read_system_register(
                              0,SystemRegister.SYSCFG)))
-        poll=fragment[-module.RUNTIME_POLL_SIZE:]
+        poll_off=off+module.RUNTIME_DIAGNOSTICS_SIZE+module.RUNTIME_RECOVERY_SIZE
+        poll=fragment[poll_off:poll_off+module.RUNTIME_POLL_SIZE]
         # End is an explicit one-word no-progress controller loop.
         self.assertEqual(struct.unpack_from('<I',poll,len(poll)-4)[0],0x5800c000)
         if self.ref:module.verify(Path(self.ref).read_bytes(),fragment)
+
+    def test_launch_controller_special_registers_and_handoff(self):
+        if not self.mc:self.skipTest('HEXAGON_LLVM_MC missing')
+        b=module.render(self.mc)
+        launch_off=len(b)-module.THREAD_LAUNCH_SIZE-module.STATE_READY_SIZE
+        self.assertEqual(struct.unpack_from('<I',b,launch_off+0x14)[0],
+            module.packet_continuation(module.read_system_register(
+                1,SystemRegister.HTID)))
+        self.assertEqual(struct.unpack_from('<I',b,launch_off+0x24)[0],
+            module.packet_continuation(module.read_system_register(
+                1,SystemRegister.MODECTL)))
+        self.assertEqual(struct.unpack_from('<I',b,launch_off+0x3c)[0],0x5800c000)
+        # Thin handoff trampoline immediately follows ready-state return.
+        self.assertEqual(struct.unpack_from('<I',b,len(b)-4)[0],0x5803f218)
+        if self.ref:module.verify(Path(self.ref).read_bytes(),b)
 
     def test_wrong_firmware_is_rejected(self):
         if not self.mc:self.skipTest('HEXAGON_LLVM_MC missing')

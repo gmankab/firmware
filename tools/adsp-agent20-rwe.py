@@ -24,7 +24,7 @@ from adsp_hexagon_v66 import (SystemRegister, ControlRegister, read_system_regis
                               write_predicate_group_from_gpr,packet_continuation)
 
 FILE_START=0x6030
-FILE_END=0x6474
+FILE_END=0x64d8
 SIZE=FILE_END-FILE_START
 PADDR=0x8BE03030
 REFERENCE_SHA='4b579e5dc1333d634e5bdc93f3314e357e0e30dab7140833f6cc7aef086b1c1e'
@@ -54,6 +54,10 @@ RUNTIME_RECOVERY_SOURCE=TOOLS/'adsp-agent20-rwe-runtime-recovery.S'
 RUNTIME_RECOVERY_SIZE=0x68
 RUNTIME_POLL_SOURCE=TOOLS/'adsp-agent20-rwe-runtime-poll.S'
 RUNTIME_POLL_SIZE=0x34
+THREAD_LAUNCH_SOURCE=TOOLS/'adsp-agent20-rwe-thread-launch.S'
+THREAD_LAUNCH_SIZE=0x40
+STATE_READY_SOURCE=TOOLS/'adsp-agent20-rwe-state-ready.S'
+STATE_READY_SIZE=0x24
 
 
 def baseline():
@@ -204,6 +208,23 @@ def runtime_diagnostics(llvm_mc:str,previous)->bytes:
     return bytes(out)
 
 
+def thread_launch(llvm_mc:str,previous)->bytes:
+    """Write thread-mode and virtual interrupt state with original packet shape."""
+    out=bytearray(previous.assemble(llvm_mc,THREAD_LAUNCH_SOURCE,
+                                    THREAD_LAUNCH_SIZE))
+    checks={
+        0x14:(struct.pack('<I',0x7f004000),packet_continuation(
+            read_system_register(1,SystemRegister.HTID))),
+        0x24:(struct.pack('<I',0xb0014001),packet_continuation(
+            read_system_register(1,SystemRegister.MODECTL))),
+    }
+    for at,(old,new) in checks.items():
+        if out[at:at+4]!=old:
+            raise previous.AdspError(f'thread launch register slot moved at +0x{at:x}')
+        out[at:at+4]=struct.pack('<I',new)
+    return bytes(out)
+
+
 def render(llvm_mc:str)->bytes:
     previous=baseline()
     output=bytearray(previous.assemble(llvm_mc,SOURCE,STARTUP_SIZE))
@@ -231,6 +252,8 @@ def render(llvm_mc:str)->bytes:
     output.extend(runtime_diagnostics(llvm_mc,previous))
     output.extend(previous.assemble(llvm_mc,RUNTIME_RECOVERY_SOURCE,RUNTIME_RECOVERY_SIZE))
     output.extend(previous.assemble(llvm_mc,RUNTIME_POLL_SOURCE,RUNTIME_POLL_SIZE))
+    output.extend(thread_launch(llvm_mc,previous))
+    output.extend(previous.assemble(llvm_mc,STATE_READY_SOURCE,STATE_READY_SIZE))
     if len(output)!=SIZE:
         raise previous.AdspError("RWE source fragments are not contiguous")
     return bytes(output)
