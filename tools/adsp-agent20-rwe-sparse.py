@@ -14,14 +14,16 @@ from pathlib import Path
 TOOLS=Path(__file__).resolve().parent
 if str(TOOLS) not in sys.path:sys.path.insert(0,str(TOOLS))
 from adsp_hexagon_v66 import (SystemRegister, read_system_register,
-    read_system_register_pair, packet_continuation)
+    read_system_register_pair, write_system_register, packet_continuation)
 SOURCE=TOOLS/'adsp-agent20-rwe-next-getter.S'
 FILE_START=0x10330
-FILE_END=0x103a4
+FILE_END=0x103d0
 SIZE=FILE_END-FILE_START
 GETTER_SIZE=0x1c
 THREAD_CYCLES_SOURCE=TOOLS/'adsp-agent20-rwe-next-thread-cycles.S'
 THREAD_CYCLES_SIZE=0x58
+ISDB_GUARD_SOURCE=TOOLS/'adsp-agent20-rwe-next-isdb-guard.S'
+ISDB_GUARD_SIZE=0x2c
 PHYS_START=0x8be0d330
 SHA256_REFERENCE='4b579e5dc1333d634e5bdc93f3314e357e0e30dab7140833f6cc7aef086b1c1e'
 FILL_START=0x6c6c
@@ -37,6 +39,31 @@ def base():
     module=importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     return module
+
+def isdb_guard(llvm_mc:str,previous)->bytes:
+    """Guard V66 debugger enable and clear SYSCFG bit 5 under ISYNC.
+
+    Five checked register slots are decoded from named Hexagon registers,
+    retaining packet continuation on the combined SGP0/zero-store packet.
+    """
+    b=bytearray(previous.assemble(llvm_mc,ISDB_GUARD_SOURCE,ISDB_GUARD_SIZE))
+    final=struct.pack('<I',0x7f00c000)
+    continuing=struct.pack('<I',0x7f004000)
+    replacements={
+        0x00:(continuing,packet_continuation(read_system_register(29,SystemRegister.SGP0))),
+        0x08:(final,read_system_register(0,SystemRegister.ISDBEN)),
+        0x10:(final,read_system_register(1,SystemRegister.SYSCFG)),
+        0x18:(final,write_system_register(SystemRegister.SYSCFG,1)),
+        0x20:(final,read_system_register(0,SystemRegister.ISDBEN)),
+    }
+    for at,(expected,replacement) in replacements.items():
+        if b[at:at+4]!=expected:
+            raise previous.AdspError(f'ISDB guard register slot moved +0x{at:x}')
+        b[at:at+4]=struct.pack('<I',replacement)
+    if any(b[i:i+4] in (final,continuing) for i in range(0,len(b),4)):
+        raise previous.AdspError('unresolved ISDB guard privileged opcode')
+    return bytes(b)
+
 
 def render(llvm_mc: str)->bytes:
     # All seven V66 instructions are independently LLVM6-assembled, with no
@@ -63,7 +90,7 @@ def render(llvm_mc: str)->bytes:
     # This is a real Hexagon packet even though LLVM6 cannot assemble the
     # privileged R5:4=PCYCLE instruction with the following mpyi increment.
     # The packet continuation bit comes from the typed architecture encoder.
-    return getter+bytes(trace)
+    return getter+bytes(trace)+isdb_guard(llvm_mc,b)
 
 def verify(reference:bytes,built:bytes)->None:
     if hashlib.sha256(reference).hexdigest()!=SHA256_REFERENCE:

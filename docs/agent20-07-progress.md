@@ -476,3 +476,24 @@ Reproduce with:
 python3 -S tools/adsp-agent20-rwe-sparse.py --llvm-mc "$HEXAGON_LLVM_MC" \
   --reference "$NABU_ADSP_REFERENCE" --output /tmp/adsp-sparse-116.bin
 ```
+
+## Checkpoint 26: debugger-state/SYSCFG guard `[0x103a4,0x103d0)`
+
+The next **44 exact Hexagon V66 bytes** read `SGP0` and `ISDBEN`, conditionally
+clear `SYSCFG` bit 5, issue `isync` and wait for debugger-enable bit 4 to
+clear. `tools/adsp-agent20-rwe-next-isdb-guard.S` independently assembles
+the ordinary instructions, including original `.new` predicate branch and
+an 11-word packet sequence. Five unsupported privileged V66 register ops
+are inserted solely through checked architectural field encoders after
+verifying sentinel position and packet parse bits. The first SGP0 read is a
+**continuing** operation in a packet with a controller-memory zero store.
+
+The independently assembled, disjoint ADSP RWE block `[0x10330,0x103d0)`
+now contains **160 byte-identical executable bytes**, SHA-256
+`1cf2932b6a7633ff782e6b43e40c289e378a875feafceb280503fc53d7e9afda`.
+Together with the earlier `[0x6030,0x6c6c)` block, this is **3,292
+source-derived executable bytes in two intervals**. Linker fill and the
+unclassified 144-byte table between them remain excluded. The next
+instruction is at `0x103d0`, inside the same controller-initialization
+routine. Both Rust (160), Python (162) and offline release build pass with
+strict private-reference byte comparison.
