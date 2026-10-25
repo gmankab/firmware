@@ -30,6 +30,7 @@ RUNTIME_TABLE_INIT_SOURCE = ROOT / "sources/xiaomi-nabu/wlanmdsp/wlan-runtime-ta
 RECORD_CONSUMER_BODY_SOURCE = ROOT / "sources/xiaomi-nabu/wlanmdsp/wlan-record-consumer-body.S"
 RUNTIME_FORMAT_HANDLER_SOURCE = ROOT / "sources/xiaomi-nabu/wlanmdsp/wlan-runtime-format-handler.S"
 RUNTIME_SESSION_INIT_SOURCE = ROOT / "sources/xiaomi-nabu/wlanmdsp/wlan-runtime-session-init.S"
+RUNTIME_REPORTING_SOURCE = ROOT / "sources/xiaomi-nabu/wlanmdsp/wlan-runtime-reporting.S"
 FILE_OFFSET = 0x40000
 VADDR = 0xB0000000
 TEXT_LENGTH = 0x154
@@ -63,6 +64,8 @@ RUNTIME_FORMAT_HANDLER_LENGTH = 0x138
 THROUGH_RUNTIME_FORMAT_HANDLER_LENGTH = THROUGH_COMPLETE_RECORD_CONSUMER_LENGTH + THROUGH_RUNTIME_HELPERS_LENGTH + RUNTIME_FORMAT_HANDLER_LENGTH
 RUNTIME_SESSION_INIT_LENGTH = 0x154
 THROUGH_RUNTIME_SESSION_INIT_LENGTH = THROUGH_RUNTIME_FORMAT_HANDLER_LENGTH + RUNTIME_SESSION_INIT_LENGTH
+RUNTIME_REPORTING_LENGTH = 0x10c
+THROUGH_RUNTIME_REPORTING_LENGTH = THROUGH_RUNTIME_SESSION_INIT_LENGTH + RUNTIME_REPORTING_LENGTH
 # Identified uniform gap immediately following _init up to the linker PLT.
 # Treat this as layout fill, NEVER as independently reconstructed code.
 LINKER_GAP_WORD = 0x00c0007f
@@ -298,6 +301,18 @@ def emit_with_runtime_session_init(prefix: bytes, llvm_mc_v66: str) -> bytes:
     return output
 
 
+def emit_with_runtime_reporting(prefix: bytes, llvm_mc_v66: str) -> bytes:
+    """Append runtime status reports, import trampoline and branch aliases."""
+    if len(prefix) != THROUGH_RUNTIME_SESSION_INIT_LENGTH:
+        raise FragmentError("WLAN runtime reporting requires contiguous prefix through 0x2494")
+    built = assemble(RUNTIME_REPORTING_SOURCE, llvm_mc_v66, "hexagonv66",
+                     expected_length=RUNTIME_REPORTING_LENGTH)
+    joined = prefix + built
+    if len(joined) != THROUGH_RUNTIME_REPORTING_LENGTH:
+        raise FragmentError("WLAN runtime reporting interval overlaps or has a hole")
+    return joined
+
+
 def assemble_import_aliases_through_runtime_helpers(llvm_mc: str, cpu: str) -> bytes:
     """Reconstruct a disconnected group through record-wrapper/runtime setup.
 
@@ -365,6 +380,8 @@ def main() -> None:
                     help="append the 312-byte WLAN format-state handler, tail stubs and NOPs through 0x2340")
     ap.add_argument("--with-runtime-session-init", action="store_true",
                     help="append 340-byte codec runtime table initialization through offset 0x2494")
+    ap.add_argument("--with-runtime-reporting", action="store_true",
+                    help="append 268-byte WLAN logging helpers and tail-branch stubs through 0x25a0")
     ap.add_argument("--import-aliases-only", action="store_true",
                     help="emit three separately verified Hexagon tail aliases at runtime offset 0x1fa8")
     ap.add_argument("--import-aliases-with-compare", action="store_true",
@@ -376,6 +393,8 @@ def main() -> None:
     ap.add_argument("--emit-plt-assembly", type=Path,
                     help="write independently generated PLT source for inspection")
     args = ap.parse_args()
+    if args.with_runtime_reporting:
+        args.with_runtime_session_init = True
     if args.with_runtime_session_init:
         args.with_runtime_format_handler = True
     if args.with_runtime_format_handler:
@@ -425,6 +444,8 @@ def main() -> None:
         fragment = emit_with_runtime_format_handler(fragment, args.llvm_mc_v66)
     if args.with_runtime_session_init:
         fragment = emit_with_runtime_session_init(fragment, args.llvm_mc_v66)
+    if args.with_runtime_reporting:
+        fragment = emit_with_runtime_reporting(fragment, args.llvm_mc_v66)
     if args.reference is not None:
         check_reference(fragment, args.reference.read_bytes(), runtime_offset=runtime_offset)
     args.output.parent.mkdir(parents=True, exist_ok=True)
@@ -449,6 +470,7 @@ def main() -> None:
               "independently_encoded_runtime_init_bytes": RUNTIME_TABLE_INIT_LENGTH if (args.import_aliases_with_runtime_helpers or args.with_full_initial_region) else 0,
               "independently_encoded_runtime_format_handler_bytes": RUNTIME_FORMAT_HANDLER_LENGTH if args.with_runtime_format_handler else 0,
               "independently_encoded_runtime_session_init_bytes": RUNTIME_SESSION_INIT_LENGTH if args.with_runtime_session_init else 0,
+              "independently_encoded_runtime_reporting_bytes": RUNTIME_REPORTING_LENGTH if args.with_runtime_reporting else 0,
               "separate_disconnected_executable_region": disjoint_aliases,
               "provenance": "independently assembled Hexagon source; no OEM instruction bytes embedded"}
     if args.manifest is not None:

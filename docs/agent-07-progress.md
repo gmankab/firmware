@@ -450,3 +450,35 @@ instruction bytes** and **3,776 structural linker fill/alignment bytes**.
 The next independent code begins at runtime **`0xb0002494`**, file offset
 **`0x42494`**. The remaining executable program and container authentication
 remain unreconstructed; this is neither the full firmware nor flashable.
+
+### Checkpoint N: WLAN diagnostic and register-reporting wrappers
+
+The verified executable-layout prefix now covers `0xb0000000–0xb00025a0`
+(file `0x40000–0x425a0`), **9,632/9,632 identical bytes**. A new
+268-byte Hexagon v66 source `wlan-runtime-reporting.S` encodes two complete
+status-report routines, one local import-jump trampoline, and four compact
+PC-relative tail branches. The report paths pass signed/unsigned metadata
+through QuRT stack frames, emit diagnostics and update an atomic halfword.
+
+One three-instruction VLIW packet originally assembled with a different
+duplex ordering. Reordering *source instructions* to
+`{ r16 = r1; r0 = ##48; memw(r29+#0) = r0 }` yields exactly the original
+three instruction words, without raw opcode injection. The entire new
+268-byte assembly independently matches the known reference.
+
+```sh
+LD_LIBRARY_PATH=/private/nabu-runtime/flat \
+python3 tools/build-wlanmdsp-startup.py /tmp/wlan-9632.bin \
+  --with-runtime-reporting \
+  --llvm-mc /private/llvm6/bin/llvm-mc \
+  --llvm-mc-v66 /private/llvm22/bin/llvm-mc \
+  --reference /private/wlanmdsp.mbn \
+  --manifest /tmp/wlan-9632.json
+```
+
+The prefix consists of **5,856 independently encoded executable bytes** plus
+**3,776 linker-fill and PLT alignment bytes**. SHA-256:
+`bb8a4ccb662ebeeab677ef2c36fcc5a45e6c3901c9f767a613fd2ffa1e6df50d`.
+The next code begins at runtime `0xb00025a0` (ELF file `0x425a0`).
+Remaining executable, loader tables and OEM authentication are incomplete;
+this is not flashable firmware.
