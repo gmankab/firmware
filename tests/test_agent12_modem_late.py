@@ -15,6 +15,24 @@ spec.loader.exec_module(agent12)
 
 
 class ModemLateTests(unittest.TestCase):
+    def test_aux_registration_packet_change_rejects_unrelated_ops(self):
+        words=[0x7800c000]*129
+        i=(0x446D04-agent12.AUX_REGISTRATION_START)//4
+        words[i:i+2]=[0x11b040f6,0xfd11f180]
+        rebuilt=struct.unpack('<129I',agent12.restore_aux_registration_new_value_packet(
+            struct.pack('<129I',*words)))
+        self.assertEqual([x>>24 for x in rebuilt[i:i+2]],[0xfd,0x11])
+        self.assertEqual([x&agent12.MARKER_MASK for x in rebuilt[i:i+2]],
+                         [agent12.CONTINUE_MARKER,agent12.END_MARKER])
+        bad=words.copy();bad[i]=0x780040f6
+        with self.assertRaisesRegex(ValueError,'opcode classes'):
+            agent12.restore_aux_registration_new_value_packet(struct.pack('<129I',*bad))
+        bad=words.copy();bad[i+1]=0xfd117180
+        with self.assertRaisesRegex(ValueError,'packet markers'):
+            agent12.restore_aux_registration_new_value_packet(struct.pack('<129I',*bad))
+        with self.assertRaisesRegex(ValueError,'516 source-assembled bytes'):
+            agent12.restore_aux_registration_new_value_packet(bytes(512))
+
     def test_aux_duplex_compaction_rejects_nonmatching_semantics(self):
         words=[0x7f00c000]*16
         a=0x24//4
@@ -151,6 +169,9 @@ class ModemLateTests(unittest.TestCase):
         self.assertEqual((agent12.AUX_VENEERS_START,agent12.AUX_VENEERS_END),
                          (0x446BDC,0x446C18))
         self.assertEqual(agent12.AUX_RUNTIME_INIT_END,agent12.AUX_VENEERS_START)
+        self.assertEqual((agent12.AUX_REGISTRATION_START,agent12.AUX_REGISTRATION_END),
+                         (0x446C18,0x446E1C))
+        self.assertEqual(agent12.AUX_VENEERS_END,agent12.AUX_REGISTRATION_START)
 
     def test_atomic_packet_reorder_checks_opcode_class_and_parse_bits(self):
         words = [0x7800C000] * 16  # synthetic A2_tfrsi instruction for surrounding words

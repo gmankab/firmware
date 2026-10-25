@@ -39,6 +39,7 @@ AUX_ENTRY_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_l
 AUX_VALIDATOR_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_aux_input_validator.s"
 AUX_RUNTIME_INIT_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_aux_runtime_init.s"
 AUX_VENEERS_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_aux_control_veneers.s"
+AUX_REGISTRATION_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_aux_controller_registration.s"
 ATOMIC_START = 0x7C000
 ATOMIC_END = 0x7C040
 SERVICE_START = 0x7C2EC
@@ -81,6 +82,8 @@ AUX_RUNTIME_INIT_START = 0x446A68
 AUX_RUNTIME_INIT_END = 0x446BDC
 AUX_VENEERS_START = 0x446BDC
 AUX_VENEERS_END = 0x446C18
+AUX_REGISTRATION_START = 0x446C18
+AUX_REGISTRATION_END = 0x446E1C
 MARKER_MASK = 3 << 14
 CONTINUE_MARKER = 1 << 14
 END_MARKER = 3 << 14
@@ -536,6 +539,28 @@ def compact_aux_controller_veneer_duplex(assembled: bytes) -> bytes:
     return struct.pack('<'+'I'*len(words),*words)
 
 
+def restore_aux_registration_new_value_packet(assembled: bytes) -> bytes:
+    """Move predicated flag write before its new-value comparison/branch.
+
+    The source explicitly requests the original producer/consumer ordering.
+    LLVM6 reschedules the compare before the conditional move, still in one
+    packet. Reorder these two *assembler-emitted* instructions and retain
+    their position-specific packet markers. No OEM instructions are copied.
+    """
+    if len(assembled) != AUX_REGISTRATION_END-AUX_REGISTRATION_START:
+        raise ValueError("aux registration expects 516 source-assembled bytes")
+    words=list(struct.unpack('<'+'I'*(len(assembled)//4),assembled))
+    i=(0x446D04-AUX_REGISTRATION_START)//4
+    compare,flag_write=words[i:i+2]
+    if (compare>>24,flag_write>>24)!=(0x11,0xfd):
+        raise ValueError("aux registration predicate opcode classes changed")
+    if (compare&MARKER_MASK,flag_write&MARKER_MASK)!=(CONTINUE_MARKER,END_MARKER):
+        raise ValueError("aux registration predicate packet markers changed")
+    words[i:i+2]=[(flag_write&~MARKER_MASK)|CONTINUE_MARKER,
+                  (compare&~MARKER_MASK)|END_MARKER]
+    return struct.pack('<'+'I'*len(words),*words)
+
+
 def assemble(llvm_mc: Path, source: Path) -> bytes:
     with tempfile.TemporaryDirectory(prefix="nabu-modem-late-") as tmp:
         obj = Path(tmp) / "late.o"
@@ -569,6 +594,7 @@ def output_fragments(llvm_mc: Path) -> dict[int, bytes]:
     aux_validator = restore_aux_validator_predicate_packets(assemble(llvm_mc,AUX_VALIDATOR_SOURCE))
     aux_runtime_init = restore_aux_runtime_init_packets(assemble(llvm_mc,AUX_RUNTIME_INIT_SOURCE))
     aux_veneers = compact_aux_controller_veneer_duplex(assemble(llvm_mc,AUX_VENEERS_SOURCE))
+    aux_registration = restore_aux_registration_new_value_packet(assemble(llvm_mc,AUX_REGISTRATION_SOURCE))
     if len(aux_entry)!=AUX_ENTRY_END-AUX_ENTRY_START:
         raise ValueError("auxiliary entry veneer must compile to 20 bytes")
     if len(aux_dispatch) != AUX_DISPATCH_END-AUX_DISPATCH_START:
@@ -588,7 +614,7 @@ def output_fragments(llvm_mc: Path) -> dict[int, bytes]:
     return {ATOMIC_START: atomic + controller, SERVICE_START: service+service_mmio+service_flags+service_alloc,
             AUX_START: auxiliary, AUX_INIT_START: aux_init,
             AUX_GUARD_START: aux_guard+aux_stage+aux_mmio+aux_heap+aux_worker+aux_lookup,
-            AUX_DISPATCH_START:aux_dispatch+aux_type+aux_notify+aux_entry+aux_validator+aux_runtime_init+aux_veneers}
+            AUX_DISPATCH_START:aux_dispatch+aux_type+aux_notify+aux_entry+aux_validator+aux_runtime_init+aux_veneers+aux_registration}
 
 
 def executable_segments(reference: bytes) -> dict[int, tuple[int, int, int, int]]:

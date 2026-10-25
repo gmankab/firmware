@@ -516,3 +516,23 @@ set are identical to SHA-pinned original modem reference. Auxiliary region
 `[0x446650,0x446c18)` is now **1,480 contiguous bytes**. Next function
 starts at modem file offset `0x446c18`; the full modem image is unfinished
 and no OEM signature material is regenerated.
+
+## Checkpoint 19: auxiliary registry and controller callback registration
+
+Added **516 Hexagon V60 source-assembled executable bytes** in modem file
+`[0x446c18,0x446e1c)` (VMA `[0x1e400c18,0x1e400e1c)`, physical
+`[0x90000c18,0x90000e1c)`). The source allocates and checks controller
+state, invokes error/registration callbacks, validates linked references,
+updates per-object counters and returns after releasing resources. LLVM6
+reorders one source predicated move relative to a following compare/branch;
+`restore_aux_registration_new_value_packet` checks opcode classes and
+packet markers, then swaps only the two source-generated instructions.
+Negative synthetic tests reject unrelated changes. The actual 516-byte
+fragment and all other Agent 12 regions exactly match the pinned reference.
+
+Cumulative **3,460 independently source-assembled bytes** in six disjoint
+Hexagon executable fragments. The contiguous auxiliary callback-to-register
+region `[0x446650,0x446e1c)` has reached **1,996 bytes**. The next
+callable helper begins at file `0x446e20`; additional NOP alignment at
+`0x446e1c` remains unclaimed. The rest of the modem payload and OEM
+authentication are not independently reconstructed.
