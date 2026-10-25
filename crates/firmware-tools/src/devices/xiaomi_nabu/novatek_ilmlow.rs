@@ -10,10 +10,12 @@ mod helpers;
 mod diagnostic;
 #[path="novatek_ilmlow_startup.rs"]
 mod startup;
+#[path="novatek_ilmlow_extra.rs"]
+mod extra;
 use isa::{Csr,Insn,Reg,R0,R1,R2};
 pub const FILE_START: usize = 0x66a;
 /// Endpoint of the authoritative postmarketOS interval.
-pub const FILE_END: usize = 0xb1a;
+pub const FILE_END: usize = 0xb22;
 pub const ILM_FILE_BASE: usize = 0x200;
 pub const ASSIGNED_END: usize = 0x10000;
 
@@ -24,7 +26,7 @@ impl Profile {
     pub fn name(self)->&'static str{match self{Self::Postmarketos=>"postmarketos",Self::Map220v=>"map220v"}}
     pub fn gp(self)->u32{match self{Self::Postmarketos=>0x2d9e0,Self::Map220v=>0x2d7f0}}
     pub fn itb(self)->u32{match self{Self::Postmarketos=>0x17bc0,Self::Map220v=>0x17010}}
-    pub fn file_end(self)->usize{match self{Self::Postmarketos=>FILE_END,Self::Map220v=>0xb1c}}
+    pub fn file_end(self)->usize{match self{Self::Postmarketos=>FILE_END,Self::Map220v=>0xb24}}
     pub fn reference_sha256(self)->&'static str{match self{
         Self::Postmarketos=>"8b845514621ebfd95759a0919f3aa3d825314abb478a7cad1c3fb4c6872b70b5",
         Self::Map220v=>"72364eca0a91855d59e043371aca774354e5ad0885df5024edcec8f976543ad2"}}
@@ -72,6 +74,7 @@ pub fn program(profile:Profile)->Vec<Located>{
     instructions.extend(helpers::instructions(profile));
     instructions.extend(diagnostic::instructions(profile));
     instructions.extend(startup::instructions(profile));
+    instructions.extend(extra::instructions(profile));
     instructions
 }
 pub fn build(profile:Profile)->Result<Vec<u8>,String>{
@@ -95,7 +98,7 @@ mod tests{
     use super::*;
     #[test]fn source_intervals_and_profile_selection(){
         let p=build(Profile::Postmarketos).unwrap();let m=build(Profile::Map220v).unwrap();
-        assert_eq!(p.len(),1200);assert_eq!(m.len(),1202);assert_ne!(p,m);
+        assert_eq!(p.len(),1208);assert_eq!(m.len(),1210);assert_ne!(p,m);
         assert!(Profile::parse("unknown").is_err());
         let mut f=vec![0;FILE_END];f[FILE_START..FILE_END].copy_from_slice(&p);
         assert!(compare(&f,Profile::Postmarketos).is_ok());
@@ -112,7 +115,7 @@ mod tests{
         assert_eq!(at(&m,0x79e),Insn::BranchZeroWide{reg:R1,nonzero:false,target:0x8aa});
         assert_eq!(at(&p,0x88e),Insn::InlineCall{target:0x898});
         assert_eq!(at(&m,0x890),Insn::InlineCall{target:0x89a});
-        assert_eq!(p.last().unwrap().pc,0x918);assert_eq!(m.last().unwrap().pc,0x91a);
+        assert_eq!(p.last().unwrap().pc,0x920);assert_eq!(m.last().unwrap().pc,0x922);
         let mut f=vec![0;Profile::Map220v.file_end()];
         f[FILE_START..].copy_from_slice(&build(Profile::Map220v).unwrap());
         assert!(compare(&f,Profile::Map220v).is_ok());

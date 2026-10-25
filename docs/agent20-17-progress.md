@@ -221,3 +221,13 @@ register defects documented in the accompanying audit. Agent 18 owns the
 EX9 table source and its separately counted dependencies. The published
 checkpoint-50-based merged history remains an outstanding integration
 dependency; applying a portable patch alone does not establish that base.
+
+## Checkpoint 05 — Complete setter before the diverging next routine
+
+Added exactly 8 code bytes at postmarketOS file `[0xb1a,0xb22)` and map220v `[0xb1c,0xb24)` (runtime `[0x91a,0x922)` and `[0x91c,0x924)` respectively). The independent emitter uses `MOVI55 R0,1; SWI.GP R0,[controller_active]; RET5 LP`; the per-profile field addresses are `0x2c584` and `0x2c55c`. Both pinned references compare with zero byte differences.
+
+The cumulative generated spans are now **1,208** and **1,210** bytes; 458 instructions per profile, 146+312 four/two-byte instructions for postmarketOS and 147+311 for map220v. 55/54 EX9 uses and 29/28 distinct upper-ILM dependencies remain unchanged. Metadata, fill and externally copied bytes remain zero.
+
+**Verification qualification:** This environment does not have the GNU 2.25.1 `nds32le-elf-*` tools used in checkpoint 04. Rust source-to-reference comparison and regression tests were performed, but a fresh independent GNU assembler verification cannot be claimed for checkpoint 05. The linker/emitter dependency is documented rather than bypassed with raw OEM bytes.
+
+PostmarketOS first missing file address: `0xb22`, runtime `0x922`; next routine is absent or relocated in map220v. Remaining assigned postmarketOS bytes: **62,686**. This is an isolated contribution to the old Agent 09 history, not checkpoint-50 integration.

@@ -113,6 +113,8 @@ COMMON_CHECKPOINT_COUNTS = {
 CHECKPOINT_COUNTS = {profile: dict(COMMON_CHECKPOINT_COUNTS) for profile in PROFILES}
 CHECKPOINT_COUNTS["postmarketos"][0xB1A] = (455, 145, 310, 55, 29)
 CHECKPOINT_COUNTS["map220v"][0xB1C] = (455, 146, 309, 54, 28)
+CHECKPOINT_COUNTS["postmarketos"][0xB22] = (458, 146, 312, 55, 29)
+CHECKPOINT_COUNTS["map220v"][0xB24] = (458, 147, 311, 54, 28)
 SUPPORTED_MNEMONICS = {
     2: frozenset({
         "addi45", "beqs38", "bnes38", "beqz38", "bnez38", "beqzs8", "bnezs8",

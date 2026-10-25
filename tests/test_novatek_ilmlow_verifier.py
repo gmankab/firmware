@@ -113,6 +113,8 @@ class TestListingValidation(unittest.TestCase):
                 verifier.verify_checkpoint_counts(profile, end, counts)
         verifier.verify_checkpoint_counts("postmarketos", 0xB1A, (455, 145, 310, 55, 29))
         verifier.verify_checkpoint_counts("map220v", 0xB1C, (455, 146, 309, 54, 28))
+        verifier.verify_checkpoint_counts("postmarketos", 0xB22, (458, 146, 312, 55, 29))
+        verifier.verify_checkpoint_counts("map220v", 0xB24, (458, 147, 311, 54, 28))
         for profile, end, counts in (("postmarketos", 0xB1C, (455, 146, 309, 54, 28)),
                                      ("map220v", 0xB1A, (455, 145, 310, 55, 29)),
                                      ("map220v", 0xB1C, (455, 145, 310, 55, 29))):
