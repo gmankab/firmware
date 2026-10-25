@@ -11,7 +11,7 @@ import sys
 import tempfile
 
 FILE_START = 0x3644
-FILE_END = 0x3e08
+FILE_END = 0x3ef8
 CONTIGUOUS_START = 0x3000
 LENGTH = FILE_END - FILE_START
 PREFIX_LENGTH = FILE_START - CONTIGUOUS_START
@@ -27,6 +27,7 @@ PREDICATE_LOOKUP_PACKETS = (0x3710, 0x3758, 0x37a0, 0x37e8)
 PREDICATE_BRANCH_PACKETS = (0x3814,)
 IMMEDIATE_BEFORE_BRANCH_PACKETS = (0x39a0,)
 TLB_LOOP_PACKETS = (0x3aa8,)
+TLB_FILL_PACKETS = (0x3e84,)
 MARKER_MASK = 3 << 14
 CONTINUE = 1 << 14
 END_PACKET = 3 << 14
@@ -71,6 +72,14 @@ def restore_predicate_order(data: bytes) -> bytes:
             raise ValueError(f'unexpected Hexagon TLB loop packet markers at {addr:#x}')
         words[at:at+3] = [conditional_decrement,(index_increment & ~MARKER_MASK)|CONTINUE,
                           (jump & ~MARKER_MASK)|END_PACKET]
+    for addr in TLB_FILL_PACKETS:
+        at=(addr-FILE_START)//4
+        branch, comparison, increment=words[at:at+3]
+        if (branch >> 24,comparison >> 24,increment >> 24)!=(0x5c,0x75,0xb0):
+            raise ValueError(f'unexpected TLB fill predicate/branch packet at {addr:#x}')
+        if [w & MARKER_MASK for w in (branch,comparison,increment)]!=[CONTINUE,CONTINUE,END_PACKET]:
+            raise ValueError(f'unexpected TLB fill packet markers at {addr:#x}')
+        words[at:at+3]=[comparison,branch,increment]
     return struct.pack('<'+'I'*len(words),*words)
 
 def assemble(llvm_mc: Path) -> bytes:

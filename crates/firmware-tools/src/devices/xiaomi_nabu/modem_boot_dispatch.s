@@ -94,6 +94,19 @@
     }
     { memw(r2+#0) = r3; memw(r4+#0) = r5 }
 .endm
+// Hexagon Y2_tlbw register-pair/index form. The encoded pair must be even.
+.macro HEX_TLB_WRITE pair_low, index, marker=3
+    .if (\pair_low < 0) || (\pair_low > 30) || (\pair_low & 1) || (\index < 0) || (\index > 31)
+        .error "invalid Hexagon TLB write register operands"
+    .endif
+    .word (0x6c000000 | (\pair_low << 16) | (\marker << 14) | (\index << 8))
+.endm
+.macro HEX_ICKILL marker=3
+    .if (\marker != 1) && (\marker != 3)
+        .error "invalid Hexagon instruction-cache kill packet marker"
+    .endif
+    .word (0x56c01000 | (\marker << 14))
+.endm
 .globl modem_boot_dispatch
 modem_boot_dispatch:
 .set modem_ready_handler, modem_boot_dispatch+0x5c4
@@ -754,3 +767,80 @@ HEX_SYSTEM_READ 0,18
 { r0 = setbit(r0,#2) }
 HEX_SYSTEM_WRITE 18,0
 { isync }
+// Select the initial codec radio overlay and install the full 190-entry
+// Hexagon TLB map before enabling the relocated radio initialization path.
+{ r0 = memw(r25+##-1064935416) }
+{ p2 = cmp.eq(r0,#3) }
+{ r0 = memw(r25+##-1064851276) }
+{ p1 = cmp.eq(r0,#0) }
+.set skip_mode_three_init, modem_boot_dispatch+(0x3e60-0x3644)
+{ if (!p2) jump skip_mode_three_init }
+.set codec_init_1, modem_boot_dispatch+(0x45ac-0x3644)
+.set codec_init_2, modem_boot_dispatch+(0x4578-0x3644)
+.set codec_init_3, modem_boot_dispatch+(0x4628-0x3644)
+.set codec_init_4, modem_boot_dispatch+(0x4500-0x3644)
+.set codec_init_5, modem_boot_dispatch+(0x4668-0x3644)
+.set codec_init_6, modem_boot_dispatch+(0x452c-0x3644)
+.set codec_init_7, modem_boot_dispatch+(0x45e8-0x3644)
+{ call codec_init_1 }
+{ call codec_init_2 }
+{ call codec_init_3 }
+{ r0 = add(r25,##-1045593396) }
+{ r2 = memw(r0+#0) }
+{ r0 = add(r25,##-1064885448) }
+{ r1 = memw(r0+#0) }
+{ call codec_init_4 }
+{ call codec_init_5 }
+{ call codec_init_6 }
+{ call codec_init_7 }
+.set finish_platform_reset, modem_boot_dispatch+(0x3e68-0x3644)
+{ if (p1) jump finish_platform_reset }
+.set vendor_setup_1, modem_boot_dispatch+(0x4958-0x3644)
+{ call vendor_setup_1 }
+skip_mode_three_init:
+{ if (p1) jump finish_platform_reset }
+.set vendor_setup_2, modem_boot_dispatch+(0x4988-0x3644)
+{ call vendor_setup_2 }
+finish_platform_reset:
+{
+ call page_cache_hook
+ r0 = #14
+}
+{
+ r1 = add(r25,##-1064894464)
+ r0 = #0
+}
+.set initialized_tlb_table_loop, modem_boot_dispatch+(0x3e7c-0x3644)
+initialized_tlb_table_loop:
+{ r3:2 = memd(r1++#8) }
+HEX_TLB_WRITE 2,0
+{
+ p0 = cmp.gt(r0,#190)
+ if (!p0.new) jump:t initialized_tlb_table_loop
+ r0 = add(r0,#1)
+}
+{ isync }
+{
+ call page_cache_hook
+ r0 = #15
+}
+{
+ call codec_init_2
+ r0 = memw(r25+##-1045650472)
+}
+{ r1 = memw(r25+##-1047412732) }
+HEX_SYSTEM_WRITE 7,1
+{ r1 = memw(r25+##-1047412720) }
+HEX_CONTROL_WRITE 8,1
+HEX_SYSTEM_READ 1,18
+{ r2 = clrbit(r1,#1) }
+HEX_SYSTEM_WRITE 18,2
+{ isync }
+HEX_ICKILL
+{ isync }
+{ r0 = memw(r25+##-1064879416) }
+{ r1 = or(r1,r0) }
+HEX_SYSTEM_WRITE 18,1
+{ isync }
+{ r2 = ##-1065349384 }
+{ jumpr r2 }
