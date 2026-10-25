@@ -89,3 +89,22 @@ function context has not been established, so it is not counted.
 
 **Total independently assembled executable coverage is now 1,184 bytes in 14
 function fragments**. The next instruction after this handoff is at `0x39540`.
+
+
+**Checkpoint 10:** Two further independent Hexagon helper functions were
+reconstructed at `[file 0x39540,0x39568)` (**40 bytes**) and `[0x39568,0x39588)`
+(**32 bytes**). The first publishes a GP-relative controller state word using
+`mpyi`, a conditional backward retry and a four-operation return packet; the
+second performs a conditional platform query while preserving the caller's
+input pointer and freeing a bounded stack frame. Both were authored as
+semantic Hexagon instructions, including explicit full-width `immext` and
+symbolic external call offsets, and byte-verified against the exact firmware
+with LLVM6 and independent Rizin disassembly.
+
+Together with the previous handoff function, these form a **208-byte
+contiguous source-generated region `[0x394b8,0x39588)`**; the preceding
+single `jumpr LR` at `[0x394b4,0x394b8)` is deliberately not counted because
+its function context is unknown. **Cumulative independently authored ADSP
+code: 1,256 bytes in 16 tested functions.** Almost all of the two very large
+RX executable `PT_LOAD`s remains unimplemented; matched bytes here do not
+establish a complete source-equivalent or authenticated ADSP image.

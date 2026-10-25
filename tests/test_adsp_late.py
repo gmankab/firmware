@@ -170,9 +170,9 @@ class ADSPExternalsAndCodeTests(unittest.TestCase):
     @unittest.skipUnless(LLVM_MC,'Hexagon LLVM6 assembler required')
     def test_complete_fragment_inventory_rejects_overlaps(self):
         manifest,regions=adsp.assembled_inventory(LLVM_MC,None)
-        self.assertEqual(len(manifest['fragments']),14)
-        self.assertEqual(manifest['total_independently_assembled_executable_bytes'],1184)
-        self.assertEqual(sum(map(len,regions.values())),1184)
+        self.assertEqual(len(manifest['fragments']),16)
+        self.assertEqual(manifest['total_independently_assembled_executable_bytes'],1256)
+        self.assertEqual(sum(map(len,regions.values())),1256)
         self.assertEqual(manifest['gap_bytes_included_in_generated_executables'],0)
         self.assertFalse(manifest['complete_adsp_image'])
         self.assertEqual(manifest['external_original_code_bytes_in_output'],0)
@@ -212,16 +212,39 @@ class ADSPExternalsAndCodeTests(unittest.TestCase):
                          'a342e82ea1f2a1b11b39c7358d9b44cf68b4002301dfb29c8a712764c3cafe1c')
         self.assertEqual(len(assembled),136)
 
+    @unittest.skipUnless(LLVM_MC,'LLVM6 Hexagon assembler required')
+    def test_buffer_publication_and_conditional_platform_probe(self):
+        expected={
+          'buffer-publish':(0x39540,40,'9e4563419e1af444327862bf3d9e8e1c00742da846a8aac6669b962e8100bdc2'),
+          'conditional-query':(0x39568,32,'7a5cc3040a5578396a857dc6b05209db853d9a6496640e640063f61860dfa319'),
+        }
+        for name,(off,size,digest) in expected.items():
+            with self.subTest(name=name):
+                source,start,length=adsp.FRAGMENTS[name]
+                self.assertEqual((start,length),(off,size))
+                text=source.read_text()
+                for forbidden in ('.word ','.long ','.byte ','.incbin ','.fill '):
+                    self.assertNotIn(forbidden,text)
+                rebuilt=adsp.compile_source(LLVM_MC,source,size)
+                self.assertEqual(hashlib.sha256(rebuilt).hexdigest(),digest)
+        self.assertIn('mpyi(',adsp.FRAGMENTS['buffer-publish'][0].read_text())
+        self.assertIn('if (p0.new) jump:t retry',adsp.FRAGMENTS['buffer-publish'][0].read_text())
+        self.assertIn('if (!p0) call platform_check',adsp.FRAGMENTS['conditional-query'][0].read_text())
+        # Unlike independent disjoint functions, these last three are adjacent.
+        spans=sorted((adsp.FRAGMENTS[name][1],adsp.FRAGMENTS[name][1]+adsp.FRAGMENTS[name][2])
+            for name in ('buffer-handoff','buffer-publish','conditional-query'))
+        self.assertEqual(spans,[(0x394b8,0x39540),(0x39540,0x39568),(0x39568,0x39588)])
+
     @unittest.skipUnless(LLVM_MC and REFERENCE,
                          'Hexagon LLVM6 and exact pinned ADSP reference required')
     def test_inventory_every_fragment_uses_correct_original(self):
         inventory,_outputs=adsp.assembled_inventory(LLVM_MC,Path(REFERENCE).read_bytes())
         self.assertTrue(all(x['reference_byte_identical'] for x in inventory['fragments']))
-        self.assertEqual(inventory['total_independently_assembled_executable_bytes'],1184)
+        self.assertEqual(inventory['total_independently_assembled_executable_bytes'],1256)
 
     @unittest.skipUnless(LLVM_MC and REFERENCE,
                          'Hexagon LLVM6 and exact pinned ADSP reference required')
-    def test_all_fourteen_disjoint_fragments_are_source_identical(self):
+    def test_all_sixteen_disjoint_fragments_are_source_identical(self):
         original=Path(REFERENCE).read_bytes()
         total=0
         ranges=[]
@@ -231,7 +254,7 @@ class ADSPExternalsAndCodeTests(unittest.TestCase):
                 adsp.verify_slice(built,original,off)
                 total+=len(built)
                 ranges.append((off,off+size))
-        self.assertEqual(total,1184)
+        self.assertEqual(total,1256)
         ranges.sort()
         self.assertEqual(ranges[0],(0x39000,0x39054))
         self.assertEqual(ranges[-1],(0x3640a8,0x3640f8))
