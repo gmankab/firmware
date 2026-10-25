@@ -126,3 +126,5 @@ pub mod cdsp_cache_controller;
 pub mod cdsp_dma_copy;
 
 pub mod cdsp_early_tlb; // Agent 20-09: 0x41e0-forward continuation; integration-only registration
+pub mod cdsp_early_controllers; // Agent 20-09: 0x4290 startup, disjoint from prior owner
+pub mod cdsp_early_copier; // Agent 20-09: 0x42bc cache-zero copier
