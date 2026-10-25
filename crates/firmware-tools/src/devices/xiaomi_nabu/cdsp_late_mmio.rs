@@ -16,6 +16,9 @@ pub const FIRST_ENTRY_LEN:usize=0x38;
 pub const WAIT_FILE_OFFSET:usize=0x55038;
 pub const WAIT_LEN:usize=0x38;
 pub const JOINED_LEN:usize=FIRST_ENTRY_LEN+WAIT_LEN;
+pub const DETECT_OFFSET:usize=0x55070;
+pub const DETECT_LEN:usize=0x38;
+pub const THREE_STAGE_LEN:usize=JOINED_LEN+DETECT_LEN;
 
 /// Checked Hexagon `memw(Rbase + #offset) = ##value` with an immediate extender.
 /// Only the small verified 32-bit, word-aligned addressing form is admitted;
@@ -129,6 +132,64 @@ pub fn verify_joined_controller(reference:&[u8])->Result<(),String>{
     Ok(())
 }
 
+/// Hexagon two-word `Rd = and(Rsrc,##value)` with the immediate extender.
+/// Validated against multiple LLVM6 R2/R1 masks and Rizin V66 decoding.
+pub fn encode_extended_and(dst:GeneralRegister,src:GeneralRegister,
+                           value:u32)->[u32;2]{
+    let ext=((value>>20)<<16)|((value>>6)&0x3fff)|0x4000;
+    let op=0x7600_c000 | (u32::from(src.number())<<16)
+        | ((value&0x3f)<<5) | u32::from(dst.number());
+    [ext,op]
+}
+
+/// Hexagon triple-word packet: `P0=cmp.eq(Rsrc,##value); if(P0.new) jump:t`.
+/// No branch to arbitrary addresses is implied: caller supplies one short,
+/// strictly positive, halfword-aligned packet-relative destination.
+pub fn encode_extended_new_p0_eq_branch(src:GeneralRegister,value:u32,
+                                       forward_bytes:u16)->Result<[u32;3],String>{
+    if forward_bytes==0 || forward_bytes>0x1fe || forward_bytes%2!=0{
+        return Err("Hexagon new-predicate branch requires a short positive even offset".into());
+    }
+    let ext=((value>>20)<<16)|((value>>6)&0x3fff)|0x4000;
+    let test=0x7500_4000 | (u32::from(src.number())<<16) | ((value&0x3f)<<5);
+    let branch=0x5c00_d800 | u32::from(forward_bytes/2);
+    Ok([ext,test,branch])
+}
+
+/// Read the controller configuration word at 0x1fc8000 and dispatch to one
+/// of the two observed MMIO programming cases depending on the 0x100/0x200
+/// feature bits. Later case bodies begin at 0x550a8 and follow separately.
+pub fn build_detect_controller_mode()->Result<Vec<u8>,String>{
+    let mut out=Vec::with_capacity(DETECT_LEN);
+    let r=|n|GeneralRegister::new(n);
+    for word in cdsp_boot::encode_extended_assignment(r(0)?,0x01fc_8000,true){push_word(&mut out,word);}
+    push_word(&mut out,encode_word_load_immediate(r(1)?,r(0)?,0)?);
+    for (mask,branch_distance) in [(0x100,0x24),(0x200,0xc0)] {
+        for word in encode_extended_and(r(2)?,r(1)?,mask){push_word(&mut out,word);}
+        for word in encode_extended_new_p0_eq_branch(r(2)?,mask,branch_distance)?{push_word(&mut out,word);}
+    }
+    // From physical 0x96cc70a4 to the default case at 0x96cc7208.
+    push_word(&mut out,ScalarPacket::JumpRelative{displacement_bytes:0x164}.encode()?);
+    if out.len()!=DETECT_LEN{return Err("CDSP detect-mode prefix length !=56".into());}
+    Ok(out)
+}
+
+pub fn build_joined_with_mode_dispatch()->Result<Vec<u8>,String>{
+    let mut out=build_joined_initial_controller()?;
+    out.extend(build_detect_controller_mode()?);
+    if out.len()!=THREE_STAGE_LEN{return Err("Hexagon CDSP mode dispatch span length mismatch".into());}
+    Ok(out)
+}
+
+pub fn verify_joined_with_mode_dispatch(reference:&[u8])->Result<(),String>{
+    cdsp_boot::validate_reference(reference)?;
+    let actual=build_joined_with_mode_dispatch()?;
+    if reference.get(FILE_OFFSET..FILE_OFFSET+THREE_STAGE_LEN)!=Some(actual.as_slice()){
+        return Err("CDSP controller mode detection differs from original".into());
+    }
+    Ok(())
+}
+
 pub fn verify_mmio_setup(reference:&[u8])->Result<(),String>{
     cdsp_boot::validate_reference(reference)?;
     let actual=build_mmio_setup()?;
@@ -150,6 +211,23 @@ mod tests {
         assert_eq!(encode_extended_word_store_immediate(r0,0,0x1234).unwrap(),[0x0000_4048,0x3c40_c034]);
         assert!(encode_extended_word_store_immediate(r0,2,7).is_err());
         assert!(encode_extended_word_store_immediate(r0,16,7).is_err());
+    }
+    #[test]
+    fn controller_mode_detection_packet_operands_are_validated(){
+        let r=|n|GeneralRegister::new(n).unwrap();
+        assert_eq!(encode_extended_and(r(2),r(1),0x100),[0x0000_4004,0x7601_c002]);
+        assert_eq!(encode_extended_and(r(2),r(1),0x200),[0x0000_4008,0x7601_c002]);
+        assert_eq!(encode_extended_new_p0_eq_branch(r(2),0x100,0x24).unwrap(),
+                   [0x0000_4004,0x7502_4000,0x5c00_d812]);
+        assert_eq!(encode_extended_new_p0_eq_branch(r(2),0x200,0xc0).unwrap(),
+                   [0x0000_4008,0x7502_4000,0x5c00_d860]);
+        assert!(encode_extended_new_p0_eq_branch(r(2),0x100,0).is_err());
+        assert!(encode_extended_new_p0_eq_branch(r(2),0x100,3).is_err());
+        let combined=build_joined_with_mode_dispatch().unwrap();
+        assert_eq!(combined.len(),THREE_STAGE_LEN);
+        assert_eq!(combined[0x70..0x74],[0x00,0x72,0x1f,0x00]);
+        assert_eq!(combined[0xa4..0xa8],[0xb2,0xc0,0x00,0x58]);
+        assert_eq!(PHYSICAL_ADDRESS+THREE_STAGE_LEN as u32,0x96cc70a8);
     }
     #[test]
     fn late_counter_wait_encoding_matches_llvm_checked_fields(){

@@ -36,3 +36,11 @@ Agent 20-10 owns only new `cdsp_late_*` sources, its verification tool, focused 
 - An independently authored LLVM 6 fixture emits all 28 words and 17 packet groups exactly; Rizin V66 independently decodes the 28 words, their parse markers and operands, and direct comparison to the exact OEM reference passes.
 - Reproduce: `cargo run -p firmware-tools --bin cdsp-late-rebuild -- emit-joined /tmp/cdsp-late-112.bin`, `... -- verify-joined /private/cdsp.mbn`, and `python3 tools/verify-agent20-10-cdsp-late.py --joined --llvm-mc /path/to/llvm6/bin/llvm-mc --rz-asm /path/to/rz-asm --generated /tmp/cdsp-late-112.bin --reference /private/cdsp.mbn`.
 - Next unimplemented code is at file `0x55070`. Nothing from the metadata-heavy ELF segment `[0x3b000,0x5475c)` is counted as independent executable source. Checkpoint-50 base remains unavailable, so the branch is **provisional**.
+
+## Checkpoint 03 — MMIO controller mode dispatch, contiguous 168 bytes
+
+- `[0x55000,0x550a8)` = **168 exact, independently generated executable bytes**; runtime ELF VMA `[0xc00c7000,0xc00c70a8)`, physical `[0x96cc7000,0x96cc70a8)`.
+- Added hardware configuration detector `[0x55070,0x550a8)` (56 bytes): read controller register at `0x01fc8000`, compare its `0x100` and `0x200` masks, dispatch respectively to physical `0x96cc70a8` or `0x96cc7158`, otherwise branch to `0x96cc7208`.
+- Typed Hexagon `encode_extended_and` and `encode_extended_new_p0_eq_branch` reject invalid displacement width and preserve both immediate-extender fields and predicate parse markers.
+- **LLVM 6 scheduler caveat:** LLVM6 reorders two three-word predicate `.new` packets, placing the conditional branch first. The independent validation script performs only a documented packet-order/marker normalization **after** comparing the instruction operands and branch displacement; the resulting source-built emitted words are decoded by Rizin V66 in their exact OEM order and independently compared with the reference. Do not claim the unmodified LLVM6 object emits the exact original packet order.
+- Passes reference byte comparison with zero differences. Original reference stays private and outside Git. The next missing code begins file offset `0x550a8`, physical `0x96cc70a8`.
