@@ -19,6 +19,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 SOURCE = ROOT / "sources/xiaomi-nabu/wlanmdsp/wlan-startup.S"
 HOOK_SOURCE = ROOT / "sources/xiaomi-nabu/wlanmdsp/wlan-loader-hooks.S"
+LOOKUP_SOURCE = ROOT / "sources/xiaomi-nabu/wlanmdsp/wlan-config-lookup.S"
 FILE_OFFSET = 0x40000
 VADDR = 0xB0000000
 TEXT_LENGTH = 0x154
@@ -31,6 +32,8 @@ PLT_LENGTH = PLT_FIRST_ENTRY + PLT_COUNT * PLT_ENTRY_BYTES - PLT_START
 CODE_AND_PLT_LENGTH = PLT_START + PLT_LENGTH
 LOADER_HOOKS_LENGTH = 0x64
 THROUGH_LOADER_HOOKS_LENGTH = CODE_AND_PLT_LENGTH + LOADER_HOOKS_LENGTH
+CONFIG_LOOKUP_LENGTH = 0x9c
+THROUGH_CONFIG_LOOKUP_LENGTH = THROUGH_LOADER_HOOKS_LENGTH + CONFIG_LOOKUP_LENGTH
 # Identified uniform gap immediately following _init up to the linker PLT.
 # Treat this as layout fill, NEVER as independently reconstructed code.
 LINKER_GAP_WORD = 0x00c0007f
@@ -193,6 +196,13 @@ def emit_with_loader_hooks(prefix: bytes, llvm_mc: str, cpu: str) -> bytes:
     return prefix + hooks
 
 
+def emit_with_config_lookup(prefix: bytes, llvm_mc: str, cpu: str) -> bytes:
+    if len(prefix) != THROUGH_LOADER_HOOKS_LENGTH:
+        raise FragmentError("config lookup requires the complete preceding loader hooks")
+    lookup = assemble(LOOKUP_SOURCE, llvm_mc, cpu, expected_length=CONFIG_LOOKUP_LENGTH)
+    return prefix + lookup
+
+
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("output", type=Path, help="independently rebuilt raw executable bytes")
@@ -205,6 +215,8 @@ def main() -> None:
                     help="emit startup, isolated 0x154–0x1000 linker fill, and 181-symbol PLT")
     ap.add_argument("--with-loader-hooks", action="store_true",
                     help="include 100-byte independently assembled post-PLT entry and GOT hooks")
+    ap.add_argument("--with-config-lookup", action="store_true",
+                    help="include the 156-byte table lookup and descriptor extractor")
     ap.add_argument("--emit-plt-assembly", type=Path,
                     help="write independently generated PLT source for inspection")
     args = ap.parse_args()
@@ -212,10 +224,12 @@ def main() -> None:
     if args.emit_plt_assembly is not None:
         args.emit_plt_assembly.parent.mkdir(parents=True, exist_ok=True)
         args.emit_plt_assembly.write_text(plt_assembly())
-    if args.with_plt or args.with_loader_hooks:
+    if args.with_plt or args.with_loader_hooks or args.with_config_lookup:
         fragment = emit_with_plt(fragment, args.llvm_mc, args.cpu)
-    if args.with_loader_hooks:
+    if args.with_loader_hooks or args.with_config_lookup:
         fragment = emit_with_loader_hooks(fragment, args.llvm_mc, args.cpu)
+    if args.with_config_lookup:
+        fragment = emit_with_config_lookup(fragment, args.llvm_mc, args.cpu)
     if args.reference is not None:
         check_reference(fragment, args.reference.read_bytes())
     args.output.parent.mkdir(parents=True, exist_ok=True)
@@ -226,9 +240,10 @@ def main() -> None:
               "generated_bytes": len(fragment), "sha256": digest,
               "complete_firmware": False,
               "independently_encoded_startup_bytes": TEXT_LENGTH,
-              "independently_encoded_plt_instruction_bytes": (PLT_LENGTH - 20) if (args.with_plt or args.with_loader_hooks) else 0,
-              "linker_layout_fill_bytes": (PLT_START - TEXT_LENGTH + 20) if (args.with_plt or args.with_loader_hooks) else 0,
-              "independently_encoded_loader_hook_bytes": LOADER_HOOKS_LENGTH if args.with_loader_hooks else 0,
+              "independently_encoded_plt_instruction_bytes": (PLT_LENGTH - 20) if (args.with_plt or args.with_loader_hooks or args.with_config_lookup) else 0,
+              "linker_layout_fill_bytes": (PLT_START - TEXT_LENGTH + 20) if (args.with_plt or args.with_loader_hooks or args.with_config_lookup) else 0,
+              "independently_encoded_loader_hook_bytes": LOADER_HOOKS_LENGTH if (args.with_loader_hooks or args.with_config_lookup) else 0,
+              "independently_encoded_config_lookup_bytes": CONFIG_LOOKUP_LENGTH if args.with_config_lookup else 0,
               "provenance": "independently assembled Hexagon source; no OEM instruction bytes embedded"}
     if args.manifest is not None:
         args.manifest.parent.mkdir(parents=True, exist_ok=True)

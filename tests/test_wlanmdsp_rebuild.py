@@ -120,6 +120,27 @@ class WlanHexagonAssemblyTests(unittest.TestCase):
         if ref:
             fw.check_reference(complete, Path(ref).read_bytes())
 
+    def test_configuration_table_lookup_reconstructs_exact_packets(self):
+        src = fw.LOOKUP_SOURCE.read_text()
+        for token in (".incbin", ".word", ".byte", ".long", ".quad"):
+            self.assertNotIn(token, src)
+        self.assertIn("r6 = mux(p0,r4,##1183); if (p0)", src)
+        self.assertIn("memw(r3+#16) = r2.new", src)
+        output = fw.assemble(fw.LOOKUP_SOURCE, self.mc,
+                             expected_length=fw.CONFIG_LOOKUP_LENGTH)
+        self.assertEqual(len(output), 156)
+        self.assertEqual(output[8:16], bytes.fromhex("12400000e6430473"))
+        for cpu in ("hexagonv62",):
+            self.assertEqual(output, fw.assemble(fw.LOOKUP_SOURCE, self.mc, cpu,
+                                 expected_length=fw.CONFIG_LOOKUP_LENGTH))
+        ref = os.environ.get("WLANMDSP_REFERENCE")
+        if ref:
+            prefix = fw.emit_with_plt(fw.assemble(fw.SOURCE, self.mc), self.mc, "hexagonv65")
+            hooks = fw.emit_with_loader_hooks(prefix, self.mc, "hexagonv65")
+            image = fw.emit_with_config_lookup(hooks, self.mc, "hexagonv65")
+            self.assertEqual(len(image), fw.THROUGH_CONFIG_LOOKUP_LENGTH)
+            fw.check_reference(image, Path(ref).read_bytes())
+
     def test_unresolved_reference_is_rejected(self):
         with tempfile.TemporaryDirectory() as d:
             bad = Path(d) / "unresolved.S"

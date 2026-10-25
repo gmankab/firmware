@@ -104,3 +104,37 @@ python3 tools/build-wlanmdsp-startup.py /tmp/wlan-through-hooks.bin \
 The next unimplemented function begins at `0xb0001be4`, file `0x41be4`.
 This remains a disconnected partial executable and is not a valid signed or
 flashable WLAN firmware image.
+
+### Checkpoint D: bounded WLAN configuration table selector
+
+The Hexagon table selector at runtime `[0xb0001be4,0xb0001c80)` / ELF file
+`[0x41be4,0x41c80)` is reconstructed from independently written Hexagon
+assembly (`wlan-config-lookup.S`, **156 bytes**). The original routine
+searches a packed table of device/configuration tags, validates a requested
+entry/count, and extracts packed bitfields into five words of caller-provided
+metadata. Its matching/overflow paths return status values; no OEM
+instruction-word arrays are included in source.
+
+The assembler required careful reconstruction of **four-word VLIW packets**:
+an immediate-extended mux shares a packet with another immediate-extended
+conditional register load; the new-value conditional branches and stores must
+share packets with their producers. After preserving these semantics,
+`hexagonv62` and `hexagonv65` emit the exact same 156-byte output, matching
+the private original at file offset `0x41be4` without a single differing byte.
+
+`--with-config-lookup` implies startup, linker fill, all 181 generated PLT
+stubs, and loader hooks. Combined region: **7,296 bytes** (file
+`[0x40000,0x41c80)`, VMA `[0xb0000000,0xb0001c80)`) of which independently
+reconstructed executable instructions total **3,520 bytes**. The other
+3,776 bytes are explicit linker-layout fill, not code. A new test performs
+strict whole-ELF-SHA verified byte comparison when the reference is supplied.
+
+```sh
+python3 tools/build-wlanmdsp-startup.py /tmp/wlan-through-lookup.bin \
+  --with-config-lookup --llvm-mc /path/to/llvm6/bin/llvm-mc \
+  --reference /private/wlanmdsp.mbn --manifest /tmp/through-lookup.json
+```
+
+The next unimplemented codec-format consumer begins at runtime
+`0xb0001c80`, ELF offset `0x41c80`; executable coverage remains partial and
+no full signed WLAN MBN is generated.
