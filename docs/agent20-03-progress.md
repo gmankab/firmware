@@ -90,3 +90,10 @@ Original reference: private `map220v-nabu-firmware/venus.mbn`, SHA-256 `9d4af65d
 - Runtime `[0x21c78,0x25700)` contains **14,984 independently source-encoded and byte-identical bytes**; reference file range `[0x25c78,0x29700)`.
 - Totals: **3,505 ARM32 instructions and 241 separately identified data words**, independently rebuilt using Clang/LLD and confirmed against the original MBN.
 - New completed capture-state routine `[0x253fc,0x25700)` contributes 179 checked typed A32 operations and a 14-word diagnostic pool `[0x256c8,0x25700)`, with buffer state transitions, callback conditions and flags. Next routine begins at `0x25700`.
+
+## Checkpoint 12 — peripheral register access and callback wrappers
+
+- Contiguous `[0x21c78,0x25b1c)` = **16,036 source-encoded and byte-identical bytes**, reference MBN `[0x25c78,0x29b1c)`.
+- Full region contains **3,729 checked typed ARM A32 instructions and 280 non-instruction words**, identified across 57 literal pools; Clang/LLD reassembly independently matches every byte.
+- New `[0x25700,0x25b1c)` contributes 224 ARM32 instructions and 39 literal words in 28 pools, covering controller-register getters/setters, hardware-vendor table lookups, stream logging, and platform initialization/teardown callback wrappers.
+- Next uncovered function begins at runtime `0x25b1c`; prior `[0x21c78,0x25b1c)` code is complete as A32 encoding, not a full high-level firmware source decompilation or signed firmware image.
