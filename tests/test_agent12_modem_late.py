@@ -55,6 +55,9 @@ class ModemLateTests(unittest.TestCase):
         self.assertEqual((agent12.AUX_LOOKUP_START,agent12.AUX_LOOKUP_END),
                          (0x446420,0x446488))
         self.assertEqual(agent12.AUX_WORKER_END,agent12.AUX_LOOKUP_START)
+        self.assertEqual((agent12.AUX_DISPATCH_START,agent12.AUX_DISPATCH_END),
+                         (0x446650,0x446694))
+        self.assertLess(agent12.AUX_LOOKUP_END,agent12.AUX_DISPATCH_START)
 
     def test_atomic_packet_reorder_checks_opcode_class_and_parse_bits(self):
         words = [0x7800C000] * 16  # synthetic A2_tfrsi instruction for surrounding words
@@ -292,6 +295,7 @@ class ModemLateTests(unittest.TestCase):
         m = agent12.AUX_HEAP_SOURCE.read_text()
         n = agent12.AUX_WORKER_SOURCE.read_text()
         o = agent12.AUX_LOOKUP_SOURCE.read_text()
+        p = agent12.AUX_DISPATCH_SOURCE.read_text()
         self.assertIn("memw_locked(r0)", a)
         self.assertIn("if (!p0.new) r3 = add", a)
         self.assertIn("memb(##3249533708) = r2.new", a)
@@ -326,6 +330,7 @@ class ModemLateTests(unittest.TestCase):
         self.assertIn('mpyi(r2,r4)',m)
         self.assertIn('worker_register',n)
         self.assertIn('r2 = memw(r2+#0)',o)
+        self.assertIn('callr r17',p)
 
     def test_rejects_bad_executable_elf_magic_and_isa(self):
         with self.assertRaisesRegex(ValueError, "ELF32"):
@@ -344,7 +349,7 @@ class ModemLateTests(unittest.TestCase):
     def test_optional_llvm6_exact_source_lengths(self):
         a = agent12.output_fragments(Path(os.environ["NABU_HEXAGON_LLVM_MC"]))
         self.assertEqual({k: len(v) for k, v in a.items()},
-                         {0x7C000:160,0x7C2EC:452,0x446000:216,0x446200:84,0x446260:552})
+                         {0x7C000:160,0x7C2EC:452,0x446000:216,0x446200:84,0x446260:552,0x446650:68})
         if os.getenv("NABU_MODEM_REFERENCE"):
             agent12.verify_reference(Path(os.environ["NABU_MODEM_REFERENCE"]).read_bytes(), a)
 

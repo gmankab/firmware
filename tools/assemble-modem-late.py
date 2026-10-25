@@ -32,6 +32,7 @@ SERVICE_ALLOC_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/mod
 AUX_HEAP_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_aux_heap.s"
 AUX_WORKER_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_aux_worker.s"
 AUX_LOOKUP_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_aux_registry_lookup.s"
+AUX_DISPATCH_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_aux_dispatch_helpers.s"
 ATOMIC_START = 0x7C000
 ATOMIC_END = 0x7C040
 SERVICE_START = 0x7C2EC
@@ -60,6 +61,8 @@ AUX_WORKER_START = 0x4463B4
 AUX_WORKER_END = 0x446420
 AUX_LOOKUP_START = 0x446420
 AUX_LOOKUP_END = 0x446488
+AUX_DISPATCH_START = 0x446650
+AUX_DISPATCH_END = 0x446694
 MARKER_MASK = 3 << 14
 CONTINUE_MARKER = 1 << 14
 END_MARKER = 3 << 14
@@ -385,6 +388,9 @@ def output_fragments(llvm_mc: Path) -> dict[int, bytes]:
     aux_heap = restore_aux_heap_predicate_packet(assemble(llvm_mc,AUX_HEAP_SOURCE))
     aux_worker = restore_aux_worker_packets(assemble(llvm_mc,AUX_WORKER_SOURCE))
     aux_lookup = restore_aux_lookup_return_packet(assemble(llvm_mc,AUX_LOOKUP_SOURCE))
+    aux_dispatch = assemble(llvm_mc,AUX_DISPATCH_SOURCE)
+    if len(aux_dispatch) != AUX_DISPATCH_END-AUX_DISPATCH_START:
+        raise ValueError("aux callback dispatcher must emit exactly 68 bytes")
     if len(aux_mmio) != AUX_MMIO_END-AUX_MMIO_START:
         raise ValueError("auxiliary MMIO initialization source has invalid length")
     assert AUX_GUARD_END == AUX_STAGE_START and AUX_STAGE_END == AUX_MMIO_START
@@ -398,7 +404,8 @@ def output_fragments(llvm_mc: Path) -> dict[int, bytes]:
     assert SERVICE_FLAGS_END == SERVICE_ALLOC_START
     return {ATOMIC_START: atomic + controller, SERVICE_START: service+service_mmio+service_flags+service_alloc,
             AUX_START: auxiliary, AUX_INIT_START: aux_init,
-            AUX_GUARD_START: aux_guard+aux_stage+aux_mmio+aux_heap+aux_worker+aux_lookup}
+            AUX_GUARD_START: aux_guard+aux_stage+aux_mmio+aux_heap+aux_worker+aux_lookup,
+            AUX_DISPATCH_START:aux_dispatch}
 
 
 def executable_segments(reference: bytes) -> dict[int, tuple[int, int, int, int]]:
