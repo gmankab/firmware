@@ -12,6 +12,7 @@ never bundled in this repository.
 import argparse
 import hashlib
 import importlib.util
+import os
 from pathlib import Path
 import subprocess
 import sys
@@ -82,7 +83,13 @@ def main(argv=None):
             built = private_output.read_bytes()
             validate_exact_rebuilt_image(built)
             result = verify_embedded_chain(built)
-            private_output.replace(args.output)
+            # An atomic hard-link creation refuses an output that appeared
+            # after our earlier existence check (no TOCTOU overwrite).
+            # Same-filesystem placement is guaranteed by dir=output.parent.
+            try:
+                os.link(private_output, args.output)
+            except FileExistsError as exc:
+                raise ValueError("refusing to overwrite an output created during verification") from exc
         print(f"Exact original A640: {len(built)} bytes, SHA-256 {REFERENCE_SHA256}")
         print("Generated from source: 7856 bytes; original borrowed authentication: 6400 bytes")
         print(f"Verified embedded certificates: {result['certificate_count']}; OEM RSA-PSS: true")
