@@ -455,3 +455,11 @@ Original reference: private `map220v-nabu-firmware/venus.mbn`, SHA-256 `9d4af65d
 - Distinct jump tables `[0x32b74,0x32b8c)` (six targets), `[0x32ba8,0x32bc4)` (seven targets), `[0x32c84,0x32c9c)` (six targets) are kept out of the executable instruction region and modeled as named data. Builds initial controller data-plane and codec-class selection with indexed PC dispatch; the function itself continues after the verified boundary.
 - Direct full-fragment comparison to pinned reference `venus.mbn` reports **zero byte differences**; independent Clang/LLVM reassembly of all 676 new bytes passes. Rust workspace **235** tests and Python **13** tests pass. Release build was not confirmed for this checkpoint.
 - First missing code begins at runtime `0x32c9c`. This remains typed ARM32 instruction encoding, not high-level functional decompilation or OEM-authenticated firmware.
+
+## Checkpoint 69 — completed codec-class dispatch and diagnostic tables
+
+- Contiguous typed A32 `[0x21c78,0x33488)` = **71,696 byte-identical bytes**. New `[0x32c9c,0x33488)` = **2,028 bytes**, **475 instructions** and **32 distinct data words**.
+- Completes the controller codec-class state machine begun in checkpoint 68: a seven-way switch at `[0x32d18,0x32d34)` and extended codec command/format selection, error reporting, frame payload checks and callbacks. The final 25-word offset/diagnostic table `[0x33424,0x33488)` is explicitly data; 32-bit values that naive ARM objdump renders as `andeq`, `ldrsbeq`, or unknown instructions are not misclassified as executable code.
+- Full typed emitter verifies byte-for-byte against pinned `venus.mbn` (`9d4af65d…a2091445a085`), and independent Clang/LLVM A32 reassembly of all **2,028** new bytes confirms **zero mismatches**.
+- **236 Rust tests** and **13 Python tests** passed. Optimized release build remains unconfirmed for the current series of checkpoints.
+- First uncovered runtime function starts at `0x33488`, safely below this agent's exclusive `0x40000` end. This establishes instruction-byte identity, not recovered high-level codec behavior or new OEM authentication.
