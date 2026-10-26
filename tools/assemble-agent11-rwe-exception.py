@@ -17,7 +17,7 @@ import subprocess
 import tempfile
 
 FILE_START = 0x38108
-FILE_END = 0x39064
+FILE_END = 0x390dc
 VIRTUAL_START = 0xc0840108
 PHYSICAL_START = 0x8e040108
 PINNED_SHA256 = '6f5cb32bc10e41abb40938d185805e788f5637a41d3ebcef278e4e169fc36782'
@@ -356,6 +356,49 @@ def normalize_llvm6_locked_packets(data: bytes) -> bytes:
         if read(0x39000)!=0xa1ddd415 or read(0x39004)!=0x529fc000 or read(0x39008)!=0xeaf90a2f:
             raise ValueError('unexpected codec capture return/duplex packet')
         write(0x39004,(read(0x39004)&~(3<<14))|(1<<14))
+    if len(result)>=0x390dc-FILE_START:
+        # Original V60 exception-filter packet reorders an independent
+        # tstbit producer and a .new conditional add/jump. LLVM6 preserves
+        # operand bits but puts the branch before the add; reorder only
+        # after checking both source-derived Hexagon words.
+        if read(0x39090)!=0x85075100 or read(0x39094)!=0x5cdd4812 or read(0x39098)!=0x7409e007:
+            raise ValueError('unexpected P0/new saved-frame predicate packet')
+        branch,add=read(0x39094),read(0x39098)
+        write(0x39094,(add&~(3<<14))|(1<<14))
+        write(0x39098,(branch&~(3<<14))|(3<<14))
+        # LLVM6 expands a compact 2-instruction packet consisting of
+        # r2=#0 and a long jump into two words *after* the independently
+        # derived signed immediate extender. V60 has a documented compact
+        # compound word with a fixed branch opcode class and operand r2.
+        # Rebuild that word from ISA fields, delete only the validated
+        # standalone r2 immediate, then adjust PC-relative branch locations
+        # following the now one-word shorter compound packet.
+        pre={0x3909c:0x0fff7fd7,0x390a0:0x58004040,0x390a4:0x7800c002,
+             0x390a8:0x78df7fe0,0x390ac:0x7800d801,
+             0x390c4:0x529fc000,0x390d4:0x5800c060,
+             0x390dc:0x5800c010}
+        for address,word in pre.items():
+            if read(address)!=word:
+                raise ValueError(f'unexpected V60 compact frame reset at 0x{address:x}')
+        branch_displacement=0x3867c-0x3909c
+        if branch_displacement>=0 or branch_displacement%4 or branch_displacement< -0x100000:
+            raise ValueError('invalid protected frame-reset target')
+        register_to_clear=2
+        compact_jump=(0x16000000 | (register_to_clear<<16) | (1<<14) | 0x40)
+        write(0x390a0,compact_jump)
+        del result[0x390a4-FILE_START:0x390a8-FILE_START]
+        write(0x390a4,(read(0x390a4)&~(3<<14))|(1<<14))
+        if read(0x390c0)!=0x529fc000:
+            raise ValueError('unexpected saved-ring reset return after compact packet')
+        write(0x390c0,(read(0x390c0)&~(3<<14))|(1<<14))
+        for address,original,despite_shorter in (
+                (0x390d0,0x5800c060,0x5800c068),
+                (0x390d8,0x5800c010,0x5800c018)):
+            if read(address)!=original:
+                raise ValueError(f'unexpected relocated jump at {address:#x}')
+            # One removed 4-byte word => a +4 target displacement, encoded
+            # by two halfword steps in this Hexagon branch's low field.
+            write(address,original+2*4)
     return bytes(result)
 
 

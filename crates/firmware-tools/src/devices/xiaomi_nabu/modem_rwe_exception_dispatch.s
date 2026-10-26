@@ -1506,3 +1506,56 @@ MODEM_RWE_SYSTEM_PAIR_READ 14,56,1 // r15:14=S57:56
 agent11_modem_rwe_frame_ring_loop:
 { nop; r0 = add(r0,#4); memw(r0+#0) = r1 }:endloop0
 { jumpr lr }
+// Small interrupt-cycle setter and relocated exception-report trampolines.
+// PCYCLE uses a privileged control-register pair, which LLVM6 does not
+// accept by mnemonic. Encode its public Hexagon ISA register field explicitly.
+.macro MODEM_RWE_PCYCLE_WRITE general_low=0, marker=3
+  .if (\general_low < 0) || (\general_low > 30) || (\general_low & 1)
+    .error "PCYCLE source must be an even register pair"
+  .endif
+  .if (\marker != 3)
+    .error "PCYCLE write must be standalone"
+  .endif
+  .word (0x6d000000 | (\general_low<<16) | (\marker<<14) | 30)
+.endm
+.globl agent11_modem_rwe_pcycle_writer
+agent11_modem_rwe_pcycle_writer:
+MODEM_RWE_PCYCLE_WRITE 0,3
+{ jumpr lr }
+.globl agent11_modem_rwe_trace_jump
+agent11_modem_rwe_trace_jump:
+.set modem_rwe_trace_fallback, agent11_modem_exception_dispatch_entry + (0x69960-0x38108)
+{ jump ##modem_rwe_trace_fallback }
+.globl agent11_modem_rwe_trace_call
+agent11_modem_rwe_trace_call:
+{ r17 = lr }
+{ call ##modem_rwe_trace_fallback }
+{ lr = r17 }
+{ jumpr lr }
+// Trace the protected user-thread hardware state, optionally return to the
+// existing exception vector, then reset its descriptor ring metadata.
+.globl agent11_modem_rwe_exception_bit_filter
+agent11_modem_rwe_exception_bit_filter:
+MODEM_SYS_READ 7,6,1  // SSR
+{ r13 = extractu(r15,#4,#16) }
+.set modem_rwe_bit_filter_existing, agent11_modem_exception_dispatch_entry + (0x384b4-0x38108)
+{
+ p0 = tstbit(r7,#17)
+ if (p0.new) r7 = add(r9,#0)
+ if (p0.new) jump:nt modem_rwe_bit_filter_existing
+}
+.set modem_rwe_bit_filter_done, agent11_modem_exception_dispatch_entry + (0x3867c-0x38108)
+{ r2 = #0; jump ##modem_rwe_bit_filter_done }
+.globl agent11_modem_rwe_ring_reset
+agent11_modem_rwe_ring_reset:
+{ r0 = #-1; r1 = #192 }
+{ r4 = ##-1065084704; r3:2 = combine(r0,r0) }
+{ memd(r4+#0) = r1:0; memd(r4+#16) = r1:0 }
+{ jumpr lr }
+{ memd(r4+#32) = r3:2; memd(r4+#48) = r3:2 }
+.globl agent11_modem_rwe_trace_end_jumps
+agent11_modem_rwe_trace_end_jumps:
+.set modem_rwe_trace_end1, agent11_modem_exception_dispatch_entry + (0x76e40-0x38108)
+.set modem_rwe_trace_end2, agent11_modem_exception_dispatch_entry + (0x76e60-0x38108)
+{ jump ##modem_rwe_trace_end1 }
+{ jump ##modem_rwe_trace_end2 }
