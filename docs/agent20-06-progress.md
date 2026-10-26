@@ -507,3 +507,11 @@ python3 tools/agent20_06_a32_roundtrip.py /private/venus.mbn 0xa8ea0 0xa92c8 \
 - Added the full codec hardware-profile controller routine `[0xbc7dc,0xbd000)` = **2,084 bytes**, comprising **511 independently re-encoded ARM32 instructions** (2,044 bytes) and **ten separately modeled non-instruction literal words** (40 bytes) at `[0xbcfd8,0xbd000)`. Contains codec status/MMIO writes, structured frame-row registers, channel geometry, fallback reports and the original POP/PC return.
 - Entire generated output exactly matches pinned `venus.mbn` (zero different bytes). Independent Clang/LLVM mnemonic reconstruction matches all code bytes, with the literal pool classified as data. **231 Rust + 13 Python tests passed**; no release build claimed.
 - Next uncovered runtime `0xbd000` (file `0xc1000`), next function prologue begins here. Work stays on the provisional old-Agent-03 Git branch, not a checkpoint-50-based integration. Instruction-byte equality does not establish recovered high-level source semantics or OEM authentication.
+
+## Checkpoint 60 — controller record initialization and packed-word normalizer
+
+- Continuous typed Venus runtime `[0xa8000,0xbd648)` = **87,624 byte-identical bytes**, original MBN file `[0xac000,0xc1648)`.
+- Added `[0xbd000,0xbd648)` = **1,608 bytes**, comprising **394 ARM32 instructions** (1,576 bytes) and **8 separate data words** (32 bytes) at `[0xbd540,0xbd560)`.
+- Rebuilds the controller's stream-record lifecycle initialization, source buffer accounting, conditional cleanup, 16-word packed register-field normalizer and short command dispatch helper. The original POP/PC returns are preserved; the diagnostic and mode table are modeled as data.
+- Entire source-emitted fragment matches the pinned `venus.mbn` (0 mismatches); independent Clang/LLVM round-trip matches all 1,576 instruction bytes and 32 explicit data bytes. **232 Rust tests and 13 Python tests passed**. No successful release build claimed at this checkpoint.
+- Next missing VMA `0xbd648`, MBN file offset `0xc1648`, begins another resource update function. Provisional old-Agent-03 Git base, not checkpoint-50-integrated; instruction equality is not high-level decompilation, hardware proof or OEM signature generation.
