@@ -13,7 +13,7 @@ use arm32::{Condition as C, DataOp as Op, Register as R, Shift};
 
 pub const FILE_BASE: usize=0x4000;
 pub const START: usize=0xa8000;
-pub const END: usize=0xc4694;
+pub const END: usize=0xc47c8;
 pub const MAX_OWNED_END: usize=0x1029f4;
 pub const FILE_OFFSET: usize=FILE_BASE+START;
 
@@ -58505,6 +58505,164 @@ fn decode_packed_controller_plane_parameters(c:&mut Code)->Result<(),String>{
     // VMA 0xc4690: bx lr
     c.emit(arm32::bx(C::Al,R::LR))?;
 
+    c.check(0xc4694)
+}
+
+/// Calculate bounded plane scaling factors from two packed codec plane
+/// counts and report the chosen live buffer mode. The conditional callback
+/// returns through a tail branch, followed by six original noninstruction
+/// diagnostic-address words maintained as a named data pool.
+fn calculate_frame_scaling_and_policy(c:&mut Code)->Result<(),String>{
+    c.check(0xc4694)?;
+    // VMA 0xc4694: push {r4, r5, r11, lr}
+    c.emit(arm32::transfer_multiple(C::Al,false,R::SP,R::new(4)?.bit()|R::new(5)?.bit()|R::R11.bit()|R::LR.bit(),arm32::BlockMode::DecrementBefore,true)?)?;
+    // VMA 0xc4698: add r11, sp, #8
+    c.emit(arm32::data_immediate(C::Al,Op::Add,R::R11,R::SP,8)?)?;
+    // VMA 0xc469c: ldr r12, [r11, #0x8]
+    c.emit(arm32::transfer_word(C::Al,true,R::R12,R::R11,8)?)?;
+    // VMA 0xc46a0: add lr, r12, #7
+    c.emit(arm32::data_immediate(C::Al,Op::Add,R::LR,R::R12,7)?)?;
+    // VMA 0xc46a4: asr lr, lr, #3
+    c.emit(arm32::mov_shifted_register(C::Al,R::LR,R::LR,Shift::Asr,3)?)?;
+    // VMA 0xc46a8: mul r4, lr, r2
+    c.emit(arm32::multiply_register(C::Al,R::new(4)?,R::LR,R::R2)?)?;
+    // VMA 0xc46ac: asr r4, r4, r3
+    c.emit(arm32::data_register_shifted_by_register(C::Al,Op::Mov,R::new(4)?,R::R0,R::new(4)?,Shift::Asr,R::new(3)?,false)?)?;
+    // VMA 0xc46b0: lsl r5, r4, #3
+    c.emit(arm32::mov_shifted_register(C::Al,R::new(5)?,R::new(4)?,Shift::Lsl,3)?)?;
+    // VMA 0xc46b4: cmp r5, r12
+    c.emit(arm32::data_register(C::Al,Op::Cmp,R::R0,R::new(5)?,R::R12,Shift::Lsl,0,false)?)?;
+    // VMA 0xc46b8: mov r5, r12
+    c.emit(arm32::mov_register(C::Al,R::new(5)?,R::R12))?;
+    // VMA 0xc46bc: lsllt r5, r4, #3
+    c.emit(arm32::mov_shifted_register(C::Lt,R::new(5)?,R::new(4)?,Shift::Lsl,3)?)?;
+    // VMA 0xc46c0: str r5, [r0]
+    c.emit(arm32::transfer_word(C::Al,false,R::new(5)?,R::R0,0)?)?;
+    // VMA 0xc46c4: add r0, r2, #1
+    c.emit(arm32::data_immediate(C::Al,Op::Add,R::R0,R::R2,1)?)?;
+    // VMA 0xc46c8: mul r2, lr, r0
+    c.emit(arm32::multiply_register(C::Al,R::R2,R::LR,R::R0)?)?;
+    // VMA 0xc46cc: asr r0, r2, r3
+    c.emit(arm32::data_register_shifted_by_register(C::Al,Op::Mov,R::R0,R::R0,R::R2,Shift::Asr,R::new(3)?,false)?)?;
+    // VMA 0xc46d0: lsl r2, r0, #3
+    c.emit(arm32::mov_shifted_register(C::Al,R::R2,R::R0,Shift::Lsl,3)?)?;
+    // VMA 0xc46d4: cmp r2, r12
+    c.emit(arm32::data_register(C::Al,Op::Cmp,R::R0,R::R2,R::R12,Shift::Lsl,0,false)?)?;
+    // VMA 0xc46d8: lsllt r12, r0, #3
+    c.emit(arm32::mov_shifted_register(C::Lt,R::R12,R::R0,Shift::Lsl,3)?)?;
+    // VMA 0xc46dc: str r12, [r1]
+    c.emit(arm32::transfer_word(C::Al,false,R::R12,R::R1,0)?)?;
+    // VMA 0xc46e0: pop {r4, r5, r11, pc}
+    c.emit(arm32::transfer_multiple(C::Al,true,R::SP,R::new(4)?.bit()|R::new(5)?.bit()|R::R11.bit()|R::PC.bit(),arm32::BlockMode::IncrementAfter,true)?)?;
+    // VMA 0xc46e4: push {r4, r7, r11, lr}
+    c.emit(arm32::transfer_multiple(C::Al,false,R::SP,R::new(4)?.bit()|R::new(7)?.bit()|R::R11.bit()|R::LR.bit(),arm32::BlockMode::DecrementBefore,true)?)?;
+    // VMA 0xc46e8: add r11, sp, #8
+    c.emit(arm32::data_immediate(C::Al,Op::Add,R::R11,R::SP,8)?)?;
+    // VMA 0xc46ec: mov r4, r0
+    c.emit(arm32::mov_register(C::Al,R::new(4)?,R::R0))?;
+    // VMA 0xc46f0: lsr r0, r1, #4
+    c.emit(arm32::mov_shifted_register(C::Al,R::R0,R::R1,Shift::Lsr,4)?)?;
+    // VMA 0xc46f4: lsr r1, r2, #4
+    c.emit(arm32::mov_shifted_register(C::Al,R::R1,R::R2,Shift::Lsr,4)?)?;
+    // VMA 0xc46f8: mul r2, r1, r0
+    c.emit(arm32::multiply_register(C::Al,R::R2,R::R1,R::R0)?)?;
+    // VMA 0xc46fc: cmp r2, #3680
+    c.emit(arm32::data_immediate(C::Al,Op::Cmp,R::R0,R::R2,3680)?)?;
+    // VMA 0xc4700: bls 0xc4710 <entry+0x710>   @ imm = #0x8
+    c.b(C::Ls,0xc4710,false)?;
+    // VMA 0xc4704: ldr r0, [r4, #0x444]
+    c.emit(arm32::transfer_word(C::Al,true,R::R0,R::new(4)?,1092)?)?;
+    // VMA 0xc4708: cmp r0, #0
+    c.emit(arm32::data_immediate(C::Al,Op::Cmp,R::R0,R::R0,0)?)?;
+    // VMA 0xc470c: beq 0xc4758 <entry+0x758>   @ imm = #0x44
+    c.b(C::Eq,0xc4758,false)?;
+    // VMA 0xc4710: ldr r0, [r4, #0x904]
+    c.emit(arm32::transfer_word(C::Al,true,R::R0,R::new(4)?,2308)?)?;
+    // VMA 0xc4714: cmp r0, #0
+    c.emit(arm32::data_immediate(C::Al,Op::Cmp,R::R0,R::R0,0)?)?;
+    // VMA 0xc4718: beq 0xc4740 <entry+0x740>   @ imm = #0x20
+    c.b(C::Eq,0xc4740,false)?;
+    // VMA 0xc471c: ldr r1, [pc, #0x8c]         @ 0x7b0 <entry+0x7b0>
+    c.literal(R::R1,0xc47b0)?;
+    // VMA 0xc4720: mov r0, #4
+    c.emit(arm32::data_immediate(C::Al,Op::Mov,R::R0,R::R0,4)?)?;
+    // VMA 0xc4724: bl 0x2ec94 <entry+0xfffffffffff6ac94> @ imm = #-0x95a98
+    c.b(C::Al,0x2ec94,true)?;
+    // VMA 0xc4728: ldr r1, [pc, #0x84]         @ 0x7b4 <entry+0x7b4>
+    c.literal(R::R1,0xc47b4)?;
+    // VMA 0xc472c: mov r0, #4
+    c.emit(arm32::data_immediate(C::Al,Op::Mov,R::R0,R::R0,4)?)?;
+    // VMA 0xc4730: bl 0x2ec94 <entry+0xfffffffffff6ac94> @ imm = #-0x95aa4
+    c.b(C::Al,0x2ec94,true)?;
+    // VMA 0xc4734: mov r0, #0
+    c.emit(arm32::data_immediate(C::Al,Op::Mov,R::R0,R::R0,0)?)?;
+    // VMA 0xc4738: str r0, [r4, #0x904]
+    c.emit(arm32::transfer_word(C::Al,false,R::R0,R::new(4)?,2308)?)?;
+    // VMA 0xc473c: b 0xc4790 <entry+0x790>   @ imm = #0x4c
+    c.b(C::Al,0xc4790,false)?;
+    // VMA 0xc4740: ldr r1, [pc, #0x70]         @ 0x7b8 <entry+0x7b8>
+    c.literal(R::R1,0xc47b8)?;
+    // VMA 0xc4744: mov r0, #1
+    c.emit(arm32::data_immediate(C::Al,Op::Mov,R::R0,R::R0,1)?)?;
+    // VMA 0xc4748: bl 0x2ec94 <entry+0xfffffffffff6ac94> @ imm = #-0x95abc
+    c.b(C::Al,0x2ec94,true)?;
+    // VMA 0xc474c: ldr r1, [pc, #0x60]         @ 0x7b4 <entry+0x7b4>
+    c.literal(R::R1,0xc47b4)?;
+    // VMA 0xc4750: mov r0, #1
+    c.emit(arm32::data_immediate(C::Al,Op::Mov,R::R0,R::R0,1)?)?;
+    // VMA 0xc4754: b 0xc478c <entry+0x78c>   @ imm = #0x30
+    c.b(C::Al,0xc478c,false)?;
+    // VMA 0xc4758: ldr r0, [r4, #0x904]
+    c.emit(arm32::transfer_word(C::Al,true,R::R0,R::new(4)?,2308)?)?;
+    // VMA 0xc475c: cmp r0, #1
+    c.emit(arm32::data_immediate(C::Al,Op::Cmp,R::R0,R::R0,1)?)?;
+    // VMA 0xc4760: bne 0xc476c <entry+0x76c>   @ imm = #0x4
+    c.b(C::Ne,0xc476c,false)?;
+    // VMA 0xc4764: ldr r1, [pc, #0x54]         @ 0x7c0 <entry+0x7c0>
+    c.literal(R::R1,0xc47c0)?;
+    // VMA 0xc4768: b 0xc477c <entry+0x77c>   @ imm = #0xc
+    c.b(C::Al,0xc477c,false)?;
+    // VMA 0xc476c: ldr r1, [pc, #0x48]         @ 0x7bc <entry+0x7bc>
+    c.literal(R::R1,0xc47bc)?;
+    // VMA 0xc4770: mov r0, #1
+    c.emit(arm32::data_immediate(C::Al,Op::Mov,R::R0,R::R0,1)?)?;
+    // VMA 0xc4774: str r0, [r4, #0x904]
+    c.emit(arm32::transfer_word(C::Al,false,R::R0,R::new(4)?,2308)?)?;
+    // VMA 0xc4778: str r0, [r4, #0x90]
+    c.emit(arm32::transfer_word(C::Al,false,R::R0,R::new(4)?,144)?)?;
+    // VMA 0xc477c: mov r0, #4
+    c.emit(arm32::data_immediate(C::Al,Op::Mov,R::R0,R::R0,4)?)?;
+    // VMA 0xc4780: bl 0x2ec94 <entry+0xfffffffffff6ac94> @ imm = #-0x95af4
+    c.b(C::Al,0x2ec94,true)?;
+    // VMA 0xc4784: ldr r1, [pc, #0x28]         @ 0x7b4 <entry+0x7b4>
+    c.literal(R::R1,0xc47b4)?;
+    // VMA 0xc4788: mov r0, #4
+    c.emit(arm32::data_immediate(C::Al,Op::Mov,R::R0,R::R0,4)?)?;
+    // VMA 0xc478c: bl 0x2ec94 <entry+0xfffffffffff6ac94> @ imm = #-0x95b00
+    c.b(C::Al,0x2ec94,true)?;
+    // VMA 0xc4790: ldr r2, [r4, #0x904]
+    c.emit(arm32::transfer_word(C::Al,true,R::R2,R::new(4)?,2308)?)?;
+    // VMA 0xc4794: ldr r1, [pc, #0x28]         @ 0x7c4 <entry+0x7c4>
+    c.literal(R::R1,0xc47c4)?;
+    // VMA 0xc4798: mov r0, #4
+    c.emit(arm32::data_immediate(C::Al,Op::Mov,R::R0,R::R0,4)?)?;
+    // VMA 0xc479c: bl 0x2ec94 <entry+0xfffffffffff6ac94> @ imm = #-0x95b10
+    c.b(C::Al,0x2ec94,true)?;
+    // VMA 0xc47a0: ldr r1, [pc, #0xc]          @ 0x7b4 <entry+0x7b4>
+    c.literal(R::R1,0xc47b4)?;
+    // VMA 0xc47a4: mov r0, #4
+    c.emit(arm32::data_immediate(C::Al,Op::Mov,R::R0,R::R0,4)?)?;
+    // VMA 0xc47a8: pop {r4, r7, r11, lr}
+    c.emit(arm32::transfer_multiple(C::Al,true,R::SP,R::new(4)?.bit()|R::new(7)?.bit()|R::R11.bit()|R::LR.bit(),arm32::BlockMode::IncrementAfter,true)?)?;
+    // VMA 0xc47ac: b 0x2ec94 <entry+0xfffffffffff6ac94> @ imm = #-0x95b20
+    c.b(C::Al,0x2ec94,false)?;
+
+    c.check(0xc47b0)?;
+    const FRAME_SCALING_LITERALS:[u32;6]=[
+        0x000f_b34e,0x000e_2788,0x000f_b369,
+        0x000f_b318,0x000f_b334,0x000f_b382,
+    ];
+    for word in FRAME_SCALING_LITERALS {c.emit(word)?;}
     c.check(END)
 }
 
@@ -58702,6 +58860,7 @@ pub fn fragment() -> Result<Vec<u8>,String> {
     configure_codec_output_stream_mmio(&mut c)?;
     register_codec_controller_mode_policies(&mut c)?;
     decode_packed_controller_plane_parameters(&mut c)?;
+    calculate_frame_scaling_and_policy(&mut c)?;
     c.check(END)?;
     Ok(c.bytes)
 }
@@ -58709,13 +58868,24 @@ pub fn fragment() -> Result<Vec<u8>,String> {
 #[cfg(test)] mod tests {
     use super::*;
     #[test]
+    fn frame_scaling_literals_are_six_noninstructions() {
+        let b=fragment().unwrap();
+        let read=|a:usize| {let i=a-START;u32::from_le_bytes(b[i..i+4].try_into().unwrap())};
+        for (i,w) in [0x000f_b34e,0x000e_2788,0x000f_b369,
+                       0x000f_b318,0x000f_b334,0x000f_b382].iter().enumerate(){
+            assert_eq!(read(0xc47b0+4*i),*w);
+        }
+        assert_eq!(b.len(),0xc47c8-START);
+    }
+
+    #[test]
     fn packed_plane_field_decoder_stops_at_new_prologue() {
         let b=fragment().unwrap();
         let w=|a:usize| { let i=a-START;u32::from_le_bytes(b[i..i+4].try_into().unwrap()) };
         assert_eq!(w(0xc4334),arm32::transfer_doubleword(C::Al,true,R::R2,R::R1,0).unwrap());
         assert_eq!(w(0xc4500),arm32::rotate_right_with_extend(C::Al,R::R2,R::R2,false).unwrap());
         assert_eq!(w(0xc4690),arm32::bx(C::Al,R::LR));
-        assert_eq!(b.len(),0xc4694-START);
+        assert!(b.len()>=0xc4694-START);
     }
 
     #[test]
@@ -58826,7 +58996,8 @@ pub fn fragment() -> Result<Vec<u8>,String> {
         assert_eq!(word(0xc05e0),0x000fa71c);
         assert_eq!(word(0xc0978),0x000fa71c);
         assert_eq!(word(0xc099c),0x000faeae);
-        assert_eq!(END,0xc4694);
+        assert_eq!(END,0xc47c8);
+        assert_eq!(0xc47c8-0xc4694,308);
         assert_eq!(0xc4694-0xc420c,1160);
         assert_eq!(0xc420c-0xc3c14,1528);
         assert_eq!(0xc3c14-0xc3574,1696);
@@ -58880,7 +59051,8 @@ pub fn fragment() -> Result<Vec<u8>,String> {
         assert_eq!(0xbfe54-0xbfdf8,23*4);
         assert_eq!(word(0xbfdf8),0x000fa754);
         assert_eq!(word(0xbfe50),0x000fa6f2);
-        assert_eq!(END,0xc4694);
+        assert_eq!(END,0xc47c8);
+        assert_eq!(0xc47c8-0xc4694,308);
         assert_eq!(0xc4694-0xc420c,1160);
         assert_eq!(0xc420c-0xc3c14,1528);
         assert_eq!(0xc3c14-0xc3574,1696);
@@ -59148,7 +59320,8 @@ pub fn fragment() -> Result<Vec<u8>,String> {
 
     #[test] fn checkpoint64_frame_queue_carries_two_pointer_words() {
         let bytes=fragment().unwrap();
-        assert_eq!(END,0xc4694);
+        assert_eq!(END,0xc47c8);
+        assert_eq!(0xc47c8-0xc4694,308);
         assert_eq!(0xc4694-0xc420c,1160);
         assert_eq!(0xc420c-0xc3c14,1528);
         assert_eq!(0xc3c14-0xc3574,1696);

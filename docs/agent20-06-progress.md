@@ -776,3 +776,17 @@ python3 tools/agent20_06_a32_roundtrip.py /private/venus.mbn 0xa8ea0 0xa92c8 \
   ```
 
 - **253 Rust tests and 13 Python tests passed.** No completed release build claimed. New missing instruction begins at runtime `0xc4694`, original file `0xc8694`. The branch is provisional from older Agent 03, not checkpoint-50-integrated. Byte-identical ISA reconstruction is not high-level source decompilation or an independently OEM-signed firmware image.
+
+## Checkpoint 81 — codec frame scaling and mode-policy reporting
+
+- Entire emitted Venus ARM32 tail `[0xa8000,0xc47c8)` = **116,680 consecutive original-exact bytes**, MBN file `[0xac000,0xc87c8)`.
+- New `[0xc4694,0xc47c8)` = **308 bytes**, 71 typed ARM instructions (284 bytes) followed by six explicit diagnostic data words (24 bytes) at `[0xc47b0,0xc47c8)`.
+- Two helpers implement bounds checks on packed frame-plane counts and update a mode selection flag, using conditional branches and preserving original tail-call reporting. The diagnostic pool is data, not transcribed as instructions.
+- Whole Rust fragment byte-for-byte equals the pinned original (zero differences); independent Clang/LLVM confirms the complete interval:
+
+  ```sh
+  python3 tools/agent20_06_a32_roundtrip.py /private/venus.mbn 0xc4694 0xc47c8 \
+    --data-range 0xc47b0:0xc47c8
+  ```
+
+- **254 Rust tests and 13 Python tests passed.** No completed release build is claimed. Next uncovered runtime `0xc47c8`, file `0xc87c8`. Still provisional from older Agent 03; no checkpoint-50-rooted integration, semantic behavior certification or new OEM signing.
