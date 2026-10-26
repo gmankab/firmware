@@ -1147,3 +1147,16 @@ python3 -S tools/adsp-agent20-rwe-next-controller-slot-bitmap-mask.py \
   --llvm-mc "$HEXAGON_LLVM_MC" --reference "$NABU_ADSP_REFERENCE" \
   --output /tmp/adsp-slot-bitmap-mask-64.bin
 ```
+
+## Checkpoint 66: atomic controller slot-class bitmap toggle `[0x11f58,0x11fd8)`
+
+- Added **128 exact Hexagon V66 executable bytes** (32 LLVM6-assembled words) at file `[0x11f58,0x11fd8)`, physical `[0x8be0ef58,0x8be0efd8)`. SHA-256 `56e7f46e65261a29e279c6cd467c29c04f2f0860832eaefd91ec42d8e74a21ea`.
+- Emits checked controller context lookup, class/bit extraction, bitmap read/modify/write, and associated global controller MMIO table publication. Correctly preserves all packet boundaries and `p0.new` dependent control flow, ending in the original `dealloc_return`; all opcodes are LLVM6-assembled from Hexagon source, **zero privileged substitutions**.
+- The source-built contiguous controller/slot island `[0x11ae0,0x11fd8)` now contains **1,272 bytes**, separate from intervening unrelated OEM text, diagnostic strings, or alignment fill.
+- Cumulative ADSP RWE executable source: **8,892 bytes across fifteen disjoint intervals**. Next complete function starts at file `0x11fd8`.
+
+```sh
+python3 -S tools/adsp-agent20-rwe-next-controller-slot-bitmap-toggle.py \
+  --llvm-mc "$HEXAGON_LLVM_MC" --reference "$NABU_ADSP_REFERENCE" \
+  --output /tmp/adsp-slot-class-bitmap-toggle-128.bin
+```
