@@ -371,3 +371,11 @@ python3 tools/agent20_06_a32_roundtrip.py /private/venus.mbn 0xa8ea0 0xa92c8 \
 - The first routine performs MSB-first table-based CRC32 using polynomial `0x04c11db7`, and later routines publish codec descriptors, handle deferred output callbacks, and prepare controller packet fields.
 - Direct byte comparison and independent Clang/LLVM round-trip verify with zero differences. **214 Rust tests and 13 Python tests passed**. No full release build is claimed.
 - Next uncovered runtime `0xb80d8`, MBN file `0xbc0d8`. Provisional old-base branch, instruction-byte reconstruction only; remaining Venus firmware and OEM signing are not reconstructed.
+
+## Checkpoint 43 — codec input-plane dimensions and four-family dispatch
+
+- Contiguous Venus runtime `[0xa8000,0xb84fc)` = **66,812 byte-identical bytes**, original MBN file `[0xac000,0xbc4fc)`.
+- New `[0xb80d8,0xb84fc)` = **1,060 bytes**: **253 typed A32 instructions (1,012 bytes)** and twelve separately identified dispatch/logging words (48 bytes), with table `[0xb82cc,0xb82dc)` and diagnostic pool `[0xb84dc,0xb84fc)`.
+- Reconstructed four codec-plane buffer-size formulas, controller record preparation, input stream parameter propagation, warnings for invalid format values and guarded channel-status updates.
+- Direct byte comparison, independent Clang/LLVM reassembly, **215 Rust tests and 13 Python tests** all passed with zero differences. Release build not claimed.
+- First uncovered runtime `0xb84fc`, file `0xbc4fc`. Provisional older-base typed A32 encoding only, not source-level semantic equivalence or new OEM authentication.
