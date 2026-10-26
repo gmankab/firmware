@@ -22,10 +22,12 @@ mod extension2;
 mod extension3;
 #[path="novatek_ilmlow_extension4.rs"]
 mod extension4;
+#[path="novatek_ilmlow_extension5.rs"]
+mod extension5;
 use isa::{Csr,Insn,Reg,R0,R1,R2};
 pub const FILE_START: usize = 0x66a;
 /// Endpoint of the authoritative postmarketOS interval.
-pub const FILE_END: usize = 0x275c;
+pub const FILE_END: usize = 0x3000;
 pub const ILM_FILE_BASE: usize = 0x200;
 pub const ASSIGNED_END: usize = 0x10000;
 
@@ -90,6 +92,7 @@ pub fn program(profile:Profile)->Vec<Located>{
     instructions.extend(extension2::instructions(profile));
     instructions.extend(extension3::instructions(profile));
     instructions.extend(extension4::instructions(profile));
+    instructions.extend(extension5::instructions(profile));
     instructions
 }
 pub fn build(profile:Profile)->Result<Vec<u8>,String>{
@@ -113,7 +116,8 @@ mod tests{
     use super::*;
     #[test]fn source_intervals_and_profile_selection(){
         let p=build(Profile::Postmarketos).unwrap();let m=build(Profile::Map220v).unwrap();
-        assert_eq!(p.len(),8434);assert_eq!(m.len(),1210);assert_ne!(p,m);
+        assert_eq!(p.len(),10646);assert_eq!(m.len(),1210);
+        assert_eq!(program(Profile::Postmarketos).len(),3991);assert_ne!(p,m);
         assert!(Profile::parse("unknown").is_err());
         let mut f=vec![0;FILE_END];f[FILE_START..FILE_END].copy_from_slice(&p);
         assert!(compare(&f,Profile::Postmarketos).is_ok());
@@ -130,7 +134,7 @@ mod tests{
         assert_eq!(at(&m,0x79e),Insn::BranchZeroWide{reg:R1,nonzero:false,target:0x8aa});
         assert_eq!(at(&p,0x88e),Insn::InlineCall{target:0x898});
         assert_eq!(at(&m,0x890),Insn::InlineCall{target:0x89a});
-        assert_eq!(p.last().unwrap().pc,0x255a);assert_eq!(m.last().unwrap().pc,0x922);
+        assert_eq!(p.last().unwrap().pc,0x2dfe);assert_eq!(m.last().unwrap().pc,0x922);
         let mut f=vec![0;Profile::Map220v.file_end()];
         f[FILE_START..].copy_from_slice(&build(Profile::Map220v).unwrap());
         assert!(compare(&f,Profile::Map220v).is_ok());

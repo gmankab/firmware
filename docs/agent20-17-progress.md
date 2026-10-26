@@ -320,3 +320,12 @@ PostmarketOS first missing file address: `0xb22`, runtime `0x922`; next routine 
   lower ILM = `0x10000-0x275c = 55,460` bytes. The reconstructed control-flow
   and table boundaries are sound, but the full lower ILM and hardware
   verification remain unfinished.
+
+## Checkpoint 12 — Lower ILM controller state and memory helpers through file 0x3000
+
+- Source-generated postmarketOS span `[file 0x66a,0x3000)` = **10,646 contiguous bytes**, comprising **10,636 executable NDS32 bytes (3,990 typed 16/32-bit instructions)** and **10 separately generated branch-dispatch bytes** at file `[0x2724,0x272e)`. No OEM source bytes or implicit filler are included in the Rust emitter.
+- Added **2,212 executable bytes** in `[0x275c,0x3000)` from 862 typed operations (**244 32-bit, 618 16-bit**). This interval includes unrolled touch-controller register-copy routines, controller flags, byte-lane state checks, and memory/reporting loops. Functional descriptions remain provisional without hardware traces.
+- Firmware reference SHA-256 remains pinned to **postmarketOS** `8b845514621ebfd95759a0919f3aa3d825314abb478a7cad1c3fb4c6872b70b5`; end-to-end Rust emission matches its exact bytes. The older map220v profile remains separately verified on file `[0x66a,0xb24)` = 1,210 bytes; incompatible extra routines were not extrapolated to that revision.
+- Cumulative 4,000 source entries (3,990 executable instructions plus one 10-byte data table, so the Rust `program` has **3,991** entries), 1,328 N32 and 2,662 N16 instructions. The emitted interval references **666 EX9 use sites / 188 unique externally owned Agent 18 entries** (including 23 newly referenced and not yet independently semantically classified). These external table bytes are not included as authored Agent 17 code. Existing 165 EX9 entries retain the previous strict semantic checks.
+- The full original strict Python EX9 verifier is **not ready** for the new 23 entries and retains partial status. Rust source-vs-pinned-reference bytes, unit tests, release build and Git integrity are the completed gates. Independent GNU NDS32 assembler is still unavailable and therefore not claimed. The decoder that assisted the manual architecture classification is *not* included in the source artifact; no opaque OEM instruction arrays or data snapshots are committed.
+- **Next missing file byte `0x3000`**, runtime `0x2e00`; remaining reserved `[0x3000,0x10000)` = 53,248 bytes. The current endpoint is only a chunk boundary, **not** a guaranteed function boundary.
