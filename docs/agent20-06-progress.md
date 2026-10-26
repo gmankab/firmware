@@ -469,3 +469,11 @@ python3 tools/agent20_06_a32_roundtrip.py /private/venus.mbn 0xa8ea0 0xa92c8 \
 - Two complete controller helpers and a diagnostic tail: retire a session/record, invoke error logging and cleanup callbacks, and hand off updated external codec references. Preserve `BXEQ LR` and the original return/branch targets.
 - Full typed-Rust generated tail and independent Clang/LLVM reassembly match all byte positions against the pinned reference (0 mismatches). **226 Rust and 13 Python tests pass**. A successful release build is not claimed for this checkpoint.
 - Next uncovered runtime `0xbb6d8`, original MBN file offset `0xbf6d8`. This branch still descends from the older Agent 03 base and must be revalidated on a genuine checkpoint-50 integration.
+
+## Checkpoint 55 — program encoded codec controller registers
+
+- Cumulative typed-Rust runtime `[0xa8000,0xbbabc)` = **80,572 byte-identical Venus bytes**, original MBN `[0xac000,0xbfabc)`.
+- Newly reconstructed `[0xbb6d8,0xbbabc)` = **996 bytes**: **245 typed ARM32 instructions (980 bytes)** and **four separately classified diagnostic data words (16 bytes)** at `[0xbbaac,0xbbabc)`.
+- Rebuilds encoded codec frame/output pipeline registers, validates active frame mode, sets mask bits and issues controller-write packets; original saved-register return occurs at `0xbbaa8`.
+- Full Rust source-generated fragment comparison reports **zero byte differences**. Independent Clang/LLVM reassembly matches all 980 instruction bytes plus the four identified data words. **227 Rust tests and 13 Python tests passed**. No completed release-build result is claimed.
+- First uncovered runtime `0xbbabc` (MBN file offset `0xbfabc`). Still provisional older Agent 03 branch, not checkpoint-50-based integrated history. Byte identity is not high-level semantic decompilation or OEM authentication.
