@@ -1095,3 +1095,31 @@ The next complete function starts at file offset `0x105744`, runtime
 `[0x100000,0x1001c4)` remains unimplemented. Current Git history is
 based on original Agent07 portable base `d6104bb`, not on checkpoint50.
 This is not a full/signed/flashable firmware or evidence of on-device behavior.
+
+## Checkpoint 25 — script operand interpreter
+
+The next complete Hexagon V66 function at file offsets `[0x105744,0x105bac)`
+(runtime `[0xb00c5744,0xb00c5bac)`) is independently assembled from
+named instructions and control-flow labels as **1,128 executable bytes**.
+It interprets variable-size tagged records, uses hardware `loop0` for byte
+accumulation, a jump-through-table for operator classes, and status/error
+exit paths. The labels are inferred from instruction dataflow, not source
+symbols or device-execution evidence.
+
+The first candidate had branch displacements dependent on packet PC plus
+LLVM shuffling of two duplex packets. The final assembly retains the correct
+packet-relative displacement on external calls and explicitly orders named
+operations within the packets at relative offsets `0x3c` and `0x17c`.
+**Both LLVM 22/V66 and independent LLVM 6/V65 assemble 1,128 exact bytes**,
+SHA-256 `2ec923140346b32f11b007778ca1e13f7399eefac839fb434ef058f6a4e5dc95`.
+There are **149 valid Hexagon packets, 282 encoded words, zero unknowns**, and
+no OEM opcode arrays, raw instruction directives, original firmware data,
+layout fill, or signing material included in the output.
+
+Cumulative code `[0x1001c4,0x105bac)` now totals **23,016 contiguous
+executable bytes**. Existing independently reconstructed jump tables total
+**496 noncontiguous data bytes**, giving **23,512 source-derived bytes**.
+Next complete function begins at file `0x105bac`, runtime `0xb00c5bac`.
+The 452-byte Agent13 leading seam `[0x100000,0x1001c4)` remains uncovered;
+other independently reconstructed functions later in the owned region are
+still outstanding. Portable base `d6104bb`; checkpoint-50 integration pending.

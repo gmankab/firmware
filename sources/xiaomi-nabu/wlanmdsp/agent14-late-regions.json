@@ -719,6 +719,16 @@
       "sha256": "51eb8312f3583c2af180caf0f22b4605afa15dd22cfc498ac99aa1b13ff1eb4c",
       "checkpoint": 24,
       "classification": "executable"
+    },
+    {
+      "name": "script-operand-interpreter",
+      "file_start": 1070916,
+      "file_end": 1072044,
+      "source": "sources/xiaomi-nabu/wlanmdsp/agent14-late-script-operand-interpreter.S",
+      "symbol": "agent14_late_script_operand_interpreter",
+      "sha256": "2ec923140346b32f11b007778ca1e13f7399eefac839fb434ef058f6a4e5dc95",
+      "checkpoint": 25,
+      "classification": "executable"
     }
   ]
 }
