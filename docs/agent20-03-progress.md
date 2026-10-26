@@ -628,3 +628,12 @@ Original reference: private `map220v-nabu-firmware/venus.mbn`, SHA-256 `9d4af65d
 - Record flush resets active count and prints diagnostic data; two type conversion callbacks map codec identifiers to output layout codes with fallback diagnostics. Original return sites and callbacks are preserved. **No reference opcode byte arrays, implicit unknown zeros or artificial return instructions were introduced.**
 - Standalone source-generated fragment `cargo run --example agent20_03_venus_mid -- emit /tmp/venus-99056.bin` matched original Venus (`sha256=9d4af65d7ede845e900f1b29ff425b7a8e2947056e695e246e58a2091445a085`) with **zero byte differences**. Independent Clang/LLVM mnemonic assembler comparison of all 920 new bytes also passed. **260 Rust and 13 Python tests passed**; release build not yet confirmed for checkpoint 90.
 - Next original function begins at runtime **`0x39f68`** (file `0x3df68`) within exclusive `[0x21c78,0x40000)` range. Opcode equivalence is not high-level semantic source proof or OEM signing. Branch remains portable on prior Agent 03 history, not checkpoint 50.
+
+## Checkpoint 91 — stream initialization prelude and diagnostic text pointers
+
+- Complete source-emitted fragment `[0x21c78,0x3a2e4)` = **99,948 reference-identical bytes**; original MBN file offsets `[0x25c78,0x3e2e4)`.
+- New interval `[0x39f68,0x3a2e4)` = **892 bytes**: **76 typed ARM32 instructions** and **147 named diagnostic-string address words** `[0x3a098,0x3a2e4)`. The latter decode nonsensically as ARM instructions if not classified as literal data; none is counted as independently written program code. The main function continues at `0x3a2e4`, so no return instruction is invented here.
+- Public checked indexed A32 `LDRH`/`STRH` register-transfer encoder is tested against architecture instruction fields. This module checks the exact number and boundaries of diagnostic pointers.
+- Direct source-generated Rust comparison and independently linked Clang/LLVM reconstruction of the entire 892 bytes agree **with zero differences** against the pinned `venus.mbn` SHA-256 `9d4af65d7ede845e900f1b29ff425b7a8e2947056e695e246e58a2091445a085`.
+- **262 Rust and 13 Python tests pass**. The optimized release build is not confirmed for this checkpoint. This work is A32 opcode re-encoding, not recovered high-level source semantics, independently signed firmware or functional hardware validation.
+- Next original executable instruction begins at runtime `0x3a2e4` (original MBN file `0x3e2e4`), still within Agent 20-03's exclusive `[0x21c78,0x40000)` scope.
