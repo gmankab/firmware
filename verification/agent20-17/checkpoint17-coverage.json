@@ -1,0 +1,74 @@
+{
+  "agent": 17,
+  "checkpoint": 17,
+  "branch": "agents20/17-novatek-ilm-low",
+  "firmware_profile": "postmarketos",
+  "pinned_full_reference_sha256": "8b845514621ebfd95759a0919f3aa3d825314abb478a7cad1c3fb4c6872b70b5",
+  "source_parent": "51b1f91f32d32542aa03e114f5a2f4d94b559e2a",
+  "checkpoint_16_parent": "eb133271dc6b919f60b7b83e7017f19c53dbd7e7",
+  "coverage": {
+    "file_start": 1642,
+    "file_end": 31408,
+    "runtime_start": 1130,
+    "runtime_end": 30896,
+    "total_source_generated": 29766,
+    "instruction_bytes": 29554,
+    "jump_table_bytes": 212,
+    "source_generated_sha256": "9a09e9c6fdf3677af002a439b2cef318be89c90561300e88ca84df1698e12bd8",
+    "byte_differences": 0,
+    "gaps": [],
+    "external_instruction_bytes": 0
+  },
+  "new_continuation": {
+    "file_start": 21232,
+    "file_end": 31408,
+    "bytes": 10176,
+    "typed_instructions": 3731,
+    "instruction_bytes": 10144,
+    "typed_jump_data_bytes": 32,
+    "ex9_sites": 272,
+    "distinct_ex9_indices": 122
+  },
+  "gap_closures": [
+    {
+      "file_start": 14524,
+      "file_end": 14526,
+      "instruction": "N16 MOVD44 r4,r0",
+      "bytes": 2
+    },
+    {
+      "file_start": 14840,
+      "file_end": 14842,
+      "instruction": "N16 MOVD44 r6,r12",
+      "bytes": 2
+    },
+    {
+      "file_start": 30438,
+      "file_end": 30440,
+      "instruction": "N16 MOVD44 r2,r8",
+      "bytes": 2
+    }
+  ],
+  "typed_jump_data": [
+    {
+      "file_start": 21232,
+      "file_end": 21256,
+      "entry_count": 12,
+      "encoding": "little-endian 16-bit offset",
+      "base_runtime": 20720
+    },
+    {
+      "file_start": 24860,
+      "file_end": 24868,
+      "entry_count": 8,
+      "encoding": "unsigned byte offset",
+      "base_runtime": 24348
+    }
+  ],
+  "first_unknown_after": 31408,
+  "independent_gnu_assembly": "unavailable",
+  "default_optimized_release_build": "timed_out",
+  "release_opt_level_0": "pass",
+  "hardware_execution": "not_tested",
+  "signed_firmware": "not_generated"
+}

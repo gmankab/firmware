@@ -112,9 +112,15 @@ pub enum Insn {
     /// N32 LDI/SDI .BI use signed 15-bit doubleword units and update Ra.
     DoubleWordMemory {store:bool,postindexed:bool,first:Reg,base:Reg,offset:i32},
     SignedMemoryImmediate {width:Width,dest:Reg,base:Reg,offset:i32},
+    /// N32 LBSI.BI / LHSI.BI: signed byte/halfword read with base
+    /// postincrement. Major opcodes 0x14/0x15 (N32_OP6_LBSI_BI/LHSI_BI).
+    SignedPostIndexedMemory {width:Width,dest:Reg,base:Reg,offset:i32},
     /// LWI45.FE: load a word from the implicit $r8 frame/end register at
     /// a four-byte aligned negative offset, [-128,-4]. V3MUP extension.
     WordAtFrameEnd { dest: Reg, offset: i16 },
+    /// N16 MOVD44 (V3MUP): move an even-register 64-bit pair. Both operands
+    /// are encoded as the architectural register index divided by two.
+    MoveDoubleCompact {dest_even:Reg,source_even:Reg},
     WordAtRegister { store: bool, reg: Reg, base: Reg },
     WordAtFrame { store: bool, reg: Reg, offset: u16 },
     WordAtStack { store: bool, reg: Reg, offset: u16 },
@@ -128,6 +134,10 @@ pub enum Insn {
     VariableShiftRight { dest: Reg, source: Reg, amount: Reg },
     /// N32 ALU1 SRA (subopcode 0x0e): arithmetic right shift by a register.
     VariableArithmeticShiftRight { dest: Reg, source: Reg, amount: Reg },
+    /// N32 ALU1 CMOVZ/CMOVN, conditional on a register being zero or nonzero.
+    ConditionalMove {dest:Reg,source:Reg,condition:Reg,nonzero:bool},
+    /// N32 ALU1 SEH, sign-extend low 16 bits of the source register.
+    SignExtendHalfWide {dest:Reg,source:Reg},
     BranchImmediate { reg: Reg, value: i16, nonzero: bool, target: u32 },
     BranchA5 { reg: Reg, nonzero: bool, target: u32 },
     AddSmall { reg: Reg, value: u8, subtract: bool },
@@ -154,6 +164,8 @@ pub enum Insn {
     MultiplyAddRounded32 { dest:Reg, left:Reg, right:Reg },
     MultiplyWide { dest:Reg, left:Reg, right:Reg },
     MaximumRegister {dest:Reg,left:Reg,right:Reg},
+    /// N32 ALU2 MIN: unsigned minimum selected from two registers.
+    MinimumRegister {dest:Reg,left:Reg,right:Reg},
     MultiplyRegister64 {dest:Reg,left:Reg,right:Reg,signed:bool},
     RegisterAlu {op:AluRegOp,dest:Reg,left:Reg,right:Reg,shift:u8},
     OrShiftRight {dest:Reg,left:Reg,right:Reg,shift:u8},
@@ -198,6 +210,8 @@ pub enum Insn {
     /// the register-held table pointer. Each entry is derived from a named
     /// branch destination and checked to fit an unsigned byte displacement.
     JumpTableOffsets10 {base:u32,targets:[u32;10]},
+    /// NDS32 eight-way direct byte offset table; register holds base.
+    JumpTableOffsets8 {base:u32,targets:[u32;8]},
     DataSync,
     StackAdjust { bytes: i16 },
     AddressFromStack { dest: Reg, offset: u16 },
@@ -264,6 +278,16 @@ impl Insn {
             }
             return Ok(bytes);
         }
+        if let JumpTableOffsets8{base,targets}=self {
+            let mut offsets=Vec::with_capacity(targets.len());
+            for (i,target) in targets.into_iter().enumerate() {
+                if target<base || target-base>255 || (target-base)&1!=0 {
+                    return Err(format!("eight-way jump target {i} 0x{target:x} outside table at 0x{base:x}"));
+                }
+                offsets.push((target-base) as u8);
+            }
+            return Ok(offsets);
+        }
         if let JumpTableOffsets10{base,targets}=self {
             let mut offsets=Vec::with_capacity(targets.len());
             for (i,target) in targets.into_iter().enumerate() {
@@ -316,6 +340,15 @@ impl Insn {
                 (op<<25)|(dest.number()<<20)|(base.number()<<15)
                  |signed(i64::from(offset/align),15)?
             },
+            SignedPostIndexedMemory{width,dest,base,offset} => {
+                let (opcode,align)=match width {Width::Byte=>(0x14,1),
+                    Width::Half=>(0x15,2),
+                    Width::Word=>return Err("signed postindexed word operation is reserved".into())};
+                if offset%align!=0 {return Err("signed postindexed displacement misaligned".into());}
+                if dest==base {return Err("signed postindexed destination aliases writeback base".into());}
+                (opcode<<25)|(dest.number()<<20)|(base.number()<<15)
+                    |signed(i64::from(offset/align),15)?
+            },
             DoubleWordMemory {store,postindexed,first,base,offset} => {
                 if offset%8!=0{return Err("unaligned doubleword displacement".into());}
                 if first.number()>30{return Err("NDS32 doubleword transfer requires a register pair".into());}
@@ -356,6 +389,11 @@ impl Insn {
             VariableShiftLeft { dest,source,amount } => (0x20<<25)|(dest.number()<<20)|(source.number()<<15)|(amount.number()<<10)|12,
             VariableShiftRight { dest,source,amount } => (0x20<<25)|(dest.number()<<20)|(source.number()<<15)|(amount.number()<<10)|13,
             VariableArithmeticShiftRight {dest,source,amount} => (0x20<<25)|(dest.number()<<20)|(source.number()<<15)|(amount.number()<<10)|14,
+            ConditionalMove{dest,source,condition,nonzero} =>
+                (0x20<<25)|(dest.number()<<20)|(source.number()<<15)
+                    |(condition.number()<<10)|(if nonzero{0x1b}else{0x1a}),
+            SignExtendHalfWide{dest,source} => (0x20<<25)
+                |(dest.number()<<20)|(source.number()<<15)|0x11,
             BranchImmediate { reg,value,nonzero,target } => (0x2d<<25)|(reg.number()<<20)
                 |(u32::from(nonzero)<<19)|(signed(i64::from(value),11)?<<8)|displacement(pc,target,8)?,
             BranchSignWide { reg,comparison,target } => (0x27<<25)|(reg.number()<<20)
@@ -421,6 +459,8 @@ impl Insn {
                     |if is_signed {0x68}else{0x69},
             MaximumRegister{dest,left,right} => (0x21<<25)
                 |(dest.number()<<20)|(left.number()<<15)|(right.number()<<10),
+            MinimumRegister{dest,left,right} => (0x21<<25)
+                |(dest.number()<<20)|(left.number()<<15)|(right.number()<<10)|1,
             MultiplyWide{dest,left,right} => (0x21<<25)|(dest.number()<<20)
                 |(left.number()<<15)|(right.number()<<10)|0x24,
             MultiplyAddRounded32 {dest,left,right} =>
@@ -497,6 +537,13 @@ impl Insn {
                 let operation=match width{Width::Word=>0xa000,Width::Half=>0xa400,Width::Byte=>0xa600};
                 operation | (u16::from(store)<<11) | reg.small()?<<6 | base.small()?<<3 | u16::from(offset/width.scale())
             }
+            MoveDoubleCompact {dest_even,source_even} => {
+                if dest_even.number()>30 || source_even.number()>30 ||
+                    (dest_even.number()&1)!=0 || (source_even.number()&1)!=0 {
+                    return Err("MOVD44 requires even GPRs r0..r30, in 64-bit register pairs".into());
+                }
+                0xfd00 | ((dest_even.number()/2) as u16)<<4 | (source_even.number()/2) as u16
+            },
             WordAtFrameEnd { dest,offset } => {
                 if offset < -128 || offset > -4 || offset%4 != 0 {
                     return Err("LWI45.FE offset must be a negative word offset from -128 through -4".into());
@@ -600,6 +647,7 @@ impl Insn {
             LoadSignedByteGp { dest,address } => format!("lbsi.gp {},[{}]",r(dest),i64::from(address)-i64::from(gp)),
             ReadSystem { dest,csr } => format!("mfsr {},{}",r(dest),if let Csr::Number(index)=csr {format!("0x{index:x}")} else if csr==Csr::IntMask3 {"0xc2".into()} else {format!("${}",csr.name())}),
             WriteSystem { source,csr } => format!("mtsr {},{}",r(source),if let Csr::Number(index)=csr {format!("0x{index:x}")} else if csr==Csr::IntMask3 {"0xc2".into()} else {format!("${}",csr.name())}),
+            JumpTableOffsets8{base,targets} => format!("jump.offsets8 0x{base:x} {}",targets.iter().map(|x|format!("0x{x:x}")).collect::<Vec<_>>().join(",")),
             JumpTableOffsets10{base,targets} => format!("jump.offsets10 {}",std::iter::once(format!("0x{base:x}"))
                 .chain(targets.iter().map(|target|format!("0x{target:x}")))
                 .collect::<Vec<_>>().join(",")),
@@ -610,6 +658,7 @@ impl Insn {
             OrShiftRight{dest,left,right,shift} => format!("or_srli {},{},{},{}",r(dest),r(left),r(right),shift),
             MultiplyRegister64{dest,left,right,signed:is_signed} => format!("{} {},{},{}",if is_signed{"mulsr64"}else{"mulr64"},r(dest),r(left),r(right)),
             MaximumRegister{dest,left,right} => format!("max {},{},{}",r(dest),r(left),r(right)),
+            MinimumRegister{dest,left,right} => format!("min {},{},{}",r(dest),r(left),r(right)),
             MultiplyWide{dest,left,right} => format!("mul {},{},{}",r(dest),r(left),r(right)),
             MultiplyAddRounded32{dest,left,right} => format!("maddr32 {},{},{}",r(dest),r(left),r(right)),
             RegisterAlu{op,dest,left,right,shift} => format!("{}_slli {},{},{},{}",op.mnemonic(),r(dest),r(left),r(right),shift),
@@ -638,10 +687,14 @@ impl Insn {
             SignedMemoryImmediate{width,dest,base,offset} => format!("l{}si {},[{}{:+}]",width.letter(),r(dest),r(base),offset),
             ImmediateMemory { store,width,reg,base,offset } => format!("{}{}i {},[{}{:+}]",if store{"s"}else{"l"},width.letter(),r(reg),r(base),offset),
             PostIndexedMemory{store,width,reg,base,offset} => format!("{}{}i.bi {},[{}],{}",if store{"s"}else{"l"},width.letter(),r(reg),r(base),offset),
+            SignedPostIndexedMemory{width,dest,base,offset} =>
+                format!("l{}si.bi {},[{}],{}",width.letter(),r(dest),r(base),offset),
             DoubleWordMemory{store,postindexed,first,base,offset} => {
                 if postindexed {format!("{}di.bi {},[{}],{}",if store{"s"}else{"l"},r(first),r(base),offset)}
                 else {format!("{}di {},[{}{:+}]",if store{"s"}else{"l"},r(first),r(base),offset)}
             },
+            MoveDoubleCompact {dest_even,source_even} =>
+                format!("movd44 {},{}",r(dest_even),r(source_even)),
             WordAtFrameEnd {dest,offset} => format!("lwi45.fe {},{}",r(dest),offset),
             WordAtRegister { store,reg,base } => format!("{}wi450 {},[{}]",if store{"s"}else{"l"},r(reg),r(base)),
             WordAtStack {store,reg,offset} => format!("{}wi37.sp {},[$sp+{}]",if store{"s"}else{"l"},r(reg),offset),
@@ -653,6 +706,9 @@ impl Insn {
             VariableShiftLeft { dest,source,amount } => format!("sll {},{},{}",r(dest),r(source),r(amount)),
             VariableShiftRight { dest,source,amount } => format!("srl {},{},{}",r(dest),r(source),r(amount)),
             VariableArithmeticShiftRight{dest,source,amount} => format!("sra {},{},{}",r(dest),r(source),r(amount)),
+            ConditionalMove{dest,source,condition,nonzero} =>
+                format!("{} {},{},{}",if nonzero{"cmovn"}else{"cmovz"},r(dest),r(source),r(condition)),
+            SignExtendHalfWide{dest,source} => format!("seh {},{}",r(dest),r(source)),
             BranchImmediate { reg,value,nonzero,target } => format!("{} {},{},.{:+}",if nonzero{"bnec"}else{"beqc"},r(reg),value,i64::from(target)-i64::from(pc)),
             BranchA5 { reg,nonzero,target } => format!("{} {},.{:+}",if nonzero{"bnes38"}else{"beqs38"},r(reg),i64::from(target)-i64::from(pc)),
             AddSmall { reg,value,subtract } => format!("{} {},{}",if subtract{"subi45"}else{"addi45"},r(reg),value),
@@ -816,6 +872,81 @@ mod tests {
         assert!(Insn::JumpTableOffsets10{base:0x2524,targets:bad}.encode(0,0).is_err());
         bad=targets;bad[1]=0x2537;
         assert!(Insn::JumpTableOffsets10{base:0x2524,targets:bad}.encode(0,0).is_err());
+    }
+
+    #[test]
+    fn wide_sign_extend_halfword_preserves_alu1_registers() {
+        let r=Reg::new;
+        assert_eq!(Insn::SignExtendHalfWide{dest:r(23),source:r(1)}
+            .encode(0,0).unwrap(),[0x41,0x70,0x80,0x11]);
+        assert_eq!(Insn::SignExtendHalfWide{dest:r(23),source:r(1)}
+            .assembly(0,0),"seh $r23,$r1");
+    }
+
+    #[test]
+    fn unsigned_minimum_alu2_subopcode_has_named_operands(){
+        let r=Reg::new;
+        assert_eq!(Insn::MinimumRegister{dest:r(0),left:r(1),right:r(0)}
+            .encode(0,0).unwrap(),[0x42,0x00,0x80,0x01]);
+        assert_eq!(Insn::MinimumRegister{dest:r(0),left:r(1),right:r(0)}
+            .assembly(0,0),"min $r0,$r1,$r0");
+    }
+
+    #[test]
+    fn conditional_move_on_nonzero_preserves_n32_alu1_semantics() {
+        let r=Reg::new;
+        let on=Insn::ConditionalMove{dest:r(4),source:r(1),condition:r(15),nonzero:true};
+        assert_eq!(on.encode(0,0).unwrap(),[0x40,0x40,0xbc,0x1b]);
+        assert_eq!(on.assembly(0,0),"cmovn $r4,$r1,$r15");
+        let off=Insn::ConditionalMove{dest:r(4),source:r(1),condition:r(15),nonzero:false};
+        assert_eq!(off.encode(0,0).unwrap(),[0x40,0x40,0xbc,0x1a]);
+    }
+
+    #[test]
+    fn eight_way_indirect_dispatch_byte_offsets_are_checked() {
+        let dst=[0x5f24,0x5f3e,0x5f50,0x5f62,
+            0x5f8e,0x5fa8,0x5fba,0x5fcc];
+        assert_eq!(Insn::JumpTableOffsets8{base:0x5f1c,targets:dst}
+            .encode(0,0).unwrap(),[8,34,52,70,114,140,158,176]);
+        let mut invalid=dst;invalid[0]=0x5f23;
+        assert!(Insn::JumpTableOffsets8{base:0x5f1c,targets:invalid}
+            .encode(0,0).is_err());
+        invalid=dst;invalid[0]=0x5f1c+256;
+        assert!(Insn::JumpTableOffsets8{base:0x5f1c,targets:invalid}
+            .encode(0,0).is_err());
+    }
+
+    #[test]
+    fn signed_postindex_halfword_and_byte_have_checked_isa_fields() {
+        let reg=Reg::new;
+        assert_eq!(Insn::SignedPostIndexedMemory{width:Width::Half,dest:reg(5),
+            base:reg(1),offset:2}.encode(0,0).unwrap(),[0x2a,0x50,0x80,0x01]);
+        assert_eq!(Insn::SignedPostIndexedMemory{width:Width::Half,dest:reg(5),
+            base:reg(1),offset:-2}.encode(0,0).unwrap(),[0x2a,0x50,0xff,0xff]);
+        assert_eq!(Insn::SignedPostIndexedMemory{width:Width::Byte,dest:reg(5),
+            base:reg(1),offset:1}.encode(0,0).unwrap(),[0x28,0x50,0x80,0x01]);
+        assert!(Insn::SignedPostIndexedMemory{width:Width::Word,dest:reg(5),
+            base:reg(1),offset:4}.encode(0,0).is_err());
+        assert!(Insn::SignedPostIndexedMemory{width:Width::Half,dest:reg(5),
+            base:reg(1),offset:3}.encode(0,0).is_err());
+        assert!(Insn::SignedPostIndexedMemory{width:Width::Half,dest:reg(1),
+            base:reg(1),offset:2}.encode(0,0).is_err());
+    }
+
+    #[test]
+    fn n16_movd44_register_pair_encoding_and_reserved_operands() {
+        let r=Reg::new;
+        for (dest,source,bytes) in [(4,0,[0xfd,0x20]),
+                                     (6,12,[0xfd,0x36]),
+                                     (2,8,[0xfd,0x14])] {
+            let pair=Insn::MoveDoubleCompact{dest_even:r(dest),source_even:r(source)};
+            assert_eq!(pair.encode(0,0).unwrap(),bytes);
+            assert_eq!(pair.assembly(0,0),format!("movd44 $r{dest},$r{source}"));
+        }
+        for (dest,source) in [(1,0),(2,3),(31,0),(0,31)] {
+            assert!(Insn::MoveDoubleCompact{dest_even:r(dest),source_even:r(source)}
+                .encode(0,0).is_err());
+        }
     }
 
     #[test]

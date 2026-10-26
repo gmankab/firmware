@@ -469,3 +469,49 @@ checks are not proof of high-level behavioral reconstruction or new OEM signing.
 The true branch base is Agent09 SHA `51b1f91f32d32542aa03e114f5a2f4d94b559e2a`,
 not yet the checkpoint-50 integrated HEAD. This contribution must be imported
 via its portable patch/merge after a verified integration base exists.
+
+## Checkpoint 17 — Two missing NDS32 MOVD44 halfwords resolved; contiguous source
+
+Recovered the NDS32 V3MUP **MOVD44** 64-bit register-pair move encoding from
+Andes GNU binutils (`movd44 =rt5e,%ra5e`, opcode mask `0xfd00`, both register
+indices divided by two). The checked typed encoder rejects odd/out-of-range
+pairs and reconstructs the two formerly unresolved executable halfwords:
+
+- file `0x38bc`: `MOVD44 r4,r0` (2 bytes),
+- file `0x39f8`: `MOVD44 r6,r12` (2 bytes),
+- file `0x76e6`: `MOVD44 r2,r8` (2 bytes, inside new continuation).
+
+A new `contiguous::build_postmarketos()` builds every source-owned piece in
+strictly ascending offset order and fails on any missing/overlapping bytes.
+All previous disjoint intervals are therefore adjacent, with **zero gaps**.
+The exact independently source-generated range is file `[0x66a,0x7ab0)` =
+**29,766 bytes**, runtime `[0x46a,0x78b0)`, of which **29,554 bytes are
+NDS32 instructions** and **212 bytes are typed branch-table data**. The
+`0x52f0–0x7ab0` continuation adds 10,176 bytes: 3,731 typed NDS32 instructions
+(10,144 bytes) and two target-derived tables (12 little-endian halfwords and
+eight single-byte offsets, 32 bytes total). No OEM instruction bytes, code
+fill or external Agent18 table entries are copied into the generated output.
+
+SHA-256 of exact 29,766-byte reconstruction: `9a09e9c6fdf3677af002a439b2cef318be89c90561300e88ca84df1698e12bd8`.
+Pinned firmware SHA-256: `8b845514621ebfd95759a0919f3aa3d825314abb478a7cad1c3fb4c6872b70b5`. Direct full-range comparison has
+**zero mismatches**; map220v remains verified separately only for its own
+prior assigned prefix; no false equivalence between profile layouts.
+
+New commands:
+
+```sh
+cargo run --offline --locked -p firmware-tools --bin novatek-ilm-low -- emit-contiguous postmarketos /tmp/agent17-29766.bin
+cargo run --offline --locked -p firmware-tools --bin novatek-ilm-low -- verify-contiguous postmarketos /private/postmarketos/novatek_nt36523_fw.bin
+```
+
+Full Rust and Python tests pass. The **unmodified/default** optimized release
+build exceeded the runtime limit in this container after adding several
+thousand typed instruction entries; a release-profile build with
+`CARGO_PROFILE_RELEASE_OPT_LEVEL=0 CARGO_PROFILE_RELEASE_CODEGEN_UNITS=256`
+passes. This must **not** be reported as a passing default release gate.
+A clean, independently built GNU NDS32 assembly round-trip is not available.
+Source-encoded byte identity is **not** high-level functional decompilation,
+OEM signing or hardware validation. Next missing file offset `0x7ab0`.
+
+The contribution remains on the Agent09-rooted branch; checkpoint-50
+integration is owned by Agent01, and the cumulative patch is provided.
