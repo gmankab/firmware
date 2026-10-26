@@ -98,6 +98,7 @@ FRAGMENTS = {
     'controller-service-root': (TOOLS / 'adsp-late-controller-service-root.S', 0x3EA50, 0x1B4),
     'bounded-stream-transfer': (TOOLS / 'adsp-late-bounded-stream-transfer.S', 0x3F000, 0x74),
     'controller-publish-globals': (TOOLS / 'adsp-late-controller-publish-globals.S', 0x3F31C, 0x60),
+    'controller-query-registers': (TOOLS / 'adsp-late-controller-query-registers.S', 0x3F37C, 0xE8),
     'controller-register-hooks': (TOOLS / 'adsp-late-controller-register-hooks.S', 0x3F468, 0x48),
     'controller-log-failure': (TOOLS / 'adsp-late-controller-log-failure.S', 0x3F4B0, 0x18),
     'controller-indirect-callback': (TOOLS / 'adsp-late-controller-indirect-callback.S', 0x3FA1C, 0x20),

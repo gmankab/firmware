@@ -805,3 +805,25 @@ Cumulative verified ADSP late executable coverage: **8,448 bytes in 100
 fragments**. The distributor `[0x412b4,0x413b8)` is still unresolved and
 is not counted. Unreconstructed ADSP executable regions and OEM signing
 remain outside the output; this branch is a provisional old-base descendant.
+
+**Checkpoint 53 — controller register-query dispatcher:**
+Rebuilt the complete **232-byte** Hexagon controller query dispatcher
+`[file 0x3f37c,0x3f464)` from packetized operations. It selects one of eight
+controller response formats through an external address table, copies or
+validates platform register values and publishes a tagged response. This
+uses only source-coded semantics; the data table stays outside the emitted
+fragment. LLVM6 output SHA-256
+`378f54703d6a5214deacb7e79e6a1d271f71ac5a1cb8251335f68a6649a08564`
+**matches every reference byte**. The four-operation prologue required
+ordering moves as `r5=r3`, `r6=r4`, `r3=r0` ahead of the frame allocation;
+an alternate equivalent source order assembled to different packet encodings.
+
+The function adjoins checkpoint 39's controller global publisher
+`[0x3f31c,0x3f37c)`, producing **328 contiguous executable source bytes**.
+The following `[0x3f464,0x3f468)` NOP is alignment, excluded from the count.
+
+Cumulative late ADSP: **8,680 source-assembled executable bytes across 101
+verified fragments**. The earlier V66 memory-duplex dispatcher
+`[0x412b4,0x413b8)` remains unverified, is not in the Git tree and has
+not been included in these figures. Most ADSP executable bytes remain
+unreconstructed; the OEM signing region is not regenerated.

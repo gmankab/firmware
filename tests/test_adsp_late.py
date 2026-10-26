@@ -197,9 +197,9 @@ class ADSPExternalsAndCodeTests(unittest.TestCase):
     @unittest.skipUnless(LLVM_MC,'Hexagon LLVM6 assembler required')
     def test_complete_fragment_inventory_rejects_overlaps(self):
         manifest,regions=adsp.assembled_inventory(LLVM_MC,None)
-        self.assertEqual(len(manifest['fragments']),100)
-        self.assertEqual(manifest['total_independently_assembled_executable_bytes'],8448)
-        self.assertEqual(sum(map(len,regions.values())),8448)
+        self.assertEqual(len(manifest['fragments']),101)
+        self.assertEqual(manifest['total_independently_assembled_executable_bytes'],8680)
+        self.assertEqual(sum(map(len,regions.values())),8680)
         self.assertEqual(manifest['gap_bytes_included_in_generated_executables'],0)
         self.assertFalse(manifest['complete_adsp_image'])
         self.assertEqual(manifest['external_original_code_bytes_in_output'],0)
@@ -366,7 +366,7 @@ class ADSPExternalsAndCodeTests(unittest.TestCase):
     def test_inventory_every_fragment_uses_correct_original(self):
         inventory,_outputs=adsp.assembled_inventory(LLVM_MC,Path(REFERENCE).read_bytes())
         self.assertTrue(all(x['reference_byte_identical'] for x in inventory['fragments']))
-        self.assertEqual(inventory['total_independently_assembled_executable_bytes'],8448)
+        self.assertEqual(inventory['total_independently_assembled_executable_bytes'],8680)
 
     @unittest.skipUnless(LLVM_MC and REFERENCE,
                          'Hexagon LLVM6 and exact pinned ADSP reference required')
@@ -380,7 +380,7 @@ class ADSPExternalsAndCodeTests(unittest.TestCase):
                 adsp.verify_slice(built,original,off)
                 total+=len(built)
                 ranges.append((off,off+size))
-        self.assertEqual(total,8448)
+        self.assertEqual(total,8680)
         ranges.sort()
         self.assertEqual(ranges[0],(0x39000,0x39054))
         self.assertEqual(ranges[-1],(0x3640a8,0x3640f8))
@@ -1489,3 +1489,28 @@ class ADSPControllerBufferExpansionTests(unittest.TestCase):
         self.assertEqual(adsp.FRAGMENTS['checked-argument-forward'][1],off+size)
         self.assertEqual(sum(adsp.FRAGMENTS[x][2] for x in
                         ['controller-buffer-expand','checked-argument-forward']),260)
+
+class ADSPControllerRegisterQueryTests(unittest.TestCase):
+    """Eight-way controller field queries and response publication."""
+
+    @unittest.skipUnless(LLVM_MC,'Hexagon LLVM6 assembler required')
+    def test_controller_query_dispatch_and_exact_packet_encoding(self):
+        source,off,size=adsp.FRAGMENTS['controller-query-registers']
+        self.assertEqual((off,size),(0x3f37c,0xe8))
+        asm=source.read_text()
+        for token in ('jumpr r4', 'case_integer:', 'case_word_0:',
+                      'case_pair_a:', 'case_pair_b:', 'case_invalid_pair:',
+                      'case_pair_c:', 'publish:', 'call query_platform',
+                      'dealloc_return'):
+            self.assertIn(token,asm)
+        self.assertNotIn('.incbin ',asm)
+        for forbidden in ('.word ','.long ','.byte ','.fill '):
+            self.assertNotIn(forbidden,asm)
+        built=adsp.compile_source(LLVM_MC,source,size)
+        self.assertEqual(hashlib.sha256(built).hexdigest(),
+                         '378f54703d6a5214deacb7e79e6a1d271f71ac5a1cb8251335f68a6649a08564')
+        if REFERENCE:adsp.verify_slice(built,Path(REFERENCE).read_bytes(),off)
+        a=adsp.FRAGMENTS['controller-publish-globals']
+        self.assertEqual(a[1]+a[2],off)
+        self.assertEqual(a[2]+size,328)
+        assert off+size==0x3f464
