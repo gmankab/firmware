@@ -34,6 +34,7 @@ AUX_WORKER_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_
 AUX_LOOKUP_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_aux_registry_lookup.s"
 AUX_REGISTRY_CORE_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_aux_registry_core.s"
 AUX_NOTIFY_SCAN_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_aux_notify_callbacks.s"
+AUX_CLEANUP_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_aux_cleanup.s"
 AUX_DISPATCH_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_aux_dispatch_helpers.s"
 AUX_TYPE_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_aux_type_config.s"
 AUX_NOTIFY_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_aux_controller_notify.s"
@@ -127,6 +128,8 @@ AUX_RELEASE_REGISTRY_START = 0x447410
 AUX_RELEASE_REGISTRY_END = 0x447448
 AUX_NOTIFY_SCAN_START = AUX_RELEASE_REGISTRY_END
 AUX_NOTIFY_SCAN_END = 0x4474B0
+AUX_CLEANUP_START = AUX_NOTIFY_SCAN_END
+AUX_CLEANUP_END = 0x4475C0
 MARKER_MASK = 3 << 14
 CONTINUE_MARKER = 1 << 14
 END_MARKER = 3 << 14
@@ -1090,6 +1093,34 @@ def restore_aux_notify_callback_packets(assembled: bytes) -> bytes:
     return struct.pack('<26I',*words)
 
 
+def restore_aux_cleanup_compare_packets(assembled: bytes) -> bytes:
+    """Restore target compiler's compare+dec+new-value store packet layout.
+
+    Hexagon LLVM6 reorders the compare/conditional branch before an integer
+    decrement; the OEM toolchain schedules the decrement first and the
+    compare/new-value branch second. Both are V60 instructions already
+    source-assembled. The producer index in the consumer store changes from
+    slot 1 to slot 2 when the order is restored. Only checked packet fields
+    are updated; no original vendor word is copied into the output.
+    """
+    if len(assembled)!=AUX_CLEANUP_END-AUX_CLEANUP_START:
+        raise ValueError("aux cleanup needs 272 independently source-assembled bytes")
+    words=list(struct.unpack('<68I',assembled))
+    for off in (0x88,0xb4):
+        j=off//4
+        branch,sub,consumer=words[j:j+3]
+        if [x>>24 for x in (branch,sub,consumer)] != [0x10,0xbf,0xa1]:
+            raise ValueError(f"aux cleanup decrement/branch/store ISA classes changed at {AUX_CLEANUP_START+off:#x}")
+        if [x&MARKER_MASK for x in (branch,sub,consumer)] != [CONTINUE_MARKER,CONTINUE_MARKER,END_MARKER]:
+            raise ValueError(f"aux cleanup decrement packet markers changed at {AUX_CLEANUP_START+off:#x}")
+        if ((consumer>>9)&0x3)!=1:
+            raise ValueError("aux cleanup new-value producer slot is no longer one")
+        # Hexagon new-value store refers to producer slot 2 after reordering.
+        store_changed=(consumer&~(0x3<<9))|(2<<9)
+        words[j:j+3]=[sub,branch,store_changed]
+    return struct.pack('<68I',*words)
+
+
 def assemble(llvm_mc: Path, source: Path) -> bytes:
     with tempfile.TemporaryDirectory(prefix="nabu-modem-late-") as tmp:
         obj = Path(tmp) / "late.o"
@@ -1120,6 +1151,7 @@ def output_fragments(llvm_mc: Path) -> dict[int, bytes]:
     aux_lookup = restore_aux_lookup_return_packet(assemble(llvm_mc,AUX_LOOKUP_SOURCE))
     aux_registry_core=restore_aux_registry_core_packets(assemble(llvm_mc,AUX_REGISTRY_CORE_SOURCE))
     aux_notify_scan=restore_aux_notify_callback_packets(assemble(llvm_mc,AUX_NOTIFY_SCAN_SOURCE))
+    aux_cleanup=restore_aux_cleanup_compare_packets(assemble(llvm_mc,AUX_CLEANUP_SOURCE))
     aux_dispatch = assemble(llvm_mc,AUX_DISPATCH_SOURCE)
     aux_type = restore_aux_type_return_packets(assemble(llvm_mc,AUX_TYPE_SOURCE))
     aux_notify = restore_aux_controller_notify_packets(assemble(llvm_mc,AUX_NOTIFY_SOURCE))
@@ -1160,6 +1192,8 @@ def output_fragments(llvm_mc: Path) -> dict[int, bytes]:
         raise ValueError("aux registry core source length mismatch")
     if len(aux_notify_scan)!=AUX_NOTIFY_SCAN_END-AUX_NOTIFY_SCAN_START:
         raise ValueError("aux notification source length mismatch")
+    if len(aux_cleanup)!=AUX_CLEANUP_END-AUX_CLEANUP_START:
+        raise ValueError("aux cleanup source length mismatch")
     if len(aux_session_validation)!=AUX_SESSION_VALIDATION_END-AUX_SESSION_VALIDATION_START:
         raise ValueError("auxiliary session validation length mismatch")
     if len(aux_session_prefix)!=AUX_SESSION_PREFIX_END-AUX_SESSION_PREFIX_START:
@@ -1192,7 +1226,7 @@ def output_fragments(llvm_mc: Path) -> dict[int, bytes]:
               aux_release_registry)
     if len(registry)!=AUX_RELEASE_REGISTRY_END-AUX_DISPATCH_START:
         raise ValueError("source-generated auxiliary registry block is not contiguous")
-    if AUX_RELEASE_REGISTRY_END!=AUX_NOTIFY_SCAN_START:
+    if AUX_RELEASE_REGISTRY_END!=AUX_NOTIFY_SCAN_START or AUX_NOTIFY_SCAN_END!=AUX_CLEANUP_START:
         raise ValueError("missing source after controller registry block")
     if AUX_LOOKUP_END!=AUX_REGISTRY_CORE_START or AUX_REGISTRY_CORE_END!=AUX_DISPATCH_START:
         raise ValueError("modem auxiliary registry source intervals have a gap")
@@ -1201,7 +1235,7 @@ def output_fragments(llvm_mc: Path) -> dict[int, bytes]:
         SERVICE_START:service+service_mmio+service_flags+service_alloc,
         AUX_START:auxiliary+aux_dynamic+aux_init+aux_align+
                   aux_guard+aux_stage+aux_mmio+aux_heap+aux_worker+
-                        aux_lookup+aux_registry_core+registry+aux_notify_scan,
+                        aux_lookup+aux_registry_core+registry+aux_notify_scan+aux_cleanup,
     }
 
 

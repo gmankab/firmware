@@ -378,6 +378,37 @@ class ModemLateTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError,'312 independently assembled bytes'):
             agent12.restore_aux_session_registry_packets(binary[:-4])
 
+    def test_auxiliary_cleanup_packet_producers_are_checked(self):
+        source=agent12.AUX_CLEANUP_SOURCE.read_text()
+        self.assertIn('memw(r16+#32) = r2.new',source)
+        self.assertIn('r3 = add(r3,mpyi(#28,r2))',source)
+        self.assertIn('dealloc_return',source)
+        self.assertNotIn('.word',source)
+        self.assertEqual((agent12.AUX_CLEANUP_START,agent12.AUX_CLEANUP_END),
+                         (0x4474b0,0x4475c0))
+        words=[0x7800c000]*68
+        for off,branch in [(0x88,0x10c2401c),(0xb4,0x10b260f0)]:
+            words[off//4:off//4+3]=[branch,0xbfe27fe2,0xa1b0d208]
+        packed=struct.pack('<68I',*words)
+        got=struct.unpack('<68I',agent12.restore_aux_cleanup_compare_packets(packed))
+        self.assertEqual(got[0x88//4:0x94//4],
+                         (0xbfe27fe2,0x10c2401c,0xa1b0d408))
+        self.assertEqual(got[0xb4//4:0xc0//4],
+                         (0xbfe27fe2,0x10b260f0,0xa1b0d408))
+        for offset,value,reason in [
+            (0x88,0x7800401c,'ISA classes'),
+            (0x8c,0xbfe2ffe2,'packet markers'),
+            (0x90,0xa1b0d408,'new-value producer slot'),
+            (0xb4,0x780040f0,'ISA classes'),
+            (0xb8,0xbfe2ffe2,'packet markers'),
+            (0xbc,0xa1b0d608,'new-value producer slot'),
+        ]:
+            damaged=words.copy();damaged[offset//4]=value
+            with self.assertRaisesRegex(ValueError,reason):
+                agent12.restore_aux_cleanup_compare_packets(struct.pack('<68I',*damaged))
+        with self.assertRaisesRegex(ValueError,'272 independently source-assembled bytes'):
+            agent12.restore_aux_cleanup_compare_packets(packed[:-4])
+
     def test_auxiliary_notification_packet_reordering_is_fail_closed(self):
         path=agent12.AUX_NOTIFY_SCAN_SOURCE
         self.assertTrue(path.is_file())
@@ -862,8 +893,8 @@ class ModemLateTests(unittest.TestCase):
     def test_optional_llvm6_exact_source_lengths(self):
         a = agent12.output_fragments(Path(os.environ["NABU_HEXAGON_LLVM_MC"]))
         self.assertEqual({k: len(v) for k, v in a.items()},
-                         {0x7C000:160, 0x7C2EC:452, 0x446000:5296})
-        self.assertEqual(sum(map(len,a.values())),5908)
+                         {0x7C000:160, 0x7C2EC:452, 0x446000:5568})
+        self.assertEqual(sum(map(len,a.values())),6180)
         self.assertEqual(a[0x446000][0x0d8:0x200],agent12.emit_auxiliary_elf_symbols())
         self.assertEqual(a[0x446000][0x254:0x260],bytes(12))
         self.assertEqual(a[0x446000][0x1448:0x1460],
@@ -878,6 +909,10 @@ class ModemLateTests(unittest.TestCase):
         self.assertEqual(a[agent12.AUX_START][k:k+4],
                          agent12.assemble(Path(os.environ["NABU_HEXAGON_LLVM_MC"]),
                                           agent12.AUX_SESSION_REGISTRY_SOURCE)[:4])
+        self.assertEqual(a[0x446000][0x14b0:0x14bc],
+                         agent12.restore_aux_cleanup_compare_packets(
+                             agent12.assemble(Path(os.environ["NABU_HEXAGON_LLVM_MC"]),
+                                              agent12.AUX_CLEANUP_SOURCE))[:12])
         if os.getenv("NABU_MODEM_REFERENCE"):
             agent12.verify_reference(Path(os.environ["NABU_MODEM_REFERENCE"]).read_bytes(), a)
 

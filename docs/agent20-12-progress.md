@@ -799,3 +799,30 @@ firmware coverage is **5,908 bytes**. All emitted bytes match the pinned
 original. More executable work remains throughout the large later baseband
 and after the new `0x4474b0` boundary. This is neither an independently
 signed complete modem image nor hardware-boot validation.
+
+## Checkpoint 30 — Callback-list and controller-resource cleanup
+
+The next **272-byte Hexagon V60 cleanup function** at modem file
+`[0x4474b0,0x4475c0)` is now independently source-assembled in
+`modem_late_aux_cleanup.s`. It releases registered callback slots, drains
+both linked controller lists, invokes destruction callbacks and returns
+through an original `dealloc_return`. Its out-of-line callback-attachment
+branch remains inside the function and is source-generated, not omitted.
+
+LLVM6 generates two legal compare/decrement/new-value packets in a different
+order from the original compiler. `restore_aux_cleanup_compare_packets`
+checks all six source instruction classes and packet markers, then swaps
+only the decrement/compare ordering and recomputes the new-value producer
+selector from architectural slot 1 to slot 2. The source also places the
+loop and conditional skip labels at their original semantic targets.
+Negative tests reject unexpected opcode classes, operand producer slots
+and packet markers. The resulting 272 bytes match the SHA-pinned original
+**exactly** without OEM instructions in source.
+
+Verified auxiliary executable prefix is now `[0x446000,0x4475c0)` =
+**5,568 contiguous file bytes**, comprising 5,260 code, 296 ELF32 metadata
+and 12 linker-alignment bytes. Across all three later-modem fragments Agent
+12 emits **6,180 exact bytes**: **5,872 Hexagon code**, **296 ELF metadata**,
+**12 alignment zeros**. Later baseband code and full OEM firmware remain
+largely unreconstructed; no device execution or new OEM authentication is
+claimed. Next missing executable address is `0x4475c0`.
