@@ -197,9 +197,9 @@ class ADSPExternalsAndCodeTests(unittest.TestCase):
     @unittest.skipUnless(LLVM_MC,'Hexagon LLVM6 assembler required')
     def test_complete_fragment_inventory_rejects_overlaps(self):
         manifest,regions=adsp.assembled_inventory(LLVM_MC,None)
-        self.assertEqual(len(manifest['fragments']),91)
-        self.assertEqual(manifest['total_independently_assembled_executable_bytes'],7040)
-        self.assertEqual(sum(map(len,regions.values())),7040)
+        self.assertEqual(len(manifest['fragments']),92)
+        self.assertEqual(manifest['total_independently_assembled_executable_bytes'],7244)
+        self.assertEqual(sum(map(len,regions.values())),7244)
         self.assertEqual(manifest['gap_bytes_included_in_generated_executables'],0)
         self.assertFalse(manifest['complete_adsp_image'])
         self.assertEqual(manifest['external_original_code_bytes_in_output'],0)
@@ -366,7 +366,7 @@ class ADSPExternalsAndCodeTests(unittest.TestCase):
     def test_inventory_every_fragment_uses_correct_original(self):
         inventory,_outputs=adsp.assembled_inventory(LLVM_MC,Path(REFERENCE).read_bytes())
         self.assertTrue(all(x['reference_byte_identical'] for x in inventory['fragments']))
-        self.assertEqual(inventory['total_independently_assembled_executable_bytes'],7040)
+        self.assertEqual(inventory['total_independently_assembled_executable_bytes'],7244)
 
     @unittest.skipUnless(LLVM_MC and REFERENCE,
                          'Hexagon LLVM6 and exact pinned ADSP reference required')
@@ -380,7 +380,7 @@ class ADSPExternalsAndCodeTests(unittest.TestCase):
                 adsp.verify_slice(built,original,off)
                 total+=len(built)
                 ranges.append((off,off+size))
-        self.assertEqual(total,7040)
+        self.assertEqual(total,7244)
         ranges.sort()
         self.assertEqual(ranges[0],(0x39000,0x39054))
         self.assertEqual(ranges[-1],(0x3640a8,0x3640f8))
@@ -1300,3 +1300,23 @@ class ADSPControllerParameterAllocatorTests(unittest.TestCase):
         self.assertEqual(sum(map(len,parts)),244)
         self.assertEqual(cases[0][1]+cases[0][2],cases[1][1])
         if ref is not None:adsp.verify_slice(b''.join(parts),ref,cases[0][1])
+
+
+class ADSPControllerListInsertionTests(unittest.TestCase):
+    """One bounded ordered-list allocation path and its error branches."""
+
+    @unittest.skipUnless(LLVM_MC,'Hexagon LLVM6 assembler required')
+    def test_source_recreates_original_ordered_list_insert_and_returns(self):
+        src,off,size=adsp.FRAGMENTS['controller-linked-list-insert']
+        self.assertEqual((off,size),(0x422c0,204))
+        code=src.read_text()
+        for forbidden in ('.word ','.long ','.byte ','.incbin ','.fill '):
+            self.assertNotIn(forbidden,code)
+        for symbol in ('scan_entries:', 'behind_entry:', 'report_size_overflow:',
+                       'append_entry:', 'allocframe(#16)', 'dealloc_return'):
+            self.assertIn(symbol,code)
+        built=adsp.compile_source(LLVM_MC,src,size)
+        self.assertEqual(hashlib.sha256(built).hexdigest(),
+                         '35f90ec0d14674de6176064d7e60911483b4f0120c4879083d7fde1dcb631162')
+        if REFERENCE:adsp.verify_slice(built,Path(REFERENCE).read_bytes(),off)
+        self.assertEqual(off+size,0x4238c)

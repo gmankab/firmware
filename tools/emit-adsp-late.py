@@ -110,6 +110,7 @@ FRAGMENTS = {
     'controller-configured-scan': (TOOLS / 'adsp-late-controller-configured-scan.S', 0x41440, 0x5C),
     'controller-bitfield-normalize': (TOOLS / 'adsp-late-controller-bitfield-normalize.S', 0x40CE8, 0x38),
     'controller-allocate-parameter': (TOOLS / 'adsp-late-controller-allocate-parameter.S', 0x40D20, 0xBC),
+    'controller-linked-list-insert': (TOOLS / 'adsp-late-controller-linked-list-insert.S', 0x422C0, 0xCC),
     'controller-field-00-get': (TOOLS / 'adsp-late-controller-field-00-get.S', 0x3EC80, 0xC),
     'controller-field-00-forward': (TOOLS / 'adsp-late-controller-field-00-forward.S', 0x3EC8C, 0x10),
     'controller-field-01-get': (TOOLS / 'adsp-late-controller-field-01-get.S', 0x3ECA0, 0xC),
