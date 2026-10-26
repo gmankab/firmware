@@ -590,3 +590,19 @@ word or padded filler was copied. **Cumulative verified executable code is
 6,000 bytes in 78 disjoint fragments** (including checkpoint 38’s bounded
 V66 duplex stream-transfer loop). The many remaining ADSP executable bytes
 and original authentication remain outside independent source coverage.
+
+**Checkpoint 40 — controller hook-registration pair:** Added two
+**contiguous original-source Hexagon functions**, a 72-byte platform callback
+chain at `[file 0x3f468,0x3f4b0)` and a 24-byte failure-logger helper at
+`[file 0x3f4b0,0x3f4c8)`. Their respective SHA-256 checksums are
+`6a33b1edb49728257f69950a8db965eec072a24c017df39521ba46820f671f92`
+and `df4ae9361dd8b4514ed75e5250ee92c58c29a6a7c57f8176dd0dcfeb37402032`.
+The first performs a sequence of twelve platform registration calls and
+original branch-table handoff; source packet ordering places the `immext`
+after the small result immediate to retain the correct branch instruction
+and parse markers. The failure helper uses a stack-backed platform error
+argument. Both reassemble directly with LLVM6, without OEM opcode copies,
+and match **all 96 executable bytes**. The NOP before `0x3f468` and the two
+following NOPs `[0x3f4c8,0x3f4d0)` are intentionally excluded from source
+counts. **Total independent ADSP executable reconstruction: 6,096 bytes
+in 80 fragments.** Large code and authentication gaps remain.

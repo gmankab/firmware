@@ -197,9 +197,9 @@ class ADSPExternalsAndCodeTests(unittest.TestCase):
     @unittest.skipUnless(LLVM_MC,'Hexagon LLVM6 assembler required')
     def test_complete_fragment_inventory_rejects_overlaps(self):
         manifest,regions=adsp.assembled_inventory(LLVM_MC,None)
-        self.assertEqual(len(manifest['fragments']),78)
-        self.assertEqual(manifest['total_independently_assembled_executable_bytes'],6000)
-        self.assertEqual(sum(map(len,regions.values())),6000)
+        self.assertEqual(len(manifest['fragments']),80)
+        self.assertEqual(manifest['total_independently_assembled_executable_bytes'],6096)
+        self.assertEqual(sum(map(len,regions.values())),6096)
         self.assertEqual(manifest['gap_bytes_included_in_generated_executables'],0)
         self.assertFalse(manifest['complete_adsp_image'])
         self.assertEqual(manifest['external_original_code_bytes_in_output'],0)
@@ -366,7 +366,7 @@ class ADSPExternalsAndCodeTests(unittest.TestCase):
     def test_inventory_every_fragment_uses_correct_original(self):
         inventory,_outputs=adsp.assembled_inventory(LLVM_MC,Path(REFERENCE).read_bytes())
         self.assertTrue(all(x['reference_byte_identical'] for x in inventory['fragments']))
-        self.assertEqual(inventory['total_independently_assembled_executable_bytes'],6000)
+        self.assertEqual(inventory['total_independently_assembled_executable_bytes'],6096)
 
     @unittest.skipUnless(LLVM_MC and REFERENCE,
                          'Hexagon LLVM6 and exact pinned ADSP reference required')
@@ -380,7 +380,7 @@ class ADSPExternalsAndCodeTests(unittest.TestCase):
                 adsp.verify_slice(built,original,off)
                 total+=len(built)
                 ranges.append((off,off+size))
-        self.assertEqual(total,6000)
+        self.assertEqual(total,6096)
         ranges.sort()
         self.assertEqual(ranges[0],(0x39000,0x39054))
         self.assertEqual(ranges[-1],(0x3640a8,0x3640f8))
@@ -1145,3 +1145,37 @@ class ADSPControllerGlobalPublisherTests(unittest.TestCase):
         original=Path(REFERENCE).read_bytes()
         adsp.verify_slice(adsp.compile_source(LLVM_MC,source,n),original,off)
         self.assertEqual(off+n,0x3f37c)
+
+
+class ADSPControllerHookRegistrationTests(unittest.TestCase):
+    """Controller hook-registration chain and failure return, with no padding."""
+
+    @unittest.skipUnless(LLVM_MC,'Hexagon LLVM6 assembler required')
+    def test_two_hook_setup_fragments_are_exact_and_contiguous(self):
+        expected=(
+            ('controller-register-hooks',0x3f468,72,
+             '6a33b1edb49728257f69950a8db965eec072a24c017df39521ba46820f671f92'),
+            ('controller-log-failure',0x3f4b0,24,
+             'df4ae9361dd8b4514ed75e5250ee92c58c29a6a7c57f8176dd0dcfeb37402032'),
+        )
+        previous_end=0x3f468
+        rebuilt=[]
+        for name,begin,n,digest in expected:
+            with self.subTest(name=name):
+                source,off,length=adsp.FRAGMENTS[name]
+                self.assertEqual((off,length),(begin,n))
+                self.assertEqual(off,previous_end)
+                asm=source.read_text()
+                for forbidden in ('.word ','.long ','.byte ','.fill ','.incbin '):
+                    self.assertNotIn(forbidden,asm)
+                b=adsp.compile_source(LLVM_MC,source,length)
+                self.assertEqual(hashlib.sha256(b).hexdigest(),digest)
+                if REFERENCE:adsp.verify_slice(b,Path(REFERENCE).read_bytes(),off)
+                rebuilt.append(b)
+                previous_end+=length
+        self.assertEqual(previous_end,0x3f4c8)
+        self.assertEqual(sum(map(len,rebuilt)),96)
+        self.assertIn('r0 = #1; immext(#4294965056); jump runtime_complete; deallocframe',
+                      adsp.FRAGMENTS['controller-register-hooks'][0].read_text())
+        self.assertIn('r0 = #-1; dealloc_return',
+                      adsp.FRAGMENTS['controller-log-failure'][0].read_text())
