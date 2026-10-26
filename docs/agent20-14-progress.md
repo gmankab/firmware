@@ -974,3 +974,37 @@ Validation: **160 Rust tests**, **128 Python-discovered cases** (**106 passed,
 assembly and strict reference comparison passed. The checkpoint-19 test was
 updated to select the original checkpoint explicitly, so later registry
 growth does not change its negative-boundary assertion.
+
+## Checkpoint 21 — interface record command dispatcher
+
+A complete V66 function `[file 0x1045e8,0x1050d8)` (runtime
+`[0xb00c45e8,0xb00c50d8)`) is expressed in named Hexagon mnemonics with
+338 explicit packets and 700 encoded words, totaling **2,800 exact executable
+bytes**. The routine validates byte fields and signatures, dispatches typed
+interface records, traverses a counted record array and emits status replies.
+The names reflect static dataflow analysis, not recovered official function
+symbols or verified device behavior.
+
+The original instruction stream uses rare Hexagon duplex combinations and
+memory-ordering packets. Two read/write packets explicitly use `:mem_noshuf`
+at relative offsets `0x0280`, `0x0424`; two conditionally linked external
+calls require forced `##` extenders at `0x077c`, `0x0860`. Other packets use
+reordered legal source instructions to preserve the original duplex selection
+and parse bits. **No raw reference opcode words, unknown-byte padding,
+`.word` arrays or copied OEM executable blobs** appear in the source.
+
+LLVM 18/V66 and LLVM 6/V65 independently assemble the original bytes exactly,
+SHA-256 `edb482bed18bae21b5da93724800ea18b9e9c7054ed45cbcf838b176287b619a`.
+The fragment contains 338 packet endings and 700 fully decoded machine words
+with zero unknowns. The cumulative main contiguous independently generated
+executable range `[0x1001c4,0x1050d8)` is now **20,244 bytes**. Two original
+separately built dispatch tables `[0x2f6cd0,0x2f6ec0)` contribute an additional
+**496 authored data bytes**, giving **20,740 source-derived bytes** across
+noncontiguous ranges. No linker fill, vendor authorization, secret keys or
+reference-supplied executable bytes are included.
+
+The next complete function starts at file `0x1050d8` (runtime `0xb00c50d8`).
+The original 452-byte seam `[0x100000,0x1001c4)` crosses Agent 13's prior
+boundary and is still not covered. The repository remains a portable Agent 14
+branch based on prior WLAN checkpoint `d6104bb`, **not** an integrated
+checkpoint-50 descendant.

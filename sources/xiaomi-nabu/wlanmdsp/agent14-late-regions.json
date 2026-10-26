@@ -629,6 +629,16 @@
       "sha256": "1e23f3c30efdfb9a5e1585af009d6728c918bc84696de31a880030d253021a98",
       "checkpoint": 20,
       "classification": "executable"
+    },
+    {
+      "name": "interface-record-dispatch",
+      "file_start": 1066472,
+      "file_end": 1069272,
+      "source": "sources/xiaomi-nabu/wlanmdsp/agent14-late-interface-record-dispatch.S",
+      "symbol": "agent14_late_interface_record_dispatch",
+      "sha256": "edb482bed18bae21b5da93724800ea18b9e9c7054ed45cbcf838b176287b619a",
+      "checkpoint": 21,
+      "classification": "executable"
     }
   ]
 }

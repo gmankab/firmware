@@ -32,7 +32,8 @@ class FourInterfaceRoutines(unittest.TestCase):
         self.assertIn('label_0064:',handler)
         self.assertIn('jump ##1970876',handler)
     def test_next_function_is_not_implicitly_added(self):
-        r=late.select_regions(late.load_registry())
+        # Bound this historical checkpoint test even after future regions append.
+        r=late.select_regions(late.load_registry(), through_checkpoint=20)
         self.assertEqual(r[-1].file_end,0x1045e8)
         self.assertEqual(r[-1].vaddr + r[-1].size_bytes,0xb00c45e8)
 
