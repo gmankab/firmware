@@ -649,6 +649,16 @@
       "sha256": "2352709d0573685290f97eeae53d86644b3fbc4f62dd0d75f31219afbd861df9",
       "checkpoint": 22,
       "classification": "executable"
+    },
+    {
+      "name": "interface-status-query",
+      "file_start": 1069376,
+      "file_end": 1070584,
+      "source": "sources/xiaomi-nabu/wlanmdsp/agent14-late-interface-status-query.S",
+      "symbol": "agent14_late_interface_status_query",
+      "sha256": "008129dc9a659e40a2d94247b6c45b31f5d87beab97296df2c02873a3d936379",
+      "checkpoint": 23,
+      "classification": "executable"
     }
   ]
 }

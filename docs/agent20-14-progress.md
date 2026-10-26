@@ -1027,3 +1027,28 @@ The next function starts at file `0x105140` (runtime `0xb00c5140`), while
 Agent 13's 452-byte leading function seam remains unfinished. No OEM
 reference byte arrays, headers, signatures, linker padding or hardware
 execution evidence are included in generated code.
+
+## Checkpoint 23 — interface-status query and record traversal
+
+A complete Hexagon V66 function `[0x105140,0x1055f8)` is independently
+assembled from named packet mnemonics and branch targets, producing **1,208
+byte-exact executable bytes**. The routine queries an active record, checks
+tagged and counted interface fields, searches a session table, formats reply
+records, and reports status through callbacks. These are inferred semantics
+from program dataflow, not recovered source-level documentation or evidence
+of on-device execution.
+
+LLVM 18/V66 and independent LLVM 6/V65 produce the exact same 1,208 bytes,
+SHA-256 `008129dc9a659e40a2d94247b6c45b31f5d87beab97296df2c02873a3d936379`,
+identical to the pinned WLAN firmware. There are **147 full Hexagon packets and
+302 completely decoded instruction words**. One conditional call requires
+an explicit `##` extender; four memory/duplex packets preserve original
+instruction order through named source reordering or `:mem_noshuf`. No OEM
+opcode arrays or other binary reference slices are present in Git.
+
+Cumulative code `[0x1001c4,0x1055f8)` now totals **21,556 bytes**; distinct
+authored dispatch-table data is **496 bytes**, giving **22,052 source-derived
+bytes**. The next function starts at file `0x1055f8` (runtime `0xb00c55f8`).
+Original 452-byte boundary seam with Agent 13 is still uncovered. The branch
+remains based on prior WLAN checkpoint `d6104bb`, pending checkpoint-50-based
+integration; the firmware remains unauthenticated and partial.
