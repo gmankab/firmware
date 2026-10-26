@@ -602,3 +602,46 @@ python3 tools/verify-agent20-10-cdsp-rwe-controller-bitloop-body.py \
  --generated /private/controller-bitloop-body-92.bin \
  --prefix /private/controller-rwe-1844.bin --reference /private/cdsp.mbn
 ```
+
+## Checkpoint 32 — pointer and bank-mask setup through 0x56784; 3,080 executable bytes
+
+- Independently source-encoded **80 Hexagon V66 executable bytes** at CDSP
+  file `[0x56734,0x56784)`, physical `[0x96cc8734,0x96cc8784)` in the RWE
+  `PT_LOAD` with virtual `[0xc00c8734,0xc00c8784)`. This is still the
+  controller function starting at `0x56600`, not a complete function.
+- Reconstructed two LLVM6-confirmed duplex operations, two direct controller
+  lookup calls targeting physical `0x96ccaa38`, 32-bit pointer dereferences,
+  original forced-extended GP word load at `0xfe0c6680`, mask headroom
+  `0x3fffff`, signed high-bank `-0x400000`, and insert/shift setup.
+- `cdsp_late_controller_mask_setup.rs` emits checked typed operands, original
+  packet markers and an explicitly forced address extender. No vendor
+  reference byte array is copied into the emitter. The reference is read
+  **only** by the verifier outside Git.
+- Standalone 80-byte output and the full `[0x56000,0x56784)` RWE prefix
+  match pinned `cdsp.mbn` SHA-256
+  `febeae7b8e47bad4eeabc159a3c24b74cda26dfa12b384c31de5de30817e06ea`
+  with **zero byte differences**.
+- Source-generated RWE prefix has **1,924 file bytes**: 1,880 executable
+  bytes plus 44 explicitly accounted linker NOP/fill bytes. The disjoint,
+  fully rebuilt short controller `[0x55000,0x554b0)` adds 1,200 executable
+  bytes, for **3,080 independently reconstructed executable bytes** total.
+- Independent LLVM 6.0.1 assembles the same instruction sequence with 19
+  words instead of 20 because it shortens an original forced-extended GP
+  access (it retains only the address's low 16 bits). Of the first nine
+  aligned original words, five remain identical. Rizin V66 independently
+  decodes **all 20 original-order words**, two real physical call targets
+  and the full original GP address. The LLVM short GP spelling is **not**
+  claimed to prove equal full-address semantics on arbitrary GP values.
+- The next missing executable instruction begins at CDSP file `0x56784`,
+  physical `0x96cc8784`. Source lineage remains **provisional on Agent 05's
+  older CDSP branch**, not based on the unavailable checkpoint-50 integrated
+  tree. No complete authenticated CDSP image or hardware behavior is claimed.
+
+```sh
+cargo run --offline --locked -p firmware-tools --bin cdsp-late-controller-mask-setup -- verify-prefix /private/cdsp.mbn
+python3 tools/verify-agent20-10-cdsp-controller-mask-setup.py \
+  --llvm-mc /private/llvm6/bin/llvm-mc --rz-asm /private/rz-asm \
+  --generated /private/controller-mask-80.bin \
+  --prefix /private/controller-rwe-1924.bin \
+  --reference /private/cdsp.mbn
+```
