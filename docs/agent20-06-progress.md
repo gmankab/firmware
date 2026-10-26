@@ -538,3 +538,18 @@ python3 tools/agent20_06_a32_roundtrip.py /private/venus.mbn 0xa8ea0 0xa92c8 \
 - Resolves and formats codec output-plane metadata and queue mode, preserving the original `LDR PC` control-flow dispatch and status fallback instructions. This remains part of the long function starting `0xbd648`; the return is not in the current range.
 - Full emitted region compares equal to pinned original with **0 differing bytes**, and independent Clang/LLVM reconstruction reproduces all 1,996 code bytes and 16 classified data bytes. **235 Rust tests and 13 Python tests passed.** Release build not claimed.
 - Next uncovered runtime VMA `0xbe7dc`, MBN file offset `0xc27dc`. Older-base provisional Git ancestry, not checkpoint-50 integrated or OEM-signed high-level source reconstruction.
+
+## Checkpoint 64 — frame queue and pending output
+
+- Continuous typed ARM32 region `[0xa8000,0xbeb70)` = **93,040 byte-identical bytes**, original MBN `[0xac000,0xc2b70)`.
+- New continuation `[0xbe7dc,0xbeb70)` = **916 bytes**, **227 typed ARM32 instructions (908 bytes)** and two *separately classified non-instruction data words* (8 bytes) at `[0xbe9e8,0xbe9ec)` (`0x000fa36c`) and `[0xbe9f8,0xbe9fc)` (`0x000fa5a8`). These are diagnostic pointer constants; the disassembler misleadingly prints them as ANDEQ.
+- Reconciles queue records and stream dimensions, bounds active controller state, expands codec control flags and copies per-frame status. This is a **partial function**; the next code begins `0xbeb70` (original MBN offset `0xc2b70`). No bytes outside agent's `[0xa8000,0x1029f4)` reservation were added.
+- Independently reassembled using:
+
+  ```sh
+  python3 tools/agent20_06_a32_roundtrip.py /private/venus.mbn 0xbe7dc 0xbeb70 \
+    --data-range 0xbe9e8:0xbe9ec --data-range 0xbe9f8:0xbe9fc
+  ```
+
+  Clang/LLVM confirms all 908 instruction bytes and 8 literal bytes, **zero differences**. Entire Rust fragment also matches the pinned original SHA-256 `9d4af65d7ede845e900f1b29ff425b7a8e2947056e695e246e58a2091445a085` slice.
+- `cargo test --workspace --offline --locked`: **236 Rust tests passed**. `python3 -m unittest discover -s tests -p 'test_*.py'`: 13 tests passed. This is still a provisional old-Agent-03-base bundle and does not claim checkpoint-50 integration, high-level decompilation or OEM-authenticated output.
