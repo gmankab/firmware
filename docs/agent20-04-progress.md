@@ -162,3 +162,11 @@ git diff --check
 - Independent Clang/LLVM mnemonic rebuild of all 2,047 instructions and separate diagnostic literal reproduces the Rust output and the original file with zero differences; invocation: `tools/agent20_04_roundtrip.py --disasm /private/next2.txt --start 0x4a000 --end 0x4c000 --data 0x4ba08:0x4ba0c:0x000ee028 --reference /private/venus.mbn --file-offset 0x4e000 --compare /private/check17-4a000.bin`.
 - Gapless Agent 04 coverage `[0x40a2c,0x4c000)` = **46,548 bytes** containing **11,591 ARM32 instructions** and **46 classified data words**. The parent codec routine continues at `0x4c000`; no invented return or zero-filled padding was added. Uncovered original prefix `[0x40000,0x40a2c)` remains excluded.
 - Offline Rust suite: 207 tests passed. Python suite: 13 tests passed. The branch still derives from the older Agent 03 history rather than checkpoint 50, and is marked provisional.
+
+## Checkpoint 18 — controller diagnostic pointer and stream-length setup
+
+- Added ARM32 instructions for runtime `[0x4c000,0x4d000)` = **4,096 exact bytes**, original MBN `[0x50000,0x51000)`. This interval contains **1,023 typed ARM32 instructions** plus **one PC-referenced literal** `0x000ee028` at runtime `0x4cb70`.
+- The word at `0x4cb70` is loaded from **eleven** PC-relative instruction sites and is bypassed by unconditional branch at `0x4cb6c`. A linear disassembler incorrectly displays the constant as `ANDEQ LR,...,LSR #32`; the encoder rejects that instruction form and the word is deliberately emitted as a named data value instead.
+- Independent Clang/LLVM mnemonic assembly verifies the new 1,023 instructions and one data word match both the Rust emitter and the reference: `tools/agent20_04_roundtrip.py --disasm /private/fwd.txt --start 0x4c000 --end 0x4d000 --data '0x4cb70:0x4cb74:0x000ee028' --reference /private/venus.mbn --file-offset 0x50000 --compare /private/check18-4c000.bin`.
+- Full contiguous agent-generated executable interval `[0x40a2c,0x4d000)` is **50,644 bytes** = **12,614 ARM32 instructions** and **47 non-instruction data words**. The original 0x40000–0x40a2c prefix remains uncovered. The enclosing controller routine continues beyond `0x4d000`; no return fabricated.
+- 208 Rust tests and 13 Python tests passed in this environment. Branch ancestry is provisional from the older Agent 03 repository, not checkpoint 50.
