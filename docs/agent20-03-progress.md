@@ -673,3 +673,11 @@ Original reference: private `map220v-nabu-firmware/venus.mbn`, SHA-256 `9d4af65d
 - Three independently typed opcode pools encode 10-way input data types, 10-way output types and 7-way payload-copy dispatch. Checked ARMv7 signed byte/halfword preindexed writeback helper includes ISA field tests; no opaque reference instructions are pasted.
 - Complete fragment direct source/reference comparison and an independent Clang/LLVM reassembly of all 1,004 new bytes match with **zero differences**. **268 Rust and 13 Python tests passed**; optimized release build not confirmed.
 - Next function begins at runtime `0x3dfec` (MBN file `0x41fec`) below the assigned upper bound `0x40000`. Byte equality is not new high-level source equivalence, hardware execution or OEM signing.
+
+## Checkpoint 97 — codec descriptor publication and queue advance
+
+- Contiguous typed Venus `[0x21c78,0x3e304)` = **116,364 byte-identical bytes**, MBN `[0x25c78,0x42304)`.
+- New `[0x3dfec,0x3e304)` = **792 bytes**: 196 typed ARM32 instructions and two explicit non-executable diagnostic words at `[0x3e2c4,0x3e2c8)` and `[0x3e300,0x3e304)`.
+- Reconstructed original saved-register return and guarded queue/capacity branch. No vendor instruction data was pasted into the Rust emitter.
+- Direct source vs reference and independently linked Clang/LLVM mnemonic reassembly produce zero byte differences. Test results are recorded in checkpoint log; not proof of whole-firmware signing or functional behavior.
+- Next uncovered runtime entry `0x3e304`; assigned upper limit `0x40000`. The portable branch does **not** descend from checkpoint-50.
