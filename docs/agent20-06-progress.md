@@ -735,3 +735,17 @@ python3 tools/agent20_06_a32_roundtrip.py /private/venus.mbn 0xa8ea0 0xa92c8 \
   ```
 
 - **249 Rust tests and 13 Python tests passed**. New release build not completed/claimed. A prior checkpoint-specific test was adjusted to assert coverage of its historical boundary (`>=`) rather than incorrectly demand a fixed whole-fragment size once extended. Next uncovered VMA `0xc3574`, original MBN file `0xc7574`. Provisional older-Agent03 branch; no OEM signing or high-level algorithmic source recovery claimed.
+
+## Checkpoint 78 — controller stream-output publication and reset stubs
+
+- Typed source-built Venus ARM runtime `[0xa8000,0xc3c14)` = **113,684 consecutive original-exact bytes**, MBN file range `[0xac000,0xc7c14)`.
+- Newly reconstructed `[0xc3574,0xc3c14)` adds **1,696 bytes**, 420 ARM32 instructions (1,680 bytes) and a four-word diagnostic pool `[0xc3bdc,0xc3bec)` (16 bytes). The original controller output command routine includes its `POP {...,PC}` at `0xc3bd0`, short continuation branch, diagnostic literals, and three small control stubs ending in `BX LR`.
+- Rust full-fragment comparison reports **0 different bytes**. Clang/LLVM independently reassembles every 1,680 instruction byte plus 16 separately classified data bytes:
+
+  ```sh
+  python3 tools/agent20_06_a32_roundtrip.py /private/venus.mbn 0xc3574 0xc3c14 \
+    --data-range 0xc3bdc:0xc3bec
+  ```
+
+- **250 Rust and 13 Python tests passed.** A historical checkpoint 77 test's whole-fragment length check was changed to a monotonic coverage assertion so extending the fragment does not invalidate a previous byte pool assertion. No completed new release build is claimed.
+- Next uncovered VMA `0xc3c14`, file `0xc7c14`, inside Agent 20-06's `[0xa8000,0x1029f4)` ownership. The Git branch remains older-Agent03-derived, provisional relative to unavailable checkpoint50 integration. Opcode-semantic recreation is not full independent source-level reengineering, signing or device acceptance evidence.
