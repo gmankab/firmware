@@ -749,3 +749,17 @@ python3 tools/agent20_06_a32_roundtrip.py /private/venus.mbn 0xa8ea0 0xa92c8 \
 
 - **250 Rust and 13 Python tests passed.** A historical checkpoint 77 test's whole-fragment length check was changed to a monotonic coverage assertion so extending the fragment does not invalidate a previous byte pool assertion. No completed new release build is claimed.
 - Next uncovered VMA `0xc3c14`, file `0xc7c14`, inside Agent 20-06's `[0xa8000,0x1029f4)` ownership. The Git branch remains older-Agent03-derived, provisional relative to unavailable checkpoint50 integration. Opcode-semantic recreation is not full independent source-level reengineering, signing or device acceptance evidence.
+
+## Checkpoint 79 — codec controller policy registers and runtime parameter guards
+
+- Contiguous Venus ARM32 runtime `[0xa8000,0xc420c)` = **115,212 byte-identical bytes**, corresponding to original `venus.mbn` file `[0xac000,0xc820c)`.
+- Newly source-encoded `[0xc3c14,0xc420c)` adds **1,528 bytes**: 363 ARM32 instructions (1,452 bytes) and 19 explicitly classified noninstruction words (76 bytes) in `[0xc4198,0xc41e4)`.
+- The primary function writes controller packet fields, validates codec status/plane ranges and reports diagnostic conditions; two short helpers follow its data pool. Branch targets cross the local function and are re-encoded with the ARM32 branch displacement encoder, not copied opcodes.
+- Full emitter output matches the reference with **zero differing bytes**. Independent Clang/LLVM mnemonic reassembly confirms all 1,452 instruction bytes and 76 declared literal bytes:
+
+  ```sh
+  python3 tools/agent20_06_a32_roundtrip.py /private/venus.mbn 0xc3c14 0xc420c \
+    --data-range 0xc4198:0xc41e4
+  ```
+
+- **251 Rust tests and 13 Python tests passed.** No completed new release build is claimed. Next uncovered VMA `0xc420c`, original file `0xc820c`; work remains provisional from old Agent 03, not checkpoint 50. Neither a function-level behavioral proof nor OEM signing is claimed.
