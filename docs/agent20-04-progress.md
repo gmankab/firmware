@@ -228,3 +228,11 @@ git diff --check
 - Contiguous Agent 04 coverage `[0x40a2c,0x53400)` is **76,244 source-reencoded bytes**, comprising **18,957 ARM32 instructions and 104 data words**. The newly started indexed controller function continues beyond `0x53400`; do not claim it is complete.
 - Offline Rust workspace **216 tests**, Python **13 tests**, and opt0 release build pass. Default full optimization is not claimed; prior no-reference range `[0x40000,0x40a2c)` remains unimplemented.
 - This provisional Git branch still descends from old Agent03 rather than the missing checkpoint-50 Git SHA; integrate by cherry-pick/rebase only after obtaining the exact base.
+
+## Checkpoint 26 — indexed codec controller and plane-count scanner
+
+- Source-reencoded **1,348 exact bytes** at `[0x53400,0x53944)` (MBN `[0x57400,0x57944)`) as **321 typed A32 instructions plus 16 literal data words**. Two source functions have post-return data pools `[0x53708,0x5373c)` (13 words) and `[0x53938,0x53944)` (three words), including codec identifiers, controller-address displacements, diagnostic pointers and the `0xcccccccd` constant used in reciprocal scaling.
+- Includes checked typed ARM32 `UMULL` low/high-result encoding and architecture doubleword memory transfers, with a result-register distinctness test. No proprietary instruction-word arrays or implicit zeros in the generator.
+- Independent Clang/LLVM reassembly matched all **321 instructions and 16 data words** to both Rust emitter and private reference with **zero differences**. Standalone `agent20_04_venus_middle -- verify` passed its complete set of adjacent fragments.
+- Continuous Agent04 source-generated interval `[0x40a2c,0x53944)` now **77,592 bytes**, **19,278 typed ARM32 instructions and 120 named data words**. First uncovered runtime address `0x53944` (function entry). Earlier `[0x40000,0x40a2c)` remains uncovered.
+- Rust workspace **218 tests**, Python **13**, and opt0 release all passed. Provisional old-Agent03 ancestry, **not** original checkpoint50 integration; no flashability claim.
