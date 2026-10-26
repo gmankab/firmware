@@ -666,3 +666,17 @@ python3 tools/agent20_06_a32_roundtrip.py /private/venus.mbn 0xa8ea0 0xa92c8 \
   ```
 
 - **244 Rust tests and 13 Python tests passed**. Successful release build not claimed. Next uncovered runtime `0xc18e4`, MBN file `0xc58e4`. This branch remains provisional old-Agent-03-based, not checkpoint-50-integrated or newly OEM-signed. The work proves byte-equivalent ISA construction, not high-level algorithmic reimplementation or hardware behavior.
+
+## Checkpoint 73 — controller profile MMIO register programming
+
+- The typed Venus reconstruction covers `[0xa8000,0xc1b78)` = **105,336 continuous byte-identical bytes**, original MBN `[0xac000,0xc5b78)`.
+- Added `[0xc18e4,0xc1b78)` = **660 bytes**: **159 ARM32 instructions (636 bytes)** plus **six explicit controller pointer/diagnostic data words (24 bytes)** at `[0xc1b60,0xc1b78)`.
+- Writes controller configuration registers for output codec streams, waits for command acknowledgements and uses the original ARM32 caller epilogue. Classifies all six non-executable pool words as data.
+- Whole Rust output equals the pinned reference (zero differing bytes); independent Clang/LLVM reconstructs exactly the 636 ARM instruction bytes and the 24 declared data bytes:
+
+  ```sh
+  python3 tools/agent20_06_a32_roundtrip.py /private/venus.mbn 0xc18e4 0xc1b78 \
+    --data-range 0xc1b60:0xc1b78
+  ```
+
+- **245 Rust tests and 13 Python tests passed**. No completed new release build is claimed. Next uncovered ARM address `0xc1b78`, original MBN offset `0xc5b78`. The branch is provisional from old Agent 03 rather than checkpoint 50; the source is an auditable typed A32 encoding of reference instruction semantics, not high-level independently rebuilt codec algorithms or OEM signing.
