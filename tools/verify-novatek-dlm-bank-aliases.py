@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: GPL-3.0-only
-"""Independent Python verification of four external-input DLM bank aliases.
+"""Independent Python verification of seven external-input DLM bank aliases.
 
 This does not reconstruct the unknown earlier-bank payload. Even when the
 upper bank can be derived by copying lower-bank bytes, both are still
@@ -20,7 +20,10 @@ ALIASES = (
     ('codec-bank-staging', 0x2387c, 406),
     ('format-index-scratch', 0x23df8, 228),
     ('frame-bank-defaults', 0x24186, 182),
+    ('pre-wide-schedule', 0x245a6, 862),
+    ('post-wide-schedule', 0x24fc4, 604),
     ('input-ring-metadata', 0x2574c, 616),
+    ('pre-narrow-schedule', 0x25c5e, 238),
 )
 
 

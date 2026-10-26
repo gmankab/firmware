@@ -573,3 +573,24 @@ bytes. The first unknown DLM file offset is still `0x22000`. This remains a
 portable contribution on the older review-preview Git history, **not** the
 unavailable checkpoint-50 base. Re-run tests on the correct integration base
 before promoting the bundle into an official merged checkpoint.
+
+
+## Checkpoint 12 — three additional uncredited bank-copy dependencies
+
+Comparison of the pinned upper/lower DLM bank identified three more exact
+unknown-only copy spans at file offsets `[0x245a6,0x24904)`,
+`[0x24fc4,0x25220)`, and `[0x25c5e,0x25d4c)`, with destinations exactly
+`+0x4000` higher. Their lengths 862, 604 and 238 bytes add **1,704 dependent
+bytes**. Together with checkpoint 11's four original aliases, the validated
+copy plan covers **seven spans totaling 3,136 dependent bytes**. Each is
+entirely `unknown_dlm` in the canonical ledger, and all three deliberately
+avoid the known generated index schedules, Gaussian tables and previously
+validated 2,940-byte bank-index relocation.
+
+This remains **reference-assisted dependency information**, not source data.
+Both Rust and independently coded Python models compare each destination with
+an externally supplied primary, reject corrupted/truncated copies and
+invalidate any artificial ownership claim. Independent authoring stays
+**9,353 DLM data bytes** and **40,199 unknown DLM bytes**, with **zero new
+executable bytes**. The checkpoint was built on old-preview ancestry; its
+portable mbox should be applied by Agent 01 to a proven integrated base.

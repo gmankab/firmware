@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-only
-//! Four exact lower-to-upper DLM bank dependencies (REFERENCE-ASSISTED).
+//! Seven exact lower-to-upper DLM bank dependencies (REFERENCE-ASSISTED).
 //!
 //! Unknown earlier-bank bytes must be passed in by a caller. These aliases
 //! do not independently reconstruct any sample or calibration value. A
@@ -24,13 +24,16 @@ impl BankAlias {
 /// SHA-256-pinned postmarketOS reference. Neither is independently authored.
 /// Other large equality runs overlap previously generated schedules or
 /// covered descriptor-bank transforms and are deliberately omitted.
-pub const ALIASES:[BankAlias;4]=[
+pub const ALIASES:[BankAlias;7]=[
     BankAlias{name:"codec-bank-staging",earlier_start:0x2387c,byte_len:406},
     BankAlias{name:"format-index-scratch",earlier_start:0x23df8,byte_len:228},
     BankAlias{name:"frame-bank-defaults",earlier_start:0x24186,byte_len:182},
+    BankAlias{name:"pre-wide-schedule",earlier_start:0x245a6,byte_len:862},
+    BankAlias{name:"post-wide-schedule",earlier_start:0x24fc4,byte_len:604},
     BankAlias{name:"input-ring-metadata",earlier_start:0x2574c,byte_len:616},
+    BankAlias{name:"pre-narrow-schedule",earlier_start:0x25c5e,byte_len:238},
 ];
-pub const DEPENDENT_BYTES:usize=1432;
+pub const DEPENDENT_BYTES:usize=3136;
 
 pub fn validate_alias_geometry()->Result<(),String>{
     let mut prev_end=0usize;
@@ -109,9 +112,9 @@ pub fn verify_reference_assisted_aliases(reference:&[u8])->Result<usize,String>{
     use super::super::novatek_dlm_provenance::{build_ledger,DlmClaim};
 
     #[test]
-    fn four_bank_aliases_are_disjoint_exact_and_uncredited(){
+    fn seven_bank_aliases_are_disjoint_exact_and_uncredited(){
         validate_alias_geometry().unwrap();
-        assert_eq!(DEPENDENT_BYTES,1432);
+        assert_eq!(DEPENDENT_BYTES,3136);
         let ledger=build_ledger(&[]).unwrap();
         assert_uncredited_on_ledger(&ledger).unwrap();
         let mut image=vec![0;ALIASES.last().unwrap().later_end()];

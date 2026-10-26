@@ -28,12 +28,12 @@ def ledger():
 
 
 class BankAliasTests(unittest.TestCase):
-    def test_four_exact_dependent_spans_do_not_add_authorship(self):
+    def test_seven_exact_dependent_spans_do_not_add_authorship(self):
         r=mod.verify_aliases(image(),ledger(),check_hash=False)
-        self.assertEqual(r['reference_dependent_matched_bytes'],1432)
+        self.assertEqual(r['reference_dependent_matched_bytes'],3136)
         self.assertEqual(r['new_source_dlm_bytes'],0)
         self.assertEqual(r['source_dlm_data_bytes'],9353)
-        self.assertEqual([x['bytes'] for x in r['aliases']],[406,228,182,616])
+        self.assertEqual([x['bytes'] for x in r['aliases']],[406,228,182,862,604,616,238])
         self.assertTrue(all(x['dependent_file_start']-x['primary_file_start']==0x4000 for x in r['aliases']))
 
     def test_mutated_dependent_copy_and_truncated_input_fail(self):
