@@ -14,7 +14,7 @@ spec.loader.exec_module(module)
 
 class ModemRweException(unittest.TestCase):
     def test_exact_address_mapping(self):
-        self.assertEqual((module.FILE_START, module.FILE_END), (0x38108, 0x38ce4))
+        self.assertEqual((module.FILE_START, module.FILE_END), (0x38108, 0x38d94))
         self.assertEqual(module.VIRTUAL_START-module.FILE_START, 0xc0808000)
         self.assertEqual(module.PHYSICAL_START-module.FILE_START, 0x8e008000)
 
@@ -32,7 +32,7 @@ class ModemRweException(unittest.TestCase):
             self.skipTest('Set AGENT11_LLVM_MC to run LLVM6 Hexagon assembler test')
         source = SCRIPT.parents[1]/'crates/firmware-tools/src/devices/xiaomi_nabu/modem_rwe_exception_dispatch.s'
         data = module.assemble(Path(mc), source)
-        self.assertEqual(len(data), 3036)
+        self.assertEqual(len(data), 3212)
         self.assertEqual(data[0x381b8-module.FILE_START:0x381bc-module.FILE_START],bytes.fromhex('00c0e057'))
         self.assertEqual(data[0:4], bytes.fromhex('00c00058'))
         # First 148 bytes after the restored RTE encode vector resolution,
@@ -74,6 +74,18 @@ class ModemRweException(unittest.TestCase):
         self.assertEqual(at(0x38ca8),0x750940a2)  # producer-first P2 compare
         self.assertEqual(at(0x38cac),0x5cdf6ad8)  # .new control branch
         self.assertEqual(at(0x38ce0),0x7800c022)
+        # Additional frame-snapshot save path and lock retry: validate the
+        # original producer-first P1 .new packet and the literal-free NMI
+        # return from four-word CRSWAP/compact-branch packet.
+        self.assertEqual(at(0x38ce8), 0x70714000)
+        self.assertEqual(at(0x38cec), 0x750b4001)
+        self.assertEqual(at(0x38cf0), 0x5c20e926)
+        self.assertEqual(at(0x38d04), 0x65000000 | (31<<16) | (3<<14))
+        self.assertEqual(at(0x38d2c), 0x78004000)
+        self.assertEqual(at(0x38d30), 0xa0a00000 | (3<<14) | (1<<8))
+        self.assertEqual(at(0x38d74), 0x62000000 | ((21+32)<<16) | (1<<14) | 4)
+        self.assertEqual(at(0x38d8c), 0x91800000 | (31<<16) | (1<<14))
+        self.assertEqual(at(0x38d90),0x2606e000 | ((((-0x10c)>>9)&3)<<20) | (((-0x10c)>>1)&255))
         ref = os.environ.get('AGENT11_MODEM_MBN')
         if ref:
             module.verify_pinned(Path(ref).read_bytes(), data)

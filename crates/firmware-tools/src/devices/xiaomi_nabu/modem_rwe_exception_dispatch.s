@@ -1249,3 +1249,76 @@ MODEM_SYS_WRITE 6,20,1        // restored SSR
 MODEM_SYS_READ 29,0,1         // SGP0
 .set modem_rwe_vid_restore_callback,agent11_modem_exception_dispatch_entry + (0xdd20-0x38108)
 { call ##modem_rwe_vid_restore_callback; r2 = #1 }
+// Save a second controller frame when a video-ID-triggered exception is
+// resident on this hardware thread. The protected lock is the same
+// protocol used by the earlier generic exception paths.
+.globl agent11_modem_rwe_vid_context_snapshot
+agent11_modem_rwe_vid_context_snapshot:
+.set modem_rwe_vid_pending_other,agent11_modem_exception_dispatch_entry + (0x38f30-0x38108)
+{
+    r10 += asl(r9,#4)
+    r0 = r17
+    p1 = cmp.eq(r11,#0)
+    if (!p1.new) jump:nt modem_rwe_vid_pending_other
+}
+MODEM_SYS_READ 1,8,1 // HTID
+// LLVM6 computes this three-word packet branch relative to its slot,
+// while the original branch is packet-base-relative: request +4.
+.set modem_rwe_vid_capture_jumpover,agent11_modem_exception_dispatch_entry + (0x38f10-0x38108)
+{
+    jump modem_rwe_vid_capture_jumpover
+    r8 = memw(r10+#12)
+    r3:2 = memd(r10+#0)
+}
+MODEM_RWE_SWAP_SGP0 31,3
+MODEM_RWE_PREDICATE_READ 21,1
+{ memd(lr+#48) = r1:0; memd(lr+#32) = r21:20 }
+{ r0 = ##-1065090812 }
+modem_rwe_vid_lock_retry:
+{ r1 = memw_locked(r0) }
+{
+    p0 = cmp.eq(r1,#0)
+    if (!p0.new) jump:nt modem_rwe_vid_lock_retry
+    if (p0.new) r1 = #1
+}
+{ r0 = ##-1065090816 }
+MODEM_RWE_LOCKED_WORD_STORE 0,1,0,3
+{
+    if (!p0) r0 = ##-1065090812
+    if (!p0) jump:nt modem_rwe_vid_lock_retry
+    if (p0) r1 = memw(r0+#0)
+}
+MODEM_SYS_READ 0,8,1   // HTID
+{ p0 = cmp.gt(r1,#0) }
+{ trace(r1) }
+MODEM_SYS_READ 0,63,1  // S63 interrupt-status mask
+{
+    r1 = setbit(r1,r0)
+    memw(##-1065090816) = r1.new
+}
+{ r0 = setbit(r0,#16) }
+MODEM_SYS_WRITE 63,0,1
+{ r1 = #0; memw(##-1065090812) = r1.new }
+MODEM_RWE_CONFIG_WRITE 4,21,1 // P3:0
+{ r21:20 = memd(lr+#32) }
+{ r1 = #-5 }
+{ trace(r1) }
+MODEM_RWE_SWAP_SGP0 31,1
+// LLVM6 cannot track a packet-local register `.new` consumer through
+// CRSWAP. A checked 4-slot compound packet uses the same V60 compare/branch
+// pattern as the independently validated 3-slot variant, with slot bit 17.
+.macro MODEM_RWE_LR_WORD_LOAD destination, packet_marker=1
+    .if (\destination != 0) || (\packet_marker != 1)
+      .error "invalid CRSWAP frame word-load slot"
+    .endif
+    .word (0x91800000 | (31 << 16) | (\packet_marker << 14) | \destination)
+.endm
+.macro MODEM_RWE_COMPACT_LR_NEG1_RETURN_FOUR displacement, marker=3
+    .if (\displacement & 1) || (\displacement < -1024) || (\displacement > 1022) || (\marker != 3)
+      .error "invalid four-word CRSWAP compact return branch"
+    .endif
+    .word (0x2606e000 | (((\displacement >> 9) & 3) << 20) | ((\displacement >> 1) & 255))
+.endm
+MODEM_RWE_LR_MOVE_TO 1,1
+MODEM_RWE_LR_WORD_LOAD 0,1
+MODEM_RWE_COMPACT_LR_NEG1_RETURN_FOUR (0x38c78 - 0x38d84),3

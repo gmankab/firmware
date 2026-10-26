@@ -17,7 +17,7 @@ import subprocess
 import tempfile
 
 FILE_START = 0x38108
-FILE_END = 0x38ce4
+FILE_END = 0x38d94
 VIRTUAL_START = 0xc0840108
 PHYSICAL_START = 0x8e040108
 PINNED_SHA256 = '6f5cb32bc10e41abb40938d185805e788f5637a41d3ebcef278e4e169fc36782'
@@ -257,6 +257,33 @@ def normalize_llvm6_locked_packets(data: bytes) -> bytes:
         branch,producer=read(0x38ca8),read(0x38cac)
         write(0x38ca8,producer)
         write(0x38cac,branch)
+    if len(result)>=0x38d94-FILE_START:
+        # LLVM6 schedules this four-word P1 compare, branch and unrelated
+        # register move differently from the on-device legal packet. Check
+        # independently generated operands and packet markers before moving
+        # words; leave branch displacement unchanged and set parse fields.
+        expected={0x38ce8:0x5c206926,0x38cec:0x70714000,
+                  0x38cf0:0x750bc001}
+        for address,word in expected.items():
+            if read(address)!=word:
+                raise ValueError(f'unrecognized video frame P1 packet at {address:#x}')
+        branch,move,predicate=read(0x38ce8),read(0x38cec),read(0x38cf0)
+        write(0x38ce8,move)
+        write(0x38cec,(predicate&~(3<<14))|(1<<14))
+        write(0x38cf0,(branch&~(3<<14))|(3<<14))
+        # The protected lock-store at d30 shares a packet with an immediate
+        # producer. LLVM6 isolates that producer; preserve the same opcode
+        # and register operands after checking source parse fields.
+        if read(0x38d2c)!=0x7800c000 or read(0x38d30)!=0xa0a0c100:
+            raise ValueError('unrecognized controller video lock-store packet')
+        write(0x38d2c,(read(0x38d2c)&~(3<<14))|(1<<14))
+        expected={0x38d34:0x5cff60f4,0x38d38:0x0c085004,
+                  0x38d3c:0x7e804080}
+        for address,word in expected.items():
+            if read(address)!=word:
+                raise ValueError(f'unrecognized video lock-retry packet at {address:#x}')
+        branch,ext,imm=read(0x38d34),read(0x38d38),read(0x38d3c)
+        write(0x38d34,ext);write(0x38d38,imm);write(0x38d3c,branch)
     return bytes(result)
 
 
