@@ -201,3 +201,25 @@ python3 tools/build-wlanmdsp-agent13.py /tmp/wlan-prefix-through-27a0.bin \
 - Agent 13 new source `[file 0x42708,0x44cd4)` totals **9,676 typed LLVM22-assembled instruction bytes**. Joined Agent 7 + Agent 13 `[file 0x40000,0x44cd4)` is **19,668 byte-identical layout bytes**: **15,892 source-assembled instructions** and **3,776 distinct linker-fill bytes**. Exact pinned-reference validation: zero mismatches.
 - Full Cargo tests: **160 Rust passed**; Python suite: **28 total, 27 passed and 1 optional skipped**. `cargo build --workspace --release --offline --locked`, real LLVM22 v66 packet reassembly, and `git diff --check` all passed.
 - Next missing routine begins at WLAN file `0x44cd4`, virtual address `0xb0004cd4`; this agent's exclusive upper bound is file `0x100000`. Portable Agent7-derived branch, not checkpoint-50 integrated. Whole WLAN firmware and OEM authentication remain unrebuilt.
+
+## Checkpoint 26 (disjoint; checkpoint 25 not available in this session) — controller initialization
+
+- The latest available Git bundle in this session is Agent 13 checkpoint 16
+  `7c730bf`; the user discussion references checkpoint 25 `3cb8bac`, but its
+  actual Git bundle was **not mounted** and was not accessible from the
+  current Project Library. This change is a **portable independently verified
+  disjoint continuation**, not a branch/descendant of checkpoint 25.
+- Owner: `wlanmdsp.mbn` executable file `[0x4568c,0x45a20)` = **916 newly
+  assembled Hexagon v66 bytes**, VMA `[0xb000568c,0xb0005a20)`. No padding,
+  OEM opcode arrays, or opaque copied reference bytes were emitted.
+- The function initializes WLAN controller resources, record state, callback
+  pointers and status flags. Rebuild preserves packet parse bits, `:mem_noshuf`
+  ordering on two register-slot pairs, PC-relative calls/branches and an
+  explicitly extended final `r0=#0; jump ##...` duplex packet.
+- Assembly verifier: `python3 tools/build-wlanmdsp-agent13-forward.py
+  --llvm6 /private/llvm6/bin/llvm-mc --reference /private/wlanmdsp.mbn
+  --output /tmp/agent13-new.bin --manifest /tmp/agent13-new.json`.
+- Source-only and exact-length tests are in `tests/test_agent13_wlan_forward.py`.
+- **Do not sum** this 916-byte region into checkpoint 16's 19,668-byte prefix
+  as contiguous: checkpoint 17–25 sources covering `[0x44cd4,0x4568c)` are
+  absent from this session and must be applied first.
