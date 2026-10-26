@@ -652,3 +652,17 @@ python3 tools/agent20_06_a32_roundtrip.py /private/venus.mbn 0xa8ea0 0xa92c8 \
   ```
 
 - **243 Rust tests and 13 Python tests passed.** Release build not claimed. Next uncovered VMA `0xc1514`, file `0xc5514`, within the exclusive `[0xa8000,0x1029f4)` ownership region. Still provisional, old-Agent-03-based; byte equality is not independently recovered high-level code behavior or a new OEM-authenticated build.
+
+## Checkpoint 72 — controller channel object allocation and diagnostics
+
+- Venus runtime `[0xa8000,0xc18e4)` now contains **104,676 consecutive byte-identical bytes**, original reference `[0xac000,0xc58e4)`.
+- Newly reconstructed `[0xc1514,0xc18e4)` = **976 bytes** consisting of **235 typed ARM32 instructions (940 bytes)** and **nine non-executable controller/diagnostic data words (36 bytes)** at `[0xc18c0,0xc18e4)`.
+- Codec channel object initialization allocates runtime slots, assigns capability flags, attaches the optional configuration/data buffers and preserves the original conditional failure paths, caller restoration and diagnostic pool.
+- Pinned original byte verification passes with zero mismatches; independent Clang/LLVM also confirms all 940 instructions bytes and the nine explicit data words:
+
+  ```sh
+  python3 tools/agent20_06_a32_roundtrip.py /private/venus.mbn 0xc1514 0xc18e4 \
+    --data-range 0xc18c0:0xc18e4
+  ```
+
+- **244 Rust tests and 13 Python tests passed**. Successful release build not claimed. Next uncovered runtime `0xc18e4`, MBN file `0xc58e4`. This branch remains provisional old-Agent-03-based, not checkpoint-50-integrated or newly OEM-signed. The work proves byte-equivalent ISA construction, not high-level algorithmic reimplementation or hardware behavior.
