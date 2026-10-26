@@ -267,3 +267,10 @@ git diff --check
 - Reconstructs controller runtime handle creation, per-slot resource registration and initialization of frame-format state, with conditional logging and a tail call to the shared diagnostic handler. Contains both `pop {...,lr}` for tail-call and `pop {...,pc}` for normal return; no invented instruction words.
 - Private reference test and independent Clang/LLVM reassembly report **zero byte differences** (`--start 0x54854 --end 0x54c1c --data 0x54c18:0x54c1c:0x000ee470 --file-offset 0x58854`).
 - Consecutive Agent 04 coverage `[0x40a2c,0x54c1c)` totals **82,416 bytes**. Reservation prefix `[0x40000,0x40a2c)` remains unknown; the next routine begins at `0x54c1c`. Provenance remains provisional old Agent 03 rather than checkpoint 50.
+
+## Checkpoint 31 — codec-mode flag tables and state reset
+
+- Added runtime `[0x54c1c,0x54cfc)` = **224 exact bytes** (MBN `[0x58c1c,0x58cfc)`), containing **52 typed A32 instructions** and **four data words** `[0x54cbc,0x54ccc)` (diagnostic pointer and three codec-mode table base addresses).
+- First routine validates the selected codec class, builds and stores compact mode flags; second clears three codec boolean status fields without inventing any epilogue.
+- Opt-in private reference Rust test passes and independent Clang/LLVM mnemonic reassembly matches all 224 bytes exactly (`--start 0x54c1c --end 0x54cfc --data '0x54cbc:0x54ccc:0x000ee470,0x000f16e0,0x000f16a0,0x000f1660'`).
+- Verified contiguous Agent 04 source-built interval is `[0x40a2c,0x54cfc)` = **82,640 bytes**. The excluded prefix `[0x40000,0x40a2c)` and all runtime `>=0x68000` remain outside this agent's coverage. Next function starts at `0x54cfc`.
