@@ -393,3 +393,24 @@ python3 tools/build-wlanmdsp-agent13.py /tmp/wlan-prefix-through-27a0.bin \
 - Cumulative disjoint `[file 0x4568c,0x46e00)` is **6,004 matched
   source-assembled bytes**, no linker fill or opaque external code.
   The checkpoint-25 provenance gap remains as before.
+
+## Checkpoint 39 (disjoint) — finish controller session-metadata and callback routing
+
+- Added **284 source-assembled Hexagon bytes** at WLAN file
+  `[0x46e00,0x46f1c)` (runtime VMA `[0xb0006e00,0xb0006f1c)`).
+  This completes session-metadata reconciliation and callback/reporting,
+  including a conditional format table, 8-bit record-count traversal,
+  and external callback messages.
+- LLVM6 initially decoded file `0x46e00` as unknown **only because the
+  analysis scratch section ended halfway through its packet**. A larger
+  scratch view decoded it correctly with both LLVM6 and LLVM22 Hexagon v66;
+  no opcode has been treated as opaque data.
+- One `:mem_noshuf` block at `0x46ea4` preserves the original dependent
+  read/write order. At `0x46e3c` LLVM6 duplexes the two address writes in
+  original order only when semantic source order is adjusted. Forced
+  `jump ##0x29e92c` retains an otherwise omitted immediate extender.
+- Combined disjoint source-built continuation `[0x4568c,0x46f1c)` now
+  totals **6,288 exact instruction bytes**, zero padding or vendor blob reuse.
+  Next function prologue starts at file `0x46f1c`.
+- The checkpoint25 ancestry gap is still unresolved: do not claim a source-
+  generated contiguous prefix extending back to `0x40000` on this branch.
