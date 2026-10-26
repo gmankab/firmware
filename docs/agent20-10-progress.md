@@ -741,3 +741,18 @@ python3 tools/verify-agent20-10-cdsp-controller-return-paths.py \
 - `tools/agent20-10-cdsp-controller-error-tail.s` contains separately authored LLVM 6 Hexagon operations; LLVM assembles **21/21 words byte-identically** to the Rust emitter and reference, including original packet order, direct physical helper displacements and extended constants. `tools/verify-agent20-10-cdsp-controller-error-tail.py` checks the pinned original SHA-256, the full 2,288-byte RWE prefix, LLVM output and 6 direct call operations using the LLVM Hexagon decoder.
 - Verify: `cargo run --offline --locked -p firmware-tools --bin cdsp-late-controller-error-tail -- verify-prefix /private/cdsp.mbn`, then `python3 tools/verify-agent20-10-cdsp-controller-error-tail.py --llvm-mc /private/llvm6/bin/llvm-mc --llvm-objdump /private/llvm6/bin/llvm-objdump --generated /tmp/error-tail-84.bin --prefix /tmp/rwe-prefix-2288.bin --reference /private/cdsp.mbn`.
 - **Next uncovered instruction:** file `0x568f0` (physical `0x96cc88f0`). This remains an Agent 05-descended preparatory branch, not a verified checkpoint-50-rooted integration and not a complete/authenticated CDSP firmware build.
+
+## Checkpoint 38 — next codec/controller frame start through 0x56930; 3,496 executable bytes
+
+- Added **64 independently source-generated Hexagon V66 bytes** at CDSP file `[0x568f0,0x56930)`, physical `[0x96cc88f0,0x96cc8930)`, beginning the next controller function after the 12 alignment NOPs.
+- This prologue sets checked controller-log pointer `0xc0364b98`, four codec FourCC constants (`SYHP`, `LOOP`, `AFED`, `_TLU` in big-endian textual interpretation), `R3:2=combine(0,0); allocframe(#96)` and four FP-relative duplex register-pair stores. The V66 packet ordering is represented explicitly; no original machine-code data is pasted as an opcode array.
+- `[0x56000,0x56930)` now rebuilds **2,352 byte-identical file bytes** as **2,296 independent executable bytes + 56 explicit structural NOP/fill bytes**. With completed short controller `[0x55000,0x554b0)` contributing 1,200 executable bytes, the unique reconstructed **CDSP executable total is 3,496 bytes**.
+- Independent LLVM6 semantic fixture `tools/agent20-10-cdsp-controller-frame-setup.s` matches 13/16 original words directly; LLVM6 independently assembles the original combined frame duplex `0x7c013cc0` unchanged when placed in its own packet. Original scheduling has the first extended assignment and duplex in one packet, whereas LLVM6 changes this packet grouping. The checked source emitter reproduces the original sequence exactly. `tools/verify-agent20-10-cdsp-controller-frame-setup.py` verifies all 64 generated and entire 2,352 reference bytes with pinned SHA-256.
+- This is a **partial function**; the next uncovered instruction is file `0x56930` (physical `0x96cc8930`), still inside the controller callback routine. The branch remains provisional on Agent 05's old CDSP checkpoint, not checkpoint-50 integrated history. No OEM re-signing/hardware claims are made.
+
+```sh
+cargo run --offline --locked -p firmware-tools --bin cdsp-late-controller-frame-setup -- verify-prefix /private/cdsp.mbn
+python3 tools/verify-agent20-10-cdsp-controller-frame-setup.py \
+  --llvm-mc /private/llvm6/bin/llvm-mc --llvm-objdump /private/llvm6/bin/llvm-objdump \
+  --generated /tmp/frame-64.bin --prefix /tmp/cdsp-rwe-2352.bin --reference /private/cdsp.mbn
+```
