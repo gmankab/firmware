@@ -530,3 +530,11 @@ python3 tools/agent20_06_a32_roundtrip.py /private/venus.mbn 0xa8ea0 0xa92c8 \
 - New interval `[0xbdc00,0xbe000)` = **1,024 bytes**, comprising **248 typed ARM32 instructions (992 bytes)** and **eight explicit branch-table pointers (32 data bytes)** at `[0xbdc84,0xbdca4)`. Retains the original computed `LDR PC` dispatch, resource pointers, and MMIO programming paths. This is a partial function, still continuing at `0xbe000`.
 - Full source-emitted fragment matches original reference with zero differing bytes, and independent Clang/LLVM reassembly matches the 992 instruction bytes plus eight data words. **234 Rust and 13 Python tests passed**; no release build claimed.
 - Next missing VMA `0xbe000`, MBN offset `0xc2000`. Older Agent-03-derived provisional history; not high-level semantic decompilation, new OEM authentication, or an integrated checkpoint-50 build.
+
+## Checkpoint 63 — four-way codec output-plane controller policy
+
+- Continuous Venus runtime `[0xa8000,0xbe7dc)` = **92,124 byte-identical source-encoded bytes**, original firmware `[0xac000,0xc27dc)`.
+- New interval `[0xbe000,0xbe7dc)` = **2,012 bytes**, **499 typed ARM32 instructions (1,996 bytes)** and **four handler-address words (16 bytes)** at `[0xbe44c,0xbe45c)`.
+- Resolves and formats codec output-plane metadata and queue mode, preserving the original `LDR PC` control-flow dispatch and status fallback instructions. This remains part of the long function starting `0xbd648`; the return is not in the current range.
+- Full emitted region compares equal to pinned original with **0 differing bytes**, and independent Clang/LLVM reconstruction reproduces all 1,996 code bytes and 16 classified data bytes. **235 Rust tests and 13 Python tests passed.** Release build not claimed.
+- Next uncovered runtime VMA `0xbe7dc`, MBN file offset `0xc27dc`. Older-base provisional Git ancestry, not checkpoint-50 integrated or OEM-signed high-level source reconstruction.
