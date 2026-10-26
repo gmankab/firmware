@@ -780,3 +780,22 @@ five disjoint intervals**: `[0x6030,0x6c6c)` 3,132; `[0x10330,0x10674)`
 836; `[0x106e8,0x1084c)` 356; `[0x10c40,0x10eb4)` 628; and
 `[0x10ec0,0x10f64)` 164. OEM-authenticated complete firmware is still not
 source-rebuilt. Next executable code begins at file offset `0x10f64`.
+
+## Checkpoint 39: controller-state guard, validation and recovery `[0x10f64,0x10fe8)`
+
+- Added **132 independently source-assembled executable bytes** beginning immediately after the prior SGP0 getter. File interval `[0x10f64,0x10fe8)`, physical `[0x8be0df64,0x8be0dfe8)`. Generated SHA-256 `237769076f87396e531637f0fa034009954e0783b2737bf8e52041933275b0e0`, compared exactly against the pinned ADSP original.
+- Main controller-state routine polls three global status registers, invokes the watchdog disable handler when available, reports invalid state and branches to the original controller recovery path; its early-return packets and external calls retain exact physical PC-relative displacements.
+- All **33 instruction words** are source-built with LLVM6. Its assembler's canonical error-packet duplex scheduler moves the `R2=#0` scalar into the wrong two-operation pair. The original layout is rebuilt from **two separate mnemonic-only LLVM6 source files**: a regular `R2=#0` instruction (with a checked packet-continuation transform) and the one-word `R0=#36 ; R17:16=memd(R29+#0)` duplex. A strict test first verifies the expected LLVM-assembled surrogate packet before replacing it; no OEM executable bytes are imported.
+- New source: `tools/adsp-agent20-rwe-next-controller-state.S`, `tools/adsp-agent20-rwe-next-controller-state.py`, and two tiny source-assembled scalar/duplex files. Focused tests verify original address ranges, the packet pair's independent encodings and corrupted-output/wrong-reference rejection.
+- Contiguous source-built RWE code is now **5,248 bytes total across five disjoint intervals**: `[0x6030,0x6c6c)` 3,132; `[0x10330,0x10674)` 836; `[0x106e8,0x1084c)` 356; `[0x10c40,0x10eb4)` 628; and `[0x10ec0,0x10fe8)` **296**. (The original 12-byte fill `[0x10eb4,0x10ec0)` is not code.)
+- Next routine begins at file `0x10fe8`. All earlier disjoint code and size accounting remains intact. This checkpoint remains based on older Agent 04 history, **not checkpoint 50**, and is not a full independent ADSP image or a new OEM signature.
+
+Reproduce:
+
+```sh
+HEXAGON_LLVM_MC=/path/to/llvm6/bin/llvm-mc
+NABU_ADSP_REFERENCE=/private/adsp.mbn
+python3 -S tools/adsp-agent20-rwe-next-controller-state.py \
+  --llvm-mc "$HEXAGON_LLVM_MC" --reference "$NABU_ADSP_REFERENCE" \
+  --output /tmp/adsp-controller-state-132.bin
+```
