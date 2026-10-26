@@ -19,10 +19,10 @@ class SourceOnlyForwardTests(unittest.TestCase):
     def test_manifest_exact_boundaries(self):
         m=module()
         self.assertEqual(m.START,0x568c)
-        self.assertEqual(m.validate_manifest(),0x6148)
+        self.assertEqual(m.validate_manifest(),0x6214)
         self.assertEqual(m.FILE_BASE+m.START,0x4568c)
-        self.assertEqual(m.FILE_BASE+m.validate_manifest(),0x46148)
-        self.assertEqual(sum(length for _,_,_,length in m.FRAGMENTS),2748)
+        self.assertEqual(m.FILE_BASE+m.validate_manifest(),0x46214)
+        self.assertEqual(sum(length for _,_,_,length in m.FRAGMENTS),2952)
 
     def test_validator_forbids_opaque_data_and_layout_holes(self):
         m=module()
@@ -88,6 +88,27 @@ class SourceOnlyForwardTests(unittest.TestCase):
         assert ':mem_noshuf' in fragments['controller-initialize-stage3-flags'][0].read_text()
         assert 'jump:nt 0x18' in fragments['controller-initialize-stage3-flags'][0].read_text()
         assert 'if (cmp.gtu(r2.new,r27))' not in fragments['controller-initialize-stage3-loop-entry'][0].read_text()
+
+    def test_controller_loop_register_parser_adjustment_only(self):
+        m=module()
+        fragments={name:(path,off,size) for name,path,off,size in m.FRAGMENTS}
+        assert fragments['controller-loop-start'][1:]==(0x6148,0x18)
+        assert fragments['controller-loop-registers'][1:]==(0x6160,0x08)
+        assert fragments['controller-loop-duplex'][1:]==(0x6168,0x04)
+        assert fragments['controller-loop-tail'][1:]==(0x616c,0x10)
+        assert fragments['controller-loop-publish'][1:]==(0x617c,0x44)
+        assert fragments['controller-loop-table'][1:]==(0x61c0,0x54)
+        class ParentStub:
+            def assemble(self,src,mc,cpu,expected_length):
+                assert expected_length==8
+                return (0x0a004010).to_bytes(4,'little')+(0x0b00c035).to_bytes(4,'little')
+        source=fragments['controller-loop-registers'][0]
+        encoded=m.assemble_controller_loop_registers(ParentStub(),'llvm6',source)
+        assert len(encoded)==8
+        assert encoded[:4]==(0x0a004010).to_bytes(4,'little')
+        assert int.from_bytes(encoded[4:8],'little')==0x0b004035
+        assert ':endloop0' in fragments['controller-loop-tail'][0].read_text()
+        assert 'loop0(0x18,#6)' in fragments['controller-loop-start'][0].read_text()
 
     def test_structured_predicate_duplex_sources(self):
         m=module()

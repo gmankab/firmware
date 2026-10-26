@@ -41,6 +41,12 @@ FRAGMENTS = (
     ('controller-initialize-stage3-mask', SOURCE_DIR / 'agent13-runtime-controller-init-stage3-part3.S', 0x5f00, 0x100),
     ('controller-initialize-stage3-validation', SOURCE_DIR / 'agent13-runtime-controller-init-stage3-part4.S', 0x6000, 0x100),
     ('controller-initialize-stage3-loop-entry', SOURCE_DIR / 'agent13-runtime-controller-init-stage3-part5.S', 0x6100, 0x48),
+    ('controller-loop-start', SOURCE_DIR / 'agent13-runtime-controller-loop-start.S', 0x6148, 0x18),
+    ('controller-loop-registers', SOURCE_DIR / 'agent13-runtime-controller-loop-registers.S', 0x6160, 0x08),
+    ('controller-loop-duplex', SOURCE_DIR / 'agent13-runtime-controller-loop-duplex.S', 0x6168, 0x04),
+    ('controller-loop-tail', SOURCE_DIR / 'agent13-runtime-controller-loop-tail.S', 0x616c, 0x10),
+    ('controller-loop-publish', SOURCE_DIR / 'agent13-runtime-controller-loop-publish.S', 0x617c, 0x44),
+    ('controller-loop-table', SOURCE_DIR / 'agent13-runtime-controller-loop-table.S', 0x61c0, 0x54),
 )
 
 
@@ -119,6 +125,29 @@ def assemble_compound_branch(parent, llvm6: str, source: Path) -> bytes:
     return words[:4]+last.to_bytes(4,'little')
 
 
+def assemble_controller_loop_registers(parent, llvm6: str, source: Path) -> bytes:
+    """Turn a source-generated two-word *closed* register packet into one
+    continuous packet, immediately followed by a distinct original duplex.
+
+    LLVM6 assembles both `r4=add(r4,#-1)` and `r3=add(r3,#488)` with
+    correct opcode bits, but closes the packet after the second word.
+    The original four-operation packet ends after a separate predicate/load
+    duplex word; ONLY the parse field (bits 15:14) of the second assembled
+    instruction changes from `0b11` (end) to `0b01` (continuation).
+    Neither original/reference opcode bits nor OEM payload bytes are inputs.
+    """
+    asm = source.read_text()
+    if 'r4 = add(r4,#-1)' not in asm or 'r3 = add(r3,#488)' not in asm:
+        raise ValueError('controller loop register semantics changed')
+    raw=parent.assemble(source,llvm6,'hexagonv65',expected_length=8)
+    first=int.from_bytes(raw[:4],'little')
+    last=int.from_bytes(raw[4:8],'little')
+    if (first>>14)&0b11 != 0b01 or (last>>14)&0b11 != 0b11:
+        raise ValueError('compiler controller-loop packet marker unexpected')
+    last=(last & ~(0b11<<14)) | (0b01<<14)
+    return raw[:4]+last.to_bytes(4,'little')
+
+
 def build(llvm6: str):
     mod = load_parent()
     end = validate_manifest()
@@ -128,6 +157,8 @@ def build(llvm6: str):
             part = assemble_predicate_pair(mod, llvm6, source)
         elif name == 'compound-branch':
             part = assemble_compound_branch(mod, llvm6, source)
+        elif name == 'controller-loop-registers':
+            part = assemble_controller_loop_registers(mod, llvm6, source)
         else:
             part = mod.assemble(source, llvm6, 'hexagonv65', expected_length=size)
         if len(part) != size:
@@ -152,7 +183,7 @@ def main():
         parent.check_reference(fragment,args.reference.read_bytes(),runtime_offset=START)
     args.output.parent.mkdir(parents=True,exist_ok=True)
     args.output.write_bytes(fragment)
-    report={'agent':13,'checkpoint':'32-disjoint',
+    report={'agent':13,'checkpoint':'33-disjoint',
             'source_base':'Agent 13 checkpoint 16 (7c730bf); checkpoint25 source unavailable',
             'is_checkpoint25_descendant':False,
             'file_start':FILE_BASE+START,'file_end':FILE_BASE+end,
