@@ -13,14 +13,16 @@ class SparseRwe(unittest.TestCase):
         cls.mc=os.getenv('HEXAGON_LLVM_MC')
         cls.ref=os.getenv('NABU_ADSP_REFERENCE')
     def test_file_layout_is_explicit_and_disjoint(self):
-        self.assertEqual((sparse.FILE_START,sparse.FILE_END,sparse.SIZE),(0x10330,0x105c4,660))
+        self.assertEqual((sparse.FILE_START,sparse.FILE_END,sparse.SIZE),(0x10330,0x10674,836))
         self.assertEqual(sparse.FILL_END-sparse.FILL_START,0xff20-0x6c6c)
         self.assertEqual(sparse.UNKNOWN_RECORD_END-sparse.UNKNOWN_RECORD_START,0x90)
         self.assertEqual(sparse.FILL2_END-sparse.FILL2_START,0x380)
+        self.assertEqual((sparse.NEXT_FILL_START,sparse.NEXT_FILL_END),
+                         (0x10674,0x106e8))
     def test_source_packets_and_strict_reference(self):
         if not self.mc:self.skipTest('HEXAGON_LLVM_MC required')
         result=sparse.render(self.mc)
-        self.assertEqual(len(result),660)
+        self.assertEqual(len(result),836)
         # Function return is not a packet boundary: packet continues with
         # extended GP load from the next function, so no artificial split.
         self.assertEqual((struct.unpack_from('<I',result,0x10)[0]>>14)&3,1)
@@ -38,6 +40,27 @@ class SparseRwe(unittest.TestCase):
         if self.ref:
             original=Path(self.ref).read_bytes()
             sparse.verify(original,result)
+    def test_five_bank_snapshot_uses_checked_phys_reads_and_correct_registers(self):
+        if not self.mc:self.skipTest('HEXAGON_LLVM_MC required')
+        from adsp_hexagon_v66 import physical_word_load
+        source=sparse.base().assemble(self.mc,sparse.FIVE_BANK_SNAPSHOT_SOURCE,0xb0)
+        fragment=sparse.five_bank_snapshot(self.mc,sparse.base())
+        self.assertEqual(len(fragment),0xb0)
+        for bank in range(5):
+            at=0x14+bank*0x20
+            for off in (at,at+4):
+                self.assertEqual(struct.unpack_from('<I',source,off)[0],0x7f00c000)
+            self.assertEqual(struct.unpack_from('<I',fragment,at)[0],
+                             physical_word_load(3,2,1))
+            self.assertEqual(struct.unpack_from('<I',fragment,at+4)[0],
+                             physical_word_load(5,5 if bank==4 else 4,1))
+            # Other words and packet boundaries are assembled by LLVM6.
+            self.assertEqual(fragment[at+8:at+0x20],source[at+8:at+0x20])
+        self.assertEqual(struct.unpack_from('<I',fragment,0xac)[0],0x529fc000)
+        if self.ref:
+            self.assertEqual(fragment,
+                Path(self.ref).read_bytes()[0x105c4:0x10674])
+
     def test_sram_clone_loop_packet_and_reference(self):
         if not self.mc:self.skipTest('HEXAGON_LLVM_MC required')
         clone=sparse.base().assemble(self.mc,sparse.SRAM_CLONE_SOURCE,0x60)

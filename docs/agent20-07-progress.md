@@ -612,3 +612,29 @@ independently generated executable bytes**, SHA-256
 Adding the separate 3,132-byte `[0x6030,0x6c6c)` prefix yields **3,792 bytes
 of ADSP independently source-built RWE code**, not counting external table,
 linker fill or OEM authentication. The next missing routine begins file `0x105c4`.
+
+
+## Checkpoint 33: five-bank physical controller state snapshot `[0x105c4,0x10674)`
+
+Rebuilt **176 additional source-authored Hexagon V66 instruction bytes** as five
+pairs of physical-controller register reads and ten GP-relative writes to the
+saved state bank (`0xf000d6c0..0xf000d6e4`). LLVM6 assembles all normal
+operations, including 10 immediate extenders and 10 stores; ten unsupported
+`memw_phys` operations are checked typed encodings replacing exactly ten
+single-instruction NOP sentinels in independently assembled packets. Source
+preserves the fifth pair's distinct `R5=memw_phys(R5,R1)` operand, rather than
+mistakenly repeating the preceding `R4` form. Independent Rizin disassembly
+confirms all operands and packet boundaries.
+
+The existing disjoint region `[0x10330,0x10674)` is now **836 exact bytes**,
+SHA-256 `46eb1561fbce95c69b637c53d1bec4c7c2b879edbbd7715675d2564015ba1158`.
+Added to the other `[0x6030,0x6c6c)` source-derived **3,132-byte** RWE prefix,
+this gives **3,968 independently source-authored ADSP RWE instruction bytes**
+across two **separate** spans. Byte identity and LLVM6/Rizin checks passed;
+160 Rust and 170 Python tests pass, including the newly added typed physical
+read regression test. The release build passed.
+
+The file interval `[0x10674,0x106e8)` consists of **116 verified zero-filled
+bytes**, *not* executable instructions and not counted in rebuilt code. The next
+nonzero packet begins at file `0x106e8` (physical `0x8be0d6e8`); it is separate
+from this checkpoint's contiguous output.

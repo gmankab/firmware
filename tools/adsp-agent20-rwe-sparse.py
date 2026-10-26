@@ -18,7 +18,7 @@ from adsp_hexagon_v66 import (SystemRegister, read_system_register,
     physical_word_load,wait_thread_from_register)
 SOURCE=TOOLS/'adsp-agent20-rwe-next-getter.S'
 FILE_START=0x10330
-FILE_END=0x105c4
+FILE_END=0x10674
 SIZE=FILE_END-FILE_START
 GETTER_SIZE=0x1c
 THREAD_CYCLES_SOURCE=TOOLS/'adsp-agent20-rwe-next-thread-cycles.S'
@@ -37,6 +37,8 @@ CYCLE_SNAPSHOT_SOURCE=TOOLS/'adsp-agent20-rwe-next-cycle-snapshot.S'
 CYCLE_SNAPSHOT_SIZE=0x3c
 PHYSICAL_SCAN_SOURCE=TOOLS/'adsp-agent20-rwe-next-physical-scan.S'
 PHYSICAL_SCAN_SIZE=0x54
+FIVE_BANK_SNAPSHOT_SOURCE=TOOLS/'adsp-agent20-rwe-next-five-bank-snapshot.S'
+FIVE_BANK_SNAPSHOT_SIZE=0xb0
 PHYS_START=0x8be0d330
 SHA256_REFERENCE='4b579e5dc1333d634e5bdc93f3314e357e0e30dab7140833f6cc7aef086b1c1e'
 FILL_START=0x6c6c
@@ -45,6 +47,8 @@ UNKNOWN_RECORD_START=0xff20
 UNKNOWN_RECORD_END=0xffb0
 FILL2_START=0xffb0
 FILL2_END=FILE_START
+NEXT_FILL_START=FILE_END
+NEXT_FILL_END=0x106e8
 
 def base():
     spec=importlib.util.spec_from_file_location('adsp_original_encoder',TOOLS/'emit-adsp-entry.py')
@@ -172,6 +176,33 @@ def physical_scan(llvm_mc:str, previous)->bytes:
     return bytes(b)
 
 
+
+def five_bank_snapshot(llvm_mc: str, previous) -> bytes:
+    """Read five pairs of address-selected V66 physical controller words.
+
+    Hexagon LLVM6 compiles the register offsets, GP-relative extender
+    packets, and memory stores from independently authored mnemonic source.
+    Ten checked V66 physical reads replace *exactly* ten independently
+    assembled single-word NOP placeholders (one original packet each).
+    The final read uses R5 as the physical address rather than R4 and must
+    not be flattened into a formula which loses the different register.
+    """
+    out=bytearray(previous.assemble(llvm_mc,FIVE_BANK_SNAPSHOT_SOURCE,
+                                    FIVE_BANK_SNAPSHOT_SIZE))
+    marker=struct.pack('<I',0x7f00c000)
+    for bank in range(5):
+        at=0x14+bank*0x20
+        for off,dst,physical in ((at,3,2),
+                                 (at+4,5,5 if bank==4 else 4)):
+            if out[off:off+4]!=marker:
+                raise previous.AdspError(
+                    f'Five-bank V66 memw_phys sentinel moved +0x{off:x}')
+            out[off:off+4]=struct.pack('<I',
+                physical_word_load(dst,physical,1))
+    if any(out[i:i+4]==marker for i in range(0,len(out),4)):
+        raise previous.AdspError('Unresolved five-bank V66 physical read')
+    return bytes(out)
+
 def render(llvm_mc: str)->bytes:
     # All seven V66 instructions are independently LLVM6-assembled, with no
     # reference bytes. The first packet sequence crosses a C function
@@ -203,7 +234,8 @@ def render(llvm_mc: str)->bytes:
             +debug_snapshot(llvm_mc,b)
             +controller_phase(llvm_mc,b)
             +cycle_snapshot(llvm_mc,b)
-            +physical_scan(llvm_mc,b))
+            +physical_scan(llvm_mc,b)
+            +five_bank_snapshot(llvm_mc,b))
 
 def verify(reference:bytes,built:bytes)->None:
     if hashlib.sha256(reference).hexdigest()!=SHA256_REFERENCE:
@@ -214,6 +246,8 @@ def verify(reference:bytes,built:bytes)->None:
         raise ValueError('expected earlier sparse RWE linker fill is not zero')
     if any(reference[FILL2_START:FILL2_END]):
         raise ValueError('expected following sparse RWE linker fill is not zero')
+    if any(reference[NEXT_FILL_START:NEXT_FILL_END]):
+        raise ValueError('ADSP linker fill after five-bank snapshot is not zero')
     # Unknown table is NOT generated from source yet. Reject a missing table
     # but do not count its bytes as reconstructed or include them in output.
     table=reference[UNKNOWN_RECORD_START:UNKNOWN_RECORD_END]
