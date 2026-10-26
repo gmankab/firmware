@@ -1360,3 +1360,35 @@ MODEM_RWE_Y_CONFIG_READ 22,11,1 // GP
 { memd(r0+#96) = r13:12; memd(r0+#104) = r11:10 }
 .set modem_rwe_video_frame_capture,agent11_modem_exception_dispatch_entry + (0xdd1c-0x38108)
 { call ##modem_rwe_video_frame_capture; r0 = r9; r2 = #1; r17 = r0 }
+// Remaining saved-frame control register bank and codec descriptor fields.
+// Two independent privileged GP-relative loads are encoded from source
+// operands; LLVM6 emits a different GP addressing class from V60 hardware.
+.globl agent11_modem_rwe_video_register_bank
+agent11_modem_rwe_video_register_bank:
+MODEM_SYS_READ 12,6,1                 // SSR
+{ r11 = memw(r28+##-1065268620) }
+MODEM_RWE_Y_CONFIG_READ 20,0,1         // SA0
+{
+    r12 = clrbit(r12,#31)
+    r1:0 = memd(r1+#48)
+    memd(r17+#72) = r19:18
+}
+MODEM_SYS_READ 13,6,1                  // SSR
+{ r12 = insert(r17,#3,#16); r10 = ##-1065279472 }
+MODEM_SYS_WRITE 6,12,1                 // SSR = frame tag
+{ p1 = cmp.eq(r11,#0); memd(r17+#120) = r7:6 }
+MODEM_SYS_READ 12,3,3                  // ELR, standalone packet
+MODEM_RWE_Y_CONFIG_READ 21,1,3         // LC0, standalone packet
+MODEM_RWE_Y_CONFIG_READ 18,2,1         // SA1
+{ r5 = ##-1065267008; memd(r17+#128) = r5:4 }
+MODEM_RWE_CONTROL_PAIR_READ 14,6,1     // M1:0
+{ r10 += asl(r9,#4); memd(r17+#144) = r1:0; memd(r17+#24) = r13:12 }
+MODEM_SYS_READ 29,0,1                  // SGP0
+{ fp = r17; memd(r17+#176) = r29:28; memd(r17+#152) = r21:20 }
+MODEM_RWE_Y_CONFIG_READ 19,3,1         // LC1
+{ r20 = memw(r28+##-1065265168); memd(r17+#48) = r23:22 }
+MODEM_RWE_CONTROL_PAIR_READ 18,12,1   // CS1:0
+{ if (p1) r8 = memw(r10+#12); memd(r17+#160) = r19:18 }
+MODEM_RWE_CONFIG_WRITE 8,20,1         // USR
+{ r20 = memw(r28+##-1065265172); memd(r17+#168) = r15:14 }
+MODEM_SYS_WRITE 7,20,1                 // CCR

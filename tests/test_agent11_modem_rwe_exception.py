@@ -14,7 +14,7 @@ spec.loader.exec_module(module)
 
 class ModemRweException(unittest.TestCase):
     def test_exact_address_mapping(self):
-        self.assertEqual((module.FILE_START, module.FILE_END), (0x38108, 0x38e2c))
+        self.assertEqual((module.FILE_START, module.FILE_END), (0x38108, 0x38ecc))
         self.assertEqual(module.VIRTUAL_START-module.FILE_START, 0xc0808000)
         self.assertEqual(module.PHYSICAL_START-module.FILE_START, 0x8e008000)
 
@@ -32,7 +32,7 @@ class ModemRweException(unittest.TestCase):
             self.skipTest('Set AGENT11_LLVM_MC to run LLVM6 Hexagon assembler test')
         source = SCRIPT.parents[1]/'crates/firmware-tools/src/devices/xiaomi_nabu/modem_rwe_exception_dispatch.s'
         data = module.assemble(Path(mc), source)
-        self.assertEqual(len(data), 3364)
+        self.assertEqual(len(data), 3524)
         self.assertEqual(data[0x381b8-module.FILE_START:0x381bc-module.FILE_START],bytes.fromhex('00c0e057'))
         self.assertEqual(data[0:4], bytes.fromhex('00c00058'))
         # First 148 bytes after the restored RTE encode vector resolution,
@@ -97,6 +97,14 @@ class ModemRweException(unittest.TestCase):
         self.assertEqual(at(0x38e10),0x6a000000|(11<<16)|(1<<14)|22)
         self.assertEqual(at(0x38e20),0x5a004000)
         self.assertEqual(at(0x38e28),0x28123009) # source-assembled duplex
+        # Saved codec controller register-bank state; the dedicated V60
+        # GP-relative classes differ from LLVM6's generic r28 encoding.
+        self.assertEqual(at(0x38e34),0x4980c68b)
+        self.assertEqual(at(0x38e64),0x6e83c00c) # S3 (ELR) read
+        self.assertEqual(at(0x38e68),0x6a01c015) # LC0 config read
+        self.assertEqual(at(0x38ea4),0x49804614)
+        self.assertEqual(at(0x38ec0),0x49804594)
+        self.assertEqual(at(0x38ec8),0x67000000 | (20<<16) | (1<<14) | 7)
         ref = os.environ.get('AGENT11_MODEM_MBN')
         if ref:
             module.verify_pinned(Path(ref).read_bytes(), data)

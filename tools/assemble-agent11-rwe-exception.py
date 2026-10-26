@@ -17,7 +17,7 @@ import subprocess
 import tempfile
 
 FILE_START = 0x38108
-FILE_END = 0x38e2c
+FILE_END = 0x38ecc
 VIRTUAL_START = 0xc0840108
 PHYSICAL_START = 0x8e040108
 PINNED_SHA256 = '6f5cb32bc10e41abb40938d185805e788f5637a41d3ebcef278e4e169fc36782'
@@ -303,6 +303,18 @@ def normalize_llvm6_locked_packets(data: bytes) -> bytes:
         if read(0x38de8)!=0xb000d015 or read(0x38dec)!=0xa0d5c000:
             raise ValueError('unexpected video-frame cache-zero packet')
         write(0x38de8,(read(0x38de8)&~(3<<14))|(1<<14))
+    if len(result)>=0x38ecc-FILE_START:
+        # Three additional Hexagon V60 GP-relative controller loads. The
+        # independently assembled extended r28+offset forms carry correct
+        # address, register and packet markers; V60 has a dedicated GP load
+        # instruction class which LLVM6 does not select by default.
+        for address,asm_word,ext_word in (
+                (0x38e34,0x919cc68b,0x0c084529),
+                (0x38ea4,0x919c4614,0x0c08455f),
+                (0x38ec0,0x919c4594,0x0c08455f)):
+            if read(address)!=asm_word or read(address-4)!=ext_word:
+                raise ValueError(f'unexpected controller-bank GP load at {address:#x}')
+            write(address,(0x4980<<16)|(asm_word&0xffff))
     return bytes(result)
 
 

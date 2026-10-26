@@ -382,3 +382,10 @@ python3 -m unittest discover -s tests -p 'test_*.py'
 - The newly reconstructed source emits the protected exception-frame pointer, VID comparison and CIAD completion, clears and republishes saved codec register-bank cache lines, reads the actual GP/UGP/USR privilege registers and dispatches to the original capture helper. A four-word P0.new branch packet is emitted with strict operand checks; LLVM6 needs a 16-byte packet-relative displacement/parse-bit normalization because it cannot compile the OEM predicate-producer packet as a unit. A separate cache-zero packet differs only by a checked parse marker.
 - Independent LLVM6 assembly, SHA-pinned `modem.mbn` verification and focused ISA tests find **zero different bytes** in all 3,364 bytes. Offline tests: 169 Rust, 39 Python, release build successful.
 - The next unimplemented RWE exception instruction is modem file offset `0x38e2c`. Source-only byte identity does not imply whole-image reconstruction, device execution or new OEM authentication.
+
+## Checkpoint 47 — Protected controller register bank serialization
+
+- The RWE exception path `[0x38108,0x38ecc)` is now **3,524 independently assembled byte-identical Hexagon bytes**; added `[0x38e2c,0x38ecc)` = 160 bytes, mapping to virtual `[0xc0840e2c,0xc0840ecc)` and physical `[0x8e040e2c,0x8e040ecc)`.
+- Saved the interrupted codec's SSR/ELR and frame flags, both loop/packet-count and paired controller register banks, USR, STID/CCR, and three per-mode descriptor pointers. Standalone S3 and LC0 reads have distinct packet markers from their neighboring stores and extenders.
+- The V60-specific GP-relative load class differs from the LLVM6 generic r28+offset form in three instances. Strict normalization validates each original LLVM6 immediate extender, register operand and packet marker before selecting that public architectural class. Every byte of the whole new 3,524-byte fragment equals the SHA-pinned original `modem.mbn`.
+- Tests: 169 Rust, 39 Python, release build passed. The next missing instruction is modem file `0x38ecc`; authentication and later Hexagon segments remain unfinished.
