@@ -582,3 +582,18 @@ python3 tools/agent20_06_a32_roundtrip.py /private/venus.mbn 0xa8ea0 0xa92c8 \
   ```
 
 - **237 Rust and 13 Python tests pass**. A successful new release build is not claimed. The next uncovered ARM runtime address is `0xbf400` (file `0xc3400`). All work remains provisional on old-Agent-03 ancestry and does not independently reproduce OEM authentication or high-level algorithm semantics.
+
+## Checkpoint 67 — finish codec plane output profile with diagnostics
+
+- The contiguous typed Venus region `[0xa8000,0xbfe54)` contains **97,876 byte-identical bytes** (original reference MBN file `[0xac000,0xc3e54)`).
+- Newly built `[0xbf400,0xbfe54)` = **2,644 bytes**, with **638 typed ARM32 instructions (2,552 bytes)** and **23 separate, named literal-address/data words** `[0xbfdf8,0xbfe54)` (92 bytes). Codec output plane size calculation, format-specific controller hardware state and guarded fallback operations complete through the original return before the table.
+- Entire source-emitted region matches the pinned reference exactly (0 different bytes). Independent Clang/LLVM instruction reassembly independently matches 2,552 instruction bytes and 92 classified data bytes:
+
+  ```sh
+  python3 tools/agent20_06_a32_roundtrip.py /private/venus.mbn 0xbf400 0xbfe54 \
+    --data-range 0xbfdf8:0xbfe54
+  ```
+
+- Added opt-in `AGENT20_06_REFERENCE_VENUS` and `AGENT20_06_EMIT_BIN` regression hooks, which permit full binary comparison and artifact emission from Rust tests without distributing the proprietary firmware reference. Paths are supplied externally and no opaque executable bytes enter the source code.
+- **239 Rust tests and 13 Python tests passed**. A fresh release build was not completed during checkpoint 67 and is not claimed to pass.
+- Next uncovered runtime address `0xbfe54`, file offset `0xc3e54`. This provisional Git history is rooted in older Agent 03 commits, not checkpoint-50 integration. Byte-identity is only instruction-level verification, not independent algorithmic decompilation or OEM signing.
