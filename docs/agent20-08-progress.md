@@ -762,3 +762,25 @@ bytes in 98 disjoint fragments** (exact structural coverage is tracked by
 signatures, unknown executable code and padding are not counted. The
 next function starts at `0x412b4`. This agent branch is still provisional
 and not checkpoint-50-rooted.
+
+**Checkpoint 51 — three-class controller buffer descriptor normalization:**
+Independently assembled and verified the complete **128-byte** Hexagon
+buffer-descriptor classifier at file `[0x413b8,0x41438)` (SHA-256
+`1e934ff856dedc918d0c46b24d422a72010bc0a4bc41a881c9edf461dbdf9654`).
+The function selects three tagged layouts, loads source sizes/pointers,
+normalizes 12-bit-shifted widths, writes an output descriptor and returns.
+An original compact duplex at file `0x413f4` required ordering the source
+operations as `r3=-1`, `r4=4`, `r6=-1`, then `r2=memw(...)`; LLVM6's first
+semantically equivalent schedule had the wrong packet words. No reference
+opcode arrays or `.word` directives are used. `0x41438–0x41440` consists of
+two reference-observed alignment NOPs, which remain **excluded**. The next
+verified function begins at `0x41440` from an earlier checkpoint.
+
+Newly authored instruction bytes: **128**. Cumulative late ADSP code:
+**8,264 independently assembled, byte-identical executable bytes in 99
+fragments**. The intervening dispatcher `[0x412b4,0x413b8)` is still
+unverified: LLVM6 rejects a four-memory-access V66 packet (two likely
+compact/duplex pairs). An exploratory source attempt is kept outside Git
+and has **not** been counted. Most OEM ADSP executable code and all new OEM
+signing remain unfinished. This branch is still provisional until properly
+integrated on the checkpoint-50-based repository.

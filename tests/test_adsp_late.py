@@ -197,9 +197,9 @@ class ADSPExternalsAndCodeTests(unittest.TestCase):
     @unittest.skipUnless(LLVM_MC,'Hexagon LLVM6 assembler required')
     def test_complete_fragment_inventory_rejects_overlaps(self):
         manifest,regions=adsp.assembled_inventory(LLVM_MC,None)
-        self.assertEqual(len(manifest['fragments']),98)
-        self.assertEqual(manifest['total_independently_assembled_executable_bytes'],8136)
-        self.assertEqual(sum(map(len,regions.values())),8136)
+        self.assertEqual(len(manifest['fragments']),99)
+        self.assertEqual(manifest['total_independently_assembled_executable_bytes'],8264)
+        self.assertEqual(sum(map(len,regions.values())),8264)
         self.assertEqual(manifest['gap_bytes_included_in_generated_executables'],0)
         self.assertFalse(manifest['complete_adsp_image'])
         self.assertEqual(manifest['external_original_code_bytes_in_output'],0)
@@ -366,7 +366,7 @@ class ADSPExternalsAndCodeTests(unittest.TestCase):
     def test_inventory_every_fragment_uses_correct_original(self):
         inventory,_outputs=adsp.assembled_inventory(LLVM_MC,Path(REFERENCE).read_bytes())
         self.assertTrue(all(x['reference_byte_identical'] for x in inventory['fragments']))
-        self.assertEqual(inventory['total_independently_assembled_executable_bytes'],8136)
+        self.assertEqual(inventory['total_independently_assembled_executable_bytes'],8264)
 
     @unittest.skipUnless(LLVM_MC and REFERENCE,
                          'Hexagon LLVM6 and exact pinned ADSP reference required')
@@ -380,7 +380,7 @@ class ADSPExternalsAndCodeTests(unittest.TestCase):
                 adsp.verify_slice(built,original,off)
                 total+=len(built)
                 ranges.append((off,off+size))
-        self.assertEqual(total,8136)
+        self.assertEqual(total,8264)
         ranges.sort()
         self.assertEqual(ranges[0],(0x39000,0x39054))
         self.assertEqual(ranges[-1],(0x3640a8,0x3640f8))
@@ -1442,3 +1442,28 @@ class ADSPControllerCallbackAllocationTests(unittest.TestCase):
         if REFERENCE:
             adsp.verify_slice(built,Path(REFERENCE).read_bytes(),offset)
         self.assertEqual(offset+length,0x412b4)
+
+class ADSPControllerBufferDescriptorTests(unittest.TestCase):
+    """Three controller-buffer flag layouts expressed as Hexagon packets."""
+
+    @unittest.skipUnless(LLVM_MC,'Hexagon LLVM6 assembler required')
+    def test_three_buffer_descriptor_classes_byte_identical(self):
+        name='controller-buffer-descriptor'
+        source,offset,size=adsp.FRAGMENTS[name]
+        self.assertEqual((offset,size),(0x413b8,128))
+        code=source.read_text()
+        for token in ('class_four:', 'class_three:', 'publish_buffer:',
+                      'memw(r1+#20) = r2', 'memb(r1+#0) = r4',
+                      'r4 = #4; r6 = #-1;', 'r2 = memw(r2+#0)'):
+            if token == 'r4 = #4; r6 = #-1;':
+                self.assertIn('r4 = #4; r6 = #-1;',code)
+            else:
+                self.assertIn(token,code)
+        for forbidden in ('.word ','.long ','.byte ','.incbin ','.fill '):
+            self.assertNotIn(forbidden,code)
+        out=adsp.compile_source(LLVM_MC,source,size)
+        self.assertEqual(hashlib.sha256(out).hexdigest(),
+                         '1e934ff856dedc918d0c46b24d422a72010bc0a4bc41a881c9edf461dbdf9654')
+        if REFERENCE: adsp.verify_slice(out,Path(REFERENCE).read_bytes(),offset)
+        self.assertEqual(offset+size,0x41438)
+        self.assertEqual(adsp.FRAGMENTS['controller-configured-scan'][1],0x41440)
