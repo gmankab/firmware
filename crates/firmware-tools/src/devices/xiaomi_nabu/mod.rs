@@ -150,4 +150,5 @@ pub mod cdsp_early_worker_bootstrap;
 pub mod cdsp_early_worker_runtime;
 pub mod cdsp_early_worker_state;
 pub mod cdsp_early_worker_trap;
-pub mod cdsp_early_worker_idle; // Agent20-09 variable-width memory selector // Agent20-09 CDSP stop/restart and TLB save through 0x4b1c // Agent20-09 physical-state copy and cache flush to 0x4ab0 // Agent20-09 L2 cache global helper through 0x4a38 // CDSP read privileged state into exception frame to 0x4a08
+pub mod cdsp_early_worker_idle;
+pub mod cdsp_early_worker_thread; // Agent20-09 variable-width memory selector // Agent20-09 CDSP stop/restart and TLB save through 0x4b1c // Agent20-09 physical-state copy and cache flush to 0x4ab0 // Agent20-09 L2 cache global helper through 0x4a38 // CDSP read privileged state into exception frame to 0x4a08
