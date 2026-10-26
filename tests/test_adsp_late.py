@@ -197,9 +197,9 @@ class ADSPExternalsAndCodeTests(unittest.TestCase):
     @unittest.skipUnless(LLVM_MC,'Hexagon LLVM6 assembler required')
     def test_complete_fragment_inventory_rejects_overlaps(self):
         manifest,regions=adsp.assembled_inventory(LLVM_MC,None)
-        self.assertEqual(len(manifest['fragments']),108)
-        self.assertEqual(manifest['total_independently_assembled_executable_bytes'],10420)
-        self.assertEqual(sum(map(len,regions.values())),10420)
+        self.assertEqual(len(manifest['fragments']),110)
+        self.assertEqual(manifest['total_independently_assembled_executable_bytes'],10580)
+        self.assertEqual(sum(map(len,regions.values())),10580)
         self.assertEqual(manifest['gap_bytes_included_in_generated_executables'],0)
         self.assertFalse(manifest['complete_adsp_image'])
         self.assertEqual(manifest['external_original_code_bytes_in_output'],0)
@@ -366,7 +366,7 @@ class ADSPExternalsAndCodeTests(unittest.TestCase):
     def test_inventory_every_fragment_uses_correct_original(self):
         inventory,_outputs=adsp.assembled_inventory(LLVM_MC,Path(REFERENCE).read_bytes())
         self.assertTrue(all(x['reference_byte_identical'] for x in inventory['fragments']))
-        self.assertEqual(inventory['total_independently_assembled_executable_bytes'],10420)
+        self.assertEqual(inventory['total_independently_assembled_executable_bytes'],10580)
 
     @unittest.skipUnless(LLVM_MC and REFERENCE,
                          'Hexagon LLVM6 and exact pinned ADSP reference required')
@@ -380,7 +380,7 @@ class ADSPExternalsAndCodeTests(unittest.TestCase):
                 adsp.verify_slice(built,original,off)
                 total+=len(built)
                 ranges.append((off,off+size))
-        self.assertEqual(total,10420)
+        self.assertEqual(total,10580)
         ranges.sort()
         self.assertEqual(ranges[0],(0x39000,0x39054))
         self.assertEqual(ranges[-1],(0x3640a8,0x3640f8))
@@ -1687,3 +1687,44 @@ class ADSPControllerContextAndForwardTests(unittest.TestCase):
         # architectural packet, rather than splitting at offset 0xd4.
         parse=[(int.from_bytes(code[i:i+4],'little')>>14)&3 for i in (0xd0,0xd4,0xd8)]
         self.assertEqual(parse,[1,1,3])
+
+
+class ADSPControllerPriorityListTests(unittest.TestCase):
+    """Controller ranked-record scan plus separately modeled epilogue."""
+
+    @unittest.skipUnless(LLVM_MC,'LLVM6 Hexagon assembler required')
+    def test_priority_list_and_epilogue_are_source_generated_and_exact(self):
+        expected={
+          'controller-priority-tail':(0x3e000,0xc,
+            'c052d3e730e04c988c6b64da6e2090749dc05ddda1c4fd6a7308c2d5224c7f51'),
+          'controller-priority-scan':(0x3e010,0x94,
+            '179c534667735abd983d2f4838e7794bf1f7d8ef785cea7746c5dd402decd4a6'),
+        }
+        ref=Path(REFERENCE).read_bytes() if REFERENCE else None
+        for name,(off,n,sha256) in expected.items():
+            with self.subTest(name=name):
+                source,actual_off,actual_n=adsp.FRAGMENTS[name]
+                self.assertEqual((actual_off,actual_n),(off,n))
+                body=source.read_text()
+                for forbidden in ('.word ','.long ','.byte ','.incbin ','.fill '):
+                    self.assertNotIn(forbidden,body)
+                compiled=adsp.compile_source(LLVM_MC,source,n)
+                self.assertEqual(hashlib.sha256(compiled).hexdigest(),sha256)
+                if ref is not None:adsp.verify_slice(compiled,ref,off)
+        self.assertEqual(adsp.FRAGMENTS['controller-priority-tail'][1]+12,0x3e00c)
+        self.assertEqual(adsp.FRAGMENTS['controller-priority-scan'][1],0x3e010)
+        self.assertEqual(adsp.FRAGMENTS['controller-priority-scan'][1]+0x94,
+                         adsp.FRAGMENTS['call-descriptor-dispatch'][1])
+
+    @unittest.skipUnless(LLVM_MC,'LLVM6 Hexagon assembler required')
+    def test_packet_dependence_and_priority_scan_loop(self):
+        text=adsp.FRAGMENTS['controller-priority-scan'][0].read_text()
+        for expected in ('compare_priority:', 'repeat_priority:',
+                         'memw(r2+#64) = r4', 'p0 = cmp.gtu(r7:6,r1:0)',
+                         'jump:t compare_priority', 'release_priority_lock'):
+            self.assertIn(expected,text)
+        compiled=adsp.compile_source(LLVM_MC,adsp.FRAGMENTS['controller-priority-scan'][0],0x94)
+        # The priority loop has an explicit branch and a separate memory
+        # store; the parser validates packet shape, not hardcoded OEM words.
+        self.assertEqual((int.from_bytes(compiled[0x80:0x84],'little')>>14)&3,1)
+        self.assertEqual((int.from_bytes(compiled[0x88:0x8c],'little')>>14)&3,3)

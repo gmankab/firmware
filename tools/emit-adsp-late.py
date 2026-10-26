@@ -79,6 +79,8 @@ FRAGMENTS = {
     'callback-table-walk': (TOOLS / 'adsp-late-callback-table-walk.S', 0x3EC1C, 0x28),
     'controller-state-flush': (TOOLS / 'adsp-late-controller-state-flush.S', 0x3EC44, 0x20),
     'controller-state-tail': (TOOLS / 'adsp-late-controller-state-tail.S', 0x3EC64, 0x10),
+    'controller-priority-tail': (TOOLS / 'adsp-late-controller-priority-tail.S', 0x3E000, 0x0C),
+    'controller-priority-scan': (TOOLS / 'adsp-late-controller-priority-scan.S', 0x3E010, 0x94),
     'call-descriptor-dispatch': (TOOLS / 'adsp-late-call-descriptor-dispatch.S', 0x3E0A4, 0x28),
     'controller-runtime-init': (TOOLS / 'adsp-late-controller-runtime-init.S', 0x3E0D0, 0x80),
     'controller-platform-bootstrap': (TOOLS / 'adsp-late-controller-platform-bootstrap.S', 0x3E150, 0x110),
