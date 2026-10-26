@@ -197,9 +197,9 @@ class ADSPExternalsAndCodeTests(unittest.TestCase):
     @unittest.skipUnless(LLVM_MC,'Hexagon LLVM6 assembler required')
     def test_complete_fragment_inventory_rejects_overlaps(self):
         manifest,regions=adsp.assembled_inventory(LLVM_MC,None)
-        self.assertEqual(len(manifest['fragments']),71)
-        self.assertEqual(manifest['total_independently_assembled_executable_bytes'],4776)
-        self.assertEqual(sum(map(len,regions.values())),4776)
+        self.assertEqual(len(manifest['fragments']),72)
+        self.assertEqual(manifest['total_independently_assembled_executable_bytes'],4984)
+        self.assertEqual(sum(map(len,regions.values())),4984)
         self.assertEqual(manifest['gap_bytes_included_in_generated_executables'],0)
         self.assertFalse(manifest['complete_adsp_image'])
         self.assertEqual(manifest['external_original_code_bytes_in_output'],0)
@@ -366,7 +366,7 @@ class ADSPExternalsAndCodeTests(unittest.TestCase):
     def test_inventory_every_fragment_uses_correct_original(self):
         inventory,_outputs=adsp.assembled_inventory(LLVM_MC,Path(REFERENCE).read_bytes())
         self.assertTrue(all(x['reference_byte_identical'] for x in inventory['fragments']))
-        self.assertEqual(inventory['total_independently_assembled_executable_bytes'],4776)
+        self.assertEqual(inventory['total_independently_assembled_executable_bytes'],4984)
 
     @unittest.skipUnless(LLVM_MC and REFERENCE,
                          'Hexagon LLVM6 and exact pinned ADSP reference required')
@@ -380,7 +380,7 @@ class ADSPExternalsAndCodeTests(unittest.TestCase):
                 adsp.verify_slice(built,original,off)
                 total+=len(built)
                 ranges.append((off,off+size))
-        self.assertEqual(total,4776)
+        self.assertEqual(total,4984)
         ranges.sort()
         self.assertEqual(ranges[0],(0x39000,0x39054))
         self.assertEqual(ranges[-1],(0x3640a8,0x3640f8))
@@ -1004,3 +1004,26 @@ class ADSPControllerIndexedInitTests(unittest.TestCase):
         if REFERENCE:adsp.verify_slice(rebuilt,Path(REFERENCE).read_bytes(),off)
         self.assertEqual(off+n,0x3ea4c)
         # The next four bytes are a padding NOP, NOT part of the source function.
+
+
+class ADSPControllerPlatformInitTests(unittest.TestCase):
+    """Platform descriptor initialization and callback publication."""
+
+    @unittest.skipUnless(LLVM_MC,'Hexagon LLVM6 assembler required')
+    def test_controller_platform_init_matches_reference(self):
+        src,off,n=adsp.FRAGMENTS['controller-platform-init']
+        self.assertEqual((off,n),(0x3e910,208))
+        asm=src.read_text()
+        for forbidden in ('.word ','.long ','.byte ','.incbin ','.fill '):
+            self.assertNotIn(forbidden,asm)
+        for key in ('r16 = ##-264961528','memw(##4029477384) = r18',
+                    'call calibrate_controller_repeat',
+                    'r2 = add(r16,#188); memw(r16+#184) = r2.new',
+                    'jump dispatch_ready; deallocframe'):
+            self.assertIn(key,asm)
+        code=adsp.compile_source(LLVM_MC,src,n)
+        self.assertEqual(hashlib.sha256(code).hexdigest(),
+            '9d46cd1a328569f07d25656c985c194ee3c08bc1be68e2458ebabdbf05de4097')
+        if REFERENCE:adsp.verify_slice(code,Path(REFERENCE).read_bytes(),off)
+        self.assertEqual(off+n,adsp.FRAGMENTS['controller-indexed-init'][1])
+        self.assertEqual(n+adsp.FRAGMENTS['controller-indexed-init'][2],316)

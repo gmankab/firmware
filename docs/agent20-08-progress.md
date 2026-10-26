@@ -510,3 +510,17 @@ with SHA-256 `ac1162b9f4d84447ea7d2904f93dafacba7d04d4b12403719517d4948b90dcbd`.
 The four-byte NOP `[0x3ea4c,0x3ea50)` is excluded from executable-source
 bytes. Independently generated cumulative source coverage: **4,776 bytes
 across 71 fragments**, byte-for-byte against pinned `adsp.mbn`.
+
+
+**Checkpoint 35 — platform controller initialization:** The 208-byte
+Hexagon executable routine `[file 0x3e910,0x3e9e0)` independently assembles
+to SHA-256 `9d46cd1a328569f07d25656c985c194ee3c08bc1be68e2458ebabdbf05de4097`.
+It initializes the platform controller globals, registers callbacks, probes
+controller status, and performs a tested tail-call handoff. Original packet
+boundaries matter: the controller registration call is a separate packet,
+while the following register update and MMIO commit share a later packet.
+The next 108-byte indexed-state initializer from checkpoint 34 joins
+immediately at `0x3e9e0`, forming **316 contiguous executable bytes**.
+Cumulative independently source-assembled coverage: **4,984 bytes in 72
+fragments**, zero mismatches. OEM-signature and unimplemented executable
+ranges are explicitly excluded.
