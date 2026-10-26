@@ -41,7 +41,7 @@ class ControllerFrameCommandTests(unittest.TestCase):
     def test_rejects_overlapping_packet_fixture_offsets(self):
         import json
         payload=json.loads((SRC/'agent14-late-regions.json').read_text())
-        new=payload['regions'][-1]
+        new=next(entry for entry in payload['regions'] if entry['name']=='controller-frame-command')
         new['packet_joins'][1]['offset']=new['packet_joins'][0]['offset']+4
         with self.assertRaisesRegex(late.BuildError,'packet join overlaps'):
             late.validate_registry(payload)

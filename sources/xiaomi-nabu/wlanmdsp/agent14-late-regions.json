@@ -539,6 +539,16 @@
           "fixture": "sources/xiaomi-nabu/wlanmdsp/agent14-late-controller-frame-duplex-b.S"
         }
       ]
+    },
+    {
+      "name": "controller-response-pack",
+      "file_start": 1061828,
+      "file_end": 1062240,
+      "source": "sources/xiaomi-nabu/wlanmdsp/agent14-late-controller-response-pack.S",
+      "symbol": "agent14_late_controller_response_pack",
+      "sha256": "78d370dce6cb2428db30808c6b51b7ecafdc41c0d9877d8f4c975495fdd7e59a",
+      "checkpoint": 16,
+      "classification": "executable"
     }
   ]
 }

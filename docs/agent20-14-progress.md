@@ -1,10 +1,10 @@
 # Agent 20-14 — WLAN late Hexagon reconstruction
 
-Latest checkpoint: **14**, with **12,108 contiguous executable bytes**
-and **496 independently generated dispatch-table data bytes**, for **12,604**
-source-derived bytes in disjoint intervals. Checkpoint 14 adds **516**
-Hexagon instruction bytes from a complete routine at
-`[0x102f0c,0x103110)`. The next function begins at `0x103110`. The
+Latest checkpoint: **16**, with **13,212 contiguous executable bytes**
+and **496 independently generated dispatch-table data bytes**, for **13,708**
+source-derived bytes in disjoint intervals. Checkpoint 16 adds **412**
+Hexagon instruction bytes from a complete controller response routine at
+`[0x1033c4,0x103560)`. The next function begins at `0x103560`. The
 Agent 13 leading seam `[0x100000,0x1001c4)` remains unimplemented here.
 
 ## Assignment and provenance
@@ -803,3 +803,43 @@ which none are padding or external payload bytes. In-scope leading gap
 `[0x100000,0x1001c4)` remains 452 bytes and depends on Agent 13's crossing
 function. The next uncovered file offset is `0x1033c4`. Full firmware and
 hardware operation are not established.
+
+## Checkpoint 16 — packed controller response and diagnostic handoff
+
+The complete Hexagon routine `[0x1033c4,0x103560)` (412 bytes) builds a
+controller response from packed address fields, initializes a tagged output
+record, copies data through two external helpers, selects a size/offset, and
+hands the result to an external completion routine. This description is based
+on typed register/memory dataflow; it does not claim recovered original C or
+verified hardware behavior.
+
+The original runtime packet grouping requires three source-level constraints:
+1. A packet at function offset `0x78` must state `r2 = #0x10` **before**
+   the two address-register operations, preserving its 3-word duplex choice.
+2. The load/store packet at offset `0x17c` must use `:mem_noshuf`; without
+   this, LLVM changes the memory operation order and emitted bytes.
+3. The final external far jump is encoded as `jump ##1975020`, retaining a
+   Hexagon extender. Using the section-relative target without its proper
+   call-site displacement produces different branch bits.
+
+The generated 412 bytes match pinned WLAN firmware SHA-256
+`87c2c7bb1fe97eaf007a947832feba0898644b4d6626ac8ef49d8b94dd82604b`
+(note: the authoritative full image digest is the `reference_sha256` field in
+`checkpoint-16.json`), and the independent LLVM 6.0.1/V65 assembler emits
+exactly the same fragment as Ubuntu LLVM 18.1.3/V66. Complete contiguous
+source-built code now covers `[0x1001c4,0x103560)` = **13,212** executable
+bytes; the **496** dispatch-table data bytes remain disjoint at
+`[0x2f6cd0,0x2f6ec0)`. No intervening code is implied, and the starting
+452-byte Agent 13 seam remains unimplemented.
+
+A pre-existing checkpoint-15 regression test assumed its region was the
+last registry entry, which becomes false as new checkpoints are appended. It
+now locates that *same* named region explicitly before altering its two
+packet join offsets; the negative test's intended behavior is unchanged.
+
+The next function starts at file offset `0x103560` (runtime `0xb00c3560`).
+Checkpoint 16 passes 160 Rust tests, 143 Python tests, the workspace
+release build, byte equality with the pinned reference and two independent
+Hexagon assembler runs; source bytes are authored mnemonics with no raw
+opcode arrays. Registry and evidence were generated from the successful
+reference-checked run, rather than copying the original firmware bytes.
