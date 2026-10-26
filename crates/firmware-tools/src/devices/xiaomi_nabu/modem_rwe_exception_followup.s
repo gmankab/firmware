@@ -328,3 +328,55 @@ MODEM_FU_RTE 3
 .globl agent11_modem_rwe_return_exception_no_frame
 agent11_modem_rwe_return_exception_no_frame:
 { jumpr lr }
+// Publish a protected exception snapshot to the calling frame and initialize
+// its 320-byte command window. The source hardware loop decrements by 32.
+.globl agent11_modem_rwe_copy_exception_frame_to_client
+agent11_modem_rwe_copy_exception_frame_to_client:
+{ r1 = memw(r0+#0) }
+{ r3:2 = memd(r0+#56); memd(r1+#136) = r3:2 }
+{ r3:2 = memd(r0+#80); memd(r1+#144) = r3:2 }
+{ r3:2 = memd(r0+#72); memd(r1+#32) = r3:2 }
+{ r3:2 = memd(r0+#64); memd(r1+#40) = r3:2 }
+MODEM_FU_Y_READ 3,8,1 // USR
+{ memd(r1+#72) = r3:2 }
+MODEM_FU_Y_READ 2,4,1 // predicate bank
+{ memd(r1+#192) = r27:26 }
+MODEM_FU_Y_READ 3,10,1 // UGP
+{ memd(r1+#176) = r3:2 }
+MODEM_FU_Y_READ 2,11,1 // GP
+{ memd(r1+#200) = r25:24 }
+MODEM_FU_Y_READ 3,1,1 // LC0
+{ memd(r1+#48) = r3:2 }
+MODEM_FU_Y_READ 2,0,1 // SA0
+{ memd(r1+#56) = r23:22 }
+MODEM_FU_Y_READ 3,3,1 // LC1
+{ memd(r1+#152) = r3:2 }
+MODEM_FU_Y_READ 2,2,1 // SA1
+{ memd(r1+#64) = r21:20 }
+MODEM_FU_CONTROL_PAIR_READ 2,6,1 // M1:0, C7:6
+{ memd(r1+#160) = r3:2 }
+{ memd(r1+#80) = r17:16 }
+{ memd(r1+#168) = r3:2 }
+MODEM_FU_CONTROL_PAIR_READ 2,12,1 // CS1:0, C13:12
+{ memd(r1+#88) = r15:14 }
+{ memd(r1+#96) = r13:12 }
+{ memd(r1+#184) = r3:2 }
+MODEM_FU_SYS_READ 2,7,1 // CCR
+{ memd(r1+#104) = r11:10 }
+{ memw(r1+#220) = r2 }
+{ memd(r1+#112) = r9:8 }
+{ memd(r1+#120) = r7:6 }
+{ memd(r1+#128) = r5:4 }
+MODEM_FU_CONTROL_PAIR_READ 2,16,3 // C17:16
+{ memd(r1+#248) = r3:2 }
+MODEM_FU_SYS_READ 3,6,3 // SSR
+MODEM_FU_SYS_READ 2,3,3 // ELR
+MODEM_FU_SYS_READ 3,8,1 // HTID
+{ r2 = memw(r0+#40); memd(r1+#24) = r3:2 }
+{ r3 = combine(r3.l,r2.l) }
+{ r2 = memw(r0+#44) }
+{ r0 = r1; r2 = #320; r3 = #32; memd(r1+#240) = r3:2 }
+agent11_modem_rwe_copy_frame_advance:
+{ r1 = add(r1,r3); r2 = sub(r2,r3) }
+{ p0 = cmp.eq(r2,#0); if (!p0.new) jump:t agent11_modem_rwe_copy_frame_advance }
+{ jumpr lr }
