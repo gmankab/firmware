@@ -853,3 +853,17 @@ python3 -S tools/adsp-agent20-rwe-next-icache-relocation-prefix.py \
   --llvm-mc "$HEXAGON_LLVM_MC" --reference "$NABU_ADSP_REFERENCE" \
   --output /tmp/adsp-icache-relocation-prefix-108.bin
 ```
+
+## Checkpoint 44: complete instruction-cache relocation and format-slot selection `[0x11170,0x11394)`
+
+- Fully reconstructed **548 byte-identical Hexagon V66 instruction bytes** from mnemonic assembly and one existing checked EVB register encoding. Physical address `[0x8be0e170,0x8be0e394)`, SHA-256 `988a851691d8ab8c7fa7c63a39d2f60f9bc62400a2ce4865ccd83b3b332dd706`. All four **contiguous source sections** (108-byte prefix, 64-byte early continuation, 184-byte bounded descriptor selector, 192-byte completion) are independently source-assembled and rechecked as one complete function. This supersedes checkpoint 43's partial 108-byte-only claim (no double counting).
+- The routine invalidates an instruction-cache entry using `EVB`, computes relocation address windows, checks bound violations, walks up to seven candidate descriptor slots, writes the selected controller entry, cleans/invalidate/synchronizes caches, and returns through its original `dealloc_return`. Its fail-closed path calls original controller diagnostics then enters a real branch-to-self trap.
+- Original **92-byte diagnostic text section** `[0x11394,0x113f0)` contains C-string messages, **not Hexagon executable instructions**, and is strictly excluded from rebuilt code; the next routine begins at `0x113f0`. Unlike previously counted linker fill, this data may later be re-authored as named constants, but no OEM text bytes are copied into these code fragments.
+- Total independently source-built ADSP RWE executable code reaches **6,168 bytes across eight disjoint intervals**, including now-complete `[0x11170,0x11394)` 548 bytes; no OEM-supplied instruction bytes or unexplained fill are included in generated artifacts.
+- Checkpoint history still descends from the older Agent 04 Git lineage rather than the unavailable checkpoint 50 integrated tree.
+
+```sh
+python3 -S tools/adsp-agent20-rwe-next-icache-relocation.py \
+  --llvm-mc "$HEXAGON_LLVM_MC" --reference "$NABU_ADSP_REFERENCE" \
+  --output /tmp/adsp-icache-relocation-complete-548.bin
+```
