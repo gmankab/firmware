@@ -537,3 +537,11 @@ Original reference: private `map220v-nabu-firmware/venus.mbn`, SHA-256 `9d4af65d
 - End address `0x3580c` coincides with the start of the next event classifier, which contains an 18-way dispatch table; this table is **not** treated as executable by this checkpoint.
 - Full fragment independently compared against reference Venus SHA-256 `9d4af65d7ede845e900f1b29ff425b7a8e2947056e695e246e58a2091445a085`; no mismatches. Standalone Clang/LLVM reassembly of all 412 new bytes also matches. A guarded opt-in Rust unit test can emit/compare the entire interval using `NABU_VENUS_REFERENCE` and `NABU_VENUS_EMIT` without bundling OEM firmware bytes.
 - Results demonstrate exact A32 instruction re-encoding, not behaviorally verified source-level decompilation or flashable/authenticated firmware.
+
+## Checkpoint 80 — 18-way frame dispatch and input-descriptor initialization
+
+- Complete contiguous typed A32 fragment `[0x21c78,0x35bec)` = **81,780 byte-identical bytes**, MBN file `[0x25c78,0x39bec)`.
+- Newly re-encoded `[0x3580c,0x35bec)` = **992 bytes**, **227 A32 instructions** and **21 non-executable data words**. The controller event-class function dispatches through 18 explicit handler addresses at `[0x35830,0x35878)`, guards 17 input types, initializes channel size/format fields, and updates stream accounting. Subsequent initialization helpers emit the default 0x01010200 codec format word and two separate diagnostic-address literals.
+- Literal pools: `[0x35830,0x35878)` (18 handler pointers), `[0x35a2c,0x35a30)` (warning), `[0x35b2c,0x35b30)` (format), `[0x35be8,0x35bec)` (warning). No reference opcodes or unknown padding are imported into the typed output.
+- Both direct reference comparison and independent Clang/LLVM mnemonic reassembly pass for the entire newly generated 992-byte interval; SHA-256 of full fragment: `1e430261ad796d23c5033b4ee34b330fbbbca834c577e4c6ade0f4f98f9d8761`.
+- Next function starts at runtime `0x35bec`, still within Agent 20-03 `[0x21c78,0x40000)` reservation. This demonstrates operand-level binary equivalence, not a new high-level source implementation or OEM signing.
