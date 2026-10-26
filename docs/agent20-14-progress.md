@@ -1,10 +1,10 @@
 # Agent 20-14 — WLAN late Hexagon reconstruction
 
-Latest checkpoint: **16**, with **13,212 contiguous executable bytes**
-and **496 independently generated dispatch-table data bytes**, for **13,708**
-source-derived bytes in disjoint intervals. Checkpoint 16 adds **412**
-Hexagon instruction bytes from a complete controller response routine at
-`[0x1033c4,0x103560)`. The next function begins at `0x103560`. The
+Latest checkpoint: **17**, with **13,468 contiguous executable bytes**
+and **496 independently generated dispatch-table data bytes**, for **13,964**
+source-derived bytes in disjoint intervals. Checkpoint 17 adds **256**
+Hexagon instruction bytes across two complete functions at
+`[0x103560,0x103660)`. The next function begins at `0x103660`. The
 Agent 13 leading seam `[0x100000,0x1001c4)` remains unimplemented here.
 
 ## Assignment and provenance
@@ -843,3 +843,33 @@ release build, byte equality with the pinned reference and two independent
 Hexagon assembler runs; source bytes are authored mnemonics with no raw
 opcode arrays. Registry and evidence were generated from the successful
 reference-checked run, rather than copying the original firmware bytes.
+
+## Checkpoint 17 — auxiliary interface reply and controller I/O reset
+
+The two adjacent functions in `[0x103560,0x103660)` add **256 source-built
+executable bytes**, with no extra data words, layout fill or reference bytes
+in generated output. `[0x103560,0x1035f8)` (152 bytes) decodes an interface
+status record and updates the caller's packed reply fields; it contains a
+normal completion branch plus a diagnostic/error path. `[0x1035f8,0x103660)`
+(104 bytes) checks two controller status bytes, invokes the platform routine
+when set, resets one byte, and returns by restoring its register pair.
+
+For the auxiliary reply, preserving the original VLIW layout requires stating
+`r16 = r4` before the predicate comparison in the first packed packet and
+using external jump displacement `1974888` in its ordinary terminal packet.
+The other source requires explicit extended values and preserves the original
+register pair restoration. All 256 new bytes independently match LLVM
+18.1.3/V66 and LLVM 6.0.1/V65 output and the pinned `wlanmdsp.mbn`.
+
+Cumulative contiguous source-rebuilt executable: `[0x1001c4,0x103660)` =
+**13,468** bytes. Two separate jump tables contribute 496 verified source-
+built DATA bytes at `[0x2f6cd0,0x2f6ec0)`, for **13,964 distinct bytes**.
+In-scope leading 452-byte crossing-function seam remains unimplemented.
+Next new complete routine starts at `0x103660`. The original WLAN image
+and validated whole-device behavior remain outside this output.
+
+Validation: **160 Rust tests**, **145 Python tests, zero skipped**, release
+build, complete cumulative byte comparison, independent LLVM 6/V65 assembly,
+LLVM 18/V66 decoding, Git whitespace and bundle integrity checks passed.
+Checkpoint 15's negative fixture test was revised in checkpoint 16 to locate
+its named record, rather than assuming future registry additions cannot occur.

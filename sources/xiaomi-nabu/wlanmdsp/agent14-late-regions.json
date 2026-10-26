@@ -549,6 +549,26 @@
       "sha256": "78d370dce6cb2428db30808c6b51b7ecafdc41c0d9877d8f4c975495fdd7e59a",
       "checkpoint": 16,
       "classification": "executable"
+    },
+    {
+      "name": "interface-aux-reply",
+      "file_start": 1062240,
+      "file_end": 1062392,
+      "source": "sources/xiaomi-nabu/wlanmdsp/agent14_late_interface_aux_reply.S",
+      "symbol": "agent14_late_interface_aux_reply",
+      "sha256": "a7005768da911f58f3dd0ff4f6c87d8548ce5a02b4ff0336de9ed5cf6c1f4f67",
+      "checkpoint": 17,
+      "classification": "executable"
+    },
+    {
+      "name": "controller-io-reset",
+      "file_start": 1062392,
+      "file_end": 1062496,
+      "source": "sources/xiaomi-nabu/wlanmdsp/agent14_late_controller_io_reset.S",
+      "symbol": "agent14_late_controller_io_reset",
+      "sha256": "b01a7c5571cb661969f77956a54e62f82c2526f2d7b2ce44cabec0d597b9d518",
+      "checkpoint": 17,
+      "classification": "executable"
     }
   ]
 }
