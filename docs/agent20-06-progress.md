@@ -515,3 +515,11 @@ python3 tools/agent20_06_a32_roundtrip.py /private/venus.mbn 0xa8ea0 0xa92c8 \
 - Rebuilds the controller's stream-record lifecycle initialization, source buffer accounting, conditional cleanup, 16-word packed register-field normalizer and short command dispatch helper. The original POP/PC returns are preserved; the diagnostic and mode table are modeled as data.
 - Entire source-emitted fragment matches the pinned `venus.mbn` (0 mismatches); independent Clang/LLVM round-trip matches all 1,576 instruction bytes and 32 explicit data bytes. **232 Rust tests and 13 Python tests passed**. No successful release build claimed at this checkpoint.
 - Next missing VMA `0xbd648`, MBN file offset `0xc1648`, begins another resource update function. Provisional old-Agent-03 Git base, not checkpoint-50-integrated; instruction equality is not high-level decompilation, hardware proof or OEM signature generation.
+
+## Checkpoint 61 — codec buffer reconciliation and computed dispatch
+
+- Contiguous Venus runtime `[0xa8000,0xbdc00)` = **89,088 source-encoded reference-identical bytes**, original MBN `[0xac000,0xc1c00)`.
+- Newly reconstructed `[0xbd648,0xbdc00)` = **1,464 bytes** consisting of **359 typed ARM32 instructions (1,436 bytes)** and a **seven-address branch table (28 data bytes)** at `[0xbd850,0xbd86c)`.
+- Initializes codec buffer record state, reconciles stream planes, computes active command status, and enters a longer codec controller packet sequence. The function is **not complete** at this boundary; its branches reference addresses above `0xbdc00`.
+- During direct validation, one word at `0xbd854` differed because a jump-table handler address was initially treated as a `MULEQ` instruction. The whole seven-word table was reclassified as named data, and the full byte comparison then passed exactly. Independent Clang/LLVM reassembly matches all 1,436 instruction bytes plus the seven explicit handler targets. **233 Rust and 13 Python tests passed**; no release build claimed.
+- First missing runtime address `0xbdc00`, file offset `0xc1c00`. Work remains provisional on older Agent-03 Git ancestry, without OEM signing or evidence of high-level behavioral decompilation.
