@@ -452,3 +452,12 @@ python3 tools/agent20_06_a32_roundtrip.py /private/venus.mbn 0xa8ea0 0xa92c8 \
 - The function publishes active codec records to a controller, updates outstanding frame FIFO counts, queues frame/metadata messages, checks optional callback routes and restores the original stack state through POP/PC.
 - The complete typed-Rust emitter and independent Clang/LLVM reassembly match the pinned Venus original with **zero different bytes**. All **224 Rust** and **13 Python tests** pass; a completed offline release build is not claimed.
 - Next uncovered runtime address is `0xbb278`, original MBN file offset `0xbf278`. This remains provisional old-base typed re-encoding, not source-level behavioral recompilation, OEM signing or a hardware-tested image.
+
+## Checkpoint 53 — auxiliary codec record and DMA descriptor synthesis
+
+- Cumulative typed-Rust Venus runtime `[0xa8000,0xbb570)` = **79,216 consecutive reference-identical bytes**, MBN file offsets `[0xac000,0xbf570)`.
+- Newly reconstructed `[0xbb278,0xbb570)` = **760 bytes**, comprising **189 typed ARM32 instructions (756 bytes)** and a one-word packed codec-record format constant `0x01010200` at `[0xbb56c,0xbb570)`; this word is explicitly data, not decoded ARM instructions.
+- Builds codec-frame auxiliary records from controller buffer offsets, updates DMA command lengths, transfers stream payloads, compacts record slots, and preserves the actual POP/PC return at `0xbb568`.
+- Full typed-Rust emitter exactly matches the pinned `venus.mbn` and independent Clang/LLVM mnemonic reassembly returns **zero differences** for 756 code bytes and 4 classified data bytes.
+- **225 Rust tests, 13 Python tests passed**. No successful offline release build is claimed for checkpoint 53.
+- Next uncovered runtime address `0xbb570`, file offset `0xbf570`; still provisional older Agent 03 ancestry, not the unavailable checkpoint-50-based integration.
