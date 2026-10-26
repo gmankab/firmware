@@ -123,6 +123,7 @@ FRAGMENTS = {
     'controller-mode-validate': (TOOLS / 'adsp-late-controller-mode-validate.S', 0x410A0, 0xAC),
     'controller-marshall': (TOOLS / 'adsp-late-controller-marshall.S', 0x4114C, 0xD4),
     'controller-allocate-callback': (TOOLS / 'adsp-late-controller-allocate-callback.S', 0x41220, 0x94),
+    'controller-parameter-dispatch': (TOOLS / 'adsp-late-controller-parameter-dispatch.S', 0x412B4, 0x104),
     'controller-buffer-descriptor': (TOOLS / 'adsp-late-controller-buffer-descriptor.S', 0x413B8, 0x80),
     'controller-field-00-get': (TOOLS / 'adsp-late-controller-field-00-get.S', 0x3EC80, 0xC),
     'controller-field-00-forward': (TOOLS / 'adsp-late-controller-field-00-forward.S', 0x3EC8C, 0x10),

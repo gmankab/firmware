@@ -889,3 +889,24 @@ discovered; 195 pass and 3 are skipped, and 160 Rust tests pass. The offline
 release build succeeds and every generated fragment matches the pinned
 `adsp.mbn`. This is still a **provisional older-base branch**, not the actual
 checkpoint-50-rooted integrated tree, and most ADSP code remains unbuilt.
+
+
+**Checkpoint 57 — controller parameter dispatcher seam closed:**
+Reconstructed the previously blocked **260-byte Hexagon dispatcher** at
+`[file 0x412b4,0x413b8)` using only source-level packet operations and
+symbolic external-call targets. The memory-duplex issue required separating
+the original pairs into two legal `:mem_noshuf` packets. All external calls
+were confirmed against the pinned disassembly and their `.set` PC-relative
+offsets corrected; the earlier exploratory script had shifted them by
+`0x94`. The final independently compiled SHA-256 is
+`cb78649dfc3bc7a0def19476545db31f2e0ddaefd3b161c18251504c2ac92f62`.
+
+This closes the gap between previously verified marshaller/allocation and
+buffer-descriptor classifier, creating **748 contiguous executable bytes**
+`[0x4114c,0x41438)` across four functions (212+148+260+128). No copied
+machine-code words or alignment bytes were introduced. The complete late-ADSP
+inventory now covers **9,752 independently source-assembled executable
+bytes in 106 disjoint fragments**. Full private-image comparison is exact;
+200 Python tests were discovered (197 pass, 3 skip), 160 Rust tests pass,
+and the offline release build succeeds. Most ADSP remains unreconstructed;
+this older-base branch is still provisional pending checkpoint-50 integration.

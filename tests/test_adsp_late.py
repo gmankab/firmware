@@ -197,9 +197,9 @@ class ADSPExternalsAndCodeTests(unittest.TestCase):
     @unittest.skipUnless(LLVM_MC,'Hexagon LLVM6 assembler required')
     def test_complete_fragment_inventory_rejects_overlaps(self):
         manifest,regions=adsp.assembled_inventory(LLVM_MC,None)
-        self.assertEqual(len(manifest['fragments']),105)
-        self.assertEqual(manifest['total_independently_assembled_executable_bytes'],9492)
-        self.assertEqual(sum(map(len,regions.values())),9492)
+        self.assertEqual(len(manifest['fragments']),106)
+        self.assertEqual(manifest['total_independently_assembled_executable_bytes'],9752)
+        self.assertEqual(sum(map(len,regions.values())),9752)
         self.assertEqual(manifest['gap_bytes_included_in_generated_executables'],0)
         self.assertFalse(manifest['complete_adsp_image'])
         self.assertEqual(manifest['external_original_code_bytes_in_output'],0)
@@ -366,7 +366,7 @@ class ADSPExternalsAndCodeTests(unittest.TestCase):
     def test_inventory_every_fragment_uses_correct_original(self):
         inventory,_outputs=adsp.assembled_inventory(LLVM_MC,Path(REFERENCE).read_bytes())
         self.assertTrue(all(x['reference_byte_identical'] for x in inventory['fragments']))
-        self.assertEqual(inventory['total_independently_assembled_executable_bytes'],9492)
+        self.assertEqual(inventory['total_independently_assembled_executable_bytes'],9752)
 
     @unittest.skipUnless(LLVM_MC and REFERENCE,
                          'Hexagon LLVM6 and exact pinned ADSP reference required')
@@ -380,7 +380,7 @@ class ADSPExternalsAndCodeTests(unittest.TestCase):
                 adsp.verify_slice(built,original,off)
                 total+=len(built)
                 ranges.append((off,off+size))
-        self.assertEqual(total,9492)
+        self.assertEqual(total,9752)
         ranges.sort()
         self.assertEqual(ranges[0],(0x39000,0x39054))
         self.assertEqual(ranges[-1],(0x3640a8,0x3640f8))
@@ -1607,3 +1607,41 @@ class ADSPControllerDescriptorCreationTests(unittest.TestCase):
         packet_words=[int.from_bytes(raw[i:i+4],'little')
                       for i in (0xa8,0xac,0xb0,0xb4)]
         self.assertEqual([(w>>14)&3 for w in packet_words],[1,1,1,3])
+
+
+class ADSPControllerParameterDispatcherTests(unittest.TestCase):
+    """Original memory packet ordering and independent PC-relative call targets."""
+
+    @unittest.skipUnless(LLVM_MC,'LLVM6 Hexagon assembler required')
+    def test_complete_dispatch_is_exact_and_joins_existing_allocators(self):
+        name='controller-parameter-dispatch'
+        source,off,n=adsp.FRAGMENTS[name]
+        self.assertEqual((off,n),(0x412b4,0x104))
+        body=source.read_text()
+        for token in ('other_modes:', 'mode_lookup:', 'mode_aux_5:',
+                      'return_code:', 'r7 = memw(r29+#64)',
+                      'memw(r29+#20) = r6', 'r9 = memw(r29+#56)',
+                      'memw(r29+#16) = r7',
+                      '.set handle_extended, adsp_late_controller_parameter_dispatch+0xe9614'):
+            self.assertIn(token,body)
+        for directive in ('.word ','.long ','.byte ','.incbin ','.fill '):
+            self.assertNotIn(directive,body)
+        code=adsp.compile_source(LLVM_MC,source,n)
+        self.assertEqual(hashlib.sha256(code).hexdigest(),
+                         'cb78649dfc3bc7a0def19476545db31f2e0ddaefd3b161c18251504c2ac92f62')
+        if REFERENCE:adsp.verify_slice(code,Path(REFERENCE).read_bytes(),off)
+        self.assertEqual(adsp.FRAGMENTS['controller-allocate-callback'][1]+0x94,off)
+        self.assertEqual(off+n,adsp.FRAGMENTS['controller-buffer-descriptor'][1])
+        self.assertEqual(0xd4+0x94+n+0x80,748)
+
+    @unittest.skipUnless(LLVM_MC,'LLVM6 Hexagon assembler required')
+    def test_two_separate_memory_packets_have_legal_parse_fields(self):
+        source=adsp.FRAGMENTS['controller-parameter-dispatch'][0]
+        body=source.read_text()
+        self.assertIn('{ r7 = memw(r29+#64); memw(r29+#20) = r6 }:mem_noshuf',body)
+        self.assertIn('{ r9 = memw(r29+#56); memw(r29+#16) = r7 }:mem_noshuf',body)
+        code=adsp.compile_source(LLVM_MC,source,0x104)
+        # Original first dual-memory packet uses a valid Hexagon duplex word
+        # (parse 00), followed by one continuing word and a packet terminator.
+        words=[int.from_bytes(code[i:i+4],'little') for i in (0x58,0x5c,0x60)]
+        self.assertEqual([(w>>14)&3 for w in words],[0,1,3])
