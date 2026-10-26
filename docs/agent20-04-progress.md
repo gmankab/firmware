@@ -245,3 +245,11 @@ git diff --check
 - Previous consecutive span `[0x40a2c,0x53944)` = 77,592 bytes. Together, adjacent generated code now covers `[0x40a2c,0x53b24)` = **78,072 bytes**, with no hidden fill or overlapping Agent 05 boundaries.
 - Verified with `cargo run --offline --locked -p firmware-tools --example agent20_04_next -- verify /private/venus.mbn`, independent `tools/agent20_04_roundtrip.py --start 0x53944 --end 0x53b24 --file-offset 0x57944 --compare /private/new27.bin`, and repository tests.
 - First uncovered runtime `0x53b24`, original MBN file offset `0x57b24`. Parent history is still **provisional**, derived from older Agent 03, *not* original checkpoint 50.
+
+## Checkpoint 28 — packed frame buffers, codec lookups and fixed-point geometry helpers
+
+- Added runtime `[0x53b24,0x54028)` = **1,284 exact typed ARM32 bytes**, mapped Venus file `[0x57b24,0x58028)`, containing **317 executable instructions** and **four non-instruction literal words** at `[0x53e20,0x53e2c)` and `[0x53e88,0x53e8c)`.
+- Includes codec callback and stream serialization (`0x53b24–0x53e2c`), record lookup (`0x53e2c–0x53e8c`), 16-bit minimum plane-size normalization (`0x53e8c–0x53edc`), and two carry-aware 64-bit geometry routines (`0x53edc–0x54028`).
+- Encoded A32 `UMULL` and `ADC Rd,Rn,#0` explicitly in a dedicated checked module-local encoder, rather than swapping carry-aware semantics for ordinary `ADD`.
+- Private reference comparison via opt-in `AGENT04_PRIVATE_VENUS` test passed with **zero mismatches**, as did Clang independent mnemonic reassembly of all 317 instructions plus four literal words.
+- Contiguous Agent 04 coverage `[0x40a2c,0x54028)` = **79,356 byte-identical bytes**. Uncovered reservation prefix `[0x40000,0x40a2c)` is not counted; next uncovered runtime `0x54028`. Checkpoint remains provisional old-Agent-03 ancestry, not checkpoint 50.
