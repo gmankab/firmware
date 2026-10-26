@@ -543,3 +543,16 @@ Together with checkpoint 35, the range `[0x3e7a0,0x3ea4c)` contains
 4-byte alignment NOPs `[0x3e798,0x3e7a0)` are explicitly **excluded**.
 Cumulative independent ADSP executable coverage: **5,352 bytes across
 75 Hexagon fragments**, zero mismatches, not an entire ADSP or signed image.
+
+
+**Checkpoint 37 — controller service-root initialization:** Reconstructed
+**436 bytes** `[file 0x3ea50,0x3ec04)` of the ADSP Hexagon controller
+bootstrap, independently assembled to SHA-256
+`faf76a6564c9b1c3e432116914d377e3408060420881f5abf68b72eed8584504`.
+It creates three linked metadata nodes, configures platform MMIO callback
+pointers, validates service allocation results, allocates primary and secondary
+buffers, and finally tail-dispatches to the platform service. The source keeps
+new-value dependencies and original packet syntax, without raw `.word` code.
+The 4-byte NOP at `[0x3ea4c,0x3ea50)` remains **excluded** from executable
+counts. Cumulative independently authored coverage: **5,788 bytes across
+76 fragments**; this does not imply a reconstructed complete ADSP image.

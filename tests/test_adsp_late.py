@@ -197,9 +197,9 @@ class ADSPExternalsAndCodeTests(unittest.TestCase):
     @unittest.skipUnless(LLVM_MC,'Hexagon LLVM6 assembler required')
     def test_complete_fragment_inventory_rejects_overlaps(self):
         manifest,regions=adsp.assembled_inventory(LLVM_MC,None)
-        self.assertEqual(len(manifest['fragments']),75)
-        self.assertEqual(manifest['total_independently_assembled_executable_bytes'],5352)
-        self.assertEqual(sum(map(len,regions.values())),5352)
+        self.assertEqual(len(manifest['fragments']),76)
+        self.assertEqual(manifest['total_independently_assembled_executable_bytes'],5788)
+        self.assertEqual(sum(map(len,regions.values())),5788)
         self.assertEqual(manifest['gap_bytes_included_in_generated_executables'],0)
         self.assertFalse(manifest['complete_adsp_image'])
         self.assertEqual(manifest['external_original_code_bytes_in_output'],0)
@@ -366,7 +366,7 @@ class ADSPExternalsAndCodeTests(unittest.TestCase):
     def test_inventory_every_fragment_uses_correct_original(self):
         inventory,_outputs=adsp.assembled_inventory(LLVM_MC,Path(REFERENCE).read_bytes())
         self.assertTrue(all(x['reference_byte_identical'] for x in inventory['fragments']))
-        self.assertEqual(inventory['total_independently_assembled_executable_bytes'],5352)
+        self.assertEqual(inventory['total_independently_assembled_executable_bytes'],5788)
 
     @unittest.skipUnless(LLVM_MC and REFERENCE,
                          'Hexagon LLVM6 and exact pinned ADSP reference required')
@@ -380,7 +380,7 @@ class ADSPExternalsAndCodeTests(unittest.TestCase):
                 adsp.verify_slice(built,original,off)
                 total+=len(built)
                 ranges.append((off,off+size))
-        self.assertEqual(total,5352)
+        self.assertEqual(total,5788)
         ranges.sort()
         self.assertEqual(ranges[0],(0x39000,0x39054))
         self.assertEqual(ranges[-1],(0x3640a8,0x3640f8))
@@ -1061,3 +1061,29 @@ class ADSPControllerOpcodeSwitchTests(unittest.TestCase):
             adsp.FRAGMENTS['controller-indexed-init'][1])
         self.assertEqual(12+328+28+208+108,684)
         self.assertEqual(adsp.FRAGMENTS['controller-reset-status'][1]+72+8,0x3e7a0)
+
+
+class ADSPControllerServiceRootTests(unittest.TestCase):
+    """Controller bootstrapping with three linked metadata records."""
+
+    @unittest.skipUnless(LLVM_MC,'Hexagon LLVM6 assembler required')
+    def test_controller_service_root_is_exact_and_linked(self):
+        src,off,n=adsp.FRAGMENTS['controller-service-root']
+        self.assertEqual((off,n),(0x3ea50,436))
+        text=src.read_text()
+        for forbidden in ('.word ','.long ','.byte ','.incbin ','.fill '):
+            self.assertNotIn(forbidden,text)
+        for term in ('r22 = #3', 'linked_entry_loop:',
+                     'r22 = add(r22,#-1); r2 = memw(r0+#28)',
+                     'r4 += add(r17,#76)',
+                     'memw(r21+#68) = r2.new',
+                     'jump service_main; deallocframe'):
+            self.assertIn(term,text)
+        built=adsp.compile_source(LLVM_MC,src,n)
+        self.assertEqual(hashlib.sha256(built).hexdigest(),
+            'faf76a6564c9b1c3e432116914d377e3408060420881f5abf68b72eed8584504')
+        if REFERENCE:adsp.verify_slice(built,Path(REFERENCE).read_bytes(),off)
+        self.assertEqual(adsp.FRAGMENTS['controller-indexed-init'][1]+108+4,off)
+        # The disjoint 12-byte tail immediately after the structural NOPs
+        # is not considered source-reconstructed in this checkpoint.
+        self.assertEqual(off+n,0x3ec04)

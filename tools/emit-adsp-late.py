@@ -94,6 +94,7 @@ FRAGMENTS = {
     'controller-mode-default': (TOOLS / 'adsp-late-controller-mode-default.S', 0x3E7A0, 0x0C),
     'controller-opcode-switch': (TOOLS / 'adsp-late-controller-opcode-switch.S', 0x3E7AC, 0x148),
     'controller-report-default': (TOOLS / 'adsp-late-controller-report-default.S', 0x3E8F4, 0x1C),
+    'controller-service-root': (TOOLS / 'adsp-late-controller-service-root.S', 0x3EA50, 0x1B4),
     'controller-field-00-get': (TOOLS / 'adsp-late-controller-field-00-get.S', 0x3EC80, 0xC),
     'controller-field-00-forward': (TOOLS / 'adsp-late-controller-field-00-forward.S', 0x3EC8C, 0x10),
     'controller-field-01-get': (TOOLS / 'adsp-late-controller-field-01-get.S', 0x3ECA0, 0xC),
