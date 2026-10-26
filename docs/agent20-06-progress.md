@@ -569,3 +569,16 @@ python3 tools/agent20_06_a32_roundtrip.py /private/venus.mbn 0xa8ea0 0xa92c8 \
 
 - **237 Rust tests and 13 Python tests passed**; fresh full release build exceeded the execution limit and is **not claimed to have passed**.
 - Next uncovered address is `0xbeea0`, original MBN file offset `0xc2ea0`. This is still a provisional old-Agent-03-derived branch (not checkpoint-50-integrated), not an OEM-authenticated high-level decompilation or flashable firmware image.
+
+## Checkpoint 66 — codec output-mode descriptor setup
+
+- Continuous Venus runtime `[0xa8000,0xbf400)` = **95,232 byte-identical bytes**, original MBN file `[0xac000,0xc3400)`.
+- Added `[0xbeea0,0xbf400)` = **1,376 bytes**, with **340 typed ARM32 instructions** and **four non-executable dispatch-table words** `[0xbefdc,0xbefec)` (1,360 instruction bytes + 16 table bytes). Code sets up codec plane sizes, controller-mode dispatch and output descriptor offsets. The enclosing function continues past this boundary.
+- Direct whole-fragment comparison against the pinned original SHA-256 `9d4af65d7ede845e900f1b29ff425b7a8e2947056e695e246e58a2091445a085` is exact (zero mismatches). Independent Clang/LLVM reassembly of the new code region passed with the branch table classified as data:
+
+  ```sh
+  python3 tools/agent20_06_a32_roundtrip.py /private/venus.mbn 0xbeea0 0xbf400 \
+    --data-range 0xbefdc:0xbefec
+  ```
+
+- **237 Rust and 13 Python tests pass**. A successful new release build is not claimed. The next uncovered ARM runtime address is `0xbf400` (file `0xc3400`). All work remains provisional on old-Agent-03 ancestry and does not independently reproduce OEM authentication or high-level algorithm semantics.
