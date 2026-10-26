@@ -44,6 +44,40 @@ class ModemLateTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError,'16 source-assembled bytes'):
             agent12.restore_aux_large_controller_phase13_gap_packet(bytes(12))
 
+    def test_aux_controller_phase17_hwloop_packet_encoding(self):
+        self.assertEqual((agent12.AUX_LARGE_CONTROLLER_PHASE17_START,
+                          agent12.AUX_LARGE_CONTROLLER_PHASE17_END),
+                         (0x447ee0,0x447f38))
+        src=agent12.AUX_LARGE_CONTROLLER_PHASE17_SOURCE.read_text()
+        self.assertIn('loop0(inner_scan,r4)',src)
+        self.assertIn('}:endloop0',src)
+        self.assertIn('maxu(r3:2,r13:12)',src)
+        self.assertNotIn('.word',src)
+        w=[0x7800c000]*22
+        w[:6]=[0x1044600c,0x7e806006,0xfb15f685,
+                0x58004026,0x7c7f7fe0,0x7c00c002]
+        w[0x30//4:0x38//4]=[0x58004010,0xf509c800]
+        converted=struct.unpack('<22I',agent12.restore_aux_large_controller_phase17_packets(
+            struct.pack('<22I',*w)))
+        self.assertEqual(converted[:6],
+            (0x7e806006,0xfb157685,0x1044e00c,0x7c7f7fe0,0x7c004002,0x5800c026))
+        self.assertEqual(converted[0x30//4:0x38//4],(0xf5094800,0x5800c010))
+        for at,value,error in [
+            (0,0x7800c000,'opcode classes'),
+            (0,0x1044600d,'operands'),
+            (3,0x58004027,'opcode fields'),
+            (4,0x7c7f7fe1,'opcode fields'),
+            (0x30//4,0x78004010,'classes/fields'),
+            (5,0x7c004002,'packet markers'),
+            (0x34//4,0xf5094800,'packet markers'),
+        ]:
+            bad=w.copy();bad[at]=value
+            with self.assertRaisesRegex(ValueError,error):
+                agent12.restore_aux_large_controller_phase17_packets(
+                    struct.pack('<22I',*bad))
+        with self.assertRaisesRegex(ValueError,'88 source-assembled bytes'):
+            agent12.restore_aux_large_controller_phase17_packets(bytes(84))
+
     def test_aux_controller_phase16_branch_predicate_issue_order(self):
         self.assertEqual((agent12.AUX_LARGE_CONTROLLER_PHASE16_START,
                           agent12.AUX_LARGE_CONTROLLER_PHASE16_END),
