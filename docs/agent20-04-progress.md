@@ -236,3 +236,12 @@ git diff --check
 - Independent Clang/LLVM reassembly matched all **321 instructions and 16 data words** to both Rust emitter and private reference with **zero differences**. Standalone `agent20_04_venus_middle -- verify` passed its complete set of adjacent fragments.
 - Continuous Agent04 source-generated interval `[0x40a2c,0x53944)` now **77,592 bytes**, **19,278 typed ARM32 instructions and 120 named data words**. First uncovered runtime address `0x53944` (function entry). Earlier `[0x40000,0x40a2c)` remains uncovered.
 - Rust workspace **218 tests**, Python **13**, and opt0 release all passed. Provisional old-Agent03 ancestry, **not** original checkpoint50 integration; no flashability claim.
+
+## Checkpoint 27 — eight-lane buffer normalization and format-dispatch helpers
+
+- New typed A32 range runtime `[0x53944,0x53b24)` = **480 exact executable bytes**, file `[0x57944,0x57b24)`; 120 ARM32 instructions and **zero literal/data words**. The independent mnemonic assembler and the typed Rust emitter each match the same pinned `venus.mbn` bytes.
+- `0x53944–0x53a28` scales up to eight controller plane words, optionally divides normalized values and compares two eight-lane arrays using signed magnitude; the genuine function returns at `0x53a24`.
+- `0x53a28–0x53b24` checks the buffer's codec type and dispatches initialized frame descriptors to platform callbacks, returning through the original saved registers at `0x53b20`.
+- Previous consecutive span `[0x40a2c,0x53944)` = 77,592 bytes. Together, adjacent generated code now covers `[0x40a2c,0x53b24)` = **78,072 bytes**, with no hidden fill or overlapping Agent 05 boundaries.
+- Verified with `cargo run --offline --locked -p firmware-tools --example agent20_04_next -- verify /private/venus.mbn`, independent `tools/agent20_04_roundtrip.py --start 0x53944 --end 0x53b24 --file-offset 0x57944 --compare /private/new27.bin`, and repository tests.
+- First uncovered runtime `0x53b24`, original MBN file offset `0x57b24`. Parent history is still **provisional**, derived from older Agent 03, *not* original checkpoint 50.
