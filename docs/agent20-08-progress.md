@@ -445,3 +445,16 @@ existing `[0x3ee58,0x3eee4)` interval, forming **276 contiguous source-built
 bytes**. Cumulative independent executable coverage: **3,784 bytes across
 65 distinct fragments**. No NOPs, signed payload or borrowed instruction
 words counted as reconstructed code.
+
+
+**Checkpoint 30 — five controller-field initialization calls:** Independently
+source-assembled the **172-byte** controller-field initializer at ADSP ELF file
+`[0x3ed1c,0x3edc8)`. The function initializes five controller fields from
+16-bit hardware records, calls the previously reconstructed descriptor setup
+function and makes a final deallocation/tail-jump packet. Hexagon V65
+shuffling was steered using source instruction order to recover the original
+producer-consumer and duplex packet layout; no `.word` or OEM code bytes
+were embedded. Exact SHA-256:
+`a59c40d44e11ef97f978883d3c01f7dc8eec74bb70ab329cdf61c570f66384f8`.
+The two NOPs at file `[0x3edc8,0x3edd0)` are excluded. Cumulative independent
+ADSP executable coverage is **3,956 bytes in 66 verified fragments**.
