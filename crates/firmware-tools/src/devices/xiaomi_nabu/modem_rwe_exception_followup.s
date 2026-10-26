@@ -165,3 +165,35 @@ MODEM_FU_SYS_READ 2,9,3 // BADVA
 MODEM_FU_SYS_READ 3,2,3 // STID
 { r3:2 = memd(r1+#8); memd(r1+#176) = r3:2 }
 { jumpr lr }
+// Swap the protected SGP0 bank around a two-pair context save. The checked
+// V60 special-register operation (0x65 ISA class) lacks an LLVM6 mnemonic.
+.macro MODEM_FU_SWAP_SGP0 gpr, marker=3
+    .if (\gpr < 0) || (\gpr > 31) || (\marker < 1) || (\marker > 3)
+      .error "invalid protected SGP0 bank-swap operand"
+    .endif
+    .word (0x65000000 | (\gpr<<16) | (\marker<<14))
+.endm
+.macro MODEM_FU_NMI source, marker=3
+    .if (\source < 0) || (\source > 31) || (\marker != 3)
+      .error "invalid controller NMI source or packet marker"
+    .endif
+    .word (0x64000000 | ((0x60 | \source)<<16) | (\marker<<14) | 0x40)
+.endm
+.globl agent11_modem_rwe_swap_video_frame
+agent11_modem_rwe_swap_video_frame:
+MODEM_FU_SWAP_SGP0 9,3
+{ memd(r9+#56) = r1:0; memd(r9+#64) = r19:18 }
+MODEM_FU_SWAP_SGP0 9,3
+{ jumpr lr }
+// Mask an interrupt bit in the per-thread controller word, update the NMI
+// control bit and dispatch the architected V60 non-maskable interrupt.
+.globl agent11_modem_rwe_raise_controller_nmi
+agent11_modem_rwe_raise_controller_nmi:
+{ r1 = memw(r28+##-1065068280) }
+{ r1 = clrbit(r1,r0) }
+{ r2 = ##-1065077624 }
+{ r0 = memw(r2+#0) }
+{ r0 = setbit(r0,#28) }
+{ memw(r2+#0) = r0 }
+MODEM_FU_NMI 1,3
+{ jumpr lr }

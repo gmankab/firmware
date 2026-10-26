@@ -450,3 +450,11 @@ python3 -m unittest discover -s tests -p 'test_*.py'
 - Entire `[0x39920,0x39ad4)` fragment independently assembles through LLVM 6 with **no packet normalization**, SHA-256 `315e8ab2bc773515176b68bda1b67ff51a6e7017d2512a4ab360a7a383d8de74` and **zero mismatches** against pinned `modem.mbn` SHA-256 `6f5cb32bc10e41abb40938d185805e788f5637a41d3ebcef278e4e169fc36782`.
 - Tests: **169 Rust**, **42 Python** and the locked offline **release build** pass. The preceding RWE island `[0x38108,0x390dc)` and non-source data/fill gap `[0x390dc,0x39920)` stay separate and are not counted twice.
 - Next unbuilt code begins at modem file `0x39ad4`, where the source contains a `crswap` controller-register helper.
+
+## Checkpoint 56 — Protected SGP0 exchange and NMI helper
+
+- Second disjoint modem RWE helper island `[file 0x39920,0x39b10)` now contains **496 independently assembled byte-identical executable bytes**, an added **60 bytes** in `[0x39ad4,0x39b10)`. Virtual `[0xc0841920,0xc0841b10)`, physical `[0x8e041920,0x8e041b10)`.
+- One short routine swaps the SGP0 controller bank around saved frame pointer and register-pair stores before the original `jumpr lr`. Another clears an interrupt bit in a GP-relative controller-status word, sets a protected NMI flag and issues the original V60 non-maskable interrupt.
+- LLVM6 encodes one GP-relative memory load using the generic register-memory opcode class; the verifier only changes its checked high-half ISA class **after verifying the exact source-assembled extender, register and packet markers**. Special SGP0 exchange and NMI instructions are encoded by operand-validated ISA macros, not copied from the reference file.
+- All 496 bytes match the SHA-pinned `modem.mbn`, zero differences. Result digest SHA-256 `fe7259d1a31f500aee6f438a83748833ceee71acb0c680e52a699fca9d5f6fc0`. **169 Rust tests, 43 Python tests, offline locked release build pass.** The next independently decoded routine begins at file `0x39b10`, consisting of paired hardware loops and locked status probes.
+- Prior gap `[0x390dc,0x39920)` remains excluded from executable byte counts. Complete original modem firmware and OEM authentication remain unimplemented.

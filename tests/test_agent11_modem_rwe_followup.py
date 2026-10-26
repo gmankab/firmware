@@ -13,8 +13,8 @@ spec.loader.exec_module(mod)
 
 class ExceptionFollowup(unittest.TestCase):
     def test_disjoint_bounds_and_no_implicit_vendor_fill(self):
-        self.assertEqual((mod.FILE_START,mod.FILE_END),(0x39920,0x39ad4))
-        self.assertEqual(mod.FILE_END-mod.FILE_START,436)
+        self.assertEqual((mod.FILE_START,mod.FILE_END),(0x39920,0x39b10))
+        self.assertEqual(mod.FILE_END-mod.FILE_START,496)
         self.assertGreater(mod.FILE_START,0x390dc)
         self.assertEqual(mod.FILE_START-0x390dc,0x844)
 
@@ -22,12 +22,19 @@ class ExceptionFollowup(unittest.TestCase):
         with self.assertRaisesRegex(ValueError,'Wrong modem source revision'):
             mod.verify(bytes(mod.FILE_END),bytes(mod.FILE_END-mod.FILE_START))
 
+    def test_gp_load_normalizer_fails_closed(self):
+        import struct
+        fake=bytearray(mod.FILE_END-mod.FILE_START)
+        struct.pack_into('<I',fake,0x39aec-mod.FILE_START,0x919cc101)
+        with self.assertRaisesRegex(ValueError,'GP-relative'):
+            mod.normalize_hexagon_gp_relative(bytes(fake))
+
     def test_source_assembler_and_optional_byte_reference(self):
         mc=os.environ.get('AGENT11_LLVM_MC')
         if not mc:self.skipTest('Set AGENT11_LLVM_MC for Hexagon source assembly test')
         source=SCRIPT.parents[1]/'crates/firmware-tools/src/devices/xiaomi_nabu/modem_rwe_exception_followup.s'
         data=mod.assemble(Path(mc),source)
-        self.assertEqual(len(data),436)
+        self.assertEqual(len(data),496)
         word=lambda off:int.from_bytes(data[off-mod.FILE_START:off-mod.FILE_START+4],'little')
         self.assertEqual(word(0x39920),0x9200c012) # memw_locked(r0)
         self.assertEqual(word(0x39930),0xa0a0d200) # checked memw_locked(r0,p0)=r18
@@ -52,6 +59,12 @@ class ExceptionFollowup(unittest.TestCase):
                         (0x39ac0,9,2),(0x39ac4,2,3)]:
             self.assertEqual(word(a),0x6e800000 | (sys<<16) | (3<<14) | r)
         self.assertEqual(word(0x39ad0),0x529fc000)  # independent jumpr lr packet
+        # SGP0 swap, NMI dispatch, and V60 GP-relative load class.
+        self.assertEqual(word(0x39ad4),0x65000000|(9<<16)|(3<<14))
+        self.assertEqual(word(0x39ae0),0x65000000|(9<<16)|(3<<14))
+        self.assertEqual(word(0x39aec)>>16,0x4980)
+        self.assertEqual(word(0x39b08),0x64000000|((0x60|1)<<16)|(3<<14)|0x40)
+        self.assertEqual(word(0x39b0c),0x529fc000)
         ref=os.environ.get('AGENT11_MODEM_MBN')
         if ref:mod.verify(Path(ref).read_bytes(),data)
 
