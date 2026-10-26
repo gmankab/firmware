@@ -880,3 +880,16 @@ python3 -S tools/adsp-agent20-rwe-next-flag-helpers.py \
   --llvm-mc "$HEXAGON_LLVM_MC" --reference "$NABU_ADSP_REFERENCE" \
   --output-dir /tmp/adsp-flag-helpers
 ```
+
+## Checkpoint 46: partial global codec-controller startup `[0x11450,0x114a8)`
+
+- **88 source-built Hexagon V66 executable bytes** at ADSP file `[0x11450,0x114a8)` (physical `[0x8be0e450,0x8be0e4a8)`) match the pinned `adsp.mbn` byte-for-byte, including independently preserved packet extenders and the loader's first controller global-state accesses. Source: `tools/adsp-agent20-rwe-next-controller-global-startup.S`, verified emitter `.py`, focused tests.
+- LLVM6 source-assembles **19** ordinary instruction words. The three V66-only forms `CSwi(R0)`, `ciad(R0)` and `IMASK=R1` have **checked named/operand encoders** replacing exact LLVM6 `nop` sentinels. Rizin confirms all three original encodings, and alternative-register experiments revealed that the `CSwi/ciad` register selectors are **not linear**. Encoders intentionally reject every non-R0 cache command rather than inventing a register mapping; IMASK uses the existing independent named system-register write fields.
+- Entire fragment length is 22 words, with no copied reference opcode bytes, zero fill or DSP data counted as source. The partial function continues at `0x114a8`; **do not claim a complete startup function or OEM-signed firmware**.
+- New cumulative independently rebuilt ADSP RWE executable code is **6,336 bytes in eleven disjoint intervals**. This is a portable branch rooted in the prior Agent 04 history, not the unavailable checkpoint-50 integrated repository.
+
+```sh
+python3 -S tools/adsp-agent20-rwe-next-controller-global-startup.py \
+  --llvm-mc "$HEXAGON_LLVM_MC" --reference "$NABU_ADSP_REFERENCE" \
+  --output /tmp/adsp-controller-global-startup-88.bin
+```

@@ -51,6 +51,33 @@ class SystemRegister(IntEnum):
     S63 = 63
     S60 = 60
     S35 = 35
+    IMASK = 10  # architectural interrupt mask system register
+
+
+class ControllerAddressCommand(IntEnum):
+    """Hexagon V66 privileged cache-control operations taking one GPR.
+
+    The controller startup reference contains only the **R0** form.
+    Other encoded register selectors are not linear because they overlap
+    subop fields (e.g. adding 1<<16 decodes as R2, not R1). Reject them
+    rather than guessing and producing a plausible but wrong instruction.
+    LLVM6 cannot assemble these V66 privileged mnemonics.
+    """
+    CACHE_SOFTWARE_INTERRUPT = 0x6400C020  # CSwi(Rs)
+    CACHE_INVALIDATE_ADDRESS = 0x6400C060  # ciad(Rs)
+
+
+def controller_address_command(command: ControllerAddressCommand, source: int) -> int:
+    """Build single-operation packet for one V66 controller cache command.
+
+    The source uses R0 for CSwi/ciad. No alternative-register form has been
+    independently validated; reject one rather than invent an encoding.
+    """
+    if not isinstance(command, ControllerAddressCommand):
+        raise HexagonEncodingError('Unknown named controller cache command')
+    if gpr(source) != 0:
+        raise HexagonEncodingError('Only the independently checked R0 form is supported')
+    return int(command)
 
 
 class CacheCommand(IntEnum):
