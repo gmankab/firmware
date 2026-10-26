@@ -651,3 +651,10 @@ Original reference: private `map220v-nabu-firmware/venus.mbn`, SHA-256 `9d4af65d
 - New `[0x3aa00,0x3b800)` = **3,584 bytes**, **896 typed A32 instructions**, **zero new data words**. The compiler-like routine populates channel-specific command slots in a stack-backed matrix, repeatedly referencing the pre-existing explicit diagnostic address table. No vendor instruction arrays or unknown data fillers are imported.
 - Direct reference check of the full generated region and independent Clang/LLVM A32 assembly of all 3,584 new bytes pass with zero mismatches. **264 Rust and 13 Python tests passed**; optimized release build not yet confirmed for this checkpoint.
 - The main controller initializer remains incomplete after `0x3b800`. Next code starts at runtime `0x3b800`; exclusive reservation ends at `0x40000`. Byte agreement is not high-level semantics or OEM authentication.
+
+## Checkpoint 94 — matrix writer and second controller diagnostic pool
+
+- Complete typed A32 region `[0x21c78,0x3c53c)` = **108,740 reference-identical bytes**, MBN file `[0x25c78,0x4053c)`.
+- New partial controller initialization interval `[0x3b800,0x3c53c)` = **3,388 bytes**, comprising **692 explicitly typed A32 instructions** `[0x3b800,0x3c2d0)` and **155 diagnostic data-pointer words** `[0x3c2d0,0x3c53c)`. The code branches over this literal pool to resume at its end. No plausible-looking vendor strings are treated as instructions.
+- Full Rust emitter matched the pinned `venus.mbn` reference with zero differences; independent LLVM/Clang reassembly of all 3,388 new bytes also matched. **265 Rust and 13 Python tests passed**. Release build not confirmed.
+- The large stream initializer is still incomplete; its executable instructions resume at `0x3c53c`. This represents byte-accurate public A32 operand encoding and OEM data addresses, not high-level semantic reconstruction, authentication or flashability.
