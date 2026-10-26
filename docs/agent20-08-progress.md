@@ -355,3 +355,20 @@ buffer trimmer and the large adjacent routine remain unreconstructed. The
 firmware is not independently rebuilt as a complete executable or signed
 image. Full reference revision SHA-256 remains pinned to
 `4b579e5dc1333d634e5bdc93f3314e357e0e30dab7140833f6cc7aef086b1c1e`.
+
+**Checkpoint 24 — three adjacent callback and controller-state helpers:**
+Rebuilt the original 40-byte callback-vector table walker
+`[0x3ec1c,0x3ec44)`, 32-byte state-flush routine
+`[0x3ec44,0x3ec64)`, and 16-byte controller tail-jump adapter
+`[0x3ec64,0x3ec74)`. These form **88 contiguous executable bytes**
+(three source-authored packetized Hexagon functions, not padding). The
+walker iterates a null-terminated callback vector and invokes callbacks
+indirectly; the flush saves/restores `r16:17`, calls a platform state
+query, and writes a controller byte. Exact source reassembly required
+`{call; immext; r0=...}` and `:mem_noshuf` for the original packet
+ordering. The 16-byte tail forwards a handle to a PC-relative platform
+function. Every byte matches the pinned ADSP reference; no proprietary
+opcode values are copied into source. **Cumulative verified executable
+coverage: 3,184 bytes across 50 disjoint inventory entries**, up from
+3,096 bytes and 47 entries. The two NOPs at `[0x3d0c8,0x3d0d0)` and
+three NOPs at `[0x3ec74,0x3ec80)` remain excluded from authored code.

@@ -76,6 +76,9 @@ FRAGMENTS = {
     'controller-param-56': (TOOLS / 'adsp-late-controller-param-56.S', 0x3ee90, 0x1C),
     'controller-param-48': (TOOLS / 'adsp-late-controller-param-48.S', 0x3eeac, 0x1C),
     'controller-param-112': (TOOLS / 'adsp-late-controller-param-112.S', 0x3eec8, 0x1C),
+    'callback-table-walk': (TOOLS / 'adsp-late-callback-table-walk.S', 0x3EC1C, 0x28),
+    'controller-state-flush': (TOOLS / 'adsp-late-controller-state-flush.S', 0x3EC44, 0x20),
+    'controller-state-tail': (TOOLS / 'adsp-late-controller-state-tail.S', 0x3EC64, 0x10),
 }
 
 class LateAdspError(ValueError):
