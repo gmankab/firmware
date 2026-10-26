@@ -36,6 +36,7 @@ FRAGMENTS = (
     ('compound-branch', SOURCE_DIR / 'agent13-runtime-controller-init-branch-packet.S', 0x5cf8, 0x08),
     ('compound-memory', SOURCE_DIR / 'agent13-runtime-controller-init-memory-packet.S', 0x5d00, 0x08),
     ('controller-initialize-stage2', SOURCE_DIR / 'agent13-runtime-controller-init-stage2.S', 0x5d08, 0xe8),
+    ('controller-initialize-stage3-flags', SOURCE_DIR / 'agent13-runtime-controller-init-stage3-part1.S', 0x5df0, 0xb4),
 )
 
 
@@ -147,7 +148,7 @@ def main():
         parent.check_reference(fragment,args.reference.read_bytes(),runtime_offset=START)
     args.output.parent.mkdir(parents=True,exist_ok=True)
     args.output.write_bytes(fragment)
-    report={'agent':13,'checkpoint':'30-disjoint',
+    report={'agent':13,'checkpoint':'31-disjoint',
             'source_base':'Agent 13 checkpoint 16 (7c730bf); checkpoint25 source unavailable',
             'is_checkpoint25_descendant':False,
             'file_start':FILE_BASE+START,'file_end':FILE_BASE+end,

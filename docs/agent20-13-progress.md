@@ -303,3 +303,12 @@ python3 tools/build-wlanmdsp-agent13.py /tmp/wlan-prefix-through-27a0.bin \
   next missing packet is at `0x45df0`. This is **not** a checkpoint25
   descendant and must not be summed into the earlier full WLAN prefix as
   contiguous without the absent checkpoint 17–25 source history.
+
+## Checkpoint 31 (disjoint) — controller stream flag packet groups
+
+- Added **180 source-assembled Hexagon bytes** at file `[0x45df0,0x45ea4)` for controller state and format flag packing. Original WLAN vaddr interval `[0xb0005df0,0xb0005ea4)`.
+- Two packets require `:mem_noshuf` to preserve the original dependent load/store order. An alternative source operand order preserves the predicated store packet at file `0x45e0c`.
+- Numeric branch targets from decoder output were converted to **packet-relative displacements**, not copied machine-code words: the output assembler matches the original on every byte.
+- Current **disjoint continuation** `[0x4568c,0x45ea4)` is **2,072 independently source-assembled instruction bytes**, zero OEM opcode arrays and zero linker fill in this new continuation. SHA-256 `b410164de7c9f2561c1409f35e589dbb751931cbc4712b8781aa3484f8f7af4b`.
+- Private reference SHA-256 `87c2c7bb1fe97eaf007a947832feba0898644b4d6626ac8ef49d8b94dd82604b` was verified; source-only builder accepts the reference only for comparison. All 160 Rust and 33 executed Python tests passed (2 optional skips), and the offline release build passed.
+- This function began at file `0x45c20` and continues after `0x45ea4`. Checkpoint 25 remains unavailable in this repository's Git ancestry; do **not** claim that `[0x40000,0x45ea4)` is a reconstructed contiguous prefix. Next missing packet starts file `0x45ea4`. Original firmware is not included in Git or the bundle.
