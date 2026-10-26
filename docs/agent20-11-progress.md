@@ -206,3 +206,12 @@ python3 -m unittest discover -s tests -p 'test_*.py'
 - Standalone `tools/assemble-agent11-rwe-exception.py` rejects a wrong pinned reference or unexpected output size. `tests/test_agent11_modem_rwe_exception.py` has three focused tests including an opt-in LLVM6/real-reference check.
 - This interval is **disjoint** from both first executable load `[0x3000,0x5020)`, RWE controller `[0xcb00,0xcc1c)` and the existing exception vectors `[0x38000,0x38100)`. Do **not** count the `[0x38100,0x38108)` two zero words as executable. The following exception recovery handlers at/after `0x38178` are not reconstructed at this checkpoint.
 - The project remains a partial modem source reconstruction, not a newly signed or flashable MBN. This branch is rooted in Agent 06's final `d9f7e92`, not checkpoint 50; hand back a portable patch and original merge ancestry.
+
+## Checkpoint 24 — Exception class traps, RTE, and grouped NOP alignment
+
+- The same source-generated RWE exception continuation is extended from 112 to **248 exact bytes** at modem file `[0x38108,0x38200)`, virtual `[0xc0840108,0xc0840200)`, physical `[0x8e040108,0x8e040200)`.
+- Added `[0x38178,0x38200)` = **136 source-generated executable bytes**: three source-authored exception-class descriptors (14, 13, 4), their controller C0 status writes and jumps to the common message publisher at file `0x3a1dc`, one checked architectural RTE at `0x381b8`, and link-register return at `0x381bc`. Eight NOPs at `[0x381e0,0x38200)` are **original ISA NOP instructions**, not artificial padding.
+- LLVM6 emits the exact original packet arrangement only when the branch at `0x381dc` shares a packet with two of the NOPs; the source explicitly models this packet, with no after-the-fact source-word replacement.
+- The generated `[0x38108,0x38200)` has SHA-256 `9f4c1365f2a89e5b68ded976c2f874993a43eea48cd59901c3cca3997740a00c` and **0 differing bytes** against the pinned original `modem.mbn` SHA-256 `6f5cb32bc10e41abb40938d185805e788f5637a41d3ebcef278e4e169fc36782`.
+- Standalone verifier rejects malformed reference or incorrect RTE, branch/packet-end and NOP parse fields. `cargo test --workspace --offline --locked` passed 169 Rust tests; `python3 -m unittest discover -s tests -p 'test_*.py'` passed 38 cases. See the optional LLVM6 test environment variables `AGENT11_LLVM_MC` and `AGENT11_MODEM_MBN`.
+- Next disjoint protected interrupt handler starts at file `0x38200` and is **not yet rebuilt**. Code here remains a partial device executable, not an OEM-authenticated complete MBN.

@@ -54,3 +54,56 @@ MODEM_SYS_READ 23,52,1
 { jump ##modem_rwe_exception_other }
 .set modem_rwe_exception_fault, agent11_modem_exception_dispatch_entry + (0x39f8c-0x38108)
 { jump ##modem_rwe_exception_fault }
+// Three dedicated trap-mapping handlers. A C-register write updates the
+// trace controller, a tagged exception descriptor records the error class,
+// then the active interrupt handler is notified via a PC-relative branch.
+.macro MODEM_CTRL_WRITE control, source, marker=3
+    .if (\control < 0) || (\control > 31) || (\source < 0) || (\source > 31)
+      .error "invalid control-register write"
+    .endif
+    .if (\marker < 1) || (\marker > 3)
+      .error "invalid Hexagon packet parse field"
+    .endif
+    .word (0x65000000 | (\source << 16) | (\marker << 14) | \control)
+.endm
+.macro MODEM_RWE_RETURN_FROM_EXCEPTION packet_mark=3
+    .if (\packet_mark != 3)
+      .error "standalone RTE must end the packet"
+    .endif
+    .word (0x57e00000 | (\packet_mark << 14))
+.endm
+.globl agent11_modem_rwe_exception_classes
+agent11_modem_rwe_exception_classes:
+MODEM_CTRL_WRITE 0,9,3
+{
+    r0 = #14
+    r1 = #0
+    memd(r9+#56) = r1:0
+}
+MODEM_CTRL_WRITE 0,9,1
+{ r0 |= asl(r1,#8) }
+.set modem_rwe_exception_publisher, agent11_modem_exception_dispatch_entry + (0x3a1dc - 0x38108)
+{ jump ##modem_rwe_exception_publisher }
+MODEM_CTRL_WRITE 0,9,3
+{
+    r0 = #13
+    r1 = #0
+    memd(r9+#56) = r1:0
+}
+MODEM_CTRL_WRITE 0,9,1
+{ r0 |= asl(r1,#8) }
+{ jump ##modem_rwe_exception_publisher }
+MODEM_RWE_RETURN_FROM_EXCEPTION 3
+{ jumpr lr }
+MODEM_CTRL_WRITE 0,9,3
+{
+    r0 = #4
+    r1 = #0
+    memd(r9+#56) = r1:0
+}
+MODEM_CTRL_WRITE 0,9,1
+{ r0 |= asl(r1,#8) }
+{ jump ##modem_rwe_exception_publisher; nop; nop }
+// Source-level packet NOPs: one two-word packet and one four-word packet.
+{ nop; nop }
+{ nop; nop; nop; nop }

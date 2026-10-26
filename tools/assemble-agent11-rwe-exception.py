@@ -16,7 +16,7 @@ import subprocess
 import tempfile
 
 FILE_START = 0x38108
-FILE_END = 0x38178
+FILE_END = 0x38200
 VIRTUAL_START = 0xc0840108
 PHYSICAL_START = 0x8e040108
 PINNED_SHA256 = '6f5cb32bc10e41abb40938d185805e788f5637a41d3ebcef278e4e169fc36782'
@@ -37,6 +37,20 @@ def assemble(llvm_mc: Path, source: Path) -> bytes:
             raise ValueError(f'Unexpected exception-entry size {len(data)}, expected {expected}')
         if data[:4] != bytes.fromhex('00c00058'):
             raise ValueError('Exception trap must start with a self-loop standalone branch')
+        def word(address: int) -> int:
+            at=address-FILE_START
+            return int.from_bytes(data[at:at+4], 'little')
+        if word(0x381b8) != 0x57e0c000:
+            raise ValueError('Expected architectural standalone return-from-exception opcode')
+        if word(0x381bc) != 0x529fc000:
+            raise ValueError('Expected standalone link-register return after RTE')
+        expected_nops=[0x7f004000, 0x7f00c000,
+                       0x7f004000, 0x7f00c000,
+                       0x7f004000, 0x7f004000, 0x7f004000, 0x7f00c000]
+        if [word(at) for at in range(0x381e0,0x38200,4)] != expected_nops:
+            raise ValueError('Exception NOP packets have incorrect grouping')
+        if word(0x381dc)&(3<<14)!=(1<<14):
+            raise ValueError('Last branch must continue into its NOP packet')
         return data
 
 
