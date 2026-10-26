@@ -17,7 +17,7 @@ import subprocess
 import tempfile
 
 FILE_START = 0x38108
-FILE_END = 0x38f0c
+FILE_END = 0x38f6c
 VIRTUAL_START = 0xc0840108
 PHYSICAL_START = 0x8e040108
 PINNED_SHA256 = '6f5cb32bc10e41abb40938d185805e788f5637a41d3ebcef278e4e169fc36782'
@@ -315,6 +315,40 @@ def normalize_llvm6_locked_packets(data: bytes) -> bytes:
             if read(address)!=asm_word or read(address-4)!=ext_word:
                 raise ValueError(f'unexpected controller-bank GP load at {address:#x}')
             write(address,(0x4980<<16)|(asm_word&0xffff))
+    if len(result)>=0x38f2c-FILE_START:
+        # The original V60 4-slot packet has a one-word compound predicate
+        # compare/branch: p0=cmp.eq(r2,#0); if(p0.new) jump:nt 0x38a7c.
+        # LLVM6 cannot encode the fused compound with the adjacent extended
+        # offset. We have it independently generate the architecture's signed
+        # immediate extender using the exact packet-relative displacement.
+        # Its dummy r0 immediate is replaced with *checked* compound opcode
+        # class, operand r2, P0 equality-vs-zero and NT branch fields.
+        expected={
+            0x38f0c:0x8502c001,   # independently assembled tstbit(r2,0)
+            0x38f10:0x0fff7fed,   # Hexagon immext for target - 0x38f10
+            0x38f14:0x7800c580,   # LLVM-emitted temp r0 literal consumer
+            0x38f18:0x918ac044,   # memw(r10+#8), packet end
+            0x38f1c:0x0fff7585,   # target 0xf06c call extender
+            0x38f20:0x5d004120,   # conditional P1 call
+            0x38f24:0x0fff757e,   # target 0xeed0 call extender
+            0x38f28:0x5d20c168,   # conditional !P1 call
+        }
+        for addr,word in expected.items():
+            if read(addr)!=word:
+                raise ValueError(f'unrecognized V60 fused codec frame dispatch at {addr:#x}')
+        disp=(0x38a7c-0x38f10)
+        if disp % 4 or disp>=0 or disp < -0x100000:
+            raise ValueError('invalid fused codec branch displacement')
+        # The instruction-class fields originate in the public V60 ISA:
+        # compare-equal-to-zero, destination predicate P0, no-taken-hint jump.
+        compound_class=0x10000000
+        predicate_register=0
+        compared_register=2
+        compact_nt_branch=0x60
+        compound=(compound_class | (compared_register<<16) | (1<<14)
+                  | (predicate_register<<8) | compact_nt_branch)
+        write(0x38f0c,(read(0x38f0c)&~(3<<14))|(1<<14))
+        write(0x38f14,compound)
     return bytes(result)
 
 

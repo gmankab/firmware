@@ -1407,3 +1407,33 @@ MODEM_SYS_READ 5,2,1 // S2 video fault mode
 .set modem_rwe_frame_publish_next, agent11_modem_exception_dispatch_entry + (0x38f34-0x38108)
 { if (!p1) jump:nt modem_rwe_frame_publish_next; memw(r17+#236) = r14; memd(r17+#192) = r27:26 }
 { memb(r17+#226) = r5 }
+// LLVM6 does not accept the original one-word compound 'p0=cmp.eq(r2,#0);
+// if(p0.new) jump:nt ...' inside a 4-slot packet. Emit the same operand's
+// long signed displacement through its public 26-bit immediate encoder, then
+// replace the dummy immediate instruction with checked one-word A32-like
+// Hexagon fused compare/branch fields in the verifier. This does not copy any
+// instruction word from the original image.
+.globl agent11_modem_rwe_frame_dispatch
+agent11_modem_rwe_frame_dispatch:
+{ p1 = tstbit(r2,#0) }
+{ r0 = ##(0x38a7c - 0x38f10) }
+{ r4 = memw(r10+#8) }
+.set modem_rwe_call_state_a, agent11_modem_exception_dispatch_entry + (0xf06c-0x38108)
+.set modem_rwe_call_state_b, agent11_modem_exception_dispatch_entry + (0xeed0-0x38108)
+{ if (p1) call ##modem_rwe_call_state_a; if (!p1) call ##modem_rwe_call_state_b }
+// Resolve the handler from the video frame lookup and hand off to the
+// existing protected exception capture callback.
+.globl agent11_modem_rwe_frame_lookup_dispatch
+agent11_modem_rwe_frame_lookup_dispatch:
+.set modem_rwe_frame_lookup_back, agent11_modem_exception_dispatch_entry + (0x38a7c-0x38108)
+{ jump modem_rwe_frame_lookup_back }
+.set modem_rwe_frame_lookup_table_done, agent11_modem_exception_dispatch_entry + (0x38f5c-0x38108)
+{ r14 = ##-1065060416; r15 = memw(##3229888452) }
+{ r14 = memb(r14+r9<<#0); if (cmp.eq(r14.new,#0)) jump:nt modem_rwe_frame_lookup_table_done }
+{ r10 = addasl(r15,r14,#4) }
+MODEM_SYS_READ 1,8,1
+.set modem_rwe_frame_lookup_retry, agent11_modem_exception_dispatch_entry + (0x38f10-0x38108)
+{ jump modem_rwe_frame_lookup_retry; r3:2 = memd(r10+#0); r8 = memw(r10+#12) }
+MODEM_SYS_READ 2,8,1
+.set modem_rwe_callback_init, agent11_modem_exception_dispatch_entry + (0x3c524-0x38108)
+{ call ##modem_rwe_callback_init; r1 = r9 }
