@@ -1095,3 +1095,16 @@ python3 -S tools/adsp-agent20-rwe-next-controller-slot-release.py \
   --llvm-mc "$HEXAGON_LLVM_MC" --reference "$NABU_ADSP_REFERENCE" \
   --output /tmp/adsp-slot-release-224.bin
 ```
+
+## Checkpoint 62: four complete ADSP controller-slot helper functions `[0x11d68,0x11e6c)`
+
+- Added **260 byte-identical source-assembled Hexagon V66 bytes** (65 machine words), file `[0x11d68,0x11e6c)`, physical `[0x8be0ed68,0x8be0ee6c)`, SHA-256 `47853283eede3581b73c8f6ec55314e319b0a32710ef64752499cf8a485f6b18`. All 65 words are generated natively by LLVM6 from mnemonic packet source; **no** privately sourced opcode values or privileged placeholder substitutions are required.
+- Four separate functions: controller slot query (40 bytes), mark slot inactive (104), mark slot active (108), and unsupported-index sentinel (8). Packet grouping preserves a load and `dealloc_return` within the same original packet, as well as paired GP-based status updates and calls.
+- Source-built registration, release and four helpers now combine to **716 contiguous executable bytes** `[0x11ba0,0x11e6c)`; with the preceding table initializer, the controller region is **908 contiguous bytes** `[0x11ae0,0x11e6c)`, separately validated against the original reference.
+- Total independently assembled ADSP RWE executable is **8,528 bytes across fifteen disjoint intervals** (prior 8,268 + 260). Next function begins at `0x11e6c`. Controller strings, linker fill and unrelated executable sections remain incomplete; the result is not an OEM-signed firmware.
+
+```sh
+python3 -S tools/adsp-agent20-rwe-next-controller-slot-helpers.py \
+  --llvm-mc "$HEXAGON_LLVM_MC" --reference "$NABU_ADSP_REFERENCE" \
+  --output /tmp/adsp-slot-helpers-260.bin
+```
