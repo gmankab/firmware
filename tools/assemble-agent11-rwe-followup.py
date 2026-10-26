@@ -15,7 +15,7 @@ import tempfile
 from pathlib import Path
 
 FILE_START=0x39920
-FILE_END=0x39b10
+FILE_END=0x39b70
 PINNED_SHA256='6f5cb32bc10e41abb40938d185805e788f5637a41d3ebcef278e4e169fc36782'
 
 
@@ -28,16 +28,23 @@ def normalize_hexagon_gp_relative(data: bytes) -> bytes:
     a copied instruction word from the private firmware. The replacement high
     16-bit class is public V60 Hexagon GP-relative load encoding.
     """
-    if len(data) < (0x39b10-FILE_START):
-        return data
-    offset=0x39aec-FILE_START
-    before=struct.unpack_from('<I',data,offset)[0]
-    extender=struct.unpack_from('<I',data,offset-4)[0]
-    if before!=0x919cc101 or extender!=0x0c085164:
-        raise ValueError('LLVM6 GP-relative controller load class/operands differ')
+    # Every load below is emitted by LLVM6 using the exact source operand
+    # extender and register. V60 GP-relative memory is a distinct ISA class.
+    # Each mapping is guarded by the generic assembler's register/marker word.
+    forms=((0x39aec,0x919cc101,0x0c085164),  # R1 = memw(GP+##offset)
+           (0x39b20,0x919cc105,0x0c085164)) # R5 = memw(GP+##offset)
     repaired=bytearray(data)
     V60_GP_RELATIVE_WORD_LOAD_CLASS=0x4980
-    struct.pack_into('<I',repaired,offset,(V60_GP_RELATIVE_WORD_LOAD_CLASS<<16)|(before&0xffff))
+    for address,expected,extword in forms:
+        offset=address-FILE_START
+        if len(repaired)<offset+4:
+            continue
+        before=struct.unpack_from('<I',repaired,offset)[0]
+        extender=struct.unpack_from('<I',repaired,offset-4)[0]
+        if before!=expected or extender!=extword:
+            raise ValueError(f'LLVM6 GP-relative controller load class/operands differ at {address:#x}')
+        struct.pack_into('<I',repaired,offset,
+            (V60_GP_RELATIVE_WORD_LOAD_CLASS<<16)|(before&0xffff))
     return bytes(repaired)
 
 

@@ -197,3 +197,27 @@ agent11_modem_rwe_raise_controller_nmi:
 { memw(r2+#0) = r0 }
 MODEM_FU_NMI 1,3
 { jumpr lr }
+// Nested hardware-loop scan of the protected per-thread interrupt bit-mask.
+// Loop0 scans four 32-bit mask lanes while Loop1 bounds up to 1000 retries.
+.globl agent11_modem_rwe_scan_protected_masks
+agent11_modem_rwe_scan_protected_masks:
+{ r1 = ##-1065081900; r4 = #1000 }
+{ r5 = memw(r28+##-1065068280) }
+{ loop1(agent11_modem_rwe_mask_loop_setup,r4) }
+agent11_modem_rwe_mask_loop_setup:
+{ loop0(agent11_modem_rwe_mask_lane,#4) }
+agent11_modem_rwe_mask_lane:
+{ r3 = lc0; r6 = #0; r4 = #0 }
+{ r7 = lc1; r3 = sub(#4,r3) }
+{ p0 = cmp.eq(r3,r0); if (p0.new) jump:nt agent11_modem_rwe_mask_break }
+{ r6 = lsl(#1,r3) }
+{ r6 = and(r6,r5); if (cmp.eq(r6.new,#0)) jump:nt agent11_modem_rwe_mask_break }
+{ r4 = add(r4,#1) }
+{ p0 = cmp.eq(r4,r7); if (p0.new) jump:nt agent11_modem_rwe_mask_break }
+{ r2 = memw_locked(r1) }
+agent11_modem_rwe_mask_retry:
+{ p0 = tstbit(r2,r3); if (!p0.new) jump:t agent11_modem_rwe_mask_retry_previous }
+agent11_modem_rwe_mask_break:
+{ nop; nop; nop }:endloop0:endloop1
+{ jumpr lr }
+.set agent11_modem_rwe_mask_retry_previous,agent11_modem_rwe_mask_retry - 0xc
