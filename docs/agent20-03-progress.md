@@ -507,3 +507,10 @@ Original reference: private `map220v-nabu-firmware/venus.mbn`, SHA-256 `9d4af65d
 - Handles controller stream-format validation, three indirect callback dispatcher helpers, stale-packet cleanup and stream response construction. Data words are distinct from the ARM instruction stream.
 - Generated fragment matches pinned Venus MBN exactly; independent Clang/LLVM assembler confirms all 1,280 new bytes without mismatch. **241 Rust tests**, **13 Python tests** pass. Release build not verified for this increment.
 - Full fragment SHA-256 `0b3640e6666f748dcb850c4ff3d76632ef9406cc702cf5e1e0baba9eb101cfec`. The next routine begins at runtime `0x34ca0` below our exclusive upper limit `0x40000`.
+
+## Checkpoint 76 — publish codec stream update and controller callback
+
+- Contiguous typed ARM32 `[0x21c78,0x34fac)` = **78,644 exact bytes**, new `[0x34ca0,0x34fac)` = **780 bytes** comprising **188 A32 instructions** and seven controller format/diagnostic data words at `[0x34f90,0x34fac)`.
+- Constructs codec output commands, validates active stream state, applies controller register flag updates and executes the optional callback. The register-postindexed memory operation is reconstructed using a checked public ARM32 encoder, not a copied opcode literal.
+- Full generated region equals the original Venus reference, and independent Clang/LLVM reassembly confirms all 780 new bytes. **242 Rust tests** and **13 Python tests** pass. Release build not verified for this checkpoint.
+- Full fragment SHA-256 `c68f9439ae5f8e281fbaa709fefd4c0d3f90760e031ab3b2d7e6c88fbc826a4d`. Next runtime routine begins at `0x34fac`; byte identity does not establish high-level semantics or OEM authentication.
