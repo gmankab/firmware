@@ -44,6 +44,41 @@ class ModemLateTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError,'16 source-assembled bytes'):
             agent12.restore_aux_large_controller_phase13_gap_packet(bytes(12))
 
+    def test_phase21_joins_source_zero_and_register_pair_packet(self):
+        self.assertEqual((agent12.AUX_LARGE_CONTROLLER_PHASE21_START,
+                          agent12.AUX_LARGE_CONTROLLER_PHASE21_END),
+                         (0x448068,0x4480b8))
+        source=agent12.AUX_LARGE_CONTROLLER_PHASE21_SOURCE.read_text()
+        for raw in ('.word','.byte','.incbin'):
+            self.assertNotIn(raw,source)
+        self.assertIn('r1:0 = combine(#0,r20)',source)
+        self.assertIn('if (p0.new) r2 = memw(r29+#84)',source)
+        self.assertIn('call platform_report',source)
+        w=[0x7800c000]*20
+        i=0x28//4
+        w[i]=0x78000000|agent12.END_MARKER|2
+        w[i+1]=0x5d000000|0x983
+        w[i+2]=0x50000000|agent12.END_MARKER
+        packed=struct.pack('<20I',*w)
+        actual=struct.unpack('<20I',agent12.restore_aux_large_controller_phase21_frame_packet(packed))
+        self.assertEqual(actual[i],0x78000000|agent12.CONTINUE_MARKER|2)
+        self.assertEqual(actual[i+1:],tuple(w[i+1:]))
+        for position,corrupt,error in [
+            (i,0x7400c002,'opcode/operand'),
+            (i,0x7800c003,'opcode/operand'),
+            (i+1,0x78000983,'opcode/operands'),
+            (i+1,0x5d000982,'opcode/operands'),
+            (i+2,0x7800c000,'opcode/operands'),
+            (i,0x78004002,'packet markers'),
+            (i+2,0x50004000,'packet markers'),
+        ]:
+            damaged=w.copy(); damaged[position]=corrupt
+            with self.assertRaisesRegex(ValueError,error):
+                agent12.restore_aux_large_controller_phase21_frame_packet(
+                    struct.pack('<20I',*damaged))
+        with self.assertRaisesRegex(ValueError,'80 source-assembled bytes'):
+            agent12.restore_aux_large_controller_phase21_frame_packet(packed[:-4])
+
     def test_phase20_compound_branch_uses_symbolic_displacement(self):
         self.assertEqual((agent12.AUX_LARGE_CONTROLLER_PHASE20_START,
                           agent12.AUX_LARGE_CONTROLLER_PHASE20_END),
@@ -1243,8 +1278,8 @@ class ModemLateTests(unittest.TestCase):
         a = agent12.output_fragments(Path(os.environ["NABU_HEXAGON_LLVM_MC"]))
         self.assertEqual({k: len(v) for k, v in a.items()},
                          {0x7C000:160, 0x7C2EC:452,
-                          0x446000:agent12.AUX_LARGE_CONTROLLER_PHASE20_END-agent12.AUX_START})
-        self.assertEqual(sum(map(len,a.values())),agent12.AUX_LARGE_CONTROLLER_PHASE20_END - agent12.AUX_START + 612)
+                          0x446000:agent12.AUX_LARGE_CONTROLLER_PHASE21_END-agent12.AUX_START})
+        self.assertEqual(sum(map(len,a.values())),agent12.AUX_LARGE_CONTROLLER_PHASE21_END - agent12.AUX_START + 612)
         self.assertEqual(a[0x446000][0x0d8:0x200],agent12.emit_auxiliary_elf_symbols())
         self.assertEqual(a[0x446000][0x254:0x260],bytes(12))
         self.assertEqual(a[0x446000][0x1448:0x1460],

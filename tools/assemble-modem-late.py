@@ -63,6 +63,7 @@ AUX_LARGE_CONTROLLER_PHASE18_SOURCE = ROOT / "crates/firmware-tools/src/devices/
 AUX_LARGE_CONTROLLER_PHASE19A_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_aux_large_controller_phase19a.s"
 AUX_LARGE_CONTROLLER_PHASE19B_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_aux_large_controller_phase19b.s"
 AUX_LARGE_CONTROLLER_PHASE20_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_aux_large_controller_phase20.s"
+AUX_LARGE_CONTROLLER_PHASE21_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_aux_large_controller_phase21.s"
 AUX_DISPATCH_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_aux_dispatch_helpers.s"
 AUX_TYPE_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_aux_type_config.s"
 AUX_NOTIFY_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_aux_controller_notify.s"
@@ -214,6 +215,8 @@ AUX_LARGE_CONTROLLER_PHASE19B_START = AUX_LARGE_CONTROLLER_PHASE19A_END
 AUX_LARGE_CONTROLLER_PHASE19B_END = 0x44800C
 AUX_LARGE_CONTROLLER_PHASE20_START = AUX_LARGE_CONTROLLER_PHASE19B_END
 AUX_LARGE_CONTROLLER_PHASE20_END = 0x448068
+AUX_LARGE_CONTROLLER_PHASE21_START = AUX_LARGE_CONTROLLER_PHASE20_END
+AUX_LARGE_CONTROLLER_PHASE21_END = 0x4480B8
 MARKER_MASK = 3 << 14
 CONTINUE_MARKER = 1 << 14
 END_MARKER = 3 << 14
@@ -1751,6 +1754,33 @@ def restore_aux_large_controller_phase20_branch(assembled: bytes) -> bytes:
     return struct.pack('<23I',*words)
 
 
+def restore_aux_large_controller_phase21_frame_packet(assembled: bytes) -> bytes:
+    """Join Hexagon r2 zero with source-assembled combine/load duplex.
+
+    Hexagon source intentionally keeps the immediate-zero and following
+    register-pair/memory-load in separate LLVM6 bundles to avoid an unwanted
+    scalar reissue. The target bundles them by clearing only the first
+    instruction's end-of-packet marker. Validate exact register operands and
+    ISA classes; never substitute reference opcode words.
+    """
+    n=AUX_LARGE_CONTROLLER_PHASE21_END-AUX_LARGE_CONTROLLER_PHASE21_START
+    if len(assembled)!=n:
+        raise ValueError(f"phase21 frame requires {n} source-assembled bytes")
+    words=list(struct.unpack('<20I',assembled))
+    i=0x28//4
+    zero,combine,mem=words[i:i+3]
+    if zero>>24!=0x78 or (zero&0x3fff)!=2:
+        raise ValueError("phase21 zero-register opcode/operand changed")
+    if combine>>24!=0x5d or (combine&0x3fff)!=0x983:
+        raise ValueError("phase21 register-pair combine opcode/operands changed")
+    if mem>>24!=0x50 or (mem&0x3fff)!=0x0000:
+        raise ValueError("phase21 frame-memory load opcode/operands changed")
+    if [w&MARKER_MASK for w in (zero,combine,mem)]!=[END_MARKER,0,END_MARKER]:
+        raise ValueError("phase21 frame packet markers changed")
+    words[i]=(zero&~MARKER_MASK)|CONTINUE_MARKER
+    return struct.pack('<20I',*words)
+
+
 def assemble(llvm_mc: Path, source: Path) -> bytes:
     with tempfile.TemporaryDirectory(prefix="nabu-modem-late-") as tmp:
         obj = Path(tmp) / "late.o"
@@ -1817,6 +1847,8 @@ def output_fragments(llvm_mc: Path) -> dict[int, bytes]:
     aux_large_controller_phase19b=assemble(llvm_mc,AUX_LARGE_CONTROLLER_PHASE19B_SOURCE)
     aux_large_controller_phase20=restore_aux_large_controller_phase20_branch(
         assemble(llvm_mc,AUX_LARGE_CONTROLLER_PHASE20_SOURCE))
+    aux_large_controller_phase21=restore_aux_large_controller_phase21_frame_packet(
+        assemble(llvm_mc,AUX_LARGE_CONTROLLER_PHASE21_SOURCE))
     aux_dispatch = assemble(llvm_mc,AUX_DISPATCH_SOURCE)
     aux_type = restore_aux_type_return_packets(assemble(llvm_mc,AUX_TYPE_SOURCE))
     aux_notify = restore_aux_controller_notify_packets(assemble(llvm_mc,AUX_NOTIFY_SOURCE))
@@ -1888,6 +1920,7 @@ def output_fragments(llvm_mc: Path) -> dict[int, bytes]:
         (aux_large_controller_phase19a,AUX_LARGE_CONTROLLER_PHASE19A_START,AUX_LARGE_CONTROLLER_PHASE19A_END,'large controller callback dispatch'),
         (aux_large_controller_phase19b,AUX_LARGE_CONTROLLER_PHASE19B_START,AUX_LARGE_CONTROLLER_PHASE19B_END,'large controller buffer result'),
         (aux_large_controller_phase20,AUX_LARGE_CONTROLLER_PHASE20_START,AUX_LARGE_CONTROLLER_PHASE20_END,'large controller result diagnostics'),
+        (aux_large_controller_phase21,AUX_LARGE_CONTROLLER_PHASE21_START,AUX_LARGE_CONTROLLER_PHASE21_END,'large controller callback result processing'),
     ]:
         if len(fragment)!=end-start:
             raise ValueError(f"auxiliary {label} source length mismatch")
@@ -1953,7 +1986,8 @@ def output_fragments(llvm_mc: Path) -> dict[int, bytes]:
             AUX_LARGE_CONTROLLER_PHASE17_END==AUX_LARGE_CONTROLLER_PHASE18_START and
             AUX_LARGE_CONTROLLER_PHASE18_END==AUX_LARGE_CONTROLLER_PHASE19A_START and
             AUX_LARGE_CONTROLLER_PHASE19A_END==AUX_LARGE_CONTROLLER_PHASE19B_START and
-            AUX_LARGE_CONTROLLER_PHASE19B_END==AUX_LARGE_CONTROLLER_PHASE20_START):
+            AUX_LARGE_CONTROLLER_PHASE19B_END==AUX_LARGE_CONTROLLER_PHASE20_START and
+            AUX_LARGE_CONTROLLER_PHASE20_END==AUX_LARGE_CONTROLLER_PHASE21_START):
         raise ValueError("controller phase13 gap was silently bridged")
     if AUX_LOOKUP_END!=AUX_REGISTRY_CORE_START or AUX_REGISTRY_CORE_END!=AUX_DISPATCH_START:
         raise ValueError("modem auxiliary registry source intervals have a gap")
@@ -1975,7 +2009,7 @@ def output_fragments(llvm_mc: Path) -> dict[int, bytes]:
                         aux_large_controller_phase15+aux_large_controller_phase16+
                         aux_large_controller_phase17+aux_large_controller_phase18+
                         aux_large_controller_phase19a+aux_large_controller_phase19b+
-                        aux_large_controller_phase20,
+                        aux_large_controller_phase20+aux_large_controller_phase21,
     }
 
 
