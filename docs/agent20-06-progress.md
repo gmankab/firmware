@@ -763,3 +763,16 @@ python3 tools/agent20_06_a32_roundtrip.py /private/venus.mbn 0xa8ea0 0xa92c8 \
   ```
 
 - **251 Rust tests and 13 Python tests passed.** No completed new release build is claimed. Next uncovered VMA `0xc420c`, original file `0xc820c`; work remains provisional from old Agent 03, not checkpoint 50. Neither a function-level behavioral proof nor OEM signing is claimed.
+
+## Checkpoint 80 — packed codec plane parameters and controller capability fields
+
+- Entire source-generated Venus ARM32 tail `[0xa8000,0xc4694)` now equals **116,372 continuous bytes** of the pinned reference, original MBN file `[0xac000,0xc8694)`.
+- Newly emitted `[0xc420c,0xc4694)` adds **1,160 typed instruction bytes (290 A32 instructions), no embedded data pools**. The functions check input plane dimensions and decode bit-packed controller feature fields into one-byte and halfword output record fields.
+- New public checked ARM32 `rotate_right_with_extend` (RRX) encoder has its own isolated Git commit `f25361f`; verifies the carry-dependent ROR #0 architecture alias at VMA `0xc4500` and rejects unsafe PC operands. Existing checked `LDRD` constructs the double-word pair at `0xc4334` without inserting opaque code data.
+- Full Rust generator compared byte-by-byte with original `venus.mbn`: **zero differences**. Clang/LLVM independently reassembled all 1,160 bytes:
+
+  ```sh
+  python3 tools/agent20_06_a32_roundtrip.py /private/venus.mbn 0xc420c 0xc4694
+  ```
+
+- **253 Rust tests and 13 Python tests passed.** No completed release build claimed. New missing instruction begins at runtime `0xc4694`, original file `0xc8694`. The branch is provisional from older Agent 03, not checkpoint-50-integrated. Byte-identical ISA reconstruction is not high-level source decompilation or an independently OEM-signed firmware image.
