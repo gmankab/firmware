@@ -8,7 +8,7 @@
 use arm32::{Condition as C, DataOp as Op, Register as R, Shift, BlockMode};
 
 pub const START: usize = 0x21c78;
-pub const END: usize = 0x3f34c;
+pub const END: usize = 0x3f834;
 pub const FILE_BASE:usize = 0x4000;
 pub const FILE_OFFSET:usize=FILE_BASE+START;
 pub const RESERVATION_END:usize=0x40000;
@@ -269,6 +269,8 @@ mod codec_register_matrix;
 mod small_queue_helpers;
 #[path="venus_runtime_mid_stream_output_descriptors.rs"]
 mod stream_output_descriptors;
+#[path="venus_runtime_mid_frame_output_queue.rs"]
+mod frame_output_queue;
 
 fn frame_allocation(c:&mut Code)->Result<(),String>{
     c.check(START)?;
@@ -860,6 +862,7 @@ pub fn fragment()->Result<Vec<u8>,String>{
     codec_register_matrix::emit(&mut code)?;
     small_queue_helpers::emit(&mut code)?;
     stream_output_descriptors::emit(&mut code)?;
+    frame_output_queue::emit(&mut code)?;
     Ok(code.bytes)
 }
 
@@ -877,9 +880,29 @@ pub fn verify_reference(reference:&[u8])->Result<usize,String>{
 #[cfg(test)] mod tests {
     use super::*;
     #[test] fn generated_region_exact_layout(){
-        assert_eq!(END-START,0x1d6d4);
+        assert_eq!(END-START,0x1dbbc);
         assert_eq!(fragment().unwrap().len(),END-START);
         assert_eq!(FILE_OFFSET,0x25c78);
+    }
+    /// Rebuild and compare the entire source-derived region when the original
+    /// private firmware is provided at test time. No OEM file is stored in Git.
+    #[test]
+    fn source_bytes_equal_external_reference_when_provided(){
+        let Ok(path)=std::env::var("AGENT20_03_VENUS_REFERENCE") else {return};
+        let reference=std::fs::read(path).expect("read private pinned venus.mbn");
+        assert_eq!(verify_reference(&reference).unwrap(),END-START);
+        if let Ok(output)=std::env::var("AGENT20_03_VENUS_OUTPUT") {
+            std::fs::write(output,fragment().unwrap()).expect("write verified generated fragment");
+        }
+    }
+    #[test]
+    fn frame_output_queue_boundaries(){
+        let blob=fragment().unwrap();
+        assert_eq!(END,0x3f834);
+        assert_eq!(blob.len(),0x1dbbc);
+        assert_eq!((0x3f834-0x3f34c)/4,314);
+        assert_eq!(&blob[0x3f34c-START..0x3f350-START],
+            &arm32::push_registers(C::Al,(4..=11).map(|n|1u16<<n).sum::<u16>()|R::LR.bit()).unwrap().to_le_bytes());
     }
     #[test]fn adc_zero_and_carry_are_checked(){
         assert_eq!(encode_adc_zero(C::Al,R::new(3).unwrap(),R::new(3).unwrap()).unwrap(),0xe2a3_3000);

@@ -704,3 +704,12 @@ Original reference: private `map220v-nabu-firmware/venus.mbn`, SHA-256 `9d4af65d
 - New `[0x3ee98,0x3f34c)` = **1,204 bytes**, **299 ARM32 instructions** and two separately identified original hardware-mask words `0x7fffff00` after actual POP/PC returns. These mask words disassemble as `SVCVC` if misclassified as code.
 - Reconstructed two codec descriptor record writers, payload pointer setup, queue checks, and original saved-register returns. Direct and independent Clang/LLVM byte comparison passed.
 - Next runtime function starts `0x3f34c`; boundary `0x40000` remains exclusive. Portable branch is not checkpoint-50 rooted.
+
+## Checkpoint 101 — frame output queue submission and conditional controller paths
+
+- Complete source-generated Venus interval `[0x21c78,0x3f834)` = **121,788 byte-identical bytes** (private MBN file `[0x25c78,0x43834)`).
+- New `[0x3f34c,0x3f834)` = **1,256 bytes of 314 typed ARM32 instructions, no data words**. Implements optional per-channel packet headers, conditional queue flush, conditional device synchronization and ring-buffer submissions. The routine returns through the original `POP {...,pc}` at `0x3f818`; the last 24 bytes contain the original alternate branch path and the next routine starts at `0x3f834`.
+- Direct source-built Rust comparison with the pinned Venus reference (`AGENT20_03_VENUS_REFERENCE`) matches the **full** 121,788 bytes with zero differences; separately linked Clang/LLVM reassembly of the new 1,256 bytes also matches without importing OEM instruction words into Rust.
+- Added a reference-aware optional Rust unit test plus a boundary/first-instruction test. **274 Rust workspace tests** and **13 Python tests passed** on this checkout. The release build was attempted but exceeded execution time; it is **not** recorded as passed.
+- This is an old-base portable Git branch; it does **not** descend from unavailable checkpoint 50. Instruction-byte agreement does not establish high-level algorithmic source equivalence, OEM authentication or hardware execution.
+- Next unimplemented runtime function starts at `0x3f834`, below this agent's exclusive upper limit `0x40000`.
