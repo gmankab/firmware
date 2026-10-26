@@ -791,3 +791,52 @@ MODEM_RWE_CONFIG_WRITE 4,0,1    // P3:0
 MODEM_RWE_INLINE_RTE 1
 { r1:0 = memd(r1+#144) }
 MODEM_RWE_RETURN_FROM_EXCEPTION 3
+// Handle restored SSR exception-class codes 2 and 6 by rebuilding a guarded
+// codec frame and dispatching the appropriate recovery callback. This is a
+// separate branch family from the RTE path, preserving its source packet
+// boundaries and `.new` predicate dependencies.
+MODEM_SYS_READ 20,6,1
+{ memd(r1+#32) = r21:20 }
+.set modem_rwe_resume_codec_frame, agent11_modem_exception_dispatch_entry + (0x38878-0x38108)
+{
+    r21 = extractu(r20,#4,#16)
+    r20 = clrbit(r20,#31)
+    if (cmp.eq(r21.new,#6)) jump:t modem_rwe_resume_codec_frame
+}
+{
+    r21 = r21
+    if (cmp.eq(r21.new,#2)) jump:t modem_rwe_resume_codec_frame
+}
+.set modem_rwe_exception_unmatched_type, agent11_modem_exception_dispatch_entry + (0x38950-0x38108)
+{ jump modem_rwe_exception_unmatched_type; r21:20 = memd(r1+#32) }
+modem_rwe_resume_codec_frame:
+{
+    r20 = insert(r1,#2,#17)
+    r0 = extract(r20,#5,#0)
+    sp = r1
+    r22 = r0
+}
+MODEM_SYS_WRITE 6,20,1
+// The true runtime target is 0xc0815d1c (file 0xdd1c). LLVM6 computes this
+// extended call displacement relative to a different packet instruction;
+// request a +4 adjusted relocation to preserve the architected packet-base
+// PC-relative target. Exact operand class/bytes are checked by verifier.
+.set modem_rwe_restore_helper, agent11_modem_exception_dispatch_entry + (0xdd20-0x38108)
+{
+    call ##modem_rwe_restore_helper
+    r2 = #9
+}
+MODEM_SYS_READ 1,8,1
+{
+    p3 = cmp.eq(r0,#10)
+    r0 = r22
+    r23 = r0
+}
+.set modem_rwe_restore_helper_a, agent11_modem_exception_dispatch_entry + (0xe694-0x38108)
+.set modem_rwe_restore_helper_b, agent11_modem_exception_dispatch_entry + (0x10350-0x38108)
+{
+    if (p3) call ##modem_rwe_restore_helper_a
+    if (!p3) call ##modem_rwe_restore_helper_b
+}
+.set modem_rwe_codec_restore_complete, agent11_modem_exception_dispatch_entry + (0x38a7c-0x38108)
+{ jump ##modem_rwe_codec_restore_complete; nop }
