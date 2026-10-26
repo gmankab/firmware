@@ -697,3 +697,10 @@ Original reference: private `map220v-nabu-firmware/venus.mbn`, SHA-256 `9d4af65d
 - Byte and word queue emitters align payloads, verify size, and preserve the original saved-register returns (including an early conditional `POPEQ`). A separate function computes a power-of-two geometry; another selects controller bus mode.
 - Direct complete-fragment equality and independent mnemonic Clang/LLVM code+literal reassembly pass with zero differences. Python and Rust test outputs recorded separately.
 - Next original runtime begins `0x3ee98`; exclusive upper bound `0x40000`. Branch is portable/old-base, not checkpoint-50 integrated.
+
+## Checkpoint 100 — stream-output descriptor relay and codec-plane command submission
+
+- Cumulative typed Venus `[0x21c78,0x3f34c)` = **120,532 byte-identical bytes**, MBN `[0x25c78,0x4334c)`.
+- New `[0x3ee98,0x3f34c)` = **1,204 bytes**, **299 ARM32 instructions** and two separately identified original hardware-mask words `0x7fffff00` after actual POP/PC returns. These mask words disassemble as `SVCVC` if misclassified as code.
+- Reconstructed two codec descriptor record writers, payload pointer setup, queue checks, and original saved-register returns. Direct and independent Clang/LLVM byte comparison passed.
+- Next runtime function starts `0x3f34c`; boundary `0x40000` remains exclusive. Portable branch is not checkpoint-50 rooted.
