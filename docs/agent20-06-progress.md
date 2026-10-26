@@ -816,3 +816,16 @@ python3 tools/agent20_06_a32_roundtrip.py /private/venus.mbn 0xa8ea0 0xa92c8 \
   ```
 
 - **256 Rust tests and 13 Python tests passed.** No new successful release build claimed. Work is still provisional from older Agent 03, not checkpoint50 integrated, independently OEM signed, or validated for on-device behavior.
+
+## Checkpoint 84 — controller descriptor-state continuation
+
+- The typed Venus executable-tail fragment `[0xa8000,0xc5aec)` now covers **121,580 byte-identical bytes**, matching pinned original MBN `[0xac000,0xc9aec)`.
+- New `[0xc5000,0xc5aec)` = **2,796 bytes**, 699 auditable typed ARM32 instructions and **no classified inline data within this specific range**. It advances the long controller descriptor-state machine through indexed codec modes, per-plane fields and conditional command submissions.
+- The current function is **incomplete at `0xc5aec`**: an inline literal pool and further code follow. The emitter intentionally stops before that pool and does not invent a return, use OEM opcode arrays, or pad the result.
+- Whole emitted fragment matches reference `venus.mbn` exactly. Clang/LLVM independently reassembles all 2,796 instruction bytes with **zero differences**:
+
+  ```sh
+  python3 tools/agent20_06_a32_roundtrip.py /private/venus.mbn 0xc5000 0xc5aec
+  ```
+
+- **257 Rust and 13 Python tests passed.** No new release-build success is claimed. Next uncovered runtime `0xc5aec`, original MBN file `0xc9aec`; branch remains provisional based on old Agent 03 and is not part of a verified checkpoint-50-derived integration. Typed A32 opcode equality does not establish full independent source semantics or OEM authentication.
