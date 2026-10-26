@@ -468,3 +468,24 @@ Agent 20-10 owns only new `cdsp_late_*` sources, its verification tool, focused 
   physical **`0x96cc8590`**. Work remains provisional based on Agent05's
   older CDSP branch, not a checkpoint-50-integrated source tree. No OEM
   signature replacement, whole executable or hardware proof is claimed.
+
+## Checkpoint 25 — bounded signed-byte comparison, 2,632 executable bytes
+
+- New typed Hexagon V66 reconstruction: CDSP file `[0x56590,0x565c0)` = **48 executable bytes**, physical `[0x96cc8590,0x96cc85c0)`, virtual `[0xc00c8590,0xc00c85c0)`.
+- The function initializes a counter and output pointer, checks unsigned length, compares signed byte input through a bounded loop, returns zero on an exhausted/invalid input path, and uses a backward conditional branch to physical `0x96cc8594`.
+- Full contiguous RWE source-built layout `[0x56000,0x565c0)` = **1,472 bytes**, containing **1,432 reconstructed executable bytes and 40 separately classified alignment/fill bytes**. With the disjoint complete controller segment `[0x55000,0x554b0)` = 1,200 executable bytes, this agent has **2,632 independently generated executable bytes**.
+- Independently written LLVM6 fixture produces 48 bytes. Exactly 10 of the 12 instruction words are unchanged; LLVM6 orders the two-word predicate packet branch-first, whereas the OEM original places predicate first. This is a packet scheduling/marker distinction, not evidence of different semantics. Rizin Hexagon V66 separately decodes all 12 original-order words, both early zero returns and physical branch targets.
+- Added narrow, checked Hexagon constructors for signed byte loads/postincrement, initial packed register zero, predicate/new-value branch and loop backedge, plus `cdsp-late-bounded-compare` CLI and independent `tools/verify-agent20-10-cdsp-bounded-compare.py`.
+- Direct byte comparison and complete prefix comparison pass with **zero differences** against pinned private `cdsp.mbn` SHA-256 `febeae7b8e47bad4eeabc159a3c24b74cda26dfa12b384c31de5de30817e06ea`.
+- The next function starts at file `0x565c0`, physical `0x96cc85c0`; its trailing 4-byte linker NOP belongs to layout, not executable source. Work remains on older Agent 05 base, not the unavailable checkpoint-50 integration.
+
+Verification commands (reference original outside Git):
+
+```sh
+cargo run --offline --locked -p firmware-tools --bin cdsp-late-bounded-compare -- verify /private/cdsp.mbn
+cargo run --offline --locked -p firmware-tools --bin cdsp-late-bounded-compare -- verify-prefix /private/cdsp.mbn
+python3 tools/verify-agent20-10-cdsp-bounded-compare.py \
+  --llvm-mc /private/llvm6/bin/llvm-mc --rz-asm /private/rz-asm \
+  --generated /private/bounded-48.bin --prefix /private/cdsp-rwe-1472.bin \
+  --reference /private/cdsp.mbn
+```
