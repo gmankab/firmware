@@ -943,11 +943,30 @@ class ModemLateTests(unittest.TestCase):
             agent12.verify_reference(b"short", {agent12.ATOMIC_START: bytes(64)})
 
     @unittest.skipUnless(os.getenv("NABU_HEXAGON_LLVM_MC"), "set LLVM 6 Hexagon MC path")
+    def test_large_controller_entry_exact_symbolic_packet_semantics(self):
+        source=agent12.AUX_LARGE_CONTROLLER_PREFIX_SOURCE.read_text()
+        self.assertIn('if (!p0) jump:nt aux_normal_mode',source)
+        self.assertIn('call aux_logged_error',source)
+        self.assertIn('jump aux_controller_continuation',source)
+        self.assertNotIn('.word 0x',source)
+        blob=agent12.assemble(Path(os.environ["NABU_HEXAGON_LLVM_MC"]),
+                              agent12.AUX_LARGE_CONTROLLER_PREFIX_SOURCE)
+        self.assertEqual(len(blob),104)
+        vals=struct.unpack('<26I',blob)
+        self.assertEqual(vals[0] >> 24,0x70)  # r16 = r0
+        self.assertEqual(vals[11] & agent12.MARKER_MASK,agent12.CONTINUE_MARKER)
+        self.assertEqual(vals[22] & agent12.MARKER_MASK,agent12.CONTINUE_MARKER)
+        if os.getenv("NABU_MODEM_REFERENCE"):
+            modem=Path(os.environ["NABU_MODEM_REFERENCE"]).read_bytes()
+            self.assertEqual(blob,modem[agent12.AUX_LARGE_CONTROLLER_PREFIX_START:
+                                        agent12.AUX_LARGE_CONTROLLER_PREFIX_END])
+
+    @unittest.skipUnless(os.getenv("NABU_HEXAGON_LLVM_MC"), "set LLVM 6 Hexagon MC path")
     def test_optional_llvm6_exact_source_lengths(self):
         a = agent12.output_fragments(Path(os.environ["NABU_HEXAGON_LLVM_MC"]))
         self.assertEqual({k: len(v) for k, v in a.items()},
-                         {0x7C000:160, 0x7C2EC:452, 0x446000:5820})
-        self.assertEqual(sum(map(len,a.values())),6432)
+                         {0x7C000:160, 0x7C2EC:452, 0x446000:5924})
+        self.assertEqual(sum(map(len,a.values())),6536)
         self.assertEqual(a[0x446000][0x0d8:0x200],agent12.emit_auxiliary_elf_symbols())
         self.assertEqual(a[0x446000][0x254:0x260],bytes(12))
         self.assertEqual(a[0x446000][0x1448:0x1460],
@@ -971,6 +990,7 @@ class ModemLateTests(unittest.TestCase):
             (0x447608,agent12.AUX_FIND_FORMAT_SOURCE,agent12.restore_aux_find_format_predicate_packet),
             (0x447664,agent12.AUX_FIND_CLASS_SOURCE,agent12.restore_aux_find_class_new_predicate),
             (0x4476b8,agent12.AUX_CONTROLLER_SLOT_SOURCE,lambda b:b),
+            (0x4476bc,agent12.AUX_LARGE_CONTROLLER_PREFIX_SOURCE,lambda b:b),
         ]:
             actual=adapter(agent12.assemble(Path(os.environ["NABU_HEXAGON_LLVM_MC"]),source))
             offset=location-agent12.AUX_START

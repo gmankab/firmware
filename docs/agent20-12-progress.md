@@ -854,3 +854,31 @@ executable function starts at file `0x4476bc` (VMA `0x1e4016bc`).
 
 A byte-identical partial fragment does not prove source-level equivalence
 for the full modem or produce new OEM authentication.
+
+## Checkpoint 32 — Continue source-rebuilt auxiliary controller execution
+
+The first **104 bytes** of the larger controller-session handler are now independently
+assembled at modem file `[0x4476bc,0x447724)` (virtual
+`[0x1e4016bc,0x1e401724)`). This starts directly after the previous
+controller-slot accessor; the executable within the verified auxiliary ELF
+file-backed prefix now spans **5,924 continuous bytes** `[0x446000,0x447724)`.
+Its last eight instructions are *not* an invented function return: the handler
+continues at `0x447724`, and the source gives symbolic targets for the
+missing-mode fallback, configured logging callback and later controller
+continuation. The prefix is explicitly marked **partial**, not a complete
+callable function.
+
+LLVM6 independently emits all 26 Hexagon V60 instruction words with **no
+post-assembly patch** after arranging source packets according to the original
+instruction grouping (a conditional branch shared with two stores, and a
+`call` shared with the following extended constant). Signed PC-relative call
+and jump targets are expressed symbolically, and the 104 output bytes match
+the pinned original byte for byte.
+
+The new verified total is **6,536 bytes** in three disjoint file regions,
+comprising **6,228 independently authored executable bytes**, **296 bytes of
+source-generated ELF metadata**, and **12 explicitly modeled linker zeros**.
+All existing data and code fragments are verified again with the independent
+assembler plus the same revision-pinned original `modem.mbn`. The remainder
+of the controller function and large later modem executable load remains
+unimplemented. No OEM signing or on-device behavior is claimed.
