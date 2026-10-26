@@ -659,6 +659,66 @@
       "sha256": "008129dc9a659e40a2d94247b6c45b31f5d87beab97296df2c02873a3d936379",
       "checkpoint": 23,
       "classification": "executable"
+    },
+    {
+      "name": "status-flag-update",
+      "file_start": 1070584,
+      "file_end": 1070648,
+      "source": "sources/xiaomi-nabu/wlanmdsp/agent14-late-status-flag-update.S",
+      "symbol": "agent14_late_status_flag_update",
+      "sha256": "6fee1e3c35af1b667210cc6a632d44c8c4ef08fc31eb05b6f66fc409c98dbbd3",
+      "checkpoint": 24,
+      "classification": "executable"
+    },
+    {
+      "name": "status-flag-alloc",
+      "file_start": 1070648,
+      "file_end": 1070696,
+      "source": "sources/xiaomi-nabu/wlanmdsp/agent14-late-status-flag-alloc.S",
+      "symbol": "agent14_late_status_flag_alloc",
+      "sha256": "e7018a0f652a39fe475ca611e6a8de9ba1fd66d702dba527cd9cfa438ce9ceb7",
+      "checkpoint": 24,
+      "classification": "executable"
+    },
+    {
+      "name": "session-start-thunk",
+      "file_start": 1070696,
+      "file_end": 1070716,
+      "source": "sources/xiaomi-nabu/wlanmdsp/agent14-late-session-start-thunk.S",
+      "symbol": "agent14_late_session_start_thunk",
+      "sha256": "7d74b38e48680659bd4534f5671bc01b428eadd67b22b347baf0c41b0321b237",
+      "checkpoint": 24,
+      "classification": "executable"
+    },
+    {
+      "name": "buffer-slot-attach",
+      "file_start": 1070716,
+      "file_end": 1070772,
+      "source": "sources/xiaomi-nabu/wlanmdsp/agent14-late-buffer-slot-attach.S",
+      "symbol": "agent14_late_buffer_slot_attach",
+      "sha256": "f7b6b94cc1721175d448627b3f04094c97b7a02a1df117ed6efab12040ddeb9e",
+      "checkpoint": 24,
+      "classification": "executable"
+    },
+    {
+      "name": "buffer-slot-detach",
+      "file_start": 1070772,
+      "file_end": 1070816,
+      "source": "sources/xiaomi-nabu/wlanmdsp/agent14-late-buffer-slot-detach.S",
+      "symbol": "agent14_late_buffer_slot_detach",
+      "sha256": "599f9c83dec797cadc70747f4de35cef1c5a9e53b4337091a4bad202b8f61ec0",
+      "checkpoint": 24,
+      "classification": "executable"
+    },
+    {
+      "name": "channel-count-reset",
+      "file_start": 1070816,
+      "file_end": 1070916,
+      "source": "sources/xiaomi-nabu/wlanmdsp/agent14-late-channel-count-reset.S",
+      "symbol": "agent14_late_channel_count_reset",
+      "sha256": "51eb8312f3583c2af180caf0f22b4605afa15dd22cfc498ac99aa1b13ff1eb4c",
+      "checkpoint": 24,
+      "classification": "executable"
     }
   ]
 }

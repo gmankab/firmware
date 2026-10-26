@@ -1052,3 +1052,46 @@ bytes**. The next function starts at file `0x1055f8` (runtime `0xb00c55f8`).
 Original 452-byte boundary seam with Agent 13 is still uncovered. The branch
 remains based on prior WLAN checkpoint `d6104bb`, pending checkpoint-50-based
 integration; the firmware remains unauthenticated and partial.
+
+## Checkpoint 24 — WLAN session and controller-slot helpers
+
+Independently re-assembled six adjacent, nonoverlapping Hexagon V66 helper
+routines from named packet mnemonics at firmware file offsets
+`[0x1055f8,0x105744)` (runtime `[0xb00c55f8,0xb00c5744)`). They add
+**332 source-assembled executable bytes**, **43 complete packets**, and
+**83 decoded instruction words**, with **zero unknown decodes**:
+
+- `[0x1055f8,0x105638)` (64): update two status bit flags in a shared
+  controller descriptor, with an external call and a return/store packet.
+- `[0x105638,0x105668)` (48): request status-cache allocation and publish
+  the shared pointer; the call offset is explicitly resolved from source.
+- `[0x105668,0x10567c)` (20): session-start diagnostic and tail jump.
+- `[0x10567c,0x1056b4)` (56): attach an existing buffer slot or allocate and
+  initialize one if the slot was empty.
+- `[0x1056b4,0x1056e0)` (44): invalidate and detach a slot, retaining the
+  original `:mem_noshuf` packet ordering on a store/load pair.
+- `[0x1056e0,0x105744)` (100): clamp a counted channel field and initialize
+  up to the available per-channel byte markers.
+
+All six fragments assemble **exactly** with LLVM 18/V66 and LLVM 6/V65;
+independent emitted bytes and packet framing match the pinned
+`wlanmdsp.mbn` SHA-256
+`87c2c7bb1fe97eaf007a947832feba0898644b4d6626ac8ef49d8b94dd82604b`.
+The complete code registry now produces **21,888 contiguous executable bytes**
+at `[0x1001c4,0x105744)`, plus the existing **496 authored dispatch-table
+bytes** in separate noncontiguous regions, for **22,384 source-derived bytes**.
+Cumulative code SHA-256:
+`8ac6710d76638d76d4efd7b2669c11780eeab815420c52aed6b1bbc8e0964171`.
+
+Offline `cargo test --workspace --offline --locked`: **160 passed**.
+`python3 -m unittest discover`: **138 discovered, 116 passed, 22 skipped**
+(the skips are prior optional external-tool checks).
+Workspace `cargo build --workspace --release --offline --locked`: passed.
+The builder's independent decoder accounts for all 5,472 current code words,
+with zero unrecognized instructions, and reports zero reference mismatches.
+
+The next complete function starts at file offset `0x105744`, runtime
+`0xb00c5744`. The original 452-byte Agent13 boundary seam
+`[0x100000,0x1001c4)` remains unimplemented. Current Git history is
+based on original Agent07 portable base `d6104bb`, not on checkpoint50.
+This is not a full/signed/flashable firmware or evidence of on-device behavior.
