@@ -638,3 +638,31 @@ The file interval `[0x10674,0x106e8)` consists of **116 verified zero-filled
 bytes**, *not* executable instructions and not counted in rebuilt code. The next
 nonzero packet begins at file `0x106e8` (physical `0x8be0d6e8`); it is separate
 from this checkpoint's contiguous output.
+
+## Checkpoint 34: instruction-cache tag/data controller snapshot `[0x106e8,0x1084c)`
+
+Verified and reconstructed a **separate 356-byte executable V66 routine**
+from the pinned ADSP image, SHA-256
+`e462906278996d3c868e5b1ca0890e694327322ca875e7876edc4f2a2e2cdfe5`.
+The 89 source-authored instruction words perform a revision guard,
+SYSCFG/ISYNC transitions, nested LC0/LC1 hardware loops, instruction-cache
+tag (`ictagr`) and data (`icdatar`) reads, and paired cache/MMIO writes.
+Normal operations and packet parse markers are independently assembled by
+Hexagon LLVM6; **nine** V66 privileged reads/writes use checked typed register
+encoders substituted at validated NOP slots. The three original NOPs of the
+`:endloop0 :endloop1` packet remain genuine instructions, not placeholders.
+Rizin independently decodes the generated packets, including their exact
+branch targets, control-register bank and the two return instructions.
+
+This is an **independent third instruction interval**, not a continuation of
+`[0x10330,0x10674)`: the preceding **116 file bytes** `[0x10674,0x106e8)`
+are independently checked linker zeros. The **996 bytes** `[0x1084c,0x10c30)`
+are also original linker fill. Neither is counted as source-built code. Total
+ADSP RWE code now consists of **3,132 + 836 + 356 = 4,324 source-authored
+bytes** across three disjoint executable intervals. No original OEM signature,
+reference instruction array or unknown table is pasted into the emitter.
+
+Run with `HEXAGON_LLVM_MC=/path/to/llvm6/bin/llvm-mc` and original
+`NABU_ADSP_REFERENCE=/private/adsp.mbn`. Full tests: **160 Rust and 173 Python
+passed**, release build passed, zero byte differences. Next nonzero material
+starts at file `0x10c30`, physical `0x8be0dc30`.
