@@ -444,3 +444,11 @@ python3 tools/agent20_06_a32_roundtrip.py /private/venus.mbn 0xa8ea0 0xa92c8 \
 - Direct typed-Rust fragment verification against pinned Venus SHA-256 `9d4af65d7ede845e900f1b29ff425b7a8e2947056e695e246e58a2091445a085` passes with **0 differing bytes**. Independent Clang/LLVM mnemonic reassembly passes with 0 differences when `[0xbb008,0xbb078)` is explicitly classified as data.
 - **223 Rust and 13 Python tests passed**. The offline release build has not finished within this environment's execution limit, so it is not claimed as passed for this checkpoint.
 - First uncovered runtime address: `0xbb078` (original MBN offset `0xbf078`). The branch is still provisional on the older Agent 03 base and not integrated atop the unavailable checkpoint-50 history. Byte identity at the instruction level does not prove high-level semantics or independent OEM signing.
+
+## Checkpoint 52 — codec frame publication and controller events
+
+- Contiguous Venus runtime `[0xa8000,0xbb278)` = **78,456 source-encoded byte-identical bytes**, private MBN `[0xac000,0xbf278)`.
+- Newly reconstructed `[0xbb078,0xbb278)` = **512 bytes**, comprising **119 typed ARM32 instructions (476 bytes)** plus **9 non-executable literal/data words (36 bytes)** at `[0xbb254,0xbb278)`.
+- The function publishes active codec records to a controller, updates outstanding frame FIFO counts, queues frame/metadata messages, checks optional callback routes and restores the original stack state through POP/PC.
+- The complete typed-Rust emitter and independent Clang/LLVM reassembly match the pinned Venus original with **zero different bytes**. All **224 Rust** and **13 Python tests** pass; a completed offline release build is not claimed.
+- Next uncovered runtime address is `0xbb278`, original MBN file offset `0xbf278`. This remains provisional old-base typed re-encoding, not source-level behavioral recompilation, OEM signing or a hardware-tested image.
