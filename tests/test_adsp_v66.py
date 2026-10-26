@@ -407,3 +407,30 @@ class V66BootstrapTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class V66RegisterDuplexAdditionTests(unittest.TestCase):
+    """Bounded register-field proof for the V66 two-ADD duplex family."""
+
+    def test_two_operand_derived_register_additions(self):
+        pair=v66.duplex_register_add_pair((18,10,20),(17,9,20))
+        self.assertEqual(len(pair),4)
+        lo,hi=struct.unpack('<HH',pair)
+        self.assertEqual(hi,v66.duplex_add_to_register(18,10,20))
+        self.assertEqual(lo,v66.duplex_add_to_register(17,9,20))
+        other=v66.duplex_register_add_pair((2,2,23),(0,0,20))
+        self.assertNotEqual(pair,other)
+        self.assertEqual(struct.unpack('<HH',other)[1],v66.duplex_add_to_register(2,2,23))
+        self.assertEqual(struct.unpack('<HH',other)[0],v66.duplex_add_to_register(0,0,20))
+
+    def test_out_of_range_or_unrepresentable_operands_rejected(self):
+        for operands in ((17,10,20),(18,10,24),(18,16,20),(-1,10,20),
+                         (18,10,7),(18,10,20.5),(True,10,20)):
+            with self.subTest(operands=operands):
+                with self.assertRaises(v66.HexagonEncodingError):
+                    v66.duplex_add_to_register(*operands)
+        for invalid in (((18,10,20),(17,9)), ((18,10,20),()),
+                        ((18,10,20),(18,10,24))):
+            with self.subTest(invalid=invalid):
+                with self.assertRaises(v66.HexagonEncodingError):
+                    v66.duplex_register_add_pair(*invalid)

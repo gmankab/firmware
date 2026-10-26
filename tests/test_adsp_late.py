@@ -197,9 +197,9 @@ class ADSPExternalsAndCodeTests(unittest.TestCase):
     @unittest.skipUnless(LLVM_MC,'Hexagon LLVM6 assembler required')
     def test_complete_fragment_inventory_rejects_overlaps(self):
         manifest,regions=adsp.assembled_inventory(LLVM_MC,None)
-        self.assertEqual(len(manifest['fragments']),76)
-        self.assertEqual(manifest['total_independently_assembled_executable_bytes'],5788)
-        self.assertEqual(sum(map(len,regions.values())),5788)
+        self.assertEqual(len(manifest['fragments']),77)
+        self.assertEqual(manifest['total_independently_assembled_executable_bytes'],5904)
+        self.assertEqual(sum(map(len,regions.values())),5904)
         self.assertEqual(manifest['gap_bytes_included_in_generated_executables'],0)
         self.assertFalse(manifest['complete_adsp_image'])
         self.assertEqual(manifest['external_original_code_bytes_in_output'],0)
@@ -366,7 +366,7 @@ class ADSPExternalsAndCodeTests(unittest.TestCase):
     def test_inventory_every_fragment_uses_correct_original(self):
         inventory,_outputs=adsp.assembled_inventory(LLVM_MC,Path(REFERENCE).read_bytes())
         self.assertTrue(all(x['reference_byte_identical'] for x in inventory['fragments']))
-        self.assertEqual(inventory['total_independently_assembled_executable_bytes'],5788)
+        self.assertEqual(inventory['total_independently_assembled_executable_bytes'],5904)
 
     @unittest.skipUnless(LLVM_MC and REFERENCE,
                          'Hexagon LLVM6 and exact pinned ADSP reference required')
@@ -380,7 +380,7 @@ class ADSPExternalsAndCodeTests(unittest.TestCase):
                 adsp.verify_slice(built,original,off)
                 total+=len(built)
                 ranges.append((off,off+size))
-        self.assertEqual(total,5788)
+        self.assertEqual(total,5904)
         ranges.sort()
         self.assertEqual(ranges[0],(0x39000,0x39054))
         self.assertEqual(ranges[-1],(0x3640a8,0x3640f8))
@@ -1087,3 +1087,34 @@ class ADSPControllerServiceRootTests(unittest.TestCase):
         # The disjoint 12-byte tail immediately after the structural NOPs
         # is not considered source-reconstructed in this checkpoint.
         self.assertEqual(off+n,0x3ec04)
+
+
+class ADSPV66BoundedStreamTransferTests(unittest.TestCase):
+    """116-byte stream copy; two ADDs use a bounded V66 duplex encoder."""
+
+    @unittest.skipUnless(LLVM_MC, 'Hexagon LLVM6 assembler required')
+    def test_duplex_pair_preserves_original_size_and_packet_placement(self):
+        source, offset, size = adsp.FRAGMENTS['bounded-stream-transfer']
+        self.assertEqual((offset, size), (0x3f000, 116))
+        asm = source.read_text()
+        for forbidden in ('.word ', '.long ', '.byte ', '.incbin ', '.fill '):
+            self.assertNotIn(forbidden, asm)
+        self.assertIn('r18 = add(r10,r20); r17 = add(r9,r20)', asm)
+        self.assertIn('finish_at_source_width',asm)
+        actual = adsp.compile_source(LLVM_MC,source,size)
+        self.assertEqual(hashlib.sha256(actual).hexdigest(),
+            '425c96751c7f9ef3920bb78259b71f5b1bdd4f73fb07369f4eb896c2cdd9cdd0')
+        self.assertEqual(len(actual)//4,29)
+        if REFERENCE:
+            adsp.verify_slice(actual,Path(REFERENCE).read_bytes(),offset)
+
+    @unittest.skipUnless(LLVM_MC, 'Hexagon LLVM6 assembler required')
+    def test_duplex_operand_guard_refuses_broken_v66_source(self):
+        source, _off, size = adsp.FRAGMENTS['bounded-stream-transfer']
+        with tempfile.TemporaryDirectory(prefix='adsp-duplex-invalid-') as temp:
+            broken = Path(temp)/source.name
+            broken.write_text(source.read_text().replace(
+                'r18 = add(r10,r20); r17 = add(r9,r20)',
+                'r18 = add(r9,r20); r17 = add(r10,r20)'))
+            with self.assertRaisesRegex(adsp.LateAdspError,'Invalid V66 duplex operands'):
+                adsp.compile_source(LLVM_MC,broken,size)

@@ -95,6 +95,7 @@ FRAGMENTS = {
     'controller-opcode-switch': (TOOLS / 'adsp-late-controller-opcode-switch.S', 0x3E7AC, 0x148),
     'controller-report-default': (TOOLS / 'adsp-late-controller-report-default.S', 0x3E8F4, 0x1C),
     'controller-service-root': (TOOLS / 'adsp-late-controller-service-root.S', 0x3EA50, 0x1B4),
+    'bounded-stream-transfer': (TOOLS / 'adsp-late-bounded-stream-transfer.S', 0x3F000, 0x74),
     'controller-field-00-get': (TOOLS / 'adsp-late-controller-field-00-get.S', 0x3EC80, 0xC),
     'controller-field-00-forward': (TOOLS / 'adsp-late-controller-field-00-forward.S', 0x3EC8C, 0x10),
     'controller-field-01-get': (TOOLS / 'adsp-late-controller-field-01-get.S', 0x3ECA0, 0xC),
@@ -163,6 +164,47 @@ def extract_text(elf: bytes, length: int) -> bytes:
         raise LateAdspError(str(e)) from e
 
 
+def _emit_v66_bounded_transfer(elf_text: bytes, asm: str, size: int) -> bytes:
+    """Represent a V66 duplex instruction missing from LLVM6's V65 encoder.
+
+    LLVM6 assembles a semantically faithful *wide* packet with two 32-bit ADD
+    operations. We replace **only that eight-byte pair** with a typed,
+    independently verified four-byte V66 duplex encoding. PC-relative
+    labels in the source are intentionally adjusted for the four-byte change;
+    all other instruction words come directly from LLVM6, not from OEM data.
+    """
+    import re
+
+    if size != 0x74 or len(elf_text) != size + 4:
+        raise LateAdspError('Unexpected V66 bounded transfer skeleton length')
+    if ('.set finish_at_source_width, finish-4' not in asm
+            or '.set next_chunk_at_source_width, next_chunk+4' not in asm):
+        raise LateAdspError('Missing typed duplex relocation adjustments')
+    pair = re.search(
+        r'\{\s*r16\s*=\s*sub\(r16,r20\)\s*;\s*'
+        r'r(\d+)\s*=\s*add\(r(\d+),r(\d+)\)\s*;\s*'
+        r'r(\d+)\s*=\s*add\(r(\d+),r(\d+)\)\s*\}', asm)
+    if pair is None:
+        raise LateAdspError('Expected one checked two-ADD V66 duplex source packet')
+    spec = importlib.util.spec_from_file_location('adsp_checked_v66', TOOLS / 'adsp_hexagon_v66.py')
+    if spec is None or spec.loader is None:
+        raise LateAdspError('Hexagon ISA encoder unavailable')
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = module
+    spec.loader.exec_module(module)
+    fields = tuple(int(x) for x in pair.groups())
+    try:
+        duplex = module.duplex_register_add_pair(fields[:3],fields[3:])
+    except module.HexagonEncodingError as exc:
+        raise LateAdspError('Invalid V66 duplex operands: ' + str(exc)) from exc
+    # [0x5c,0x64) is precisely the two wide instructions selected by LLVM6,
+    # after the 0x58 chunk-count instruction, before the 0x64 conditional.
+    normalized = elf_text[:0x5c] + duplex + elf_text[0x64:]
+    if len(normalized) != size:
+        raise LateAdspError('Duplex normalization did not preserve required length')
+    return normalized
+
+
 def compile_source(llvm_mc: str, source: Path, size: int) -> bytes:
     if not source.is_file():
         raise LateAdspError(f'Assembler source missing: {source}')
@@ -178,6 +220,8 @@ def compile_source(llvm_mc: str, source: Path, size: int) -> bytes:
             text=True, capture_output=True, check=False)
         if result.returncode:
             raise LateAdspError(f'Hexagon LLVM6 assembler failed: {result.stderr.strip()}')
+        if source.name == 'adsp-late-bounded-stream-transfer.S':
+            return _emit_v66_bounded_transfer(extract_text(obj.read_bytes(), size + 4), asm, size)
         return extract_text(obj.read_bytes(), size)
 
 

@@ -556,3 +556,22 @@ new-value dependencies and original packet syntax, without raw `.word` code.
 The 4-byte NOP at `[0x3ea4c,0x3ea50)` remains **excluded** from executable
 counts. Cumulative independently authored coverage: **5,788 bytes across
 76 fragments**; this does not imply a reconstructed complete ADSP image.
+
+**Checkpoint 38 — bounded stream-transfer duplex:** Rebuilt the **116-byte**
+Hexagon V66 stream-transfer loop `[file 0x3f000,0x3f074)`, with 29 executable
+instruction words, SHA-256
+`425c96751c7f9ef3920bb78259b71f5b1bdd4f73fb07369f4eb896c2cdd9cdd0`.
+The routine processes at most 4096 bytes per packet, invokes distinct
+platform queue/copy callbacks, uses a shared failure return and advances
+source/destination pointers on success. LLVM6's V65 backend emits the two
+final register additions as separate 32-bit instructions. A **new checked
+V66 duplex ADD field encoder** (`duplex_register_add_pair`) derives the
+single 4-byte packet from its declared register operands, replacing the
+eight wide bytes of the semantic LLVM6 skeleton; relative branches in the
+source account explicitly for this one-word width difference. Independent
+LLVM6 decoding confirms the duplex result as `r18 = add(r10,r20)` and
+`r17 = add(r9,r20)`. No OEM instruction words, signing data or vendor
+payload are included in the source generator; the output matches all 116
+reference bytes. **Cumulative independently authored executable coverage:
+5,904 bytes across 77 verified fragments**. Non-executable padding remains
+excluded; the remaining large ADSP executable and data regions are unfinished.

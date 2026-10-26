@@ -20,6 +20,46 @@ class HexagonEncodingError(ValueError):
     pass
 
 
+def duplex_add_to_register(destination: int, left: int, right: int) -> int:
+    """Encode one 16-bit *V66 duplex* ``Rd = add(Rs,Rt)`` subinstruction.
+
+    This **limited** encoding family allows left sources R0..R15, a second
+    source R8..R23, and destinations R0..R7 or R16..R23 determined by the
+    left-register bank. A pair occupies one 32-bit word rather than two
+    ordinary Hexagon A32-sized opcodes. Invalid or unvalidated register
+    combinations are rejected, never silently folded or truncated.
+
+    For this family, bits 0..3 select the first source bank, bits 4..7
+    select the second source minus eight, and the fixed 0x38xx prefix
+    chooses ``add``. The destination is Rs for Rs<=7, otherwise Rs+8.
+    The independent Hexagon decoder corroborates the register relationship.
+    """
+    for value in (destination, left, right):
+        if not isinstance(value, int) or isinstance(value, bool):
+            raise HexagonEncodingError("Duplex ADD operands must be register numbers")
+    if not 0 <= left <= 15 or not 8 <= right <= 23:
+        raise HexagonEncodingError("Duplex ADD sources outside checked register banks")
+    expected_destination = left if left < 8 else left + 8
+    if destination != expected_destination:
+        raise HexagonEncodingError("Duplex ADD destination not representable by this encoding")
+    return 0x3800 | ((right - 8) << 4) | left
+
+
+def duplex_register_add_pair(upper: tuple[int, int, int],
+                             lower: tuple[int, int, int]) -> bytes:
+    """Pack two checked ``(dst,left,right)`` register additions to V66 LE.
+
+    The first operation occupies the upper halfword, and the second the
+    lower halfword, per Hexagon's duplex decoding convention. This is an
+    operand-derived *instruction encoder*, not a byte patch from the OEM.
+    """
+    if len(upper) != 3 or len(lower) != 3:
+        raise HexagonEncodingError("Expected three register indices per duplex operation")
+    high = duplex_add_to_register(*upper)
+    low = duplex_add_to_register(*lower)
+    return struct.pack("<I", (high << 16) | low)
+
+
 class SystemRegister(IntEnum):
     SSR = 6
     SYSCFG = 18
