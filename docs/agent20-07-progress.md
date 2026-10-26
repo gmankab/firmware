@@ -1108,3 +1108,16 @@ python3 -S tools/adsp-agent20-rwe-next-controller-slot-helpers.py \
   --llvm-mc "$HEXAGON_LLVM_MC" --reference "$NABU_ADSP_REFERENCE" \
   --output /tmp/adsp-slot-helpers-260.bin
 ```
+
+## Checkpoint 63: controller bitmap status query `[0x11e6c,0x11ed0)`
+
+- Added **100 exact source-assembled Hexagon bytes** in 25 instruction words at file `[0x11e6c,0x11ed0)` (physical `[0x8be0ee6c,0x8be0eed0)`), SHA-256 `4da131cc506f5dc9a07150b761cc71737f443eae459aa61a8baf841d376af9c8`.
+- Completely implemented the slot bitmap query, separating regular and preallocated controller-map bitfields and preserving the original conditional returns. All instructions and parse markers come natively from LLVM6. One initial physical address was corrected from `0x8be0ef6c` to `0x8be0ee6c`; the fix restores the exact external callback displacement. A zero-value assignment and `dealloc_return` must share their original packet.
+- Together with the preceding lookup/activation/deactivation/sentinel block, `[0x11d68,0x11ed0)` is **360 contiguous source-built bytes**. The larger controller island from `[0x11ae0,0x11ed0)` is **1,008 exact executable bytes**, with intervening vendor diagnostic text/linker fill excluded from source coverage.
+- Cumulative original executable code independently emitted in ADSP RWE: **8,628 bytes in fifteen disjoint regions**. Next function begins at file `0x11ed0`. Authenticated complete ADSP firmware not produced.
+
+```sh
+python3 -S tools/adsp-agent20-rwe-next-controller-slot-status.py \
+  --llvm-mc "$HEXAGON_LLVM_MC" --reference "$NABU_ADSP_REFERENCE" \
+  --output /tmp/adsp-controller-slot-status-100.bin
+```
