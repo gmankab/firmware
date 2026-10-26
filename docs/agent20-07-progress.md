@@ -827,3 +827,16 @@ python3 -S tools/adsp-agent20-rwe-next-ssr-context-scan.py \
   --llvm-mc "$HEXAGON_LLVM_MC" --reference "$NABU_ADSP_REFERENCE" \
   --output /tmp/adsp-ssr-context-scan-120.bin
 ```
+
+## Checkpoint 42: packed controller offsets and plane descriptors `[0x11108,0x11164)`
+
+- Added **92 source-built Hexagon V66 executable bytes** from two separate leaf functions, physically `[0x8be0e108,0x8be0e164)`. SHA-256 `28590b1d3b085252ae014b84f021140b1f475ee2ff594f84398625f6cdc6ae9f`. Every instruction and packet boundary is independently LLVM6 source-assembled; there are no privileged patches.
+- The first helper packs a controller memory address into window/cross-page capability fields (`0x11108–0x1113c`), while the second packs plane offset/length bitfields (`0x1113c–0x11164`). Their final `jumpr LR` instructions match.
+- **12 file-backed zero-fill bytes** `[0x11164,0x11170)` are verified layout, *not independently authored executable code*. The next nonzero ADSP code starts at `0x11170`.
+- Total independently source-rebuilt ADSP RWE code is now **5,620 bytes in seven disjoint intervals**, excluding both the preceding 8-byte gap and the 12-byte trailing gap, and all earlier linker fill/table regions.
+
+```sh
+python3 -S tools/adsp-agent20-rwe-next-packed-offsets.py \
+  --llvm-mc "$HEXAGON_LLVM_MC" --reference "$NABU_ADSP_REFERENCE" \
+  --output /tmp/adsp-packed-offsets-92.bin
+```
