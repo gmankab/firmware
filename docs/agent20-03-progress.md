@@ -658,3 +658,10 @@ Original reference: private `map220v-nabu-firmware/venus.mbn`, SHA-256 `9d4af65d
 - New partial controller initialization interval `[0x3b800,0x3c53c)` = **3,388 bytes**, comprising **692 explicitly typed A32 instructions** `[0x3b800,0x3c2d0)` and **155 diagnostic data-pointer words** `[0x3c2d0,0x3c53c)`. The code branches over this literal pool to resume at its end. No plausible-looking vendor strings are treated as instructions.
 - Full Rust emitter matched the pinned `venus.mbn` reference with zero differences; independent LLVM/Clang reassembly of all 3,388 new bytes also matched. **265 Rust and 13 Python tests passed**. Release build not confirmed.
 - The large stream initializer is still incomplete; its executable instructions resume at `0x3c53c`. This represents byte-accurate public A32 operand encoding and OEM data addresses, not high-level semantic reconstruction, authentication or flashability.
+
+## Checkpoint 95 — stream controller register matrix completion, first part
+
+- Full typed A32 `[0x21c78,0x3dc00)` = **114,568 original-reference-exact bytes**, MBN file `[0x25c78,0x41c00)`.
+- New `[0x3c53c,0x3dc00)` = **5,828 bytes**, **1,457 public ARM32 instructions** and zero interspersed noninstruction words. This block populates controller registers, callback descriptor arrays and stream format metadata, referring backward to the two previously separated literal pools.
+- Direct Rust emission and Clang/LLVM mnemonic reassembly match every byte. **266 Rust and 13 Python tests passed**; optimized release build not independently verified.
+- This checkpoint stops at `0x3dc00` inside a large function. Remaining control-flow cleanup and a trailing literal pool precede the next function. Source bytes are exact but high-level semantics and OEM signing are not established.
