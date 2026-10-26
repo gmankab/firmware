@@ -642,3 +642,18 @@ corrections retained separate register loads, memory stores and branches;
 no OEM opcode bytes were imported into the assembler source.
 **Cumulative: 6,680 independently source-assembled executable bytes in
 87 fragments.** These functions do not complete the rest of ADSP firmware.
+
+
+**Checkpoint 43 — controller logging trampoline and registry scan:**
+Independently source-assembled a 24-byte report trampoline `[0x41080,0x41098)`
+(SHA-256 `d963fdd2fa57a8a97ad061ff333165ee2f8cffb5649aa96917910806482ba1bb`)
+and a 92-byte registered-controller scanner `[0x41440,0x4149c)`
+(SHA-256 `6057cf55fa11191da895bcd9689f8caad5caa1227230b062c55e2aa88f3c440e`).
+The scan requires two source-level ordering corrections for accurate Hexagon
+packet parse markers. Unrelated alignment NOPs `[0x41438,0x41440)` and
+`[0x4149c,0x414a0)` remain excluded. **Cumulative: 6,796 exact source-assembled
+executable bytes across 89 verified fragments.** A neighboring 100-byte
+list-node attachment routine is still unverified because LLVM6 rejects a
+V66 call + conditional-branch packet; that unverified draft is not committed
+or counted. OEM authentication and large remaining ADSP sections are out of
+scope for these fragments.

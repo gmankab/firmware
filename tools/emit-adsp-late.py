@@ -106,6 +106,8 @@ FRAGMENTS = {
     'controller-flush-context': (TOOLS / 'adsp-late-controller-flush-context.S', 0x3FAF4, 0x1C),
     'controller-cleanup-missing': (TOOLS / 'adsp-late-controller-cleanup-missing.S', 0x4071C, 0x6C),
     'controller-unlink-resource': (TOOLS / 'adsp-late-controller-unlink-resource.S', 0x40798, 0xE8),
+    'controller-service-log': (TOOLS / 'adsp-late-controller-service-log.S', 0x41080, 0x18),
+    'controller-configured-scan': (TOOLS / 'adsp-late-controller-configured-scan.S', 0x41440, 0x5C),
     'controller-field-00-get': (TOOLS / 'adsp-late-controller-field-00-get.S', 0x3EC80, 0xC),
     'controller-field-00-forward': (TOOLS / 'adsp-late-controller-field-00-forward.S', 0x3EC8C, 0x10),
     'controller-field-01-get': (TOOLS / 'adsp-late-controller-field-01-get.S', 0x3ECA0, 0xC),
