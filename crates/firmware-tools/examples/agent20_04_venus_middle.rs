@@ -12,13 +12,14 @@ use firmware_tools::devices::xiaomi_nabu::venus_agent20_04_extended_controls as 
 use firmware_tools::devices::xiaomi_nabu::venus_agent20_04_control_fields as fields;
 use firmware_tools::devices::xiaomi_nabu::venus_agent20_04_codec_table_bundles as caps;
 use firmware_tools::devices::xiaomi_nabu::venus_agent20_04_feature_extension as extended;
+use firmware_tools::devices::xiaomi_nabu::venus_agent20_04_packet_features as masks;
 use std::{env,fs,error::Error};
 fn main()->Result<(),Box<dyn Error>>{
     let args:Vec<String>=env::args().skip(1).collect();
     if args.len()!=2 || !["emit","verify"].contains(&args[0].as_str()){
         return Err("usage: cargo run --example agent20_04_venus_middle -- <emit output|verify private/venus.mbn>".into());
     }
-    let fragments=[(v::FIRST_START,v::first_fragment()?), (codec::START,codec::fragment()?), (format::START,format::fragment()?), (packets::START,packets::fragment()?), (flags::START,flags::fragment()?), (modepackets::START,modepackets::fragment()?), (serializer::START,serializer::fragment()?), (seq::START,seq::fragment()?), (ctrls::START,ctrls::fragment()?), (fields::START,fields::fragment()?), (caps::START,caps::fragment()?), (extended::START,extended::fragment()?)];
+    let fragments=[(v::FIRST_START,v::first_fragment()?), (codec::START,codec::fragment()?), (format::START,format::fragment()?), (packets::START,packets::fragment()?), (flags::START,flags::fragment()?), (modepackets::START,modepackets::fragment()?), (serializer::START,serializer::fragment()?), (seq::START,seq::fragment()?), (ctrls::START,ctrls::fragment()?), (fields::START,fields::fragment()?), (caps::START,caps::fragment()?), (extended::START,extended::fragment()?), (masks::START,masks::fragment()?)];
     if args[0]=="emit" {
         for (start,bytes) in &fragments {fs::write(format!("{}-{start:x}.bin",args[1]),bytes)?;}
     } else {
