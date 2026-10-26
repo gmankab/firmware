@@ -1166,3 +1166,27 @@ The two noncontiguous source-authored dispatch tables remain **496 data
 bytes**, totaling **24,916 source-derived bytes**. The next function starts
 at `0x106128`. The 452-byte Agent13 boundary seam and the remaining owned
 WLAN executable region remain unimplemented. On-device behavior is unverified.
+
+## Checkpoint 28 — codec mode resource helpers
+
+Five contiguous, complete V66 routines covering file `[0x106128,0x1063f4)`
+(runtime `[0xb00c6128,0xb00c63f4)`) add **716 reconstructed executable bytes**:
+
+- `[0x106128,0x1061ec)` — codec-mode dispatch to device handlers (196 bytes).
+- `[0x1061ec,0x1062a8)` — controller resource allocation and state report (188 bytes).
+- `[0x1062a8,0x106318)` — mode diagnostics and notify callbacks (112 bytes).
+- `[0x106318,0x106360)` — counter update and completion (72 bytes).
+- `[0x106360,0x1063f4)` — resource access/creation and attached status (148 bytes).
+
+The resource-access function requires `:mem_noshuf` for a mixed load/store
+packet and source reordering of one equivalent duplex packet. LLVM 22/V66
+and LLVM 6/V65 both emit byte-identical reference output. No original
+instruction words or padding are embedded in source. A minor LLVM 6
+signed/unsigned literal warning does not affect the assembled bytes.
+
+Cumulative continuous executable `[0x1001c4,0x1063f4)` = **25,136 bytes**.
+Separate authored dispatch-table data remains **496 bytes**, totaling
+**25,632 source-derived bytes**. The next function begins at file `0x1063f4`
+(runtime `0xb00c63f4`). Agent 13's leading 452-byte seam and the rest of
+this large WLAN executable allocation remain unfinished. On-device behavior
+and new firmware authorization remain unverified.

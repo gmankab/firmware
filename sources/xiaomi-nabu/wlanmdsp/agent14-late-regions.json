@@ -779,6 +779,56 @@
       "sha256": "5dabc5749d985f319dc59dafdf58e37c3cef094cda469be5f02ca34a629a8058",
       "checkpoint": 27,
       "classification": "executable"
+    },
+    {
+      "name": "codec-mode-router",
+      "file_start": 1073448,
+      "file_end": 1073644,
+      "source": "sources/xiaomi-nabu/wlanmdsp/agent14-late-codec-mode-router.S",
+      "symbol": "agent14_late_codec_mode_router",
+      "sha256": "b5fcd67a54095e86a5b83e253710022197edaee0f6517f201d0fc9498dabc6fd",
+      "checkpoint": 28,
+      "classification": "executable"
+    },
+    {
+      "name": "codec-mode-allocate",
+      "file_start": 1073644,
+      "file_end": 1073832,
+      "source": "sources/xiaomi-nabu/wlanmdsp/agent14-late-codec-mode-allocate.S",
+      "symbol": "agent14_late_codec_mode_allocate",
+      "sha256": "7aa5c96b2906a8308d4313f2e0d81543205a311608b42b6b5fee8fc23aebc8bc",
+      "checkpoint": 28,
+      "classification": "executable"
+    },
+    {
+      "name": "codec-mode-notify",
+      "file_start": 1073832,
+      "file_end": 1073944,
+      "source": "sources/xiaomi-nabu/wlanmdsp/agent14-late-codec-mode-notify.S",
+      "symbol": "agent14_late_codec_mode_notify",
+      "sha256": "a7b48016835354c7527b44d1af33dabfcc96249cf605755c8b4fd713d86c9c5e",
+      "checkpoint": 28,
+      "classification": "executable"
+    },
+    {
+      "name": "codec-mode-counter",
+      "file_start": 1073944,
+      "file_end": 1074016,
+      "source": "sources/xiaomi-nabu/wlanmdsp/agent14-late-codec-mode-counter.S",
+      "symbol": "agent14_late_codec_mode_counter",
+      "sha256": "0603da6c1c22054544dce2f78344dea5d3b5d5aef2e1a08233b048a2969bb7f9",
+      "checkpoint": 28,
+      "classification": "executable"
+    },
+    {
+      "name": "codec-mode-access",
+      "file_start": 1074016,
+      "file_end": 1074164,
+      "source": "sources/xiaomi-nabu/wlanmdsp/agent14-late-codec-mode-access.S",
+      "symbol": "agent14_late_codec_mode_access",
+      "sha256": "bbf2434e655fdd69b3b7b31b63425becb28db99ef234e718f53c622860eff2ce",
+      "checkpoint": 28,
+      "classification": "executable"
     }
   ]
 }
