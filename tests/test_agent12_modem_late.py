@@ -1218,3 +1218,46 @@ class ModemLateResourceCallbackTests(unittest.TestCase):
         self.assertIn('jump cleanup',asm)
         self.assertNotIn('.word',asm)
         self.assertNotIn('.incbin',asm)
+
+
+class ModemLateControllerResultPhase12Tests(unittest.TestCase):
+    def test_result_packets_from_symbolic_controller_calls(self):
+        self.assertEqual((agent12.AUX_LARGE_CONTROLLER_PHASE12_START,
+                          agent12.AUX_LARGE_CONTROLLER_PHASE12_END),
+                         (0x447C74,0x447D20))
+        source=agent12.AUX_LARGE_CONTROLLER_PHASE12_SOURCE.read_text()
+        for snippet in ('{call fallback_log}', '{memw(r17+#8) = #1}',
+                        'if (!p0.new) r3 = ##507577346',
+                        'p0 = cmp.gtu(r2,r25)', 'scan_loop'):
+            self.assertIn(snippet,source)
+        self.assertNotIn('.word',source)
+        self.assertNotIn('.incbin',source)
+        words=[0x7800c000]*43
+        words[0x70//4]=0x3c51c101
+        words[0x74//4]=0x919dc2a2
+        words[0x7c//4:0x88//4]=[0x5c205826,0x01e44410,0x7e80e043]
+        words[0xa4//4:0xac//4]=[0x5cdf58f6,0xf262d900]
+        packed=struct.pack('<43I',*words)
+        after=struct.unpack('<43I',agent12.restore_aux_large_controller_phase12_packets(packed))
+        self.assertEqual(after[0x70//4],0x3c514101)
+        self.assertEqual(after[0x74//4],0x919dc2a2)
+        self.assertEqual(after[0x7c//4:0x88//4],
+                         (0x01e44410,0x7e806043,0x5c20d826))
+        self.assertEqual(after[0xa4//4:0xac//4],(0xf2625900,0x5cdfd8f6))
+        for idx,bad,why in [
+            (0x70//4,0x3c51c102,'store opcode/register/marker'),
+            (0x70//4,0x3c514101,'store opcode/register/marker'),
+            (0x74//4,0x919dc2a3,'frame load'),
+            (0x7c//4,0x78005826,'ISA classes'),
+            (0x7c//4,0x5c20d826,'marker'),
+            (0x84//4,0x7e80e042,'operand or branch'),
+            (0xa4//4,0x780058f6,'ISA classes'),
+            (0xa8//4,0xf2625900,'packet markers'),
+            (0xa4//4,0x5cdf58f5,'predicates/offset'),
+        ]:
+            other=words.copy();other[idx]=bad
+            with self.assertRaisesRegex(ValueError,why):
+                agent12.restore_aux_large_controller_phase12_packets(
+                    struct.pack('<43I',*other))
+        with self.assertRaisesRegex(ValueError,'172 source bytes'):
+            agent12.restore_aux_large_controller_phase12_packets(packed[:-4])
