@@ -1069,3 +1069,16 @@ python3 -S tools/adsp-agent20-rwe-next-controller-table-init.py \
   --llvm-mc "$HEXAGON_LLVM_MC" --reference "$NABU_ADSP_REFERENCE" \
   --output /tmp/adsp-controller-table-init-192.bin
 ```
+
+## Checkpoint 60: complete atomic controller-slot registration `[0x11ba0,0x11c88)`
+
+- Added **232 independently reconstructed, byte-identical Hexagon V66 executable bytes** at file `[0x11ba0,0x11c88)` and physical `[0x8be0eba0,0x8be0ec88)`. SHA-256 `65fcb5b4999823fea41702074e4cce311a83bb1171b00f21a993aeb578320db5`.
+- The complete function implements an atomic lock-free slot publication and bitmap acquisition, with `cl0`/`ct0` bit classification, several `memw_locked` retry loops, a GP-relative index bitmap update, platform notifications and the original `dealloc_return`. LLVM6 independently assembles **57 of 58** instruction words; `R2=SGP0` is encoded only at its checked `nop` placeholder using the V66 special-register operand enum. Rizin independently decodes the V66-only register operation.
+- The two new functions `[0x11ae0,0x11c88)` now form **424 consecutive exact executable bytes** and have a focused concatenation test. Cumulative RWE executable reconstruction is **8,044 source-built bytes across 15 disjoint intervals** (previous 7,812 + 232); the diagnostic strings and linker fill preceding `0x11ae0` are still excluded.
+- Next missing independent function begins at file `0x11c88` (physical `0x8be0ec88`). No source-built complete ADSP file or new OEM signature is claimed.
+
+```sh
+python3 -S tools/adsp-agent20-rwe-next-controller-slot-register.py \
+  --llvm-mc "$HEXAGON_LLVM_MC" --reference "$NABU_ADSP_REFERENCE" \
+  --output /tmp/adsp-controller-slot-register-232.bin
+```
