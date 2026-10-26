@@ -686,3 +686,16 @@ packet, not by importing vendor instruction words. The following 4-byte
 alignment NOP at `0x4238c` is excluded. **Total 7,244 independently
 source-assembled executable bytes in 92 fragments.** All other ADSP
 payload, layout padding and OEM authentication remain separate.
+
+
+**Checkpoint 46 — controller bitmask-difference helper:**
+Source-assembled a complete 120-byte Hexagon V66 bitfield routine at
+`[0x42468,0x424e0)` with leading-zero counts, bounded masked differences,
+and predicate-controlled early return paths. SHA-256
+`a8d546b0ddd38e61649a6274c6c9efad3e90f3af662ffe318babe49e9d3f74c4`.
+LLVM6 initially reordered two copies and merged the final return into the
+same packet as a bit shift; explicitly restoring source instruction order
+and separate packet boundaries yields exact reference bytes. **Cumulative:
+7,364 independently source-assembled executable bytes in 93 fragments.**
+The full ADSP firmware remains far from complete and no private OEM code
+is copied into the source assembler.

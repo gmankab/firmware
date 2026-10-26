@@ -197,9 +197,9 @@ class ADSPExternalsAndCodeTests(unittest.TestCase):
     @unittest.skipUnless(LLVM_MC,'Hexagon LLVM6 assembler required')
     def test_complete_fragment_inventory_rejects_overlaps(self):
         manifest,regions=adsp.assembled_inventory(LLVM_MC,None)
-        self.assertEqual(len(manifest['fragments']),92)
-        self.assertEqual(manifest['total_independently_assembled_executable_bytes'],7244)
-        self.assertEqual(sum(map(len,regions.values())),7244)
+        self.assertEqual(len(manifest['fragments']),93)
+        self.assertEqual(manifest['total_independently_assembled_executable_bytes'],7364)
+        self.assertEqual(sum(map(len,regions.values())),7364)
         self.assertEqual(manifest['gap_bytes_included_in_generated_executables'],0)
         self.assertFalse(manifest['complete_adsp_image'])
         self.assertEqual(manifest['external_original_code_bytes_in_output'],0)
@@ -366,7 +366,7 @@ class ADSPExternalsAndCodeTests(unittest.TestCase):
     def test_inventory_every_fragment_uses_correct_original(self):
         inventory,_outputs=adsp.assembled_inventory(LLVM_MC,Path(REFERENCE).read_bytes())
         self.assertTrue(all(x['reference_byte_identical'] for x in inventory['fragments']))
-        self.assertEqual(inventory['total_independently_assembled_executable_bytes'],7244)
+        self.assertEqual(inventory['total_independently_assembled_executable_bytes'],7364)
 
     @unittest.skipUnless(LLVM_MC and REFERENCE,
                          'Hexagon LLVM6 and exact pinned ADSP reference required')
@@ -380,7 +380,7 @@ class ADSPExternalsAndCodeTests(unittest.TestCase):
                 adsp.verify_slice(built,original,off)
                 total+=len(built)
                 ranges.append((off,off+size))
-        self.assertEqual(total,7244)
+        self.assertEqual(total,7364)
         ranges.sort()
         self.assertEqual(ranges[0],(0x39000,0x39054))
         self.assertEqual(ranges[-1],(0x3640a8,0x3640f8))
@@ -1320,3 +1320,24 @@ class ADSPControllerListInsertionTests(unittest.TestCase):
                          '35f90ec0d14674de6176064d7e60911483b4f0120c4879083d7fde1dcb631162')
         if REFERENCE:adsp.verify_slice(built,Path(REFERENCE).read_bytes(),off)
         self.assertEqual(off+size,0x4238c)
+
+
+class ADSPControllerBitmaskDifferenceTests(unittest.TestCase):
+    """Typed packed-controller field-mask calculations, no opaque words."""
+
+    @unittest.skipUnless(LLVM_MC,'Hexagon LLVM6 assembler required')
+    def test_rebuilds_exact_early_return_bitmask_path(self):
+        src,off,n=adsp.FRAGMENTS['controller-bitmask-difference']
+        self.assertEqual((off,n),(0x42468,120))
+        asm=src.read_text()
+        for forbidden in ('.word ','.long ','.byte ','.incbin ','.fill '):
+            self.assertNotIn(forbidden,asm)
+        for instruction in ('cl0(r1)','cl0(r5)','bitsclr(r5,r6)',
+                            'r5 &= lsr(r4,r3)','r0 &= lsr(r2,r3)'):
+            self.assertIn(instruction,asm)
+        assembled=adsp.compile_source(LLVM_MC,src,n)
+        self.assertEqual(hashlib.sha256(assembled).hexdigest(),
+            'a8d546b0ddd38e61649a6274c6c9efad3e90f3af662ffe318babe49e9d3f74c4')
+        if REFERENCE:
+            adsp.verify_slice(assembled,Path(REFERENCE).read_bytes(),off)
+        self.assertEqual(off+n,0x424e0)
