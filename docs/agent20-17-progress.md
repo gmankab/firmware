@@ -380,3 +380,50 @@ release build passes, full four-region reference comparison has **zero byte
 mismatches**, and `git diff --check` passes. Independent GNU NDS32 assembler
 verification and hardware execution remain unavailable; this is a partial ISA
 re-encoding result, not proof of functional decompilation.
+
+
+## Checkpoint 15 — register SRA, signed GP halfwords and a second jump table
+
+The next independently generated **996 bytes** are verified over postmarketOS
+firmware file `[0x45a0,0x4984)` (runtime `[0x43a0,0x4784)`). They comprise
+**367 typed NDS32 instructions / 966 instruction bytes** and **one 15-entry,
+30-byte source-derived jump table** at file `[0x4730,0x474e)`.
+The table base at runtime `0x4530` is loaded by an earlier code sequence and
+indexed by a signed/unsigned checked register before an indirect jump.
+Its 15 named destinations are actual authored instruction boundaries,
+including repeated default destinations; table entries are little-endian
+halfwords despite the big-endian NDS32 instructions. No raw OEM instruction
+bytes or opaque arrays were copied into the emitter.
+
+- New typed encoders: `VariableArithmeticShiftRight` (ALU1 SRA register form,
+  subopcode `0x0e`) and `ShiftArithmeticRightSmall` (N16 SRAI45). Reference
+  fields corroborated against public GNU binutils NDS32 `nds32.h` enums;
+  negative ISA tests distinguish SRL versus SRA and validate register limits.
+- Corrected private analysis of negative signed GP-relative halfword loads:
+  their displacement sign overlaps the low bit of the operation subfield,
+  not an independent opcode. The Rust `HalfGp` encoder already handled
+  these instruction words correctly; only analysis was corrected.
+- New fragment references **82 EX9 sites / 45 distinct indices**,
+  where execution-table semantics belong to Agent 18; these are
+  dependencies and add **zero** claimed executable source bytes.
+- **Cumulative checked coverage:** five source-emitted disjoint ranges totaling
+  **17,174 bytes**, split into **17,064 NDS32 instruction bytes** and
+  **110 bytes of derived branch-table data**. Existing unresolved 16-bit words
+  at files `0x38bc` and `0x39f8` are not counted or filled.
+- Next ambiguous file offset: `0x4984` (runtime `0x4784`), where a second
+  indirect jump references another ten-byte data table. Its classification
+  is a task for checkpoint 16 and is not included in this verified span.
+- New fragment SHA-256: `7e236654feab18237b412f96d4887d7cc6ca0fe614124f6f9e6c757741cfd23e`.
+- `cargo test --workspace --offline --locked` passes **239 Rust tests**,
+  Python discovery passes **40 tests**, offline release build passes,
+  `verify-disjoint` confirms all four non-contiguous post-prefix regions,
+  and Git diff check passes.
+- A genuine independent GNU NDS32 assembler build/round-trip and hardware
+  execution are **not available** in this execution environment. Thus
+  typed NDS32 source/reference byte equality is established, but standalone
+  assembler semantic verification remains pending.
+
+The source branch continues to derive from Agent09 commit
+`51b1f91f32d32542aa03e114f5a2f4d94b559e2a`, **not** a verified
+checkpoint-50 integrated branch. This checkpoint is not a signed or
+flashable firmware image.

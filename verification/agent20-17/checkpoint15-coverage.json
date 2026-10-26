@@ -1,0 +1,80 @@
+{
+  "agent": 17,
+  "checkpoint": 15,
+  "branch": "agents20/17-novatek-ilm-low",
+  "source_base": "51b1f91f32d32542aa03e114f5a2f4d94b559e2a",
+  "firmware_profile": "postmarketos",
+  "firmware_sha256": "8b845514621ebfd95759a0919f3aa3d825314abb478a7cad1c3fb4c6872b70b5",
+  "ranges": [
+    {
+      "file_start": 1642,
+      "file_end": 14524,
+      "runtime_start": 1130,
+      "runtime_end": 14012,
+      "bytes": 12882,
+      "sha256": "251bed34f0769c9838a38c4ea5a3342e945f3f07b4d8af6046f0ff7d3f156e4e",
+      "byte_differences": 0
+    },
+    {
+      "file_start": 14526,
+      "file_end": 14840,
+      "runtime_start": 14014,
+      "runtime_end": 14328,
+      "bytes": 314,
+      "sha256": "f342c08114df7d9a942049e492afd2506776a6e921025130fd6d60c76aecb11a",
+      "byte_differences": 0
+    },
+    {
+      "file_start": 14842,
+      "file_end": 15914,
+      "runtime_start": 14330,
+      "runtime_end": 15402,
+      "bytes": 1072,
+      "sha256": "7624b1b17fe7f02de888d092a0efca1b0072539c8b30b74066907b160b75d8d0",
+      "byte_differences": 0
+    },
+    {
+      "file_start": 15914,
+      "file_end": 17824,
+      "runtime_start": 15402,
+      "runtime_end": 17312,
+      "bytes": 1910,
+      "sha256": "dae10fdc6f3f3e56d992e226444c31b63707d96880cb500b51fd37f9d025af5c",
+      "byte_differences": 0
+    },
+    {
+      "file_start": 17824,
+      "file_end": 18820,
+      "runtime_start": 17312,
+      "runtime_end": 18308,
+      "bytes": 996,
+      "typed_instruction_bytes": 966,
+      "typed_data_bytes": 30,
+      "new_instructions": 367,
+      "source_generated_sha256": "7e236654feab18237b412f96d4887d7cc6ca0fe614124f6f9e6c757741cfd23e",
+      "byte_differences": 0
+    }
+  ],
+  "unknown_halfwords": [
+    [
+      14524,
+      14526
+    ],
+    [
+      14840,
+      14842
+    ]
+  ],
+  "total_source_bytes": 17174,
+  "typed_instruction_bytes": 17064,
+  "typed_jump_table_bytes": 110,
+  "new_typed_instructions": 367,
+  "new_instruction_bytes": 966,
+  "new_ex9_uses": 82,
+  "new_ex9_distinct_indices": 45,
+  "first_missing_after_last_fragment": 18820,
+  "independent_GNU_assembly": "unavailable",
+  "byte_comparison": "pass",
+  "hardware_execution": "not_tested",
+  "new_typed_jump_data_bytes": 30
+}

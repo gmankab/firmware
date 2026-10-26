@@ -30,6 +30,8 @@ mod extension6;
 pub mod extension6_disjoint;
 #[path="novatek_ilmlow_extension7_disjoint.rs"]
 pub mod extension7_disjoint;
+#[path="novatek_ilmlow_extension8_disjoint.rs"]
+pub mod extension8_disjoint;
 use isa::{Csr,Insn,Reg,R0,R1,R2};
 pub const FILE_START: usize = 0x66a;
 /// Endpoint of the authoritative postmarketOS interval.

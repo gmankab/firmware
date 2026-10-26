@@ -119,11 +119,15 @@ pub enum Insn {
     WordAtFrame { store: bool, reg: Reg, offset: u16 },
     WordAtStack { store: bool, reg: Reg, offset: u16 },
     ShiftRightSmall { reg: Reg, amount: u8 },
+    /// N16 SRAI45 (major field 0x8): destructive signed right shift.
+    ShiftArithmeticRightSmall { reg:Reg, amount:u8 },
     ShiftRight { dest: Reg, source: Reg, amount: u8 },
     AluShiftLeft { op: AluOp, dest: Reg, left: Reg, right: Reg, shift: u8 },
     VariableShiftLeft { dest: Reg, source: Reg, amount: Reg },
     /// N32 ALU1 SRL (subopcode 0x0d): shift Ra by low five bits of Rb.
     VariableShiftRight { dest: Reg, source: Reg, amount: Reg },
+    /// N32 ALU1 SRA (subopcode 0x0e): arithmetic right shift by a register.
+    VariableArithmeticShiftRight { dest: Reg, source: Reg, amount: Reg },
     BranchImmediate { reg: Reg, value: i16, nonzero: bool, target: u32 },
     BranchA5 { reg: Reg, nonzero: bool, target: u32 },
     AddSmall { reg: Reg, value: u8, subtract: bool },
@@ -184,6 +188,8 @@ pub enum Insn {
     /// Little-endian 35-entry halfword branch-target displacement table.
     /// NDS32 code fetch is big-endian, but data loads here use little endian.
     JumpTableOffsets16 { base:u32, targets:[u32;35] },
+    /// Code-adjacent 15-way halfword-offset dispatch using LE table data.
+    JumpTableOffsets15 {base:u32,targets:[u32;15]},
     /// NDS32 jump-table byte offsets, not executable instructions. `base` is
     /// the register-held table pointer. Each entry is derived from a named
     /// branch destination and checked to fit an unsigned byte displacement.
@@ -216,6 +222,16 @@ fn u15(value: u16) -> Result<u32, String> {
 impl Insn {
     pub fn encode(self, pc: u32, gp: u32) -> Result<Vec<u8>, String> {
         use Insn::*;
+        if let JumpTableOffsets15{base,targets}=self {
+            let mut bytes=Vec::with_capacity(30);
+            for (idx,target) in targets.into_iter().enumerate() {
+                if target<base || target-base>u16::MAX as u32 || (target-base)&1!=0 {
+                    return Err(format!("15-way jump-table entry {idx} outside aligned 16-bit offset"));
+                }
+                bytes.extend_from_slice(&((target-base) as u16).to_le_bytes());
+            }
+            return Ok(bytes);
+        }
         if let JumpTableOffsets16{base,targets}=self {
             let mut bytes=Vec::with_capacity(70);
             for (idx,target) in targets.into_iter().enumerate() {
@@ -317,6 +333,7 @@ impl Insn {
             }
             VariableShiftLeft { dest,source,amount } => (0x20<<25)|(dest.number()<<20)|(source.number()<<15)|(amount.number()<<10)|12,
             VariableShiftRight { dest,source,amount } => (0x20<<25)|(dest.number()<<20)|(source.number()<<15)|(amount.number()<<10)|13,
+            VariableArithmeticShiftRight {dest,source,amount} => (0x20<<25)|(dest.number()<<20)|(source.number()<<15)|(amount.number()<<10)|14,
             BranchImmediate { reg,value,nonzero,target } => (0x2d<<25)|(reg.number()<<20)
                 |(u32::from(nonzero)<<19)|(signed(i64::from(value),11)?<<8)|displacement(pc,target,8)?,
             BranchSignWide { reg,comparison,target } => (0x27<<25)|(reg.number()<<20)
@@ -471,6 +488,10 @@ impl Insn {
                 if offset%4!=0 || offset>508{return Err("invalid FP-relative compact word offset".into());}
                 0xb800 | reg.small()?<<8 | u16::from(store)<<7 | offset/4
             }
+            ShiftArithmeticRightSmall { reg,amount } => {
+                if amount>31{return Err("SRAI45 amount exceeds 31".into());}
+                0x9000 | reg.compact()? << 5 | u16::from(amount)
+            },
             ShiftRightSmall { reg,amount } => {
                 if amount>31{return Err("SRLI45 amount exceeds 31".into());}
                 0x9200 | reg.compact()?<<5 | u16::from(amount)
@@ -600,10 +621,12 @@ impl Insn {
             WordAtStack {store,reg,offset} => format!("{}wi37.sp {},[$sp+{}]",if store{"s"}else{"l"},r(reg),offset),
             WordAtFrame { store,reg,offset } => format!("{}wi37 {},[$fp+{}]",if store{"s"}else{"l"},r(reg),offset),
             ShiftRightSmall { reg,amount } => format!("srli45 {},{}",r(reg),amount),
+            ShiftArithmeticRightSmall {reg,amount} => format!("srai45 {},{}",r(reg),amount),
             ShiftRight { dest,source,amount } => format!("srli {},{},{}",r(dest),r(source),amount),
             AluShiftLeft { op,dest,left,right,shift } => format!("{}_slli {},{},{},{}",match op{AluOp::Add=>"add",AluOp::Or=>"or"},r(dest),r(left),r(right),shift),
             VariableShiftLeft { dest,source,amount } => format!("sll {},{},{}",r(dest),r(source),r(amount)),
             VariableShiftRight { dest,source,amount } => format!("srl {},{},{}",r(dest),r(source),r(amount)),
+            VariableArithmeticShiftRight{dest,source,amount} => format!("sra {},{},{}",r(dest),r(source),r(amount)),
             BranchImmediate { reg,value,nonzero,target } => format!("{} {},{},.{:+}",if nonzero{"bnec"}else{"beqc"},r(reg),value,i64::from(target)-i64::from(pc)),
             BranchA5 { reg,nonzero,target } => format!("{} {},.{:+}",if nonzero{"bnes38"}else{"beqs38"},r(reg),i64::from(target)-i64::from(pc)),
             AddSmall { reg,value,subtract } => format!("{} {},{}",if subtract{"subi45"}else{"addi45"},r(reg),value),
@@ -642,6 +665,7 @@ impl Insn {
             JumpRegister { reg } => format!("jr5 {}",r(reg)),
             JumpRegisterWide{reg} => format!("jr {}",r(reg)),
             JumpTableOffsets16{base,targets} => format!("jump.offsets16 0x{base:x} {}",targets.iter().map(|x|format!("0x{x:x}")).collect::<Vec<_>>().join(",")),
+            JumpTableOffsets15{base,targets} => format!("jump.offsets15 0x{base:x} {}",targets.iter().map(|x|format!("0x{x:x}")).collect::<Vec<_>>().join(",")),
             DataSync => "dsb".into(),
             Stack { pop,last,extra } => format!("{} {},{}",if pop{"pop25"}else{"push25"},r(last),extra),
             MultipleWords { store,first,base,last,specials,decrement,writeback } => format!("{}mw.{}{} {},[{}],{},{}",
@@ -653,6 +677,34 @@ impl Insn {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn fifteen_way_jump_table_is_little_endian_data() {
+        let t=[0x4554,0x455e,0x4568,0x45c6,0x45ec,0x45f2,0x462a,
+               0x4604,0x4610,0x4630,0x454e,0x461e,0x462a,0x462a,0x4624];
+        let encoded=Insn::JumpTableOffsets15{base:0x4530,targets:t}.encode(0,0).unwrap();
+        assert_eq!(encoded.len(),30);
+        assert_eq!(&encoded[..6],[0x24,0x00,0x2e,0x00,0x38,0x00]);
+        assert_eq!(&encoded[28..],[0xf4,0x00]);
+        let mut broken=t;broken[5]=0x4531;
+        assert!(Insn::JumpTableOffsets15{base:0x4530,targets:broken}.encode(0,0).is_err());
+    }
+    #[test]
+    fn nds32_srai45_compact_register_signed_shift() {
+        let x=Insn::ShiftArithmeticRightSmall{reg:R1,amount:8};
+        assert_eq!(x.encode(0,0).unwrap(),[0x90,0x28]);
+        assert_eq!(x.assembly(0,0),"srai45 $r1,8");
+        assert_ne!(x.encode(0,0),Insn::ShiftRightSmall{reg:R1,amount:8}.encode(0,0));
+        assert!(Insn::ShiftArithmeticRightSmall{reg:R1,amount:32}.encode(0,0).is_err());
+        assert!(Insn::ShiftArithmeticRightSmall{reg:Reg::new(20),amount:1}.encode(0,0).is_err());
+    }
+    #[test]
+    fn nds32_sra_register_preserves_signed_shift_opcode() {
+        let example=Insn::VariableArithmeticShiftRight{dest:R0,source:R0,amount:R1};
+        assert_eq!(example.encode(0,0).unwrap(),[0x40,0x00,0x04,0x0e]);
+        assert_eq!(example.assembly(0,0),"sra $r0,$r0,$r1");
+        assert_ne!(example.encode(0,0),Insn::VariableShiftRight{dest:R0,source:R0,amount:R1}.encode(0,0));
+    }
+
     #[test]
     fn gprel_signed_byte_uses_distinct_lbsi_opcode_bit() {
         let addr=0x2c6b9;
