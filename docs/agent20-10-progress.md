@@ -732,3 +732,12 @@ python3 tools/verify-agent20-10-cdsp-controller-return-paths.py \
   --generated /private/return-paths-72.bin \
   --prefix /private/controller-rwe-2192.bin --reference /private/cdsp.mbn
 ```
+
+## Checkpoint 37 — controller diagnostics through 0x568f0, 3,432 source-executable bytes
+
+- Reconstructed the **84-byte executable controller-error tail** at CDSP file `[0x56890,0x568e4)`, physical `[0x96cc8890,0x96cc88e4)`; all 21 Hexagon V66 instruction words match the pinned `cdsp.mbn` byte-for-byte. The extension belongs to the controller function begun at file `0x56600`.
+- Three seven-word diagnostic records call the same trace helper at `0x96dc0bac` and register/update helper at `0x96ccd8c4`; message pointers are `0xc0226180`, `0xc02261a6`, `0xc02261a6`, with severity codes 212, 284, 307. Runtime packet markers and the `R1:0=combine(R18,##0xc0226175)` extenders are independently assembled, not pasted OEM words.
+- Three 32-bit `nop` packets (`0x7f00c000` each) follow at file `[0x568e4,0x568f0)` and are classified **only as 12 layout/alignment bytes**, not independently authored executable. The full contiguous RWE prefix `[0x56000,0x568f0)` totals **2,288 bytes**: 2,232 source-encoded executable + 56 structural NOP/fill. The separate completed controller `[0x55000,0x554b0)` contributes 1,200 more executable, yielding **3,432 total source-encoded executable bytes** across two regions.
+- `tools/agent20-10-cdsp-controller-error-tail.s` contains separately authored LLVM 6 Hexagon operations; LLVM assembles **21/21 words byte-identically** to the Rust emitter and reference, including original packet order, direct physical helper displacements and extended constants. `tools/verify-agent20-10-cdsp-controller-error-tail.py` checks the pinned original SHA-256, the full 2,288-byte RWE prefix, LLVM output and 6 direct call operations using the LLVM Hexagon decoder.
+- Verify: `cargo run --offline --locked -p firmware-tools --bin cdsp-late-controller-error-tail -- verify-prefix /private/cdsp.mbn`, then `python3 tools/verify-agent20-10-cdsp-controller-error-tail.py --llvm-mc /private/llvm6/bin/llvm-mc --llvm-objdump /private/llvm6/bin/llvm-objdump --generated /tmp/error-tail-84.bin --prefix /tmp/rwe-prefix-2288.bin --reference /private/cdsp.mbn`.
+- **Next uncovered instruction:** file `0x568f0` (physical `0x96cc88f0`). This remains an Agent 05-descended preparatory branch, not a verified checkpoint-50-rooted integration and not a complete/authenticated CDSP firmware build.
