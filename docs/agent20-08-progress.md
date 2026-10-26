@@ -861,3 +861,31 @@ the code count, before the previously reconstructed descriptor refresher.
 103 nonoverlapping source-verified fragments. The ADSP firmware as a whole
 and OEM authentication remain unimplemented. The provisional branch awaits
 checkpoint-50-based integration.
+
+
+**Checkpoint 56 — platform bootstrap and controller-descriptor creation:**
+Two independent Hexagon assembly sources were fully reconstructed and
+byte-compared with the pinned ADSP reference:
+
+- `controller-platform-bootstrap` at `[file 0x3e150,0x3e260)` (272 bytes),
+  SHA-256 `c69bff7df1a7f4d88c98fd73128ab3fd96bf78fadb2af9e076efec578521f378`.
+  This initializes the controller registry and platform callback table and
+  follows both normal and allocation-failure return paths.
+- `controller-create-descriptor` at `[file 0x3e260,0x3e368)` (264 bytes),
+  SHA-256 `e626719f0e5d5ab07724a499f35365bc9b6e16b07913067b45de417ed6dd5975`.
+  This publishes a tagged controller descriptor with memory-backed resource
+  fields, callbacks, and cleanup branches. Its two difficult packet groups
+  use original, explicitly encoded instruction ordering: `:mem_noshuf` for
+  load/store ordering and a four-word call/store/immext/store packet whose
+  first store **continues** rather than terminates the Hexagon packet.
+
+The two new sources contribute **536** genuine independently source-assembled
+executable bytes across **two** functions. Together with checkpoints 54/55,
+they form an **812-byte contiguous source-built region `[0x3e150,0x3e47c)`**.
+The four-byte alignment gap `[0x3e47c,0x3e480)` is excluded. In total,
+**9,492 independently assembled executable bytes across 105 verified
+fragments**, zero copied vendor opcodes or padding. All 198 Python tests are
+discovered; 195 pass and 3 are skipped, and 160 Rust tests pass. The offline
+release build succeeds and every generated fragment matches the pinned
+`adsp.mbn`. This is still a **provisional older-base branch**, not the actual
+checkpoint-50-rooted integrated tree, and most ADSP code remains unbuilt.

@@ -81,6 +81,8 @@ FRAGMENTS = {
     'controller-state-tail': (TOOLS / 'adsp-late-controller-state-tail.S', 0x3EC64, 0x10),
     'call-descriptor-dispatch': (TOOLS / 'adsp-late-call-descriptor-dispatch.S', 0x3E0A4, 0x28),
     'controller-runtime-init': (TOOLS / 'adsp-late-controller-runtime-init.S', 0x3E0D0, 0x80),
+    'controller-platform-bootstrap': (TOOLS / 'adsp-late-controller-platform-bootstrap.S', 0x3E150, 0x110),
+    'controller-create-descriptor': (TOOLS / 'adsp-late-controller-create-descriptor.S', 0x3E260, 0x108),
     'controller-check-status-tag': (TOOLS / 'adsp-late-controller-check-status-tag.S', 0x3E368, 0x68),
     'controller-status-release': (TOOLS / 'adsp-late-controller-status-release.S', 0x3E3D0, 0xAC),
     'controller-descriptor-refresh': (TOOLS / 'adsp-late-controller-descriptor-refresh.S', 0x3E480, 0x50),

@@ -197,9 +197,9 @@ class ADSPExternalsAndCodeTests(unittest.TestCase):
     @unittest.skipUnless(LLVM_MC,'Hexagon LLVM6 assembler required')
     def test_complete_fragment_inventory_rejects_overlaps(self):
         manifest,regions=adsp.assembled_inventory(LLVM_MC,None)
-        self.assertEqual(len(manifest['fragments']),103)
-        self.assertEqual(manifest['total_independently_assembled_executable_bytes'],8956)
-        self.assertEqual(sum(map(len,regions.values())),8956)
+        self.assertEqual(len(manifest['fragments']),105)
+        self.assertEqual(manifest['total_independently_assembled_executable_bytes'],9492)
+        self.assertEqual(sum(map(len,regions.values())),9492)
         self.assertEqual(manifest['gap_bytes_included_in_generated_executables'],0)
         self.assertFalse(manifest['complete_adsp_image'])
         self.assertEqual(manifest['external_original_code_bytes_in_output'],0)
@@ -366,7 +366,7 @@ class ADSPExternalsAndCodeTests(unittest.TestCase):
     def test_inventory_every_fragment_uses_correct_original(self):
         inventory,_outputs=adsp.assembled_inventory(LLVM_MC,Path(REFERENCE).read_bytes())
         self.assertTrue(all(x['reference_byte_identical'] for x in inventory['fragments']))
-        self.assertEqual(inventory['total_independently_assembled_executable_bytes'],8956)
+        self.assertEqual(inventory['total_independently_assembled_executable_bytes'],9492)
 
     @unittest.skipUnless(LLVM_MC and REFERENCE,
                          'Hexagon LLVM6 and exact pinned ADSP reference required')
@@ -380,7 +380,7 @@ class ADSPExternalsAndCodeTests(unittest.TestCase):
                 adsp.verify_slice(built,original,off)
                 total+=len(built)
                 ranges.append((off,off+size))
-        self.assertEqual(total,8956)
+        self.assertEqual(total,9492)
         ranges.sort()
         self.assertEqual(ranges[0],(0x39000,0x39054))
         self.assertEqual(ranges[-1],(0x3640a8,0x3640f8))
@@ -1559,3 +1559,51 @@ class ADSPControllerStatusReleaseTests(unittest.TestCase):
         self.assertEqual(prev[1]+prev[2],off)
         self.assertEqual(prev[2]+size,276)
         self.assertEqual(off+size,0x3e47c)
+
+
+class ADSPControllerDescriptorCreationTests(unittest.TestCase):
+    """Two contiguous source-assembled routines preceding status/release."""
+
+    @unittest.skipUnless(LLVM_MC,'Hexagon LLVM6 assembler required')
+    def test_bootstrap_and_descriptor_creation_are_independently_encoded(self):
+        cases={
+            'controller-platform-bootstrap':(0x3e150,0x110,
+                'c69bff7df1a7f4d88c98fd73128ab3fd96bf78fadb2af9e076efec578521f378'),
+            'controller-create-descriptor':(0x3e260,0x108,
+                'e626719f0e5d5ab07724a499f35365bc9b6e16b07913067b45de417ed6dd5975'),
+        }
+        reference=Path(REFERENCE).read_bytes() if REFERENCE else None
+        compiled=[]
+        for name,(offset,length,sha256) in cases.items():
+            with self.subTest(name=name):
+                source,off,need=adsp.FRAGMENTS[name]
+                self.assertEqual((off,need),(offset,length))
+                content=source.read_text()
+                for forbidden in ('.word ','.long ','.byte ','.incbin ','.fill '):
+                    self.assertNotIn(forbidden,content)
+                raw=adsp.compile_source(LLVM_MC,source,length)
+                self.assertEqual(hashlib.sha256(raw).hexdigest(),sha256)
+                if reference is not None:
+                    adsp.verify_slice(raw,reference,offset)
+                compiled.append(raw)
+        self.assertEqual(sum(map(len,compiled)),536)
+        self.assertEqual(adsp.FRAGMENTS['controller-platform-bootstrap'][1]+0x110,0x3e260)
+        self.assertEqual(adsp.FRAGMENTS['controller-create-descriptor'][1]+0x108,0x3e368)
+        self.assertEqual(adsp.FRAGMENTS['controller-check-status-tag'][1],0x3e368)
+
+    @unittest.skipUnless(LLVM_MC,'Hexagon LLVM6 assembler required')
+    def test_noshuffle_load_store_and_four_word_packet(self):
+        first=adsp.FRAGMENTS['controller-create-descriptor'][0].read_text()
+        self.assertIn('{ memd(r29+#16) = r27:26; r19:18 = memd(r1+#8) }:mem_noshuf',first)
+        self.assertIn('call initialize_descriptor; memw(r16+#4) = r4; immext(#4026774592)',first)
+        raw=adsp.compile_source(LLVM_MC,adsp.FRAGMENTS['controller-create-descriptor'][0],0x108)
+        # Original 2-op load/store packet has one continuation and one
+        # terminating Hexagon parse field. This checks architectural packet
+        # shape without committing OEM machine-code words into the test.
+        packet_words=[int.from_bytes(raw[i:i+4],'little') for i in (0x20,0x24)]
+        self.assertEqual([(w>>14)&3 for w in packet_words],[1,3])
+        # The first store following the call continues the original four-word
+        # packet through its next immediate-extension and memory store.
+        packet_words=[int.from_bytes(raw[i:i+4],'little')
+                      for i in (0xa8,0xac,0xb0,0xb4)]
+        self.assertEqual([(w>>14)&3 for w in packet_words],[1,1,1,3])
