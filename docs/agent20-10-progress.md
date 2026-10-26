@@ -510,3 +510,23 @@ python3 tools/verify-agent20-10-cdsp-copy-delegate.py \
   --generated /private/copy-delegate-60.bin --prefix /private/cdsp-rwe-1536.bin \
   --reference /private/cdsp.mbn
 ```
+
+## Checkpoint 27 — large controller prologue, 2,772 executable bytes
+
+- Added **80 independently reconstructed executable bytes** `[0x56600,0x56650)` (physical `[0x96cc8600,0x96cc8650)`, VMA `[0xc00c8600,0xc00c8650)`), beginning a **larger unfinished controller routine**. The code saves nine working register pairs, fetches memory globals, tests a null resource, calculates upper address bounds and masks bank bits.
+- Contiguous RWE prefix `[0x56000,0x56650)` = **1,616 exact file bytes**. Of those, **1,572 are independently generated executable bytes**; **44 are explicit layout NOP/fill bytes**. With the separate entire 1,200-byte controller executable `[0x55000,0x554b0)`, total CDSP source-rebuilt executable contribution is **2,772 bytes**.
+- A separate LLVM6 semantic fixture exactly reproduces the first eight Hexagon words and six later words (**14/20 unchanged original words**). LLVM6 omits the forced extenders on three GP-relative loads, producing 17 semantic words instead of the original 20; these differences are documented, not claimed as exact LLVM byte identity.
+- The original-order Rust bytes independently decode in Rizin V66 as all twenty Hexagon instruction words with correct fused-global load, GP source addresses, bank mask and physical null-resource jump target `0x96cc8870`.
+- Checked constructors reject unsupported frame register pairs, immediate mask sizes, GP source addresses and branch destinations. Both the new 80-byte fragment and full 1,616-byte RWE prefix compare byte-identically to the pinned CDSP OEM reference with **zero mismatches**.
+- Next uncovered instruction is file offset **`0x56650`**, physical `0x96cc8650`, continuing the same controller function. The final MBN image remains incomplete/externally authenticated. Branch base remains Agent05's old CDSP branch; checkpoint-50-integrated base is unavailable.
+
+Check independently:
+
+```sh
+cargo run --offline --locked -p firmware-tools --bin cdsp-late-large-prologue -- verify /private/cdsp.mbn
+cargo run --offline --locked -p firmware-tools --bin cdsp-late-large-prologue -- verify-prefix /private/cdsp.mbn
+python3 tools/verify-agent20-10-cdsp-large-prologue.py \
+  --llvm-mc /private/llvm6/bin/llvm-mc --rz-asm /private/rz-asm \
+  --generated /private/controller-80.bin --prefix /private/cdsp-rwe-1616.bin \
+  --reference /private/cdsp.mbn
+```
