@@ -244,6 +244,27 @@ ADDITIONAL_CHECKPOINT09_POSTMARKETOS_EX9 = {42: {'operation': 'jal', 'target_low
 
 PROFILES["postmarketos"]["ex9"].update(ADDITIONAL_POSTMARKETOS_EX9)
 PROFILES["postmarketos"]["ex9"].update(ADDITIONAL_CHECKPOINT09_POSTMARKETOS_EX9)
+# Checkpoint 10: independently named semantic effects of thirteen additional
+# EX9 entries. These instructions live in Agent 18's table; only their decoded
+# operands/operation types are checked against the pinned external reference.
+ADDITIONAL_CHECKPOINT10_POSTMARKETOS_EX9 = {
+    0x016: {"operation":"lbi.gp","destination_register":0,"address":0x2c7cb},
+    0x02c: {"operation":"sbi","source_register":0,"base_register":31,"displacement":7},
+    0x032: {"operation":"srli","destination_register":0,"source_register":0,"shift":0},
+    0x05f: {"operation":"ori","destination_register":0,"source_register":0,"immediate":4},
+    0x0d5: {"operation":"slti","destination_register":0,"source_register":0,"immediate":1},
+    0x0e4: {"operation":"ori","destination_register":0,"source_register":0,"immediate":2},
+    0x104: {"operation":"indexed","store":True,"width":"Byte","destination_register":2,
+            "base_register":1,"index_register":0,"shift":0},
+    0x12a: {"operation":"andi","destination_register":0,"source_register":0,"immediate":253},
+    0x167: {"operation":"cmovz","destination_register":0,"source_register":1,"test_register":15},
+    0x180: {"operation":"lwi.gp","destination_register":1,"address":0x2c7c4},
+    0x19b: {"operation":"divsr","quotient_register":0,"dividend_register":2,"divisor_register":0,"remainder_register":0},
+    0x1bf: {"operation":"movi","destination_register":0,"immediate":260040},
+    0x1c1: {"operation":"indexed","store":False,"width":"Word","destination_register":1,
+            "base_register":1,"index_register":11,"shift":2},
+}
+PROFILES["postmarketos"]["ex9"].update(ADDITIONAL_CHECKPOINT10_POSTMARKETOS_EX9)
 
 FILE_START = 0x66A
 ASSIGNED_END = 0x10000
@@ -266,16 +287,17 @@ CHECKPOINT_COUNTS["postmarketos"][0xE34] = (758, 239, 519, 132, 63)
 # Filled after typed encoder verification: 0x1c1a cumulative checkpoint.
 CHECKPOINT_COUNTS["postmarketos"][0x1C1A] = (2074,702,1372,401,131)
 CHECKPOINT_COUNTS["postmarketos"][0x23D0] = (2776,987,1789,477,151)
+CHECKPOINT_COUNTS["postmarketos"][0x2724] = (3109,1080,2029,512,164)
 SUPPORTED_MNEMONICS = {
     2: frozenset({
         "addi45", "beqs38", "bnes38", "beqz38", "bnez38", "beqzs8", "bnezs8",
         "add45", "bmski33", "fexti33", "slt45", "ex9.it", "ifcall9", "ifret16", "j8", "jr5", "jral5",
-        "lbi333", "lhi333", "lwi333", "lwi37", "lwi37.sp", "lwi450", "swi333", "mov55", "movi55", "movpi45", "or33", "addi10.sp", "addri36.sp", "add333", "sub333", "sub45", "swi37.sp", "seh33", "slts45", "sltsi45", "neg33", "not33", "mul33", "xor33", "and33", "or33",
+        "lbi333", "lhi333", "lwi333", "lwi37", "lwi37.sp", "lwi450", "lwi45.fe", "swi333", "mov55", "movi55", "movpi45", "or33", "addi10.sp", "addri36.sp", "add333", "sub333", "sub45", "swi37.sp", "seh33", "slts45", "sltsi45", "neg33", "not33", "mul33", "xor33", "and33", "or33",
         "pop25", "push25", "ret5", "sbi333", "seb33", "shi333", "slti45", "srli45", "subi333", "subi45",
         "swi450", "xlsb33", "zeb33", "zeh33", "slli333", "addi333",
     }),
     4: frozenset({
-        "add_slli", "addi", "andi", "beqc", "beqz", "bitci", "bnec", "bset", "dsb",
+        "add_slli", "addi", "andi", "beq", "bne", "beqc", "beqz", "bitci", "bnec", "bset", "dsb",
         "bnez", "ifcall", "lhi.gp", "lhsi.gp", "shi.gp", "lbi", "slti", "sltsi", "bgez", "bltz", "bgtz", "blez", "bgezal", "bltzal", "lhi", "lwi", "shi", "swi", "lbs", "lhs", "lw", "sw", "srai", "divsr", "divr", "sub_slli", "and_slli", "xor_slli", "nor_slli", "slt_slli", "slts_slli", "lbi.gp", "lmw.bi", "smw.bi", "j", "jal", "jr", "jral", "lb", "lbi.gp", "lmw.bim", "lwi", "lwi.gp", "mfsr", "movi",
         "mtsr", "or_slli", "ori", "sb", "sbi", "sbi.gp", "sethi", "sll", "smw.adm", "smw.bim", "srli", "swi.gp",
         "maddr32", "mul", "mulr64", "mulsr64", "max", "or_srli", "zeh", "subri", "slli", "lbsi", "lhsi",
@@ -457,6 +479,26 @@ def verify_effect(table_bytes, effect, gp=None):
         return ((word >> 25) == opcode and (word >> 20 & 31) == effect["destination_register"]
                 and (word >> 15 & 31) == effect["source_register"]
                 and (word & 0x7FFF) == effect["immediate"])
+    if operation == "slti":
+        return ((word >> 25) == 0x2e and (word >> 20 & 31) == effect["destination_register"]
+                and (word >> 15 & 31) == effect["source_register"]
+                and (word & 0x7fff) == effect["immediate"])
+    if operation == "cmovz":
+        # N32 ALU1/CMOVZ subcode 0x1a, with a GP/TA conditional input.
+        return ((word >> 25) == 0x20 and (word & 31) == 0x1a
+                and (word >> 20 & 31) == effect["destination_register"]
+                and (word >> 15 & 31) == effect["source_register"]
+                and (word >> 10 & 31) == effect["test_register"]
+                and (word >> 5 & 31) == 0)
+    if operation == "indexed":
+        types = {("Byte",False):0,("Half",False):1,("Word",False):2,
+                 ("Byte",True):8,("Half",True):9,("Word",True):10}
+        return ((word >> 25) == 0x1c
+                and (word >> 20 & 31) == effect["destination_register"]
+                and (word >> 15 & 31) == effect["base_register"]
+                and (word >> 10 & 31) == effect["index_register"]
+                and (word >> 8 & 3) == effect["shift"]
+                and (word & 0xff) == types[(effect["width"],effect["store"])])
     if operation == "sltsi":
         return ((word >> 25) == 0x2f and (word >> 20 & 31) == effect["destination_register"]
                 and (word >> 15 & 31) == effect["source_register"]

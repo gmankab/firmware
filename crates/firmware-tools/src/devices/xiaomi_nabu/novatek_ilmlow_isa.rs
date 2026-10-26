@@ -90,6 +90,8 @@ pub enum Insn {
     Move { dest: Reg, source: Reg },
     BranchZero { reg: Reg, nonzero: bool, target: u32 },
     BranchZeroWide { reg: Reg, nonzero: bool, target: u32 },
+    /// N32 BR1 BEQ/BNE: compare two registers and branch on equality.
+    CompareRegistersBranch {left:Reg,right:Reg,nonzero:bool,target:u32},
     BranchSignWide { reg: Reg, comparison: SignCondition, target: u32 },
     BitClearImmediate { dest: Reg, source: Reg, mask: u16 },
     SetHigh { dest: Reg, value: u32 },
@@ -102,6 +104,9 @@ pub enum Insn {
     ShortMemory { store: bool, width: Width, reg: Reg, base: Reg, offset: u8 },
     ImmediateMemory { store: bool, width: Width, reg: Reg, base: Reg, offset: i32 },
     SignedMemoryImmediate {width:Width,dest:Reg,base:Reg,offset:i32},
+    /// LWI45.FE: load a word from the implicit $r8 frame/end register at
+    /// a four-byte aligned negative offset, [-128,-4]. V3MUP extension.
+    WordAtFrameEnd { dest: Reg, offset: i16 },
     WordAtRegister { store: bool, reg: Reg, base: Reg },
     WordAtFrame { store: bool, reg: Reg, offset: u16 },
     WordAtStack { store: bool, reg: Reg, offset: u16 },
@@ -156,6 +161,8 @@ pub enum Insn {
     InlineReturn,
     Return { reg: Reg },
     JumpRegisterLink { reg: Reg },
+    /// N16 JR5: jump to address in compact register, without setting LP.
+    JumpRegister { reg:Reg },
     DataSync,
     StackAdjust { bytes: i16 },
     AddressFromStack { dest: Reg, offset: u16 },
@@ -245,6 +252,9 @@ impl Insn {
                 |(u32::from(nonzero)<<19)|(signed(i64::from(value),11)?<<8)|displacement(pc,target,8)?,
             BranchSignWide { reg,comparison,target } => (0x27<<25)|(reg.number()<<20)
                 | (comparison.bits()<<16) | displacement(pc,target,16)?,
+            CompareRegistersBranch {left,right,nonzero,target} =>
+                (0x26<<25)|(left.number()<<20)|(right.number()<<15)
+                |(u32::from(nonzero)<<14)|displacement(pc,target,14)?,
             BranchZeroWide { reg,nonzero,target } => (0x27<<25)|(reg.number()<<20)
                 |((2+u32::from(nonzero))<<16)|displacement(pc,target,16)?,
             OrImmediate { dest,source,value } => (0x2c<<25)|(dest.number()<<20)|(source.number()<<15)|u15(value)?,
@@ -362,6 +372,14 @@ impl Insn {
                 let operation=match width{Width::Word=>0xa000,Width::Half=>0xa400,Width::Byte=>0xa600};
                 operation | (u16::from(store)<<11) | reg.small()?<<6 | base.small()?<<3 | u16::from(offset/width.scale())
             }
+            WordAtFrameEnd { dest,offset } => {
+                if offset < -128 || offset > -4 || offset%4 != 0 {
+                    return Err("LWI45.FE offset must be a negative word offset from -128 through -4".into());
+                }
+                // GNU NDS32 N16_TYPE45 encoding: rt4 uses the compact
+                // r45 mapping, fe5 is (offset + 128)/4.
+                0xb200 | (dest.compact()?<<5) | ((offset + 128)/4) as u16
+            },
             WordAtRegister { store,reg,base } => 0xb400|(u16::from(store)<<9)|(reg.compact()?<<5)|base.number() as u16,
             WordAtStack {store,reg,offset} => {
                 if offset%4!=0 || offset>508 {return Err("invalid SP-relative compact word offset".into());}
@@ -430,6 +448,7 @@ impl Insn {
             InlineReturn => 0x83ff,
             Return { reg } => 0xdd80|reg.number() as u16,
             JumpRegisterLink { reg } => 0xdd20|reg.number() as u16,
+            JumpRegister { reg } => 0xdd00|reg.number() as u16,
             Stack { pop, last, extra } => {
                 let group = match last.number() { 6=>0, 8=>1, 10=>2, 14=>3,
                     _=>return Err("PUSH25/POP25 last register must be r6/r8/r10/r14".into()) };
@@ -469,6 +488,8 @@ impl Insn {
             LowBit { dest,source } => format!("xlsb33 {},{}",r(dest),r(source)),
             Move { dest,source } => format!("mov55 {},{}",r(dest),r(source)),
             BranchZero { reg,nonzero,target } => format!("{} {},.{:+}",if nonzero{"bnez38"}else{"beqz38"},r(reg),i64::from(target)-i64::from(pc)),
+            CompareRegistersBranch {left,right,nonzero,target} =>
+                format!("{} {},{},.{:+}",if nonzero{"bne"}else{"beq"},r(left),r(right),i64::from(target)-i64::from(pc)),
             BranchZeroWide { reg,nonzero,target } => format!("{} {},.{:+}",if nonzero{"bnez"}else{"beqz"},r(reg),i64::from(target)-i64::from(pc)),
             BranchSignWide { reg,comparison,target } => format!("{} {},.{:+}",comparison.mnemonic(),r(reg),i64::from(target)-i64::from(pc)),
             BitClearImmediate { dest,source,mask } => format!("bitci {},{},{}",r(dest),r(source),mask),
@@ -482,6 +503,7 @@ impl Insn {
             ShortMemory { store,width,reg,base,offset } => format!("{}{}i333 {},[{}+{}]",if store{"s"}else{"l"},width.letter(),r(reg),r(base),offset),
             SignedMemoryImmediate{width,dest,base,offset} => format!("l{}si {},[{}{:+}]",width.letter(),r(dest),r(base),offset),
             ImmediateMemory { store,width,reg,base,offset } => format!("{}{}i {},[{}{:+}]",if store{"s"}else{"l"},width.letter(),r(reg),r(base),offset),
+            WordAtFrameEnd {dest,offset} => format!("lwi45.fe {},{}",r(dest),offset),
             WordAtRegister { store,reg,base } => format!("{}wi450 {},[{}]",if store{"s"}else{"l"},r(reg),r(base)),
             WordAtStack {store,reg,offset} => format!("{}wi37.sp {},[$sp+{}]",if store{"s"}else{"l"},r(reg),offset),
             WordAtFrame { store,reg,offset } => format!("{}wi37 {},[$fp+{}]",if store{"s"}else{"l"},r(reg),offset),
@@ -521,6 +543,7 @@ impl Insn {
             InlineReturn => "ifret16".into(),
             Return { reg } => format!("ret5 {}",r(reg)),
             JumpRegisterLink { reg } => format!("jral5 {}",r(reg)),
+            JumpRegister { reg } => format!("jr5 {}",r(reg)),
             DataSync => "dsb".into(),
             Stack { pop,last,extra } => format!("{} {},{}",if pop{"pop25"}else{"push25"},r(last),extra),
             MultipleWords { store,first,base,last,specials,decrement,writeback } => format!("{}mw.{}{} {},[{}],{},{}",
@@ -532,6 +555,35 @@ impl Insn {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn jr5_preserves_nonlinking_semantics(){
+        assert_eq!(Insn::JumpRegister {reg:Reg::new(15)}.encode(0,0).unwrap(),[0xdd,0x0f]);
+        assert_eq!(Insn::JumpRegisterLink {reg:Reg::new(15)}.encode(0,0).unwrap(),[0xdd,0x2f]);
+        assert_ne!(Insn::JumpRegister {reg:Reg::new(15)}.assembly(0,0),
+            Insn::JumpRegisterLink {reg:Reg::new(15)}.assembly(0,0));
+    }
+
+    #[test]
+    fn wide_register_compare_branch_encodes_br1_fields(){
+        assert_eq!(Insn::CompareRegistersBranch {left:Reg::new(5),right:Reg::new(12),
+            nonzero:true,target:0x229c}.encode(0x2242,0).unwrap(),[0x4c,0x56,0x40,0x2d]);
+        assert_eq!(Insn::CompareRegistersBranch {left:R1,right:R0,
+            nonzero:false,target:0x1004}.encode(0x1000,0).unwrap(),[0x4c,0x10,0,2]);
+        assert!(Insn::CompareRegistersBranch {left:R1,right:R2,
+            nonzero:false,target:0x1003}.encode(0x1000,0).is_err());
+    }
+
+    #[test]
+    fn lwi45_fe_uses_implicit_r8_and_negative_word_aligned_offset(){
+        assert_eq!(Insn::WordAtFrameEnd {dest:R0,offset:-32}.encode(0,0).unwrap(), [0xb2,0x18]);
+        assert_eq!(Insn::WordAtFrameEnd {dest:R1,offset:-128}.encode(0,0).unwrap(), [0xb2,0x20]);
+        assert_eq!(Insn::WordAtFrameEnd {dest:Reg::new(16),offset:-4}.encode(0,0).unwrap(),[0xb3,0x9f]);
+        assert!(Insn::WordAtFrameEnd {dest:Reg::new(20),offset:-32}.encode(0,0).is_err());
+        for bad in [-132,-126,0,4] {
+            assert!(Insn::WordAtFrameEnd {dest:R0,offset:bad}.encode(0,0).is_err());
+        }
+    }
+
     #[test]
     fn short_signed_comparisons_halfword_gp_and_register_add() {
         assert_eq!(Insn::AddSmallRegister{dest:R0,source:R1,subtract:false}.encode(0,0).unwrap(),[0x88,0x01]);
