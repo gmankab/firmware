@@ -33,6 +33,9 @@ FRAGMENTS = (
     ('bitmap-scan-tail', SOURCE_DIR / 'agent13-runtime-bitmap-scan-tail.S', 0x5b84, 0x88),
     ('controller-snapshot-wrapper', SOURCE_DIR / 'agent13-runtime-controller-snapshot-wrapper.S', 0x5c0c, 0x14),
     ('controller-initialize-stage1', SOURCE_DIR / 'agent13-runtime-controller-init-stage1.S', 0x5c20, 0xd8),
+    ('compound-branch', SOURCE_DIR / 'agent13-runtime-controller-init-branch-packet.S', 0x5cf8, 0x08),
+    ('compound-memory', SOURCE_DIR / 'agent13-runtime-controller-init-memory-packet.S', 0x5d00, 0x08),
+    ('controller-initialize-stage2', SOURCE_DIR / 'agent13-runtime-controller-init-stage2.S', 0x5d08, 0xe8),
 )
 
 
@@ -89,6 +92,28 @@ def assemble_predicate_pair(parent, llvm6: str, source: Path) -> bytes:
     return encoded[:8]
 
 
+def assemble_compound_branch(parent, llvm6: str, source: Path) -> bytes:
+    """Source-build extended predicated jump and change ONLY packet parse bits.
+
+    LLVM6 cannot schedule original one-packet compound predicate jump plus a
+    new-value memory load/store (out-of-slots error). Compile both pairs from
+    semantic source; the branch is the second of four packet words. Replace its
+    Hexagon packet parse field bits 15:14 from end-of-packet (`0b11`) to
+    continue (`0b01`), retaining all independently assembled opcode bits.
+    The second source-built pair supplies the last word with the final marker.
+    """
+    text = source.read_text()
+    if 'p0 = cmp.eq(r2,#0); if (p0.new) jump:nt ##0x434' not in text:
+        raise ValueError('compound branch semantic source differs')
+    words=parent.assemble(source,llvm6,'hexagonv65',expected_length=8)
+    first=int.from_bytes(words[0:4],'little')
+    last=int.from_bytes(words[4:8],'little')
+    if (first>>14)&0b11 != 0b01 or (last>>14)&0b11 != 0b11:
+        raise ValueError('LLVM6 extended branch parse markers unexpectedly changed')
+    last=(last & ~(0b11<<14)) | (0b01<<14)
+    return words[:4]+last.to_bytes(4,'little')
+
+
 def build(llvm6: str):
     mod = load_parent()
     end = validate_manifest()
@@ -96,6 +121,8 @@ def build(llvm6: str):
     for name, source, _, size in FRAGMENTS:
         if name == 'bitmap-predicate-pair':
             part = assemble_predicate_pair(mod, llvm6, source)
+        elif name == 'compound-branch':
+            part = assemble_compound_branch(mod, llvm6, source)
         else:
             part = mod.assemble(source, llvm6, 'hexagonv65', expected_length=size)
         if len(part) != size:
@@ -120,7 +147,7 @@ def main():
         parent.check_reference(fragment,args.reference.read_bytes(),runtime_offset=START)
     args.output.parent.mkdir(parents=True,exist_ok=True)
     args.output.write_bytes(fragment)
-    report={'agent':13,'checkpoint':'29-disjoint',
+    report={'agent':13,'checkpoint':'30-disjoint',
             'source_base':'Agent 13 checkpoint 16 (7c730bf); checkpoint25 source unavailable',
             'is_checkpoint25_descendant':False,
             'file_start':FILE_BASE+START,'file_end':FILE_BASE+end,

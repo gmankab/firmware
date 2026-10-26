@@ -280,3 +280,26 @@ python3 tools/build-wlanmdsp-agent13.py /tmp/wlan-prefix-through-27a0.bin \
 - This remains a **checkpoint 16-derived disjoint continuation**, not a
   descendant of unavailable checkpoint 25. Do not count it as a contiguous
   prefix from `0x40000` until those missing Git commits are integrated.
+
+## Checkpoint 30 (disjoint) — extended branch and controller mode fields
+
+- Added **248 source-generated Hexagon bytes** `[file 0x45cf8,0x45df0)`.
+  Their exact decomposition is a 16-byte compound predicate/branch and
+  dependent load+new-value-store packet `[0x45cf8,0x45d08)`, followed by
+  **232 bytes** of controller buffer-mode and attribute calculations
+  `[0x45d08,0x45df0)`.
+- LLVM6 cannot schedule the compound four-instruction packet as written:
+  packet slots reject the jump, byte load, and dependent store together.
+  The builder compiles the first two and final two operations independently
+  from semantic Hexagon source, changing **only Hexagon packet parser bits
+  15:14** of the separately compiled branch from `0b11` (packet end) to
+  `0b01` (packet continues). The `.new` load/store pair and all instruction
+  encoding bits come directly from LLVM6, not from copied OEM bytes. A unit
+  test checks the parser-field-only transformation.
+- In the following 232 bytes, three `:mem_noshuf` packets preserve the
+  original memory-operation order. Direct pinned-firmware byte comparison
+  reports **zero differences** for the entire continuation.
+- Verified continuation is now **1,892 bytes** `[file 0x4568c,0x45df0)`;
+  next missing packet is at `0x45df0`. This is **not** a checkpoint25
+  descendant and must not be summed into the earlier full WLAN prefix as
+  contiguous without the absent checkpoint 17–25 source history.

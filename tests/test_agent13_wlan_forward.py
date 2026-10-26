@@ -19,10 +19,10 @@ class SourceOnlyForwardTests(unittest.TestCase):
     def test_manifest_exact_boundaries(self):
         m=module()
         self.assertEqual(m.START,0x568c)
-        self.assertEqual(m.validate_manifest(),0x5cf8)
+        self.assertEqual(m.validate_manifest(),0x5df0)
         self.assertEqual(m.FILE_BASE+m.START,0x4568c)
-        self.assertEqual(m.FILE_BASE+m.validate_manifest(),0x45cf8)
-        self.assertEqual(sum(length for _,_,_,length in m.FRAGMENTS),1644)
+        self.assertEqual(m.FILE_BASE+m.validate_manifest(),0x45df0)
+        self.assertEqual(sum(length for _,_,_,length in m.FRAGMENTS),1892)
 
     def test_validator_forbids_opaque_data_and_layout_holes(self):
         m=module()
@@ -57,12 +57,27 @@ class SourceOnlyForwardTests(unittest.TestCase):
     def test_next_controller_split_is_adjacent(self):
         m=module()
         names=[x[0] for x in m.FRAGMENTS]
-        assert names[-2:]==['controller-snapshot-wrapper','controller-initialize-stage1']
-        assert m.FRAGMENTS[-2][2:]==(0x5c0c,0x14)
-        assert m.FRAGMENTS[-1][2:]==(0x5c20,0xd8)
-        source=m.FRAGMENTS[-1][1].read_text()
+        assert names[-5:-3]==['controller-snapshot-wrapper','controller-initialize-stage1']
+        assert m.FRAGMENTS[-5][2:]==(0x5c0c,0x14)
+        assert m.FRAGMENTS[-4][2:]==(0x5c20,0xd8)
+        source=m.FRAGMENTS[-4][1].read_text()
         assert ':mem_noshuf' in source
         assert 'loop0(' not in source
+
+    def test_compound_extended_branch_preserves_only_parse_bits(self):
+        m=module()
+        assert [frag[0] for frag in m.FRAGMENTS[-3:]]==[
+            'compound-branch','compound-memory','controller-initialize-stage2']
+        class ParentStub:
+            def assemble(self,source,llvm6,cpu,expected_length):
+                assert expected_length==8
+                # A synthetic LLVM6 packet: zero parse bits in first word,
+                # last word has the Hexagon end marker. No OEM instruction bits.
+                return (0x00004010).to_bytes(4,'little')+(0x0aaaC042).to_bytes(4,'little')
+        b=m.assemble_compound_branch(ParentStub(),'llvm6',m.FRAGMENTS[-3][1])
+        assert len(b)==8
+        assert int.from_bytes(b[4:8],'little')==0x0aaa4042
+        assert b[:4]==(0x4010).to_bytes(4,'little')
 
     def test_structured_predicate_duplex_sources(self):
         m=module()
