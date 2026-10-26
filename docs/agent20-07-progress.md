@@ -813,3 +813,17 @@ python3 -S tools/adsp-agent20-rwe-next-locked-controller.py \
   --llvm-mc "$HEXAGON_LLVM_MC" --reference "$NABU_ADSP_REFERENCE" \
   --output /tmp/adsp-locked-controller-160.bin
 ```
+
+## Checkpoint 41: SSR-gated controller scanner `[0x11090,0x11108)`
+
+- **120 Hexagon V66 source-built executable bytes**, file `[0x11090,0x11108)`, physical `[0x8be0e090,0x8be0e108)`; generated SHA-256 `6b87d5d25140462bcf0e6d70dc42c4f1434d0922274c180572ec168918269a19`. Strict pinned ADSP comparison passes with zero mismatches.
+- The routine scans three controller-record slots under SSR gating, reading GP-relative status, selecting qualifying records and returning either a matched record value or zero. LLVM6 assembles ordinary instructions; its `R2=SSR` placeholder is replaced by an existing checked V66 encoder.
+- Its 3-word hardware-loop end has a nondefault source arrangement: two scalar instructions and a duplex `r0+=4/r2+=1` with `:endloop0`. The source generator recompiles the four scalar operations separately with LLVM6 `-mno-pairing`, requires correct source ordering/packet markers, and inserts a separately source-assembled duplex. No reference opcode bytes are included in source output.
+- The **eight file-backed zero bytes** `[0x11088,0x11090)` are linker fill and excluded from independently authored executable coverage. Total ADSP source-built RWE code is now **5,528 bytes across six disjoint intervals**, including the new 120-byte span.
+- This remains a portable branch based on Agent 04 rather than checkpoint-50 integration. Next executable code begins at file `0x11108`.
+
+```sh
+python3 -S tools/adsp-agent20-rwe-next-ssr-context-scan.py \
+  --llvm-mc "$HEXAGON_LLVM_MC" --reference "$NABU_ADSP_REFERENCE" \
+  --output /tmp/adsp-ssr-context-scan-120.bin
+```
