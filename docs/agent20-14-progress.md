@@ -1190,3 +1190,31 @@ Separate authored dispatch-table data remains **496 bytes**, totaling
 (runtime `0xb00c63f4`). Agent 13's leading 452-byte seam and the rest of
 this large WLAN executable allocation remain unfinished. On-device behavior
 and new firmware authorization remain unverified.
+
+## Checkpoint 29 — interface record and session helpers
+
+Seven consecutive complete Hexagon V66 functions now rebuild exactly at
+WLAN file `[0x1063f4,0x106694)`, VMA `[0xb00c63f4,0xb00c6694)`.
+They add **672 executable bytes**:
+
+- `[0x1063f4,0x10656c)`, 376 bytes: validated interface-record application, error paths.
+- `[0x10656c,0x106578)`, 12 bytes: status logging thunk.
+- `[0x106578,0x106598)`, 32 bytes: session list search.
+- `[0x106598,0x1065a8)`, 16 bytes: descriptor event dispatch.
+- `[0x1065a8,0x106638)`, 144 bytes: session attach, status publication.
+- `[0x106638,0x106644)`, 12 bytes: session continuation thunk.
+- `[0x106644,0x106694)`, 80 bytes: guarded session-record lookup.
+
+The session-attach packet combining a store with a register-pair load uses
+explicit `:mem_noshuf` so LLVM preserves the original packet word ordering.
+All seven sources assemble byte-identically under LLVM22/V66 and independently
+under LLVM6/V65, agree with the pinned reference image and have no raw
+OEM instruction words or unexplained padding. The `agent14-late-regions.json`
+manifest records every new source and exact SHA-256.
+
+Cumulative contiguous executable `[0x1001c4,0x106694)` is **25,808 bytes**;
+the two disjoint source-authored dispatch tables remain 496 data bytes,
+total **26,304 source-derived bytes**. The next complete function starts
+at file `0x106694`. The 452-byte seam with Agent13 remains unowned by this
+branch, and substantially more of Agent14's large WLAN allocation remains
+unreconstructed. On-device behavior and new OEM authorization remain unverified.
