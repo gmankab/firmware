@@ -867,3 +867,16 @@ python3 -S tools/adsp-agent20-rwe-next-icache-relocation.py \
   --llvm-mc "$HEXAGON_LLVM_MC" --reference "$NABU_ADSP_REFERENCE" \
   --output /tmp/adsp-icache-relocation-complete-548.bin
 ```
+
+## Checkpoint 45: controller dispatch stub and MMIO flag helpers `[0x113f0,0x11450)`
+
+- Three **disjoint executable functions**, all independently assembled in LLVM6 and byte-matched against pinned ADSP: stub `[0x113f0,0x113f8)` **8 bytes**, flag-window writer `[0x11400,0x11428)` **40 bytes**, and conditional MMIO flag sync `[0x11430,0x11450)` **32 bytes**. Total **80 source-built instruction bytes**, no V66-only substitutions or opaque code words.
+- A **92-byte diagnostic ASCII pool** `[0x11394,0x113f0)` precedes the stub and is unimplemented **data**, not executable code. The 8-byte zero fills `[0x113f8,0x11400)` and `[0x11428,0x11430)` are structural linker fill; no fill bytes are counted as reconstructed instructions.
+- Rebuild using `tools/adsp-agent20-rwe-next-flag-helpers.py` with `--output-dir`. It emits three separate binary fragments and `source-coverage.json` rather than silently padding holes into one image. All 20 Hexagon words are source-assembled, and exact offsets, hashes and missing parts are validated.
+- Cumulative independently reconstructed ADSP RWE executable code increases to **6,248 bytes in eleven disjoint intervals**. The next executable function begins at file `0x11450`; the full ADSP firmware, OEM signature and checkpoint-50-based integration remain incomplete.
+
+```sh
+python3 -S tools/adsp-agent20-rwe-next-flag-helpers.py \
+  --llvm-mc "$HEXAGON_LLVM_MC" --reference "$NABU_ADSP_REFERENCE" \
+  --output-dir /tmp/adsp-flag-helpers
+```
