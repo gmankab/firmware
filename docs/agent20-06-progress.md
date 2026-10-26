@@ -419,3 +419,11 @@ python3 tools/agent20_06_a32_roundtrip.py /private/venus.mbn 0xa8ea0 0xa92c8 \
 - Rebuilds the controller-status and optional-source cleanup functions, preserving their original `pop {...,pc}` returns, conditional `BLNE` subroutine call, error reporting, and buffer-slot pointer resets. Both functions are complete at this boundary.
 - Entire generated Rust fragment matches pinned original Venus reference, **zero byte differences**. An independent Clang/LLVM round-trip also matches all 836 instruction bytes and 28 data bytes. The verifier was corrected to distinguish conditional `BLNE` from a nonrelocated absolute target. **220 Rust tests and 13 Python tests passed**; no release build claimed.
 - Next uncovered runtime `0xb9c64` (file `0xbdc64`) begins a new codec-register setup routine. Reconstruction is provisional older-base instruction-level encoding, not OEM signing or high-level semantic equivalence.
+
+## Checkpoint 49 — frame-register initialization and optional source cloning
+
+- Complete generated Venus runtime `[0xa8000,0xba210)` = **74,256 consecutive byte-identical bytes**, original MBN offsets `[0xac000,0xbe210)`.
+- New `[0xb9c64,0xba210)` = **1,452 bytes**, comprising 353 A32 instructions (1,412 bytes) and ten distinguished non-code words (40 bytes): `[0xb9eb4,0xb9eb8)` (one pointer), `[0xb9f78,0xb9f80)` (two messages), `[0xba1f4,0xba210)` (seven callback/error addresses).
+- Three complete original functions: frame-register configuration and sizing, attachment of optional input sources with guarded callbacks, and cloning controller buffer/session records with original return and cleanup branches.
+- Full typed Rust fragment has **zero differing bytes** against pinned `venus.mbn`. Independent Clang/LLVM reassembly matches all 1,412 ARM32 instruction bytes and 40 explicitly classified data bytes. **221 Rust tests and 13 Python tests pass.** Release build not claimed.
+- First uncovered runtime `0xba210` (file `0xbe210`) begins another codec resource helper. This is provisional older-base instruction-level encoding, not signed or hardware-tested firmware or high-level semantic decompilation.
