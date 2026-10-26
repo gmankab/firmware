@@ -692,3 +692,26 @@ new executable bytes are added. See
 - **New source credit remains zero**. The larger unresolved DLM source ledger
   remains at **40,199 bytes**. Proving a repeated bank-copy relationship does
   not establish independent authorship of its unknown primary values.
+
+## Agent 20-19 checkpoint 18 — mutable 40-byte record relocations
+
+- Reconstructed all **210 dependent** mutable bytes in the upper bank of 30
+  40-byte record pairs (`+24..+30`), from externally supplied primary-bank
+  values; prior checkpoint 17 covered the other 33 bytes of each record.
+- Two 16-bit indices per record increment by `0x10` for records 1–8, by
+  `0x64` for records 9 and 11, and by `0xc8` for the remaining records
+  except record 20 (identity). The seventh byte acquires bit `0x04` only
+  for records 12–19. Two unchanged bytes in the middle are copied as opaque.
+- These are observed **bank dependencies**, not source-derived initializer
+  values or reverse-engineered controller semantics. Zero new source credit.
+- Conditional DLM rebuilder: independently authored 9,353, uniquely derived
+  **9,677**, external unknown **30,522 bytes** in **60 ranges**. Sum is
+  exactly 49,552. The source-authored ledger remains unchanged at 9,353;
+  unresolved independent source still totals 40,199 bytes.
+- The Rust/independent Python models reject bad span IDs, lengths, missing
+  seeds and overflowing relocations; exact private reference comparison and
+  CRC/mirror verification are required on integration. All original firmware
+  stays outside Git.
+- This remains based on the older-base preview `941c805…`, not true
+  checkpoint 50. Bring the portable mbox to the integration owner for
+  replay and rerun the complete CI gates there.

@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: GPL-3.0-only
 """Independently validate conditional DLM reassembly with externally supplied data.
 
-Not a source recovery tool: 30,732 unknown bytes remain externally provided.
+Not a source recovery tool: 30,522 unknown bytes remain externally provided.
 The goal is deterministic, checked linker behavior and accurate provenance.
 Never ship reference-derived seeds or the complete result in a Git bundle.
 """
@@ -42,6 +42,21 @@ SMALL_COPIES=tuple(
                     (SMALL_RECORD_START+record*SMALL_RECORD_BYTES+31,9))
 )
 assert len(SMALL_COPIES)==60
+SMALL_MUTABLE_MIDDLES=tuple(SMALL_RECORD_START+i*SMALL_RECORD_BYTES+24
+                            for i in range(30))
+assert len(SMALL_MUTABLE_MIDDLES)==30
+
+def relocate_middle(record,src):
+    if not 0<=record<30 or len(src)!=7:raise ValueError('bad descriptor middle range')
+    value=bytearray(src)
+    delta=16 if 1<=record<=8 else 100 if record in (9,11) else 0 if record==20 else 200
+    for i in (0,2):
+        offset=int.from_bytes(value[i:i+2],'little')+delta
+        if offset>0xffff:raise ValueError('40-byte descriptor index relocation overflows')
+        value[i:i+2]=offset.to_bytes(2,'little')
+    if 12<=record<=19:value[6]|=4
+    return bytes(value)
+
 
 
 def span(start,length):
@@ -59,6 +74,8 @@ def destinations():
         yield start+RECORD_BANK_DELTA,n
     for start,n in SMALL_COPIES:
         yield start+RECORD_BANK_DELTA,n
+    for start in SMALL_MUTABLE_MIDDLES:
+        yield start+RECORD_BANK_DELTA,7
     yield PROFILE[2],PROFILE[1]-PROFILE[0]
     yield SIGNATURE[1],SIGNATURE[2]
 
@@ -124,6 +141,8 @@ def rebuild(fragments,seeds):
     for start,n in ALIASES:place(start+0x4000,read(start,start+n),2)
     for start,n in RECORD_SUFFIXES:place(start+RECORD_BANK_DELTA,read(start,start+n),2)
     for start,n in SMALL_COPIES:place(start+RECORD_BANK_DELTA,read(start,start+n),2)
+    for record,start in enumerate(SMALL_MUTABLE_MIDDLES):
+        place(start+RECORD_BANK_DELTA,relocate_middle(record,read(start,start+7)),2)
     first,last,target=PROFILE
     place(target,read(first,last),2)
     first,target,n=SIGNATURE

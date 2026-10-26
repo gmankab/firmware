@@ -20,6 +20,7 @@
 #[path = "../devices/xiaomi_nabu/novatek_dlm_sparse.rs"] mod novatek_dlm_sparse;
 #[path = "../devices/xiaomi_nabu/novatek_dlm_record_suffix.rs"] mod novatek_dlm_record_suffix;
 #[path = "../devices/xiaomi_nabu/novatek_dlm_small_records.rs"] mod novatek_dlm_small_records;
+#[path = "../devices/xiaomi_nabu/novatek_dlm_small_relocations.rs"] mod novatek_dlm_small_relocations;
 
 use firmware_tools::wmfw_sha256::hex_digest;
 use novatek_dlm::DataFragment;
@@ -118,6 +119,7 @@ fn verify_reference(image:&[u8],parts:&[DataFragment])->Result<(),String> {
     novatek_dlm_bank_aliases::verify_reference_assisted_aliases(image)?;
     novatek_dlm_record_suffix::verify_reference_dependent(image)?;
     novatek_dlm_small_records::verify_reference_dependent(image)?;
+    novatek_dlm_small_relocations::verify_reference_dependent(image)?;
     novatek_dlm_bank_aliases::assert_uncredited_on_ledger(&ledger(parts)?)?;
     novatek_dlm_descriptor_geometry::verify_record_first_indices(image)?;
     novatek_dlm_descriptor_geometry::verify_distant_signature_alias(image)?;
@@ -169,6 +171,7 @@ fn run()->Result<(),String> {
             let image=fs::read(&args[1]).map_err(|e|e.to_string())?;
             if hex_digest(&image)!=REFERENCE_SHA256 {return Err("reference SHA-256 mismatch".into());}
             let checked=novatek_dlm_small_records::verify_reference_dependent(&image)?;
+            let _relocated=novatek_dlm_small_relocations::verify_reference_dependent(&image)?;
             println!("Verified {checked} reference-dependent bytes in 30 paired 40-byte DLM records; the seven-byte changing middle of each record stays external; new source credit ZERO");
         }
         Some("verify-record-suffixes") if args.len()==2 => {

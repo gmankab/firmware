@@ -4,7 +4,9 @@
 //! A record contains 24 identical prefix bytes and nine identical tail
 //! bytes when comparing the lower/upper DLM banks (file offset +0x4000).
 //! The *seven intervening bytes* encode independently changing index and
-//! controller flag fields and are intentionally NOT derived or asserted here.
+//! controller flag fields. Their bank-dependent relocations are implemented
+//! by the separate `novatek_dlm_small_relocations` module; this module
+//! deliberately handles only the identical head/tail copies.
 //! The recurrence is an exact observed relation, but original controller
 //! instruction semantics for these records remain unproven: ZERO new
 //! source-authored DLM credit follows from these dependent copies.
