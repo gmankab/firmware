@@ -1329,3 +1329,25 @@ bytes** `[0x446000,0x4481c4)`. Total verified modem bytes **9,256**:
 **8,948 executable source bytes**, **296 ELF metadata bytes** and **12
 linker-alignment bytes**, all matching SHA-256-pinned `modem.mbn`. The image
 is incomplete and not a newly OEM-signed or hardware-tested build.
+
+## Checkpoint 55 — Indexed controller descriptor field copy
+
+Independently assembled **100 new byte-identical Hexagon V60 executable bytes**
+in modem file `[0x4481c4,0x448228)` (virtual
+`[0x1e4021c4,0x1e402228)`). The source performs scaled 28-byte indexed
+address arithmetic, relocates buffer descriptor words, updates controller
+register state and calls a registered completion callback. LLVM6's packetizer
+ends four store packets before the immediately following descriptor-pointer
+load. `restore_aux_large_controller_phase26_indexed_stores` changes **only**
+the four store parse markers, requiring checked store/load opcode classes,
+base/data/index registers and original END markers. Negative tests reject
+wrong operands, word classes, markers or length. No OEM opcode words are
+embedded in assembly source or the emitters.
+
+The auxiliary prefix `[0x446000,0x448228)` is now **8,744 contiguous
+byte-identical file bytes**. Total independently generated later-modem
+coverage **9,356 file bytes** consists of **9,048 executable**, **296
+reconstructed ELF metadata** and **12 alignment-zero** bytes. All reference
+comparisons pass with pinned `modem.mbn`; **169 Rust tests, 90 Python tests**
+and the offline release build passed. The modem image remains incomplete;
+no OEM signing or on-hardware equivalence is claimed.

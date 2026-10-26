@@ -68,6 +68,7 @@ AUX_LARGE_CONTROLLER_PHASE22_SOURCE = ROOT / "crates/firmware-tools/src/devices/
 AUX_LARGE_CONTROLLER_PHASE23_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_aux_large_controller_phase23.s"
 AUX_LARGE_CONTROLLER_PHASE24_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_aux_large_controller_phase24.s"
 AUX_LARGE_CONTROLLER_PHASE25_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_aux_large_controller_phase25.s"
+AUX_LARGE_CONTROLLER_PHASE26_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_aux_large_controller_phase26.s"
 AUX_DISPATCH_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_aux_dispatch_helpers.s"
 AUX_TYPE_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_aux_type_config.s"
 AUX_NOTIFY_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_aux_controller_notify.s"
@@ -229,6 +230,8 @@ AUX_LARGE_CONTROLLER_PHASE24_START = AUX_LARGE_CONTROLLER_PHASE23_END
 AUX_LARGE_CONTROLLER_PHASE24_END = 0x44817C
 AUX_LARGE_CONTROLLER_PHASE25_START = AUX_LARGE_CONTROLLER_PHASE24_END
 AUX_LARGE_CONTROLLER_PHASE25_END = 0x4481C4
+AUX_LARGE_CONTROLLER_PHASE26_START = AUX_LARGE_CONTROLLER_PHASE25_END
+AUX_LARGE_CONTROLLER_PHASE26_END = 0x448228
 MARKER_MASK = 3 << 14
 CONTINUE_MARKER = 1 << 14
 END_MARKER = 3 << 14
@@ -1867,6 +1870,36 @@ def restore_aux_large_controller_phase24_size_report(assembled: bytes) -> bytes:
     return struct.pack('<17I',*words)
 
 
+def restore_aux_large_controller_phase26_indexed_stores(assembled: bytes) -> bytes:
+    """Join four Hexagon V60 descriptor stores with following loads.
+
+    The original compiler issues a store then a separate descriptor pointer
+    load in the *same packet*. LLVM6 instead fuses each pair into one duplex.
+    Assembly source places the two operations in separate packets, preventing
+    register/slot information loss. Verify independent instruction classes,
+    base/data registers, offsets and adjacent load semantics before changing
+    only the source store's packet parse-marker to continuation.
+    """
+    n=AUX_LARGE_CONTROLLER_PHASE26_END-AUX_LARGE_CONTROLLER_PHASE26_START
+    if len(assembled)!=n:
+        raise ValueError(f"phase26 indexed resource source requires {n} bytes")
+    w=list(struct.unpack('<25I',assembled))
+    for off,base,value,index,load_dest in [
+        (0x10,5,6,4,5), (0x20,5,4,5,4),
+        (0x30,4,5,3,4), (0x48,4,20,6,4),
+    ]:
+        i=off//4
+        store,load=w[i:i+2]
+        if store>>24!=0xa1 or ((store>>16)&0x1f)!=base or ((store>>8)&0x1f)!=value or (store&0x1f)!=index:
+            raise ValueError(f"phase26 descriptor store opcode/operands changed at {off:#x}")
+        if load>>24!=0x91 or ((load>>16)&0x1f)!=17 or ((load>>8)&0x1f)!=0 or (load&0x1f)!=load_dest:
+            raise ValueError(f"phase26 descriptor load opcode/operands changed at {off:#x}")
+        if (store&MARKER_MASK,load&MARKER_MASK)!=(END_MARKER,END_MARKER):
+            raise ValueError(f"phase26 descriptor packet markers changed at {off:#x}")
+        w[i]=(store&~MARKER_MASK)|CONTINUE_MARKER
+    return struct.pack('<25I',*w)
+
+
 def assemble(llvm_mc: Path, source: Path) -> bytes:
     with tempfile.TemporaryDirectory(prefix="nabu-modem-late-") as tmp:
         obj = Path(tmp) / "late.o"
@@ -1942,6 +1975,8 @@ def output_fragments(llvm_mc: Path) -> dict[int, bytes]:
     aux_large_controller_phase24=restore_aux_large_controller_phase24_size_report(
         assemble(llvm_mc,AUX_LARGE_CONTROLLER_PHASE24_SOURCE))
     aux_large_controller_phase25=assemble(llvm_mc,AUX_LARGE_CONTROLLER_PHASE25_SOURCE)
+    aux_large_controller_phase26=restore_aux_large_controller_phase26_indexed_stores(
+        assemble(llvm_mc,AUX_LARGE_CONTROLLER_PHASE26_SOURCE))
     aux_dispatch = assemble(llvm_mc,AUX_DISPATCH_SOURCE)
     aux_type = restore_aux_type_return_packets(assemble(llvm_mc,AUX_TYPE_SOURCE))
     aux_notify = restore_aux_controller_notify_packets(assemble(llvm_mc,AUX_NOTIFY_SOURCE))
@@ -2018,6 +2053,7 @@ def output_fragments(llvm_mc: Path) -> dict[int, bytes]:
         (aux_large_controller_phase23,AUX_LARGE_CONTROLLER_PHASE23_START,AUX_LARGE_CONTROLLER_PHASE23_END,'large controller result buffer updates'),
         (aux_large_controller_phase24,AUX_LARGE_CONTROLLER_PHASE24_START,AUX_LARGE_CONTROLLER_PHASE24_END,'large controller buffer size diagnostics'),
         (aux_large_controller_phase25,AUX_LARGE_CONTROLLER_PHASE25_START,AUX_LARGE_CONTROLLER_PHASE25_END,'large controller callback state validation'),
+        (aux_large_controller_phase26,AUX_LARGE_CONTROLLER_PHASE26_START,AUX_LARGE_CONTROLLER_PHASE26_END,'large controller indexed buffer field copies'),
     ]:
         if len(fragment)!=end-start:
             raise ValueError(f"auxiliary {label} source length mismatch")
@@ -2088,7 +2124,8 @@ def output_fragments(llvm_mc: Path) -> dict[int, bytes]:
             AUX_LARGE_CONTROLLER_PHASE21_END==AUX_LARGE_CONTROLLER_PHASE22_START and
             AUX_LARGE_CONTROLLER_PHASE22_END==AUX_LARGE_CONTROLLER_PHASE23_START and
             AUX_LARGE_CONTROLLER_PHASE23_END==AUX_LARGE_CONTROLLER_PHASE24_START and
-            AUX_LARGE_CONTROLLER_PHASE24_END==AUX_LARGE_CONTROLLER_PHASE25_START):
+            AUX_LARGE_CONTROLLER_PHASE24_END==AUX_LARGE_CONTROLLER_PHASE25_START and
+            AUX_LARGE_CONTROLLER_PHASE25_END==AUX_LARGE_CONTROLLER_PHASE26_START):
         raise ValueError("controller phase13 gap was silently bridged")
     if AUX_LOOKUP_END!=AUX_REGISTRY_CORE_START or AUX_REGISTRY_CORE_END!=AUX_DISPATCH_START:
         raise ValueError("modem auxiliary registry source intervals have a gap")
@@ -2112,7 +2149,8 @@ def output_fragments(llvm_mc: Path) -> dict[int, bytes]:
                         aux_large_controller_phase19a+aux_large_controller_phase19b+
                         aux_large_controller_phase20+aux_large_controller_phase21+
                         aux_large_controller_phase22+aux_large_controller_phase23+
-                        aux_large_controller_phase24+aux_large_controller_phase25,
+                        aux_large_controller_phase24+aux_large_controller_phase25+
+                        aux_large_controller_phase26,
     }
 
 
