@@ -843,3 +843,21 @@ rebuilt descriptor refresh at `0x3e480` and is not counted.
 Cumulative late ADSP: **8,784 independently source-assembled executable
 bytes across 102 disjoint fragments**. The earlier V66 memory-duplex
 case dispatcher at `[0x412b4,0x413b8)` remains unverified and excluded.
+
+**Checkpoint 55 — complete controller status/release validation:**
+Added a **172-byte** independent Hexagon source routine at
+`[file 0x3e3d0,0x3e47c)` that validates controller and status tags,
+checks empty 64-bit descriptor fields, releases resources through callbacks,
+reports failures, and returns an explicit status code. It reconstructs the
+original control-flow packet groupings and PC-relative calls with symbolic
+`.set` targets rather than binary words. The generated code is byte-identical
+to the pinned ADSP image; SHA-256 recorded by the checked source tests.
+It directly connects to checkpoint 54's 104-byte status-tag helper for
+**276 contiguous source-generated executable bytes `[0x3e368,0x3e47c)`**.
+The following `[0x3e47c,0x3e480)` four-byte alignment NOP is excluded from
+the code count, before the previously reconstructed descriptor refresher.
+
+**Cumulative late-ADSP independently reconstructed code:** 8,956 bytes in
+103 nonoverlapping source-verified fragments. The ADSP firmware as a whole
+and OEM authentication remain unimplemented. The provisional branch awaits
+checkpoint-50-based integration.
