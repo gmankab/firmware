@@ -778,3 +778,24 @@ The original reference was consulted solely for verification; the source
 contains symbol structures, strings, and hash algorithms, not raw embedded OEM
 firmware payload slices. The rest of the large modem text and hardware
 validation remain unfinished, and no new OEM authentication is created.
+
+## Checkpoint 29 — Source-assemble auxiliary notification walk
+
+A 104-byte V60 callback/notification walker at modem file
+`[0x447448,0x4474b0)` is rebuilt from an independently authored
+`modem_late_aux_notify_callbacks.s` using symbolic relative branch targets,
+new-value predicates, and register-pair loads. LLVM 6 reorders three
+architecturally valid instruction packets. Its checked `restore_aux_notify_callback_packets`
+reorders those instructions and their packet markers without borrowing a
+single OEM instruction word. Fail-closed regression cases verify opcode
+classes and parse-marker requirements.
+
+The prior full source-generated auxiliary layout now extends continuously
+through `[0x446000,0x4474b0)` = **5,296 bytes**, of which **5,600 total
+bytes across three disjoint reconstructed regions are independently
+assembled executable instructions**, while 296 bytes are source-derived
+ELF32 metadata and 12 bytes are linker alignment. Total reconstructed
+firmware coverage is **5,908 bytes**. All emitted bytes match the pinned
+original. More executable work remains throughout the large later baseband
+and after the new `0x4474b0` boundary. This is neither an independently
+signed complete modem image nor hardware-boot validation.

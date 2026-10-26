@@ -33,6 +33,7 @@ AUX_HEAP_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_la
 AUX_WORKER_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_aux_worker.s"
 AUX_LOOKUP_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_aux_registry_lookup.s"
 AUX_REGISTRY_CORE_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_aux_registry_core.s"
+AUX_NOTIFY_SCAN_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_aux_notify_callbacks.s"
 AUX_DISPATCH_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_aux_dispatch_helpers.s"
 AUX_TYPE_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_aux_type_config.s"
 AUX_NOTIFY_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_aux_controller_notify.s"
@@ -124,6 +125,8 @@ AUX_FIND_CONTROLLER_START = 0x447388
 AUX_FIND_CONTROLLER_END = 0x447410
 AUX_RELEASE_REGISTRY_START = 0x447410
 AUX_RELEASE_REGISTRY_END = 0x447448
+AUX_NOTIFY_SCAN_START = AUX_RELEASE_REGISTRY_END
+AUX_NOTIFY_SCAN_END = 0x4474B0
 MARKER_MASK = 3 << 14
 CONTINUE_MARKER = 1 << 14
 END_MARKER = 3 << 14
@@ -1046,6 +1049,47 @@ def restore_aux_callback_extender_packet(assembled: bytes) -> bytes:
     return struct.pack('<25I',*words)
 
 
+def restore_aux_notify_callback_packets(assembled: bytes) -> bytes:
+    """Restore compiler-independent packet order in the next notify routine.
+
+    LLVM6 reorders a memory load/save packet, schedules a conditional jump
+    ahead of its immediate extension/producer and exchanges a new-value
+    predicated `combine` with a compare+branch. The source is already an
+    independent textual Hexagon program; we only move checked architectural
+    instructions and update packet parse markers. No reference bytes used.
+    """
+    if len(assembled) != AUX_NOTIFY_SCAN_END-AUX_NOTIFY_SCAN_START:
+        raise ValueError("auxiliary notification callback requires 104 source bytes")
+    words=list(struct.unpack('<26I',assembled))
+    load,save=words[0x08//4:0x10//4]
+    if [x>>24 for x in (load,save)] != [0x91,0xa1]:
+        raise ValueError("notification memory load/save opcode classes changed")
+    if [x&MARKER_MASK for x in (load,save)] != [CONTINUE_MARKER,END_MARKER]:
+        raise ValueError("notification memory packet markers changed")
+    words[0x08//4:0x10//4]=[(save&~MARKER_MASK)|CONTINUE_MARKER,
+                           (load&~MARKER_MASK)|END_MARKER]
+    branch,extender,pred_add=words[0x14//4:0x20//4]
+    if [x>>24 for x in (branch,extender,pred_add)] != [0x5c,0x00,0x74]:
+        raise ValueError("notification branch/extender/predicated add ISA classes changed")
+    if [x&MARKER_MASK for x in (branch,extender,pred_add)] != [
+        CONTINUE_MARKER,CONTINUE_MARKER,END_MARKER
+    ]:
+        raise ValueError("notification branch packet markers changed")
+    words[0x14//4:0x20//4]=[extender,
+        (pred_add&~MARKER_MASK)|CONTINUE_MARKER,
+        (branch&~MARKER_MASK)|END_MARKER]
+    cmp_jump,pred_combine=words[0x28//4:0x30//4]
+    if [x>>24 for x in (cmp_jump,pred_combine)]!=[0x10,0xfd]:
+        raise ValueError("notification conditional branch/combine ISA classes changed")
+    if [x&MARKER_MASK for x in (cmp_jump,pred_combine)]!=[
+        CONTINUE_MARKER,END_MARKER
+    ]:
+        raise ValueError("notification conditional branch packet markers changed")
+    words[0x28//4:0x30//4]=[(pred_combine&~MARKER_MASK)|CONTINUE_MARKER,
+                            (cmp_jump&~MARKER_MASK)|END_MARKER]
+    return struct.pack('<26I',*words)
+
+
 def assemble(llvm_mc: Path, source: Path) -> bytes:
     with tempfile.TemporaryDirectory(prefix="nabu-modem-late-") as tmp:
         obj = Path(tmp) / "late.o"
@@ -1075,6 +1119,7 @@ def output_fragments(llvm_mc: Path) -> dict[int, bytes]:
     aux_worker = restore_aux_worker_packets(assemble(llvm_mc,AUX_WORKER_SOURCE))
     aux_lookup = restore_aux_lookup_return_packet(assemble(llvm_mc,AUX_LOOKUP_SOURCE))
     aux_registry_core=restore_aux_registry_core_packets(assemble(llvm_mc,AUX_REGISTRY_CORE_SOURCE))
+    aux_notify_scan=restore_aux_notify_callback_packets(assemble(llvm_mc,AUX_NOTIFY_SCAN_SOURCE))
     aux_dispatch = assemble(llvm_mc,AUX_DISPATCH_SOURCE)
     aux_type = restore_aux_type_return_packets(assemble(llvm_mc,AUX_TYPE_SOURCE))
     aux_notify = restore_aux_controller_notify_packets(assemble(llvm_mc,AUX_NOTIFY_SOURCE))
@@ -1113,6 +1158,8 @@ def output_fragments(llvm_mc: Path) -> dict[int, bytes]:
         raise ValueError("aux diagnostic helpers must emit 116 bytes")
     if len(aux_registry_core)!=AUX_REGISTRY_CORE_END-AUX_REGISTRY_CORE_START:
         raise ValueError("aux registry core source length mismatch")
+    if len(aux_notify_scan)!=AUX_NOTIFY_SCAN_END-AUX_NOTIFY_SCAN_START:
+        raise ValueError("aux notification source length mismatch")
     if len(aux_session_validation)!=AUX_SESSION_VALIDATION_END-AUX_SESSION_VALIDATION_START:
         raise ValueError("auxiliary session validation length mismatch")
     if len(aux_session_prefix)!=AUX_SESSION_PREFIX_END-AUX_SESSION_PREFIX_START:
@@ -1145,6 +1192,8 @@ def output_fragments(llvm_mc: Path) -> dict[int, bytes]:
               aux_release_registry)
     if len(registry)!=AUX_RELEASE_REGISTRY_END-AUX_DISPATCH_START:
         raise ValueError("source-generated auxiliary registry block is not contiguous")
+    if AUX_RELEASE_REGISTRY_END!=AUX_NOTIFY_SCAN_START:
+        raise ValueError("missing source after controller registry block")
     if AUX_LOOKUP_END!=AUX_REGISTRY_CORE_START or AUX_REGISTRY_CORE_END!=AUX_DISPATCH_START:
         raise ValueError("modem auxiliary registry source intervals have a gap")
     return {
@@ -1152,7 +1201,7 @@ def output_fragments(llvm_mc: Path) -> dict[int, bytes]:
         SERVICE_START:service+service_mmio+service_flags+service_alloc,
         AUX_START:auxiliary+aux_dynamic+aux_init+aux_align+
                   aux_guard+aux_stage+aux_mmio+aux_heap+aux_worker+
-                        aux_lookup+aux_registry_core+registry,
+                        aux_lookup+aux_registry_core+registry+aux_notify_scan,
     }
 
 

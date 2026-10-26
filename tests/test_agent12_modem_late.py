@@ -378,6 +378,40 @@ class ModemLateTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError,'312 independently assembled bytes'):
             agent12.restore_aux_session_registry_packets(binary[:-4])
 
+    def test_auxiliary_notification_packet_reordering_is_fail_closed(self):
+        path=agent12.AUX_NOTIFY_SCAN_SOURCE
+        self.assertTrue(path.is_file())
+        source=path.read_text()
+        self.assertIn('memd(r29+#0) = r19:18',source)
+        self.assertIn('if (!p0.new) r18 = add(r17,##168)',source)
+        self.assertIn('dealloc_return',source)
+        self.assertNotIn('.word',source)
+        self.assertEqual(agent12.AUX_RELEASE_REGISTRY_END,agent12.AUX_NOTIFY_SCAN_START)
+        self.assertEqual(agent12.AUX_NOTIFY_SCAN_END-agent12.AUX_NOTIFY_SCAN_START,104)
+        words=[0x7800c000]*26
+        words[0x08//4:0x10//4]=[0x91315102,0xa1ddd200]
+        words[0x14//4:0x20//4]=[0x5c005818,0x00004002,0x7491e512]
+        words[0x28//4:0x30//4]=[0x1040601c,0xfd10f200]
+        binary=struct.pack('<26I',*words)
+        new_words=struct.unpack('<26I',agent12.restore_aux_notify_callback_packets(binary))
+        self.assertEqual(new_words[0x08//4:0x10//4],(0xa1dd5200,0x9131d102))
+        self.assertEqual(new_words[0x14//4:0x20//4],(0x00004002,0x74916512,0x5c00d818))
+        self.assertEqual(new_words[0x28//4:0x30//4],(0xfd107200,0x1040e01c))
+        for offset,changed,reason in [
+            (0x08,0x78004000,'opcode classes'),
+            (0x0c,0xa1dd5200,'packet markers'),
+            (0x14,0x78004000,'ISA classes'),
+            (0x18,0x0000c002,'packet markers'),
+            (0x1c,0x74916512,'packet markers'),
+            (0x28,0x7800401c,'ISA classes'),
+            (0x2c,0xfd107200,'packet markers'),
+        ]:
+            corrupt=words.copy();corrupt[offset//4]=changed
+            with self.assertRaisesRegex(ValueError,reason):
+                agent12.restore_aux_notify_callback_packets(struct.pack('<26I',*corrupt))
+        with self.assertRaisesRegex(ValueError,'104 source bytes'):
+            agent12.restore_aux_notify_callback_packets(binary[:-4])
+
     def test_auxiliary_elf32_symbols_and_generated_sysv_hash(self):
         generated=agent12.emit_auxiliary_elf_symbols()
         self.assertEqual(len(generated),296)
@@ -828,10 +862,14 @@ class ModemLateTests(unittest.TestCase):
     def test_optional_llvm6_exact_source_lengths(self):
         a = agent12.output_fragments(Path(os.environ["NABU_HEXAGON_LLVM_MC"]))
         self.assertEqual({k: len(v) for k, v in a.items()},
-                         {0x7C000:160, 0x7C2EC:452, 0x446000:5192})
-        self.assertEqual(sum(map(len,a.values())),5804)
+                         {0x7C000:160, 0x7C2EC:452, 0x446000:5296})
+        self.assertEqual(sum(map(len,a.values())),5908)
         self.assertEqual(a[0x446000][0x0d8:0x200],agent12.emit_auxiliary_elf_symbols())
         self.assertEqual(a[0x446000][0x254:0x260],bytes(12))
+        self.assertEqual(a[0x446000][0x1448:0x1460],
+                         agent12.restore_aux_notify_callback_packets(
+                             agent12.assemble(Path(os.environ["NABU_HEXAGON_LLVM_MC"]),
+                                              agent12.AUX_NOTIFY_SCAN_SOURCE))[:24])
         self.assertNotIn(agent12.AUX_DISPATCH_START,a)
         self.assertNotIn(agent12.AUX_SESSION_VALIDATION_START,a)
         self.assertNotIn(agent12.AUX_SESSION_REGISTRY_START,a)
