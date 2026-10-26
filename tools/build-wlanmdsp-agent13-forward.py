@@ -31,6 +31,8 @@ FRAGMENTS = (
     ('bitmap-predicate-pair', SOURCE_DIR / 'agent13-runtime-bitmap-scan-predicate-packet.S', 0x5b78, 0x08),
     ('bitmap-duplex', SOURCE_DIR / 'agent13-runtime-bitmap-scan-duplex.S', 0x5b80, 0x04),
     ('bitmap-scan-tail', SOURCE_DIR / 'agent13-runtime-bitmap-scan-tail.S', 0x5b84, 0x88),
+    ('controller-snapshot-wrapper', SOURCE_DIR / 'agent13-runtime-controller-snapshot-wrapper.S', 0x5c0c, 0x14),
+    ('controller-initialize-stage1', SOURCE_DIR / 'agent13-runtime-controller-init-stage1.S', 0x5c20, 0xd8),
 )
 
 
@@ -118,7 +120,7 @@ def main():
         parent.check_reference(fragment,args.reference.read_bytes(),runtime_offset=START)
     args.output.parent.mkdir(parents=True,exist_ok=True)
     args.output.write_bytes(fragment)
-    report={'agent':13,'checkpoint':'28-disjoint',
+    report={'agent':13,'checkpoint':'29-disjoint',
             'source_base':'Agent 13 checkpoint 16 (7c730bf); checkpoint25 source unavailable',
             'is_checkpoint25_descendant':False,
             'file_start':FILE_BASE+START,'file_end':FILE_BASE+end,

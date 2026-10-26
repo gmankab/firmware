@@ -263,3 +263,20 @@ python3 tools/build-wlanmdsp-agent13.py /tmp/wlan-prefix-through-27a0.bin \
   `[0x44cd4,0x4568c)` therefore remains **unavailable in this checkout**;
   do not claim a continuous `0x40000–0x45c0c` prefix until that parent history
   is recovered and merged.
+
+## Checkpoint 29 (disjoint; checkpoint 25 unavailable) — snapshot and controller initialization prefix
+
+- Added **236 independently assembled Hexagon instruction bytes** at file
+  `[0x45c0c,0x45cf8)`: a **20-byte snapshot/callback wrapper** at
+  `[0x45c0c,0x45c20)` followed by a **216-byte controller initialization
+  prefix** `[0x45c20,0x45cf8)`.
+- The generated continuation `[0x4568c,0x45cf8)` totals **1,644 source-assembled
+  instruction bytes**, with zero differences against pinned reference
+  `wlanmdsp.mbn` SHA-256
+  `87c2c7bb1fe97eaf007a947832feba0898644b4d6626ac8ef49d8b94dd82604b`.
+- The initial controller function continues after file `0x45cf8`; source only
+  covers complete packets and stops before its first complex predicate jump.
+  Two memory packets require `:mem_noshuf` for byte-identical source order.
+- This remains a **checkpoint 16-derived disjoint continuation**, not a
+  descendant of unavailable checkpoint 25. Do not count it as a contiguous
+  prefix from `0x40000` until those missing Git commits are integrated.

@@ -19,10 +19,10 @@ class SourceOnlyForwardTests(unittest.TestCase):
     def test_manifest_exact_boundaries(self):
         m=module()
         self.assertEqual(m.START,0x568c)
-        self.assertEqual(m.validate_manifest(),0x5c0c)
+        self.assertEqual(m.validate_manifest(),0x5cf8)
         self.assertEqual(m.FILE_BASE+m.START,0x4568c)
-        self.assertEqual(m.FILE_BASE+m.validate_manifest(),0x45c0c)
-        self.assertEqual(sum(length for _,_,_,length in m.FRAGMENTS),1408)
+        self.assertEqual(m.FILE_BASE+m.validate_manifest(),0x45cf8)
+        self.assertEqual(sum(length for _,_,_,length in m.FRAGMENTS),1644)
 
     def test_validator_forbids_opaque_data_and_layout_holes(self):
         m=module()
@@ -53,6 +53,16 @@ class SourceOnlyForwardTests(unittest.TestCase):
         self.assertIn('loop0(L_00514,r7)',bitmap)
         self.assertIn('}:endloop0',bitmap)
         self.assertIn('}:endloop0',loop)
+
+    def test_next_controller_split_is_adjacent(self):
+        m=module()
+        names=[x[0] for x in m.FRAGMENTS]
+        assert names[-2:]==['controller-snapshot-wrapper','controller-initialize-stage1']
+        assert m.FRAGMENTS[-2][2:]==(0x5c0c,0x14)
+        assert m.FRAGMENTS[-1][2:]==(0x5c20,0xd8)
+        source=m.FRAGMENTS[-1][1].read_text()
+        assert ':mem_noshuf' in source
+        assert 'loop0(' not in source
 
     def test_structured_predicate_duplex_sources(self):
         m=module()
