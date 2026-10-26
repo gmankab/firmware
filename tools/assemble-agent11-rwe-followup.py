@@ -15,7 +15,7 @@ import tempfile
 from pathlib import Path
 
 FILE_START=0x39920
-FILE_END=0x39c24
+FILE_END=0x39d08
 PINNED_SHA256='6f5cb32bc10e41abb40938d185805e788f5637a41d3ebcef278e4e169fc36782'
 
 
@@ -39,7 +39,8 @@ def normalize_hexagon_gp_relative(data: bytes) -> bytes:
            (0x39bd4,0x919c4600,0x0c0850e4),
            (0x39be0,0x919c4480,0x0c08516a),
            (0x39bec,0x919c4200,0x0c084560),
-           (0x39c1c,0x919c4200,0x0c0850d1))
+           (0x39c1c,0x919c4200,0x0c0850d1),
+           (0x39ca8,0x919cc009,0x0c085004))
     repaired=bytearray(data)
     V60_GP_RELATIVE_WORD_LOAD_CLASS=0x4980
     for address,expected,extword in forms:
@@ -64,6 +65,29 @@ def normalize_hexagon_gp_relative(data: bytes) -> bytes:
         struct.pack_into('<II',repaired,offset,
             (subtract &~mask)|continuation_marker,
             (branch &~mask)|end_marker)
+    if len(repaired)>=0x39d08-FILE_START:
+        # This original CPU-state restore orders its own .new producer first
+        # in two legal predicate/branch packets. LLVM6 reverses them. Check
+        # both exact instruction classes, operands and parse markers.
+        for address,jump_word,predicate_word in (
+                (0x39c78,0x5cff68fe,0x75094000),
+                (0x39cb4,0x5c005812,0x75094010)):
+            offset=address-FILE_START
+            jump,pred=struct.unpack_from('<II',repaired,offset)
+            if (jump,pred)!=(jump_word,predicate_word):
+                raise ValueError(f'Unexpected MODECTL restore predicate packet at {address:#x}')
+            struct.pack_into('<II',repaired,offset,pred,jump)
+        # GP-relative stores use distinct V60 instruction classes, including
+        # the .new register source. Validate the assembler-generated extenders.
+        for address,source_word,isa_class,ext_word in (
+                (0x39cc0,0xa19cc900,0x4880,0x0c085004),
+                (0x39ce0,0xa1bcd204,0x48a0,0x0c085004)):
+            offset=address-FILE_START
+            generic=struct.unpack_from('<I',repaired,offset)[0]
+            ext=struct.unpack_from('<I',repaired,offset-4)[0]
+            if (generic,ext)!=(source_word,ext_word):
+                raise ValueError(f'Unexpected source V60 GP store at {address:#x}')
+            struct.pack_into('<I',repaired,offset,(isa_class<<16)|(generic&0xffff))
     return bytes(repaired)
 
 

@@ -53,8 +53,8 @@ agent11_modem_rwe_lock_failed:
     .word (0x66000000 | (\selector<<16) | (\marker<<14) | \gpr)
 .endm
 .macro MODEM_FU_CONFIG_WRITE special, gpr, marker=1
-    .if (\special < 0) || (\special > 31) || (\gpr < 0) || (\gpr > 31) || (\marker != 1)
-      .error "invalid config write and continuation marker"
+    .if (\special < 0) || (\special > 31) || (\gpr < 0) || (\gpr > 31) || ((\marker < 1) || (\marker > 3))
+      .error "invalid config write packet marker"
     .endif
     .word (0x62000000 | ((\gpr+32)<<16) | (\marker<<14) | \special)
 .endm
@@ -264,3 +264,67 @@ MODEM_FU_K0_UNLOCK 3
 { memw(r0+#4) = clrbit(#21) }
 agent11_fu_skip_frame_reset:
 { r0 = memw(r28+##-1065077680); if (cmp.eq(r0.new,#0)) jump:t agent11_fu_resume_other_frame }
+// Restore a protected interrupted modem frame, acquire its system-controller
+// word under a locked write and synchronize the protected interrupt masks.
+.macro MODEM_FU_SYS_WRITE sysreg, gpr, marker=3
+    .if (\sysreg < 0) || (\sysreg > 63) || (\gpr < 0) || (\gpr > 31) || (\marker < 1) || (\marker > 3)
+      .error "invalid Hexagon system-register write operand"
+    .endif
+    .word (0x67000000 | (\gpr<<16) | (\marker<<14) | \sysreg)
+.endm
+.macro MODEM_FU_CONTROL_PAIR_WRITE creg_low, gpr_low, marker=3
+    .if (\creg_low < 0) || (\creg_low > 30) || (\creg_low & 1) || (\gpr_low < 0) || (\gpr_low > 30) || (\gpr_low & 1) || (\marker < 1) || (\marker > 3)
+      .error "invalid Hexagon control-register pair write"
+    .endif
+    .word (0x63000000 | ((\gpr_low+32)<<16) | (\marker<<14) | \creg_low)
+.endm
+.macro MODEM_FU_RTE marker=3
+    .if (\marker != 3)
+      .error "RTE is a standalone exception-return packet"
+    .endif
+    .word (0x57e00000 | (\marker<<14))
+.endm
+.globl agent11_modem_rwe_restore_exception_thread
+agent11_modem_rwe_restore_exception_thread:
+MODEM_FU_SYS_READ 29,0,3 // SP=SGP0
+MODEM_FU_SYS_READ 1,8,3  // HTID
+{ memw(sp+#0) = r0; memb(r0+#21) = r1 }
+{ r17:16 = memd(r0+#80); r19:18 = memd(r0+#72) }
+{ r13:12 = memd(r0+#48); r29:28 = memd(r0+#40) }
+MODEM_FU_CONFIG_WRITE 10,13,1 // UGP=r13
+{ r25:24 = memd(r0+#200); r27:26 = memd(r0+#192) }
+MODEM_FU_CONFIG_WRITE 11,12,1 // GP=r12
+{ r21:20 = memd(r0+#64); r9:8 = memd(r0+#24) }
+{ r23:22 = memd(r0+#56); r7:6 = memd(r0+#176) }
+MODEM_FU_SYS_WRITE 6,9,3 // SSR=r9
+MODEM_FU_SYS_WRITE 3,8,3 // ELR=r8
+{ r8 = ##-1065090812 }
+agent11_modem_rwe_restored_frame_lock_retry:
+{ r9 = memw_locked(r8) }
+{ p0 = cmp.eq(r9,#0); if (!p0.new) jump:nt agent11_modem_rwe_restored_frame_lock_retry; if (p0.new) r9 = #1 }
+{ memw_locked(r8,p0) = r9 }
+{ if (!p0) jump:nt agent11_modem_rwe_restored_frame_lock_retry }
+MODEM_FU_SYS_READ 8,6,1 // SSR
+{ r9 = ##65536 }
+.set agent11_modem_rwe_mask_restore_done,agent11_modem_rwe_restore_exception_thread + (0x39cd8-0x39c24)
+{ p0 = bitsclr(r8,r9); if (p0.new) jump:nt agent11_modem_rwe_mask_restore_done }
+MODEM_FU_SYS_READ 8,8,1 // HTID
+{ r9 = memw(r28+##-1065090816) }
+{ trace(r9); r9 = clrbit(r9,r8) }
+{ p0 = !cmp.eq(r9,#0); if (p0.new) jump:t agent11_modem_rwe_mask_restore_done; memw(r28+##-1065090816) = r9 }
+MODEM_FU_SYS_READ 8,63,3 // thread interrupt status
+{ trace(r8); r8 = clrbit(r8,#16) }
+MODEM_FU_SYS_WRITE 63,8,3
+{ trace(r8) }
+agent11_modem_rwe_mask_restore_done:
+{ r9 = #0; memw(r28+##-1065090812) = r9.new }
+MODEM_FU_CONFIG_WRITE 4,6,3 // P3:0
+{ r6 = memw(r0+#220); usr = r7 }
+MODEM_FU_SYS_WRITE 7,6,3 // CCR
+{ r9:8 = memd(r0+#248) }
+MODEM_FU_CONTROL_PAIR_WRITE 16,8,3 // C17:16
+{ r31:30 = memd(r0+#32) }
+MODEM_FU_RTE 3
+.globl agent11_modem_rwe_return_exception_no_frame
+agent11_modem_rwe_return_exception_no_frame:
+{ jumpr lr }

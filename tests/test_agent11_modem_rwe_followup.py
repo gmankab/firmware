@@ -13,8 +13,8 @@ spec.loader.exec_module(mod)
 
 class ExceptionFollowup(unittest.TestCase):
     def test_disjoint_bounds_and_no_implicit_vendor_fill(self):
-        self.assertEqual((mod.FILE_START,mod.FILE_END),(0x39920,0x39c24))
-        self.assertEqual(mod.FILE_END-mod.FILE_START,772)
+        self.assertEqual((mod.FILE_START,mod.FILE_END),(0x39920,0x39d08))
+        self.assertEqual(mod.FILE_END-mod.FILE_START,1000)
         self.assertGreater(mod.FILE_START,0x390dc)
         self.assertEqual(mod.FILE_START-0x390dc,0x844)
 
@@ -34,7 +34,7 @@ class ExceptionFollowup(unittest.TestCase):
         if not mc:self.skipTest('Set AGENT11_LLVM_MC for Hexagon source assembly test')
         source=SCRIPT.parents[1]/'crates/firmware-tools/src/devices/xiaomi_nabu/modem_rwe_exception_followup.s'
         data=mod.assemble(Path(mc),source)
-        self.assertEqual(len(data),772)
+        self.assertEqual(len(data),1000)
         word=lambda off:int.from_bytes(data[off-mod.FILE_START:off-mod.FILE_START+4],'little')
         self.assertEqual(word(0x39920),0x9200c012) # memw_locked(r0)
         self.assertEqual(word(0x39930),0xa0a0d200) # checked memw_locked(r0,p0)=r18
@@ -82,6 +82,19 @@ class ExceptionFollowup(unittest.TestCase):
         for address in [0x39bc8,0x39bd4,0x39be0,0x39bec,0x39c1c]:
             self.assertEqual(word(address)>>16,0x4980) # independent V60 GP class
         self.assertEqual(word(0x39c14),0x3f40c0d5) # frame status clrbit(21)
+        # Protected frame register restoration and lock-mask updates.
+        self.assertEqual(word(0x39c24),0x6e800000 | (0<<16) | (3<<14) | 29) # SGP0
+        self.assertEqual(word(0x39c64),0x67000000 | (9<<16) | (3<<14) | 6) # SSR
+        self.assertEqual(word(0x39c78),0x75094000) # predicate before branch
+        self.assertEqual(word(0x39c7c),0x5cff68fe)
+        self.assertEqual(word(0x39ca8)>>16,0x4980)
+        self.assertEqual(word(0x39cb4),0x75094010)
+        self.assertEqual(word(0x39cb8),0x5c005812)
+        self.assertEqual(word(0x39cc0)>>16,0x4880) # generic GP store class
+        self.assertEqual(word(0x39ce0)>>16,0x48a0) # .new GP store class
+        self.assertEqual(word(0x39cf8),0x63000000|((8+32)<<16)|(3<<14)|16)
+        self.assertEqual(word(0x39d00),0x57e0c000) # RTE
+        self.assertEqual(word(0x39d04),0x529fc000) # alternate jumpr lr
         ref=os.environ.get('AGENT11_MODEM_MBN')
         if ref:mod.verify(Path(ref).read_bytes(),data)
 
