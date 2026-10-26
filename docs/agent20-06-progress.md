@@ -477,3 +477,11 @@ python3 tools/agent20_06_a32_roundtrip.py /private/venus.mbn 0xa8ea0 0xa92c8 \
 - Rebuilds encoded codec frame/output pipeline registers, validates active frame mode, sets mask bits and issues controller-write packets; original saved-register return occurs at `0xbbaa8`.
 - Full Rust source-generated fragment comparison reports **zero byte differences**. Independent Clang/LLVM reassembly matches all 980 instruction bytes plus the four identified data words. **227 Rust tests and 13 Python tests passed**. No completed release-build result is claimed.
 - First uncovered runtime `0xbbabc` (MBN file offset `0xbfabc`). Still provisional older Agent 03 branch, not checkpoint-50-based integrated history. Byte identity is not high-level semantic decompilation or OEM authentication.
+
+## Checkpoint 56 — codec status register readback and stream command programming
+
+- Complete source-emitted Venus runtime `[0xa8000,0xbbcd4)` = **81,108 consecutive reference-identical bytes**, original MBN file `[0xac000,0xbfcd4)`.
+- Added `[0xbbabc,0xbbcd4)` = **536 bytes**, comprising **134 typed ARM32 instructions** and **zero separately classified data words**. Three source-level groups: conditional controller readback, stream status register programming and auxiliary register configuration. The first group falls through to the next routine rather than inventing a return.
+- Full fragment byte equality against the pinned `venus.mbn` is exact, **zero differing bytes**. Independent Clang/LLVM ARM32 mnemonic reassembly matches all 536 bytes exactly.
+- **228 Rust and 13 Python tests passed**. A successful release build is not claimed at this checkpoint.
+- First missing runtime `0xbbcd4`, file offset `0xbfcd4`. The next ARM32 controller function starts here. This remains provisional older-Agent-03 ancestry and not a source-level semantic rebuild, full firmware, or new OEM-authenticated image.
