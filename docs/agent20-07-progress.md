@@ -1082,3 +1082,16 @@ python3 -S tools/adsp-agent20-rwe-next-controller-slot-register.py \
   --llvm-mc "$HEXAGON_LLVM_MC" --reference "$NABU_ADSP_REFERENCE" \
   --output /tmp/adsp-controller-slot-register-232.bin
 ```
+
+## Checkpoint 61: complete ADSP atomic slot-release function `[0x11c88,0x11d68)`
+
+- Added **224 byte-identical executable bytes** from an independently authored Hexagon V66 source, file `[0x11c88,0x11d68)` (physical `[0x8be0ec88,0x8be0ed68)`). SHA-256 `b5ab9d2d93173ef61049859c90a7108f7b82f4af2d3fb3a6bdab55307cbb0f4a`.
+- The complete routine handles freeing occupied slots, multiple retrying `memw_locked` atomic updates, bitmap release and global callback notification. Its original conditional return paths and the `0xf04148a8` GP table index are explicitly retained. LLVM6 assembles **55/56 words**; the one validated SGP0 read is encoded by the checked V66 register helper. Rizin independently decodes all ordinary instructions and the privileged read.
+- The preceding adjacent slot-register function `[0x11ba0,0x11c88)` and this release function form **456 consecutive byte-identical executable bytes**; including the controller-table initializer they form a 648-byte continuous code island `[0x11ae0,0x11d68)`. This island remains disjoint from earlier source-built fragments due to OEM diagnostic text and linker fill.
+- Cumulative independently rebuilt ADSP RWE executable is **8,268 bytes across fifteen disjoint intervals**. The following distinct Hexagon helper begins at `0x11d68`. Whole ADSP and OEM authorization remain unfinished.
+
+```sh
+python3 -S tools/adsp-agent20-rwe-next-controller-slot-release.py \
+  --llvm-mc "$HEXAGON_LLVM_MC" --reference "$NABU_ADSP_REFERENCE" \
+  --output /tmp/adsp-slot-release-224.bin
+```
