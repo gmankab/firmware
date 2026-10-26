@@ -414,3 +414,11 @@ python3 tools/build-wlanmdsp-agent13.py /tmp/wlan-prefix-through-27a0.bin \
   Next function prologue starts at file `0x46f1c`.
 - The checkpoint25 ancestry gap is still unresolved: do not claim a source-
   generated contiguous prefix extending back to `0x40000` on this branch.
+
+## Checkpoint 40 (disjoint) — record flag validation and table occupancy
+
+- Independently rebuilt **152 Hexagon instruction bytes** at WLAN file `[0x46f1c,0x46fb4)` (VMA `[0xb0006f1c,0xb0006fb4)`), including record-table occupancy updates, a bounded count scan, diagnostic callbacks, and the original function's return.
+- The original four-word packet at file `0x46f9c` contains the conditional callback `call -0x1454`, a 32-bit extended signed argument, and a diagnostic selector. LLVM 6 reproduces the packet's exact parse markers only when those semantic instructions are grouped in one source packet. No opcode constants or OEM bytes were embedded.
+- Cumulative *disjoint continuation* `[0x4568c,0x46fb4)` now totals **6,440 independently source-assembled instruction bytes**, SHA-256 `d9b0a2a900ffd2e6bd294a74c69543f442bcc2305307bcfdd48b2f1c5bec6f44`, with **zero differences** against the private, SHA-256-pinned `wlanmdsp.mbn` reference.
+- 160 offline Rust tests passed. Python discovery ran 43 cases, **41 passed and 2 skipped**; offline Rust release build and Git whitespace checks passed. First missing packet starts at file `0x46fb4` / VMA `0xb0006fb4`, the prologue of the following controller function.
+- **Provenance warning:** This branch descends from the verified Agent 13 checkpoint 16, not unavailable checkpoint 25. Earlier checkpoint 17–25 Git commits must be integrated before claiming a single source-generated prefix from file `0x40000`. Original firmware signing and hardware execution are not established.

@@ -19,10 +19,10 @@ class SourceOnlyForwardTests(unittest.TestCase):
     def test_manifest_exact_boundaries(self):
         m=module()
         self.assertEqual(m.START,0x568c)
-        self.assertEqual(m.validate_manifest(),0x6f1c)
+        self.assertEqual(m.validate_manifest(),0x6fb4)
         self.assertEqual(m.FILE_BASE+m.START,0x4568c)
-        self.assertEqual(m.FILE_BASE+m.validate_manifest(),0x46f1c)
-        self.assertEqual(sum(length for _,_,_,length in m.FRAGMENTS),6288)
+        self.assertEqual(m.FILE_BASE+m.validate_manifest(),0x46fb4)
+        self.assertEqual(sum(length for _,_,_,length in m.FRAGMENTS),6440)
 
     def test_validator_forbids_opaque_data_and_layout_holes(self):
         m=module()
@@ -155,6 +155,20 @@ class SourceOnlyForwardTests(unittest.TestCase):
         self.assertIn('}:mem_noshuf',text)
         self.assertIn('L_00508:',text)
         self.assertNotIn('.incbin',text)
+
+    def test_record_flag_probe_preserves_compound_call_packet(self):
+        m=module()
+        source,offset,size={name:(src,off,length) for name,src,off,length in m.FRAGMENTS}['record-flag-probe']
+        self.assertEqual((offset,size),(0x6f1c,0x98))
+        code=source.read_text()
+        self.assertIn('L_6f9c:',code)
+        self.assertIn('call -0x1454',code)
+        self.assertIn('r0 = ##-1339397237',code)
+        self.assertIn('r1 = #1921',code)
+        self.assertNotIn('.word',code)
+        self.assertNotIn('.incbin',code)
+        # The extended call packet must not be split into two separate blocks.
+        self.assertIn('call -0x1454\n    r0 = ##-1339397237\n    r1 = #1921',code)
 
     def test_partial_session_metadata_preserves_duplex_selection(self):
         m=module()
