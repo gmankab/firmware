@@ -215,3 +215,12 @@ python3 -m unittest discover -s tests -p 'test_*.py'
 - The generated `[0x38108,0x38200)` has SHA-256 `9f4c1365f2a89e5b68ded976c2f874993a43eea48cd59901c3cca3997740a00c` and **0 differing bytes** against the pinned original `modem.mbn` SHA-256 `6f5cb32bc10e41abb40938d185805e788f5637a41d3ebcef278e4e169fc36782`.
 - Standalone verifier rejects malformed reference or incorrect RTE, branch/packet-end and NOP parse fields. `cargo test --workspace --offline --locked` passed 169 Rust tests; `python3 -m unittest discover -s tests -p 'test_*.py'` passed 38 cases. See the optional LLVM6 test environment variables `AGENT11_LLVM_MC` and `AGENT11_MODEM_MBN`.
 - Next disjoint protected interrupt handler starts at file `0x38200` and is **not yet rebuilt**. Code here remains a partial device executable, not an OEM-authenticated complete MBN.
+
+## Checkpoint 25 — Locked interrupt controller state and conditional branch
+
+- Extended the modem RWE exception continuation from 248 to **376 exact bytes**, file `[0x38108,0x38280)` (physical `[0x8e040108,0x8e040280)`, virtual `[0xc0840108,0xc0840280)`). Added file `[0x38200,0x38280)` = **128 original ISA instruction bytes** (no OEM words pasted).
+- The new code obtains the shared protected interrupt lock using `memw_locked` and checked predicate retries, performs an architected locked store, publishes a status mask through S63 and MMIO, and tests whether a masked exception-status byte requires further processing.
+- LLVM6 schedules two *legal* predicate packets differently and cannot combine a locked store with an immediate extender. The source assembler emits checked ISA forms; a **fail-closed** verifier validates all relevant operand classes and packet markers before normalizing only those two packet orders and one immediate producer's packet field. This normalizer reads no original bytes. A separate reference check then verifies zero differences.
+- The **full 376-byte region** has SHA-256 `319137e1892800efbe5ab46dd2002d2ef90421fee18dca8400ec1e2987a4ff8b`, matching the pinned `modem.mbn` at every byte.
+- 169 offline Rust tests and 38 Python tests pass; three LLVM-sensitive Python tests are *enabled* with `AGENT11_LLVM_MC`, and the pinned OEM comparison is enabled with `AGENT11_MODEM_MBN`.
+- Further interrupt-state recovery code begins at `0x38280`; all modem content beyond this owned interval remains incomplete, and no signed modem output is produced.

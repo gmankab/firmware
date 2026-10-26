@@ -107,3 +107,60 @@ MODEM_CTRL_WRITE 0,9,1
 // Source-level packet NOPs: one two-word packet and one four-word packet.
 { nop; nop }
 { nop; nop; nop; nop }
+// Protected interrupt status is exchanged through the architected locked
+// physical-word load/store primitives, never ordinary unsynchronized stores.
+.globl agent11_modem_rwe_exception_acquire_lock
+agent11_modem_rwe_exception_acquire_lock:
+{ r12 = ##-1065090812 }
+modem_rwe_exception_lock_retry:
+{ r13 = memw_locked(r12) }
+{
+    p2 = cmp.eq(r13,#0)
+    if (!p2.new) jump:nt modem_rwe_exception_lock_retry
+    if (p2.new) r13 = #1
+}
+// LLVM6 forbids the architectural locked-store in the same packet as an
+// immediate extender, so encode the locked store from ISA operand fields and
+// later normalize only the preceding packet marker after checking classes.
+.macro MODEM_RWE_LOCKED_WORD_STORE base, value, predicate, marker=3
+    .if (\base < 0) || (\base > 31) || (\value < 0) || (\value > 31) || (\predicate < 0) || (\predicate > 3)
+      .error "invalid locked word-store operands"
+    .endif
+    .if (\marker != 3)
+      .error "locked word store must finish the packet"
+    .endif
+    .word (0xa0a00000 | (\base << 16) | (\marker << 14) | (\value << 8) | \predicate)
+.endm
+{ r12 = ##-1065090812 }
+MODEM_RWE_LOCKED_WORD_STORE 12,13,2,3
+{
+    if (!p2) r12 = ##-1065090812
+    if (!p2) jump:nt modem_rwe_exception_lock_retry
+    if (p2) r13 = memw(r12+#0)
+}
+// Publish the captured interrupt status to per-core controller registers.
+// LLVM6 cannot decode some S-register instructions by mnemonic, so the
+// checked S-register read/write macros keep original privilege semantics.
+MODEM_SYS_READ 12,8,1
+{ p2 = cmp.gt(r13,#0) }
+{ trace(r13) }
+MODEM_SYS_READ 12,63,1
+{
+    r13 = setbit(r13,r12)
+    memw(##-1065090816) = r13.new
+}
+{ r12 = setbit(r12,#16) }
+MODEM_SYS_WRITE 63,12,1
+{
+    r13 = #0
+    memw(##-1065090812) = r13.new
+}
+MODEM_SYS_READ 13,6,1
+{ r12 = ##524288 }
+MODEM_SYS_READ 28,0,1
+.set modem_exception_status_empty, agent11_modem_exception_dispatch_entry + (0x38358-0x38108)
+{
+    r13 = and(r13,~r12)
+    r12 = and(r13,#255)
+    if (cmp.eq(r12.new,#0)) jump:nt modem_exception_status_empty
+}

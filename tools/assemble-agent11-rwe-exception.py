@@ -10,16 +10,59 @@ only for optional reference verification (SHA-256 locked).
 from __future__ import annotations
 import argparse
 import hashlib
+import struct
 from pathlib import Path
 import runpy
 import subprocess
 import tempfile
 
 FILE_START = 0x38108
-FILE_END = 0x38200
+FILE_END = 0x38280
 VIRTUAL_START = 0xc0840108
 PHYSICAL_START = 0x8e040108
 PINNED_SHA256 = '6f5cb32bc10e41abb40938d185805e788f5637a41d3ebcef278e4e169fc36782'
+
+
+def normalize_llvm6_locked_packets(data: bytes) -> bytes:
+    """Convert LLVM6's legal packet schedule to the source-ordered ISA form.
+
+    Hexagon's LLVM6 scheduler moves a .new compare's branch ahead of its
+    predicate, and positions a conditional branch ahead of the extender and
+    conditionally defined register. The original sequence is also a legal
+    instruction packet. Reorder only the two independently assembled packet
+    groups after validating instruction classes, operands and marker bits.
+    The locked word-store uses checked architectural fields; LLVM6 does not
+    accept it in the same packet as an extender. Normalize its producer word
+    after explicitly checking the source-generated register and imm marker.
+    No original reference bytes are read by this function.
+    """
+    result=bytearray(data)
+    def read(address):return struct.unpack_from('<I',result,address-FILE_START)[0]
+    def write(address,word):struct.pack_into('<I',result,address-FILE_START,word)
+    expected_classes={
+        0x3820c:0x5cff6afe,  # if(!p2.new) jump:nt acquire retry
+        0x38210:0x750d4002,  # p2 = cmp.eq(r13,#0)
+        0x3821c:0x7800c08c,  # LLVM6 extended immediate into r12, own packet
+        0x38220:0xa0accd02,  # checked locked store(r12,p2) = r13
+        0x38224:0x5cff62f2,  # if(!p2) retry
+        0x38228:0x0c085004,  # constant extender for conditional r12
+        0x3822c:0x7ec0408c,  # if(!p2) r12 = ##constant
+        0x38230:0x418cd00d,  # if(p2) r13 = memw(r12+#0)
+    }
+    for address,expected in expected_classes.items():
+        if read(address)!=expected:
+            raise ValueError(f'unrecognized Hexagon LLVM6 locked packet at 0x{address:x}')
+    a,b=read(0x3820c),read(0x38210)
+    write(0x3820c,b)
+    write(0x38210,a)
+    # LLVM6 emits standalone r12=#imm. Move it to the locked-store packet
+    # and remove only the private packet-isolation bit used by this class.
+    write(0x3821c,0x78000000 | (1<<14) | 12)
+    branch,ext,mov=read(0x38224),read(0x38228),read(0x3822c)
+    write(0x38224,ext)
+    write(0x38228,mov)
+    write(0x3822c,branch)
+    return bytes(result)
 
 
 def assemble(llvm_mc: Path, source: Path) -> bytes:
@@ -32,6 +75,8 @@ def assemble(llvm_mc: Path, source: Path) -> bytes:
             raise ValueError(f'Hexagon V60 assembler failed: {proc.stderr}')
         text_from_object = runpy.run_path(str(Path(__file__).with_name('assemble-modem-tlb.py')))['text_from_object']
         data = text_from_object(obj.read_bytes())
+        if len(data) >= 0x38234-FILE_START:
+            data = normalize_llvm6_locked_packets(data)
         expected = FILE_END - FILE_START
         if len(data) != expected:
             raise ValueError(f'Unexpected exception-entry size {len(data)}, expected {expected}')
@@ -51,6 +96,10 @@ def assemble(llvm_mc: Path, source: Path) -> bytes:
             raise ValueError('Exception NOP packets have incorrect grouping')
         if word(0x381dc)&(3<<14)!=(1<<14):
             raise ValueError('Last branch must continue into its NOP packet')
+        if word(0x38274) != 0xf18c4d0d:
+            raise ValueError('Controller status mask must be sourced from checked AND-NOT operation')
+        if (word(0x3827c) & (3<<14)) != (3<<14):
+            raise ValueError('Status-mask conditional branch must end its packet')
         return data
 
 
