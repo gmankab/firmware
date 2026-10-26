@@ -220,3 +220,11 @@ git diff --check
 - Full standalone `agent20_04_venus_middle -- verify` passed all 25 adjacent fragments. Continuous Agent 04 coverage `[0x40a2c,0x53000)` is **75,220 source-reencoded bytes**, **18,705 typed ARM32 instructions**, **100 non-instruction literal/data words**, with no OEM opcode arrays or implicit fill. The earlier `[0x40000,0x40a2c)` is outside verified coverage, and the next uncovered runtime address is `0x53000`.
 - Offline workspace **215 Rust tests**, **13 Python tests**, and `CARGO_PROFILE_RELEASE_OPT_LEVEL=0 cargo build --workspace --release --offline --locked` passed. Default full-opt release is not asserted tested.
 - Branch remains a provisional descendant of the older Agent03 history, not checkpoint50. An independent, tested merge onto checkpoint50's actual commit is still needed before release.
+
+## Checkpoint 25 — completed format update and indexed controller setup prefix
+
+- Generated **1,024 exact bytes** at runtime `[0x53000,0x53400)` (MBN `[0x57000,0x57400)`) using **252 typed A32 instructions and four named non-instruction literal values** at `[0x53254,0x53264)` immediately after a saved-register return.
+- Independent Clang/LLVM reassembly matches all 252 instructions and four literal words; the standalone emitter compares all 26 existing fragments to the pinned original `venus.mbn` with zero mismatches.
+- Contiguous Agent 04 coverage `[0x40a2c,0x53400)` is **76,244 source-reencoded bytes**, comprising **18,957 ARM32 instructions and 104 data words**. The newly started indexed controller function continues beyond `0x53400`; do not claim it is complete.
+- Offline Rust workspace **216 tests**, Python **13 tests**, and opt0 release build pass. Default full optimization is not claimed; prior no-reference range `[0x40000,0x40a2c)` remains unimplemented.
+- This provisional Git branch still descends from old Agent03 rather than the missing checkpoint-50 Git SHA; integrate by cherry-pick/rebase only after obtaining the exact base.
