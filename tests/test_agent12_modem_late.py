@@ -15,6 +15,38 @@ spec.loader.exec_module(agent12)
 
 
 class ModemLateTests(unittest.TestCase):
+    def test_aux_controller_phase15_fail_closed_state_packet(self):
+        self.assertEqual((agent12.AUX_LARGE_CONTROLLER_PHASE15_START,
+                          agent12.AUX_LARGE_CONTROLLER_PHASE15_END),
+                         (0x447e1c,0x447e80))
+        source=agent12.AUX_LARGE_CONTROLLER_PHASE15_SOURCE.read_text()
+        self.assertIn('loop0(init_frame_loop,r18)',source)
+        self.assertIn('}:endloop0',source)
+        self.assertNotIn('.word',source)
+        self.assertNotIn('.incbin',source)
+        words=[0x7800c000]*25
+        words[0x20//4:0x28//4]=[0xa191d208,0x9195c0f6]
+        words[0x34//4:0x44//4]=[0x0000402b,0x10044070,0x7e806012,0x7490e997]
+        output=struct.unpack('<25I',agent12.restore_aux_large_controller_phase15_packets(
+            struct.pack('<25I',*words)))
+        self.assertEqual(output[0x20//4],0xa1915208)
+        self.assertEqual(output[0x34//4:0x44//4],
+                         (0x7e806012,0x74906997,0x0000402b,0x1004c070))
+        for index,bad,why in [
+            (0x20//4,0x7800c000,'state-store'),
+            (0x24//4,0x9195c0f7,'state-load'),
+            (0x34//4,0x0100402b,'ISA classes'),
+            (0x38//4,0x10044071,'predicate, extender or branch'),
+            (0x3c//4,0x7e806013,'predicate, extender or branch'),
+            (0x40//4,0x74906997,'packet markers'),
+        ]:
+            other=words.copy();other[index]=bad
+            with self.assertRaisesRegex(ValueError,why):
+                agent12.restore_aux_large_controller_phase15_packets(
+                    struct.pack('<25I',*other))
+        with self.assertRaisesRegex(ValueError,'100 source-assembled bytes'):
+            agent12.restore_aux_large_controller_phase15_packets(bytes(96))
+
     def test_aux_controller_phase14_callback_source(self):
         self.assertEqual((agent12.AUX_LARGE_CONTROLLER_PHASE14_START,
                           agent12.AUX_LARGE_CONTROLLER_PHASE14_END),

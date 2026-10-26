@@ -55,6 +55,7 @@ AUX_LARGE_CONTROLLER_PHASE12_SOURCE = ROOT / "crates/firmware-tools/src/devices/
 AUX_LARGE_CONTROLLER_PHASE13_GATE_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_aux_large_controller_phase13_gate.s"
 AUX_LARGE_CONTROLLER_PHASE13_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_aux_large_controller_phase13.s"
 AUX_LARGE_CONTROLLER_PHASE14_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_aux_large_controller_phase14.s"
+AUX_LARGE_CONTROLLER_PHASE15_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_aux_large_controller_phase15.s"
 AUX_DISPATCH_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_aux_dispatch_helpers.s"
 AUX_TYPE_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_aux_type_config.s"
 AUX_NOTIFY_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_aux_controller_notify.s"
@@ -191,6 +192,8 @@ AUX_LARGE_CONTROLLER_PHASE13_START = 0x447D38
 AUX_LARGE_CONTROLLER_PHASE13_END = 0x447D90
 AUX_LARGE_CONTROLLER_PHASE14_START = AUX_LARGE_CONTROLLER_PHASE13_END
 AUX_LARGE_CONTROLLER_PHASE14_END = 0x447E1C
+AUX_LARGE_CONTROLLER_PHASE15_START = AUX_LARGE_CONTROLLER_PHASE14_END
+AUX_LARGE_CONTROLLER_PHASE15_END = 0x447E80
 MARKER_MASK = 3 << 14
 CONTINUE_MARKER = 1 << 14
 END_MARKER = 3 << 14
@@ -1513,6 +1516,44 @@ def restore_aux_large_controller_phase13_packets(assembled: bytes) -> bytes:
     return struct.pack('<22I',*words)
 
 
+def restore_aux_large_controller_phase15_packets(assembled: bytes) -> bytes:
+    """Regroup source-generated state stores and branch predicates.
+
+    LLVM6 compresses two state loads into an unwanted duplex if submitted
+    in one packet; the source separates them into architecturally independent
+    instructions. Here the otherwise-correct register write packet is joined
+    with the next load, and the four predicated operations are restored in
+    the original issue order. Every instruction class, operand and parse bit
+    must match before editing; no original firmware opcode is substituted.
+    """
+    if len(assembled)!=AUX_LARGE_CONTROLLER_PHASE15_END-AUX_LARGE_CONTROLLER_PHASE15_START:
+        raise ValueError("controller phase15 requires 100 source-assembled bytes")
+    words=list(struct.unpack('<25I',assembled))
+    i=0x20//4
+    memstore=words[i]
+    if (memstore>>24)!=0xa1 or (memstore&0x3fff)!=0x1208 or (memstore&MARKER_MASK)!=END_MARKER:
+        raise ValueError("controller phase15 state-store opcode/register/marker changed")
+    after=words[i+1]
+    if (after>>24)!=0x91 or (after&0xff)!=0xf6 or (after&MARKER_MASK)!=END_MARKER:
+        raise ValueError("controller phase15 state-load instruction/marker changed")
+    words[i]=(memstore&~MARKER_MASK)|CONTINUE_MARKER
+    j=0x34//4
+    ext,branch,pred0,pred1=words[j:j+4]
+    if [w>>24 for w in (ext,branch,pred0,pred1)] != [0x00,0x10,0x7e,0x74]:
+        raise ValueError("controller phase15 predicated branch ISA classes changed")
+    if [w&MARKER_MASK for w in (ext,branch,pred0,pred1)] != [
+            CONTINUE_MARKER,CONTINUE_MARKER,CONTINUE_MARKER,END_MARKER]:
+        raise ValueError("controller phase15 predicated branch packet markers changed")
+    if ((ext&0xffff)!=0x402b or (branch&0x3fff)!=0x70 or
+            (pred0&0x3fff)!=0x2012 or (pred1&0x3fff)!=0x2997):
+        raise ValueError("controller phase15 predicate, extender or branch fields changed")
+    words[j:j+4]=[(pred0&~MARKER_MASK)|CONTINUE_MARKER,
+                  (pred1&~MARKER_MASK)|CONTINUE_MARKER,
+                  (ext&~MARKER_MASK)|CONTINUE_MARKER,
+                  (branch&~MARKER_MASK)|END_MARKER]
+    return struct.pack('<25I',*words)
+
+
 def assemble(llvm_mc: Path, source: Path) -> bytes:
     with tempfile.TemporaryDirectory(prefix="nabu-modem-late-") as tmp:
         obj = Path(tmp) / "late.o"
@@ -1565,6 +1606,8 @@ def output_fragments(llvm_mc: Path) -> dict[int, bytes]:
     aux_large_controller_phase13=restore_aux_large_controller_phase13_packets(
         assemble(llvm_mc,AUX_LARGE_CONTROLLER_PHASE13_SOURCE))
     aux_large_controller_phase14=assemble(llvm_mc,AUX_LARGE_CONTROLLER_PHASE14_SOURCE)
+    aux_large_controller_phase15=restore_aux_large_controller_phase15_packets(
+        assemble(llvm_mc,AUX_LARGE_CONTROLLER_PHASE15_SOURCE))
     aux_dispatch = assemble(llvm_mc,AUX_DISPATCH_SOURCE)
     aux_type = restore_aux_type_return_packets(assemble(llvm_mc,AUX_TYPE_SOURCE))
     aux_notify = restore_aux_controller_notify_packets(assemble(llvm_mc,AUX_NOTIFY_SOURCE))
@@ -1628,6 +1671,7 @@ def output_fragments(llvm_mc: Path) -> dict[int, bytes]:
         (aux_large_controller_phase13_gate,AUX_LARGE_CONTROLLER_PHASE13_GATE_START,AUX_LARGE_CONTROLLER_PHASE13_GATE_END,'large controller phase13 gate'),
         (aux_large_controller_phase13,AUX_LARGE_CONTROLLER_PHASE13_START,AUX_LARGE_CONTROLLER_PHASE13_END,'large controller phase13 disjoint'),
         (aux_large_controller_phase14,AUX_LARGE_CONTROLLER_PHASE14_START,AUX_LARGE_CONTROLLER_PHASE14_END,'large controller phase14 callback'),
+        (aux_large_controller_phase15,AUX_LARGE_CONTROLLER_PHASE15_START,AUX_LARGE_CONTROLLER_PHASE15_END,'large controller phase15 descriptor'),
     ]:
         if len(fragment)!=end-start:
             raise ValueError(f"auxiliary {label} source length mismatch")
@@ -1685,7 +1729,8 @@ def output_fragments(llvm_mc: Path) -> dict[int, bytes]:
         raise ValueError("missing source after controller registry block")
     if not (AUX_LARGE_CONTROLLER_PHASE12_END==AUX_LARGE_CONTROLLER_PHASE13_GATE_START and
             AUX_LARGE_CONTROLLER_PHASE13_GATE_END+16==AUX_LARGE_CONTROLLER_PHASE13_START and
-            AUX_LARGE_CONTROLLER_PHASE13_END==AUX_LARGE_CONTROLLER_PHASE14_START):
+            AUX_LARGE_CONTROLLER_PHASE13_END==AUX_LARGE_CONTROLLER_PHASE14_START and
+            AUX_LARGE_CONTROLLER_PHASE14_END==AUX_LARGE_CONTROLLER_PHASE15_START):
         raise ValueError("controller phase13 gap was silently bridged")
     if AUX_LOOKUP_END!=AUX_REGISTRY_CORE_START or AUX_REGISTRY_CORE_END!=AUX_DISPATCH_START:
         raise ValueError("modem auxiliary registry source intervals have a gap")
@@ -1703,7 +1748,8 @@ def output_fragments(llvm_mc: Path) -> dict[int, bytes]:
                         aux_large_controller_phase9+aux_large_controller_phase10+
                         aux_large_controller_phase11+aux_large_controller_phase12+
                         aux_large_controller_phase13_gate,
-        AUX_LARGE_CONTROLLER_PHASE13_START:aux_large_controller_phase13+aux_large_controller_phase14,
+        AUX_LARGE_CONTROLLER_PHASE13_START:aux_large_controller_phase13+
+                aux_large_controller_phase14+aux_large_controller_phase15,
     }
 
 

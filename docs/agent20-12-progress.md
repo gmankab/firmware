@@ -1112,3 +1112,24 @@ there is still an **unreconstructed 16-byte packet `[0x447d28,0x447d38)`**.
 A second separate verified interval `[0x447d38,0x447e1c)` is **228 bytes**.
 The entire `modem.mbn` remains incomplete, and externally signed OEM content
 has not been regenerated.
+
+## Checkpoint 44 — Controller state-frame reset and resource descriptor setup
+
+Added **100 source-built executable Hexagon V60 bytes** at pinned modem
+file `[0x447e1c,0x447e80)` (virtual `[0x1e401e1c,0x1e401e80)`). This
+part of the controller-session function invokes a resource callback, zeros
+selected frame descriptors in a hardware `loop0`, updates the allocated
+controller state and sets up a resource-scan loop. Source assembly under
+LLVM6 is 100 bytes. A fail-closed transformation joins two independent
+state-write instructions in the original packet and reorders four
+predicated operations whose assembler-issued packet marker/order differs
+from the original producer. Negative tests reject malformed opcode classes,
+predicate operands, displacement, and marker changes.
+
+Exact SHA-256-pinned reference comparison passes for all four separated
+source-generated regions. The independent generated total is **8,404 bytes**:
+**8,096 Hexagon executable**, **296 ELF metadata**, **12 linker fill**.
+The auxiliary prefix is **7,464 contiguous bytes** ending at `0x447d28`;
+the 16-byte unimplemented packet `[0x447d28,0x447d38)` remains a real
+hole, followed by **328 verified executable bytes** `[0x447d38,0x447e80)`.
+No new OEM signature, complete modem, or on-device boot is claimed.
