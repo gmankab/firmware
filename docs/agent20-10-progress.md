@@ -567,3 +567,21 @@ python3 tools/verify-agent20-10-cdsp-large-prologue.py \
   ```
 
 - **Next unimplemented byte** is CDSP file `0x566c0` (physical `0x96cc86c0`). This branch remains provisional on Agent05 checkpoint17's older base and is **not** descended from the missing checkpoint-50 integration; no full authenticated firmware or hardware execution is implied.
+
+## Checkpoint 30 — first bitplane-controller loop checks, 2,908 executable bytes
+
+- Added **24 original-byte-identical source-generated Hexagon V66 instruction bytes** at CDSP file `[0x566c0,0x566d8)` (physical `[0x96cc86c0,0x96cc86d8)`, virtual `[0xc00c86c0,0xc00c86d8)`). This continues the large controller routine from checkpoints 27–29, not a complete function.
+- The six checked operations initialize `R25:24=combine(#1,#7)`, set R18 to sixteen, branch when R17 is zero to physical `0x96cc8734`, compute `R3=cl0(R17)`, set `R2=add(R18,-16)`, and branch to the insufficient-capacity exit at `0x96cc8890` when unsigned `R24 > R2.new` is false. Hexagon parse markers and `.new` hazards are explicitly preserved.
+- `cdsp_late_controller_bitloop` emits a checked six-instruction Rust fragment from typed operands and explicit short branch displacements. The source bytes and **1,752-byte** full RWE prefix compare exactly to pinned `cdsp.mbn` SHA-256 `febeae7b8e47bad4eeabc159a3c24b74cda26dfa12b384c31de5de30817e06ea`, with zero differences. The prefix contains **1,708 executable code bytes** and **44 separate NOP/fill bytes**. Adding the disjoint complete 1,200-byte controller segment gives **2,908 independently reconstructed executable bytes** total.
+- Independently authored `tools/agent20-10-cdsp-rwe-controller-bitloop-prefix.s` compiles successfully with LLVM6, producing six semantically identical V66 instructions. Four instructions match unchanged; LLVM6 combines the initial two instructions into a different packet and relocates a fused short branch by one packet, so **full LLVM6 binary identity is not claimed**. Rizin V66 validates all six original source-built instructions and both physical branch destinations. The independent verifier enforces matching semantic multisets, exact OEM bytes, and prefix source/fill separation.
+- **Tests:** full offline workspace **247 Rust tests**, 23 Python tests, and the full release build pass. Both standalone and joined-prefix `verify` commands pass with the reference outside Git. Checked encoder unit tests reject incorrect operand registers and alternative branch destinations.
+
+  ```sh
+  cargo run --offline --locked -p firmware-tools --bin cdsp-late-controller-bitloop -- verify-prefix /private/cdsp.mbn
+  python3 tools/verify-agent20-10-cdsp-rwe-controller-bitloop.py \
+    --llvm-mc /private/llvm6/bin/llvm-mc --rz-asm /private/rz-asm \
+    --generated /private/controller-bitloop-24.bin \
+    --prefix /private/controller-rwe-1752.bin --reference /private/cdsp.mbn
+  ```
+
+- Next unimplemented byte: CDSP file `0x566d8` (physical `0x96cc86d8`); it continues into the first bitplane-iterator loop. As before this is a **provisional branch descended from Agent05 CDSP checkpoint17**, not the unavailable checkpoint-50 integrated base, and no newly signed CDSP firmware is implied.
