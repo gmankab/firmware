@@ -461,3 +461,11 @@ python3 tools/agent20_06_a32_roundtrip.py /private/venus.mbn 0xa8ea0 0xa92c8 \
 - Full typed-Rust emitter exactly matches the pinned `venus.mbn` and independent Clang/LLVM mnemonic reassembly returns **zero differences** for 756 code bytes and 4 classified data bytes.
 - **225 Rust tests, 13 Python tests passed**. No successful offline release build is claimed for checkpoint 53.
 - Next uncovered runtime address `0xbb570`, file offset `0xbf570`; still provisional older Agent 03 ancestry, not the unavailable checkpoint-50-based integration.
+
+## Checkpoint 54 — retire codec session and update external input references
+
+- Cumulative source-encoded Venus runtime `[0xa8000,0xbb6d8)` = **79,576 byte-identical bytes**, pinned MBN file `[0xac000,0xbf6d8)`.
+- New `[0xbb570,0xbb6d8)` = **360 bytes**: **85 independently re-encoded ARM32 instructions (340 bytes)** and **five structured literal words (20 bytes)**. The four-word status/diagnostic pool is `[0xbb644,0xbb654)` and the single warning address is `[0xbb6d4,0xbb6d8)`.
+- Two complete controller helpers and a diagnostic tail: retire a session/record, invoke error logging and cleanup callbacks, and hand off updated external codec references. Preserve `BXEQ LR` and the original return/branch targets.
+- Full typed-Rust generated tail and independent Clang/LLVM reassembly match all byte positions against the pinned reference (0 mismatches). **226 Rust and 13 Python tests pass**. A successful release build is not claimed for this checkpoint.
+- Next uncovered runtime `0xbb6d8`, original MBN file offset `0xbf6d8`. This branch still descends from the older Agent 03 base and must be revalidated on a genuine checkpoint-50 integration.
