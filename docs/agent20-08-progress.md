@@ -458,3 +458,18 @@ were embedded. Exact SHA-256:
 `a59c40d44e11ef97f978883d3c01f7dc8eec74bb70ab329cdf61c570f66384f8`.
 The two NOPs at file `[0x3edc8,0x3edd0)` are excluded. Cumulative independent
 ADSP executable coverage is **3,956 bytes in 66 verified fragments**.
+
+
+**Checkpoint 31 — multi-branch controller release checker:** Reconstructed
+**216 independently authored Hexagon executable bytes** at ADSP file
+`[0x3e4d0,0x3e5a8)`. The routine validates a registered command tag,
+selects three resource-release callbacks and performs a signed 64-bit
+capacity check before restoring its caller frame. Exact source packet
+ordering (two different duplex arrangements) was required: the tagged
+constant initialization must be ordered after the `memd` capture, and the
+64-bit sum belongs to the following packet. No OEM opcode directives are
+embedded. Direct reference SHA-256:
+`f72ca3a18c2ad53cefb74dda821ea1e2397bdd6bb4d99b4237ea336581b186a5`.
+Cumulative independent executable coverage is now **4,172 bytes in 67
+verified fragments**, zero byte mismatches; the following controller
+writer starts at `0x3e5a8` and remains incomplete.

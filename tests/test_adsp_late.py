@@ -197,9 +197,9 @@ class ADSPExternalsAndCodeTests(unittest.TestCase):
     @unittest.skipUnless(LLVM_MC,'Hexagon LLVM6 assembler required')
     def test_complete_fragment_inventory_rejects_overlaps(self):
         manifest,regions=adsp.assembled_inventory(LLVM_MC,None)
-        self.assertEqual(len(manifest['fragments']),66)
-        self.assertEqual(manifest['total_independently_assembled_executable_bytes'],3956)
-        self.assertEqual(sum(map(len,regions.values())),3956)
+        self.assertEqual(len(manifest['fragments']),67)
+        self.assertEqual(manifest['total_independently_assembled_executable_bytes'],4172)
+        self.assertEqual(sum(map(len,regions.values())),4172)
         self.assertEqual(manifest['gap_bytes_included_in_generated_executables'],0)
         self.assertFalse(manifest['complete_adsp_image'])
         self.assertEqual(manifest['external_original_code_bytes_in_output'],0)
@@ -366,7 +366,7 @@ class ADSPExternalsAndCodeTests(unittest.TestCase):
     def test_inventory_every_fragment_uses_correct_original(self):
         inventory,_outputs=adsp.assembled_inventory(LLVM_MC,Path(REFERENCE).read_bytes())
         self.assertTrue(all(x['reference_byte_identical'] for x in inventory['fragments']))
-        self.assertEqual(inventory['total_independently_assembled_executable_bytes'],3956)
+        self.assertEqual(inventory['total_independently_assembled_executable_bytes'],4172)
 
     @unittest.skipUnless(LLVM_MC and REFERENCE,
                          'Hexagon LLVM6 and exact pinned ADSP reference required')
@@ -380,7 +380,7 @@ class ADSPExternalsAndCodeTests(unittest.TestCase):
                 adsp.verify_slice(built,original,off)
                 total+=len(built)
                 ranges.append((off,off+size))
-        self.assertEqual(total,3956)
+        self.assertEqual(total,4172)
         ranges.sort()
         self.assertEqual(ranges[0],(0x39000,0x39054))
         self.assertEqual(ranges[-1],(0x3640a8,0x3640f8))
@@ -900,3 +900,28 @@ class ADSPControllerFieldInitializationTests(unittest.TestCase):
         self.assertEqual(hashlib.sha256(generated).hexdigest(),
             'a59c40d44e11ef97f978883d3c01f7dc8eec74bb70ab329cdf61c570f66384f8')
         if REFERENCE:adsp.verify_slice(generated,Path(REFERENCE).read_bytes(),off)
+
+
+class ADSPControllerReleaseCheckTests(unittest.TestCase):
+    """Multi-case command-tag release with 64-bit bounded resource tally."""
+
+    @unittest.skipUnless(LLVM_MC,'Hexagon LLVM6 assembler required')
+    def test_release_check_rebuilds_exact_controller_tags(self):
+        source,off,n=adsp.FRAGMENTS['controller-release-check']
+        self.assertEqual((off,n),(0x3e4d0,216))
+        body=source.read_text()
+        for forbidden in ('.word ','.long ','.byte ','.incbin ','.fill '):
+            self.assertNotIn(forbidden,body)
+        for term in ('memd(r29+#16) = r19:18; r18 = r0',
+                     'if (cmp.eq(r3.new,r2)) jump:nt special_release',
+                     'r1:0 = add(r17:16,r1:0)',
+                     'if (p0.new) jump:t again',
+                     'dealloc_return'):
+            self.assertIn(term,body)
+        code=adsp.compile_source(LLVM_MC,source,n)
+        self.assertEqual(hashlib.sha256(code).hexdigest(),
+            'f72ca3a18c2ad53cefb74dda821ea1e2397bdd6bb4d99b4237ea336581b186a5')
+        if REFERENCE:adsp.verify_slice(code,Path(REFERENCE).read_bytes(),off)
+        # Following controller frame writer begins immediately; it is NOT
+        # implicitly emitted with this disjoint, fully covered function.
+        self.assertEqual(off+n,0x3e5a8)
