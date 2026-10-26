@@ -197,9 +197,9 @@ class ADSPExternalsAndCodeTests(unittest.TestCase):
     @unittest.skipUnless(LLVM_MC,'Hexagon LLVM6 assembler required')
     def test_complete_fragment_inventory_rejects_overlaps(self):
         manifest,regions=adsp.assembled_inventory(LLVM_MC,None)
-        self.assertEqual(len(manifest['fragments']),72)
-        self.assertEqual(manifest['total_independently_assembled_executable_bytes'],4984)
-        self.assertEqual(sum(map(len,regions.values())),4984)
+        self.assertEqual(len(manifest['fragments']),75)
+        self.assertEqual(manifest['total_independently_assembled_executable_bytes'],5352)
+        self.assertEqual(sum(map(len,regions.values())),5352)
         self.assertEqual(manifest['gap_bytes_included_in_generated_executables'],0)
         self.assertFalse(manifest['complete_adsp_image'])
         self.assertEqual(manifest['external_original_code_bytes_in_output'],0)
@@ -366,7 +366,7 @@ class ADSPExternalsAndCodeTests(unittest.TestCase):
     def test_inventory_every_fragment_uses_correct_original(self):
         inventory,_outputs=adsp.assembled_inventory(LLVM_MC,Path(REFERENCE).read_bytes())
         self.assertTrue(all(x['reference_byte_identical'] for x in inventory['fragments']))
-        self.assertEqual(inventory['total_independently_assembled_executable_bytes'],4984)
+        self.assertEqual(inventory['total_independently_assembled_executable_bytes'],5352)
 
     @unittest.skipUnless(LLVM_MC and REFERENCE,
                          'Hexagon LLVM6 and exact pinned ADSP reference required')
@@ -380,7 +380,7 @@ class ADSPExternalsAndCodeTests(unittest.TestCase):
                 adsp.verify_slice(built,original,off)
                 total+=len(built)
                 ranges.append((off,off+size))
-        self.assertEqual(total,4984)
+        self.assertEqual(total,5352)
         ranges.sort()
         self.assertEqual(ranges[0],(0x39000,0x39054))
         self.assertEqual(ranges[-1],(0x3640a8,0x3640f8))
@@ -1027,3 +1027,37 @@ class ADSPControllerPlatformInitTests(unittest.TestCase):
         if REFERENCE:adsp.verify_slice(code,Path(REFERENCE).read_bytes(),off)
         self.assertEqual(off+n,adsp.FRAGMENTS['controller-indexed-init'][1])
         self.assertEqual(n+adsp.FRAGMENTS['controller-indexed-init'][2],316)
+
+
+class ADSPControllerOpcodeSwitchTests(unittest.TestCase):
+    """Default-mode handoff, bounded 87-entry jump dispatch and diagnostic adapter."""
+
+    @unittest.skipUnless(LLVM_MC,'Hexagon LLVM6 assembler required')
+    def test_three_opcode_fragments_are_exactly_adjacent(self):
+        expected=(
+            ('controller-mode-default',0x3e7a0,12,
+             '3b8d467a5c86b695872c84a8f78d002718be8958adfd1bf3eb71fd7bd7374d3a'),
+            ('controller-opcode-switch',0x3e7ac,328,
+             'afbd86953d17f7700c67966de024551851a1851f2b44eae67a1644da839ceae7'),
+            ('controller-report-default',0x3e8f4,28,
+             '55c74b7996d6309fea659f55c0143b45a56fa47bf138bf685d0f3b8727614875'),
+        )
+        ref=Path(REFERENCE).read_bytes() if REFERENCE else None
+        position=0x3e7a0
+        for name,off,n,digest in expected:
+            with self.subTest(name=name):
+                src,actual_off,actual_n=adsp.FRAGMENTS[name]
+                self.assertEqual((actual_off,actual_n),(off,n))
+                self.assertEqual(off,position)
+                text=src.read_text()
+                for prohibited in ('.word ','.long ','.byte ','.incbin ','.fill '):
+                    self.assertNotIn(prohibited,text)
+                b=adsp.compile_source(LLVM_MC,src,n)
+                self.assertEqual(hashlib.sha256(b).hexdigest(),digest)
+                if ref:adsp.verify_slice(b,ref,off)
+                position+=n
+        self.assertEqual(position,adsp.FRAGMENTS['controller-platform-init'][1])
+        self.assertEqual(position+adsp.FRAGMENTS['controller-platform-init'][2],
+            adsp.FRAGMENTS['controller-indexed-init'][1])
+        self.assertEqual(12+328+28+208+108,684)
+        self.assertEqual(adsp.FRAGMENTS['controller-reset-status'][1]+72+8,0x3e7a0)

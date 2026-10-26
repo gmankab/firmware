@@ -524,3 +524,22 @@ immediately at `0x3e9e0`, forming **316 contiguous executable bytes**.
 Cumulative independently source-assembled coverage: **4,984 bytes in 72
 fragments**, zero mismatches. OEM-signature and unimplemented executable
 ranges are explicitly excluded.
+
+
+**Checkpoint 36 — bounded opcode switch and platform report trampoline:**
+Created Hexagon V66 original-source implementations for the **12-byte**
+default-mode dispatch at `0x3e7a0–0x3e7ac` (SHA-256
+`3b8d467a5c86b695872c84a8f78d002718be8958adfd1bf3eb71fd7bd7374d3a`),
+the **328-byte** controller opcode switch at `0x3e7ac–0x3e8f4`
+(SHA-256 `afbd86953d17f7700c67966de024551851a1851f2b44eae67a1644da839ceae7`),
+and the **28-byte** diagnostic callback adapter at `0x3e8f4–0x3e910`
+(SHA-256 `55c74b7996d6309fea659f55c0143b45a56fa47bf138bf685d0f3b8727614875`).
+The 328-byte function dispatches hardware opcode values through a bounded
+87-entry table in the platform firmware; the table itself is not copied or
+counted as source generated. All source packet boundaries and tail calls
+match exactly, including the original `:mem_noshuf` restrictions as applicable.
+Together with checkpoint 35, the range `[0x3e7a0,0x3ea4c)` contains
+**684 contiguous independently assembled executable bytes**. Two preceding
+4-byte alignment NOPs `[0x3e798,0x3e7a0)` are explicitly **excluded**.
+Cumulative independent ADSP executable coverage: **5,352 bytes across
+75 Hexagon fragments**, zero mismatches, not an entire ADSP or signed image.
