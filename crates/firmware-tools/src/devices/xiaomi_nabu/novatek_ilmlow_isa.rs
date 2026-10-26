@@ -162,12 +162,17 @@ pub enum Insn {
     LessThanSignedSmallImmediate { reg: Reg, value: u8 },
     BranchTa { nonzero: bool, target: u32 },
     BitSet { dest: Reg, source: Reg, bit: u8 },
+    /// N32 ALU2/BTST: test source bit (immediate position) into destination.
+    BitTestImmediate {dest:Reg,source:Reg,bit:u8},
     IndexedByte { store: bool, reg: Reg, base: Reg, index: Reg, shift: u8 },
     IndexedMemory { store:bool, width:Width, signed:bool, reg:Reg, base:Reg,index:Reg,shift:u8 },
     JumpShort { target: u32 },
     JumpRelative { target: u32, link: bool },
     /// IFC_LP/IFC_ON state differs from conventional JAL/RET.
     InlineCall { target: u32 },
+    /// N32 BR2/SOP0 IFCALL: signed 16-bit halfword PC displacement.
+    /// Unlike IFCALL9, this form can target a preceding instruction.
+    InlineCallWide { target: u32 },
     /// Conditional return through IFC_LP; falls through with IFC_ON clear.
     InlineReturn,
     Return { reg: Reg },
@@ -324,6 +329,10 @@ impl Insn {
             OrImmediate { dest,source,value } => (0x2c<<25)|(dest.number()<<20)|(source.number()<<15)|u15(value)?,
             XorImmediate { dest,source,value } => (0x2b<<25)|(dest.number()<<20)|(source.number()<<15)|u15(value)?,
             AndImmediate { dest,source,value } => (0x2a<<25)|(dest.number()<<20)|(source.number()<<15)|u15(value)?,
+            BitTestImmediate {dest,source,bit} => {
+                if bit>31{return Err("BTST bit exceeds 31".into());}
+                (0x21<<25)|(dest.number()<<20)|(source.number()<<15)|(u32::from(bit)<<10)|0x0b
+            },
             BitSet { dest,source,bit } => {
                 if bit>31{return Err("BSET bit exceeds 31".into());}
                 (0x21<<25)|(dest.number()<<20)|(source.number()<<15)|(u32::from(bit)<<10)|8
@@ -344,6 +353,7 @@ impl Insn {
                     |(u32::from(shift)<<8)|(u32::from(store)<<3)
             }
             JumpRelative { target,link } => (0x24<<25)|(u32::from(link)<<24)|displacement(pc,target,24)?,
+            InlineCallWide { target } => (0x27<<25)|displacement(pc,target,16)?,
             JumpRegisterWide{reg} => (0x25<<25)|(reg.number()<<10),
             MultipleWords { store,first,base,last,specials,decrement,writeback } => {
                 if first.number()>last.number() || specials>15 {
@@ -617,6 +627,7 @@ impl Insn {
             OrImmediate { dest,source,value } => format!("ori {},{},{}",r(dest),r(source),value),
             XorImmediate{dest,source,value} => format!("xori {},{},{}",r(dest),r(source),value),
             AndImmediate { dest,source,value } => format!("andi {},{},{}",r(dest),r(source),value),
+            BitTestImmediate{dest,source,bit} => format!("btst {},{},{}",r(dest),r(source),bit),
             BitSet { dest,source,bit } => format!("bset {},{},{}",r(dest),r(source),bit),
             IndexedMemory {store,width,signed,reg,base,index,shift} => format!("{}{}{} {},[{}+({}<<{})]",if store{"s"}else{"l"},width.letter(),if signed{"s"}else{""},r(reg),r(base),r(index),shift),
             IndexedByte { store,reg,base,index,shift } => format!("{}b {},[{}+({}<<{})]",if store{"s"}else{"l"},r(reg),r(base),r(index),shift),
@@ -624,6 +635,7 @@ impl Insn {
             JumpRelative { target,link } => format!("{} .{:+}",if link{"jal"}else{"j"},i64::from(target)-i64::from(pc)),
             // GNU's IFCALL9 operand is a displacement, not a target expression.
             InlineCall { target } => format!("ifcall9 {}",i64::from(target)-i64::from(pc)),
+            InlineCallWide { target } => format!("ifcall {}",i64::from(target)-i64::from(pc)),
             InlineReturn => "ifret16".into(),
             Return { reg } => format!("ret5 {}",r(reg)),
             JumpRegisterLink { reg } => format!("jral5 {}",r(reg)),
@@ -749,6 +761,19 @@ mod tests {
             base:R2,offset:65536}.encode(0,0).is_err());
         assert!(Insn::PostIndexedMemory{store:false,width:Width::Word,reg:R1,
             base:R1,offset:4}.encode(0,0).is_err());
+    }
+
+    #[test]
+    fn bit_test_immediate_alu2_field_matches_gnu_instruction_table() {
+        assert_eq!(Insn::BitTestImmediate{dest:R1,source:R1,bit:1}.encode(0,0).unwrap(),[0x42,0x10,0x84,0x0b]);
+        assert!(Insn::BitTestImmediate{dest:R1,source:R1,bit:32}.encode(0,0).is_err());
+    }
+    #[test]
+    fn wide_ifcall_preserves_signed_halfword_displacement() {
+        assert_eq!(Insn::InlineCallWide{target:0x3c1c}.encode(0x3c2a,0).unwrap(), [0x4e,0x00,0xff,0xf9]);
+        assert_eq!(Insn::InlineCallWide{target:0x1020}.encode(0x1000,0).unwrap(), [0x4e,0x00,0x00,0x10]);
+        assert!(Insn::InlineCallWide{target:0x1001}.encode(0x1000,0).is_err());
+        assert!(Insn::InlineCallWide{target:0x20000}.encode(0x1000,0).is_err());
     }
 
     #[test]

@@ -340,3 +340,43 @@ PostmarketOS first missing file address: `0xb22`, runtime `0x922`; next routine 
 - Verified against pinned reference SHA-256 `8b845514621ebfd95759a0919f3aa3d825314abb478a7cad1c3fb4c6872b70b5`: **zero byte differences** for all three generated regions. Cumulative executable-vs-data accounting is explicit. All **232 Rust** and **40 Python** tests pass; `cargo build --workspace --release --offline --locked` and `git diff --check` pass. Independent historical GNU NDS32 assembler remains unavailable; don't call this an independently assembled result.
 - Integration provenance remains based on previous Agent 09 commit `51b1f91f32d32542aa03e114f5a2f4d94b559e2a`, *not* a checkpoint-50-rooted integration. Never redistribute reference binaries or claim a flashable/signed Novatek firmware.
 - **First uncovered source byte:** file `0x38bc` (runtime `0x36bc`); other explicit holes are file `0x39f8` and the continuation starting at `0x3e2a`. The full lower ILM assignment through file `0x10000` remains unfinished.
+
+
+## Checkpoint 14 — wide IFCALL and signed GP halfword reads
+
+Added a third disjoint source-derived instruction block at file `[0x3e2a,0x45a0)`,
+**1,910 bytes / 713 typed NDS32 instructions**. Its first 32-bit opcode is a
+wide BR2/SOP0 `IFCALL` to runtime `0x3c1c`; a checked 16-bit signed-relative
+branch encoder now preserves its backward displacement. An ALU2 `BTST`
+immediate form was also added with strict bit-index limits and ISA regression
+tests. The remaining instructions are expressed through existing checked
+register, memory, branch, EX9 and DSP op constructors. Both new encoders are
+consistent with GNU binutils NDS32 opcode tables.
+
+The cumulative Agent17-authored output is **16,178 byte-identical bytes**:
+
+- `[0x66a,0x38bc)` — 12,882 code bytes, original contiguous prefix.
+- `[0x38be,0x39f8)` — 314 code bytes.
+- `[0x39fa,0x3e2a)` — 1,072 code/data bytes (including 80 named table bytes
+  across the earlier independent ranges).
+- `[0x3e2a,0x45a0)` — 1,910 additional code bytes.
+
+Across all four regions, **16,098 instruction bytes** and **80 named jump-table
+bytes** are source-generated. The **four OEM bytes** at `[0x38bc,0x38be)` and
+`[0x39f8,0x39fa)` remain excluded and prevent a single continuous source
+reconstruction past `0x38bc`. No private OEM opcodes are embedded or copied
+into the Rust emitter. The first uncovered instruction after the newest region
+is file `0x45a0`, runtime `0x43a0`, an N32 ALU1 register shift subop requiring
+a checked encoder.
+
+The third interval contains 137 EX9 calls or instructions to 59 distinct
+index entries in upper ILM. Those entries remain **external Agent18 semantic
+dependencies** and do not add to Agent17's reconstructed byte count. The
+standalone `verify-disjoint` CLI tests all three disjoint blocks against the
+pinned postmarketOS reference.
+
+Verification: **235 Rust tests and 40 Python tests pass**, locked offline
+release build passes, full four-region reference comparison has **zero byte
+mismatches**, and `git diff --check` passes. Independent GNU NDS32 assembler
+verification and hardware execution remain unavailable; this is a partial ISA
+re-encoding result, not proof of functional decompilation.
