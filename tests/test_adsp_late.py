@@ -197,9 +197,9 @@ class ADSPExternalsAndCodeTests(unittest.TestCase):
     @unittest.skipUnless(LLVM_MC,'Hexagon LLVM6 assembler required')
     def test_complete_fragment_inventory_rejects_overlaps(self):
         manifest,regions=adsp.assembled_inventory(LLVM_MC,None)
-        self.assertEqual(len(manifest['fragments']),80)
-        self.assertEqual(manifest['total_independently_assembled_executable_bytes'],6096)
-        self.assertEqual(sum(map(len,regions.values())),6096)
+        self.assertEqual(len(manifest['fragments']),85)
+        self.assertEqual(manifest['total_independently_assembled_executable_bytes'],6340)
+        self.assertEqual(sum(map(len,regions.values())),6340)
         self.assertEqual(manifest['gap_bytes_included_in_generated_executables'],0)
         self.assertFalse(manifest['complete_adsp_image'])
         self.assertEqual(manifest['external_original_code_bytes_in_output'],0)
@@ -366,7 +366,7 @@ class ADSPExternalsAndCodeTests(unittest.TestCase):
     def test_inventory_every_fragment_uses_correct_original(self):
         inventory,_outputs=adsp.assembled_inventory(LLVM_MC,Path(REFERENCE).read_bytes())
         self.assertTrue(all(x['reference_byte_identical'] for x in inventory['fragments']))
-        self.assertEqual(inventory['total_independently_assembled_executable_bytes'],6096)
+        self.assertEqual(inventory['total_independently_assembled_executable_bytes'],6340)
 
     @unittest.skipUnless(LLVM_MC and REFERENCE,
                          'Hexagon LLVM6 and exact pinned ADSP reference required')
@@ -380,7 +380,7 @@ class ADSPExternalsAndCodeTests(unittest.TestCase):
                 adsp.verify_slice(built,original,off)
                 total+=len(built)
                 ranges.append((off,off+size))
-        self.assertEqual(total,6096)
+        self.assertEqual(total,6340)
         ranges.sort()
         self.assertEqual(ranges[0],(0x39000,0x39054))
         self.assertEqual(ranges[-1],(0x3640a8,0x3640f8))
@@ -1179,3 +1179,40 @@ class ADSPControllerHookRegistrationTests(unittest.TestCase):
                       adsp.FRAGMENTS['controller-register-hooks'][0].read_text())
         self.assertIn('r0 = #-1; dealloc_return',
                       adsp.FRAGMENTS['controller-log-failure'][0].read_text())
+
+
+class ADSPControllerParameterLifecycleTests(unittest.TestCase):
+    """Five adjacent controller-parameter/context functions, excluding filler."""
+
+    EXPECTED = (
+        ('controller-indirect-callback',0x3fa1c,32,'bac71028d3886f2424836094361f61022789042c2f566f3f4bef2d69bcca3d78'),
+        ('controller-create-parameter',0x3fa3c,68,'327cfce2851de11814b00f11aafda9eb912ca5363cea4c54d4ff6b4d67c78c3f'),
+        ('controller-release-parameter',0x3fa80,60,'b700358e81b3458ed1d0f43894467c99f0492f0cf5e90752f6e67558481b35cc'),
+        ('controller-create-context-pair',0x3fabc,56,'9642aca4dddde8da345192462b89c4a0a4fdcd3601d148a402ee1a1e2396b3fd'),
+        ('controller-flush-context',0x3faf4,28,'ae178719784a6b774d7de51a28afd1935320cd8eb67ab36c67cf8c32b7a8c513'),
+    )
+
+    @unittest.skipUnless(LLVM_MC,'Hexagon LLVM6 assembler required')
+    def test_all_five_lifecycle_source_fragments_are_contiguous_and_byte_exact(self):
+        reference=Path(REFERENCE).read_bytes() if REFERENCE else None
+        before=0x3fa1c
+        emitted=[]
+        for name,start,n,digest in self.EXPECTED:
+            with self.subTest(name=name):
+                source,off,length=adsp.FRAGMENTS[name]
+                self.assertEqual((off,length),(start,n))
+                self.assertEqual(start,before)
+                text=source.read_text()
+                for forbidden in ('.word ','.long ','.byte ','.incbin ','.fill '):
+                    self.assertNotIn(forbidden,text)
+                built=adsp.compile_source(LLVM_MC,source,length)
+                self.assertEqual(len(built),n)
+                self.assertEqual(hashlib.sha256(built).hexdigest(),digest)
+                if reference is not None:
+                    adsp.verify_slice(built,reference,off)
+                emitted.append(built)
+                before+=n
+        joined=b''.join(emitted)
+        self.assertEqual((len(joined),before),(244,0x3fb10))
+        if reference is not None:
+            adsp.verify_slice(joined,reference,0x3fa1c)

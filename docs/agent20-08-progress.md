@@ -606,3 +606,23 @@ and match **all 96 executable bytes**. The NOP before `0x3f468` and the two
 following NOPs `[0x3f4c8,0x3f4d0)` are intentionally excluded from source
 counts. **Total independent ADSP executable reconstruction: 6,096 bytes
 in 80 fragments.** Large code and authentication gaps remain.
+
+
+**Checkpoint 41 — controller parameter/context lifecycle cluster:**
+Added five source-assembled **adjacent executable functions** in file
+`[0x3fa1c,0x3fb10)` without any alignment filler: a 32-byte indirect
+callback adapter (SHA-256 `bac71028d3886f2424836094361f61022789042c2f566f3f4bef2d69bcca3d78`),
+a 68-byte parameter allocation/initialization routine
+(`327cfce2851de11814b00f11aafda9eb912ca5363cea4c54d4ff6b4d67c78c3f`),
+a 60-byte release path
+(`b700358e81b3458ed1d0f43894467c99f0492f0cf5e90752f6e67558481b35cc`),
+a 56-byte controller-context pair constructor
+(`9642aca4dddde8da345192462b89c4a0a4fdcd3601d148a402ee1a1e2396b3fd`),
+and a 28-byte context flush helper
+(`ae178719784a6b774d7de51a28afd1935320cd8eb67ab36c67cf8c32b7a8c513`).
+The original Hexagon `:mem_noshuf`/`immext` packet formation is expressed by
+source-level packet groups, not pasted vendor instruction words. Exact bytes
+are reconstructed using LLVM6 and compared against the pinned original MBN.
+**Cumulative: 6,340 independently authored executable bytes, 85 fragments.**
+All other ADSP text, non-executable alignment, and original authentication
+remain explicitly outside this generated-source inventory.
