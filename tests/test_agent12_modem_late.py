@@ -226,6 +226,65 @@ class ModemLateTests(unittest.TestCase):
         self.assertNotIn(".word",source)
         self.assertEqual(agent12.AUX_ENTRY_END-agent12.AUX_ENTRY_START,20)
 
+    def test_public_framekey_encoding_and_parser_layout(self):
+        # This tests an ISA class with multiple independently decoded GPRs,
+        # rather than embedding the firmware's four-byte instruction word.
+        self.assertEqual(agent12.encode_v60_framekey(3),0x6a114003)
+        self.assertEqual(agent12.encode_v60_framekey(16),0x6a114010)
+        self.assertEqual(agent12.encode_v60_framekey(23,end_packet=True),0x6a11c017)
+        for invalid in (0,8,13,15,24,31,-1):
+            with self.assertRaisesRegex(ValueError,'framekey Rd'):
+                agent12.encode_v60_framekey(invalid)
+        code=agent12.AUX_SESSION_VALIDATION_SOURCE.read_text()
+        self.assertIn('.space 4',code)
+        self.assertIn('framekey',code)
+        self.assertNotIn('.word',code)
+        self.assertIn('p0 = bitsset',code)
+        self.assertIn('dealloc_return',code)
+        self.assertEqual(agent12.AUX_SESSION_PREFIX_END,agent12.AUX_SESSION_VALIDATION_START)
+        self.assertEqual(agent12.AUX_SESSION_VALIDATION_END,agent12.AUX_FIND_FREE_START)
+
+    def test_framekey_packet_adjustment_rejects_unrelated_source(self):
+        words=[0x7800c000]*80
+        words[0]=0  # deliberate placeholder of independent assembly
+        for offset, group in [
+            (0x58,[0x104e4032,0xfd11f000]),
+            (0x78,[0x5c00481a,0x75165fc0,0xfd11f000]),
+            (0x84,[0x5c20481c,0x7516dfe0]),
+            (0xa4,[0x469dd218,0x5800c026]),
+            (0x11c,[0x5bff7bce,0x01e44404,0x6bf32808]),
+        ]:
+            words[offset//4:offset//4+len(group)]=group
+        for offset,w in [(0x48,0x1600c074), (0xac,0xb01dc183),
+                         (0xcc,0xb01dc183), (0xfc,0x5800c01a),
+                         (0x108,0x2402c00e), (0x118,0x50a4c000)]:
+            words[offset//4]=w
+        source=struct.pack('<80I',*words)
+        output=struct.unpack('<80I',agent12.restore_aux_session_validation_packets(source))
+        self.assertEqual(output[0],agent12.encode_v60_framekey(3))
+        self.assertEqual(output[0x58//4]>>24,0xfd)
+        self.assertEqual(output[0x5c//4]>>24,0x10)
+        self.assertEqual([x>>24 for x in output[0x78//4:0x84//4]],
+                         [0x75,0xfd,0x5c])
+        self.assertEqual(output[0xa4//4]>>24,0x58)
+        self.assertEqual(output[0x124//4]>>24,0x5b)
+        for offset,mutated,pattern in [
+            (0,0x7800c003,'framekey layout slot'),
+            (0x58,0x78004032,'opcode classes'),
+            (0x78,0x5c00c81a,'parser bits'),
+            (0xa4,0x7800c000,'opcode classes'),
+            (0xac,0xb01d4183,'stack-pointer add'),
+            (0x108,0x2402c010,'PC-relative target'),
+            (0x118,0x50a44000,'callr opcode'),
+            (0x11c,0x78004000,'opcode classes'),
+        ]:
+            wrong=words.copy();wrong[offset//4]=mutated
+            with self.assertRaisesRegex(ValueError,pattern):
+                agent12.restore_aux_session_validation_packets(
+                    struct.pack('<80I',*wrong))
+        with self.assertRaisesRegex(ValueError,'320 independently assembled bytes'):
+            agent12.restore_aux_session_validation_packets(source[:-4])
+
     def test_session_registry_duplex_encodes_architectural_fields(self):
         # Hexagon A/A duplex: slot1 add-immediate, slot0 increment.
         expected = agent12.encode_v60_duplex_addi_inc(
@@ -691,11 +750,13 @@ class ModemLateTests(unittest.TestCase):
         a = agent12.output_fragments(Path(os.environ["NABU_HEXAGON_LLVM_MC"]))
         self.assertEqual({k: len(v) for k, v in a.items()},
                          {0x7C000:160, 0x7C2EC:452, 0x446000:216,
-                          0x446200:84, 0x446260:552, 0x446650:2200,
-                          0x447028:216, 0x447100:840})
-        self.assertEqual(sum(map(len,a.values())),4720)
+                          0x446200:84, 0x446260:552, 0x446650:3576})
+        self.assertEqual(sum(map(len,a.values())),5040)
+        self.assertNotIn(agent12.AUX_SESSION_VALIDATION_START,a)
+        self.assertNotIn(agent12.AUX_SESSION_REGISTRY_START,a)
         self.assertNotIn(agent12.AUX_INSERT_CONTROLLER_START,a)
-        self.assertEqual(a[agent12.AUX_SESSION_REGISTRY_START][:4],
+        k=agent12.AUX_SESSION_REGISTRY_START-agent12.AUX_DISPATCH_START
+        self.assertEqual(a[agent12.AUX_DISPATCH_START][k:k+4],
                          agent12.assemble(Path(os.environ["NABU_HEXAGON_LLVM_MC"]),
                                           agent12.AUX_SESSION_REGISTRY_SOURCE)[:4])
         if os.getenv("NABU_MODEM_REFERENCE"):

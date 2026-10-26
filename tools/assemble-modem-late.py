@@ -42,6 +42,7 @@ AUX_VENEERS_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem
 AUX_REGISTRATION_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_aux_controller_registration.s"
 AUX_DIAGNOSTIC_HELPERS_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_aux_diagnostic_helpers.s"
 AUX_SESSION_PREFIX_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_aux_session_prefix.s"
+AUX_SESSION_VALIDATION_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_aux_session_validation.s"
 AUX_FIND_FREE_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_aux_find_free_entry.s"
 AUX_RESOLVE_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_aux_resolve_handle.s"
 AUX_SESSION_REGISTRY_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_aux_session_registry_insert.s"
@@ -98,6 +99,8 @@ AUX_DIAGNOSTIC_HELPERS_START = 0x446E1C
 AUX_DIAGNOSTIC_HELPERS_END = 0x446E90
 AUX_SESSION_PREFIX_START = 0x446E90
 AUX_SESSION_PREFIX_END = 0x446EE8
+AUX_SESSION_VALIDATION_START = 0x446EE8
+AUX_SESSION_VALIDATION_END = 0x447028
 AUX_FIND_FREE_START = 0x447028
 AUX_FIND_FREE_END = 0x447078
 AUX_RESOLVE_START = 0x447078
@@ -591,6 +594,103 @@ def restore_aux_registration_new_value_packet(assembled: bytes) -> bytes:
     return struct.pack('<'+'I'*len(words),*words)
 
 
+def encode_v60_framekey(rd: int, *, end_packet: bool = False) -> int:
+    """A32-independent Hexagon V60 ``Rd = framekey`` ISA field encoder.
+
+    Hexagon control-register instruction class 0x6a11 reads the frame-key
+    special register; the 5-bit destination field has valid GPRs R1–R7 or
+    R16–R23.  LLVM6's MC *disassembler* decodes this class, but its assembler
+    does not accept the mnemonic. Build the class + GPR + packet parse bits
+    from operands and verify the generated instruction against the reference,
+    rather than importing a private OEM opcode word.
+    """
+    if 1 <= rd <= 7:
+        encoded_rd=rd
+    elif 16 <= rd <= 23:
+        encoded_rd=(rd-16)|0x10
+    else:
+        raise ValueError("framekey Rd must be R1–R7 or R16–R23")
+    # Stable architectural opcode bits, not OEM firmware bytes.
+    return 0x6a110000 | encoded_rd | (END_MARKER if end_packet else CONTINUE_MARKER)
+
+
+def restore_aux_session_validation_packets(assembled: bytes) -> bytes:
+    """Reconcile checked Hexagon V60 source packets and encode framekey.
+
+    The first four bytes of the independent LLVM6 source are an *alignment
+    placeholder* solely because LLVM6 cannot encode `r3 = framekey` itself.
+    Replace the zero placeholder with a public-ISA-encoded control-register
+    instruction, then only reorder verified independently assembled packets,
+    preserving source operand fields and updating short-branch immediates
+    when the packet scheduler moves the source label within the same packet.
+    """
+    if len(assembled) != AUX_SESSION_VALIDATION_END-AUX_SESSION_VALIDATION_START:
+        raise ValueError("session validation expects 320 independently assembled bytes")
+    words=list(struct.unpack('<80I',assembled))
+    if words[0]!=0:
+        raise ValueError("framekey layout slot must be zero before ISA encoding")
+    words[0]=encode_v60_framekey(3)
+
+    def reassign_packet(offset, old_classes, old_markers, indexes):
+        i=offset//4
+        group=words[i:i+len(indexes)]
+        if [w>>24 for w in group]!=old_classes:
+            raise ValueError(f"session packet ISA opcode classes changed at {offset:#x}")
+        if [w&MARKER_MASK for w in group]!=old_markers:
+            raise ValueError(f"session packet parser bits changed at {offset:#x}")
+        n=len(indexes)
+        words[i:i+n]=[(group[source]&~MARKER_MASK)|
+                         (END_MARKER if dest==n-1 else CONTINUE_MARKER)
+                         for dest,source in enumerate(indexes)]
+
+    # The target compiler puts source value producers ahead of their
+    # compare-and-branch consumers. LLVM6 otherwise shuffles same-packet ops.
+    reassign_packet(0x58,[0x10,0xfd],[CONTINUE_MARKER,END_MARKER],[1,0])
+    reassign_packet(0x78,[0x5c,0x75,0xfd],
+                    [CONTINUE_MARKER,CONTINUE_MARKER,END_MARKER],[1,2,0])
+    reassign_packet(0x84,[0x5c,0x75],[CONTINUE_MARKER,END_MARKER],[1,0])
+    reassign_packet(0xa4,[0x46,0x58],[END_MARKER,END_MARKER],[1,0])
+    # At 0xa4 the original jump shares its packet with the conditional store
+    # that follows; the LLVM split boundary is corrected after opcode checks.
+    words[0xa4//4]=(words[0xa4//4]&~MARKER_MASK)|CONTINUE_MARKER
+    for off in (0xac,0xcc):
+        i=off//4
+        x=words[i]
+        if x>>24!=0xb0 or x&MARKER_MASK!=END_MARKER:
+            raise ValueError(f"session stack-pointer add/next packet differs at {off:#x}")
+        words[i]=(x&~MARKER_MASK)|CONTINUE_MARKER
+    i=0x118//4
+    if words[i]>>24!=0x50 or words[i]&MARKER_MASK!=END_MARKER:
+        raise ValueError("session callr opcode/parse state changed")
+    words[i]=(words[i]&~MARKER_MASK)|CONTINUE_MARKER
+    i=0x11c//4
+    call,extender,packed=words[i:i+3]
+    if [x>>24 for x in (call,extender,packed)]!=[0x5b,0x01,0x6b]:
+        raise ValueError("session final diagnostic call opcode classes changed")
+    if [x&MARKER_MASK for x in (call,extender,packed)]!=[CONTINUE_MARKER,CONTINUE_MARKER,0]:
+        raise ValueError("session final diagnostic packet markers changed")
+    words[i:i+3]=[extender,packed,call]
+
+    # Adjust only ISA-defined short branch displacement fields.  Packet
+    # boundaries from LLVM6 shift these named-target relocations by 2/4
+    # encoded units compared with the target compiler's grouping.
+    for offset, opcode, before, delta in [
+        (0x48,0x16,0x34,+2),
+        (0xa4,0x58,0x26,+4),
+        (0xfc,0x58,0x1a,+2),
+        (0x108,0x24,0x0e,+4),
+        (0x124,0x5b,0x0e,-4),
+    ]:
+        i=offset//4
+        x=words[i]
+        if x>>24!=opcode or x&0x3f!=before:
+            raise ValueError(f"session packet branch opcode/PC-relative target differs at {offset:#x}")
+        if x&MARKER_MASK not in (CONTINUE_MARKER,END_MARKER):
+            raise ValueError(f"session branch parser bits changed at {offset:#x}")
+        words[i]=(x&~0x3f)|(before+delta)
+    return struct.pack('<80I',*words)
+
+
 def compact_register_index(register: int) -> int:
     """Hexagon duplex Rx encoding (architectural R0–R7 or R16–R23)."""
     if 0 <= register <= 7:
@@ -830,6 +930,7 @@ def output_fragments(llvm_mc: Path) -> dict[int, bytes]:
     aux_registration = restore_aux_registration_new_value_packet(assemble(llvm_mc,AUX_REGISTRATION_SOURCE))
     aux_diagnostic_helpers=assemble(llvm_mc,AUX_DIAGNOSTIC_HELPERS_SOURCE)
     aux_session_prefix=assemble(llvm_mc,AUX_SESSION_PREFIX_SOURCE)
+    aux_session_validation=restore_aux_session_validation_packets(assemble(llvm_mc,AUX_SESSION_VALIDATION_SOURCE))
     aux_find_free=assemble(llvm_mc,AUX_FIND_FREE_SOURCE)
     aux_resolve=assemble(llvm_mc,AUX_RESOLVE_SOURCE)
     aux_session_registry=restore_aux_session_registry_packets(assemble(llvm_mc,AUX_SESSION_REGISTRY_SOURCE))
@@ -855,6 +956,8 @@ def output_fragments(llvm_mc: Path) -> dict[int, bytes]:
         raise ValueError("aux handle resolver must emit exactly 136 bytes")
     if len(aux_diagnostic_helpers)!=AUX_DIAGNOSTIC_HELPERS_END-AUX_DIAGNOSTIC_HELPERS_START:
         raise ValueError("aux diagnostic helpers must emit 116 bytes")
+    if len(aux_session_validation)!=AUX_SESSION_VALIDATION_END-AUX_SESSION_VALIDATION_START:
+        raise ValueError("auxiliary session validation length mismatch")
     if len(aux_session_prefix)!=AUX_SESSION_PREFIX_END-AUX_SESSION_PREFIX_START:
         raise ValueError("aux session prefix must emit 88 bytes")
     if len(aux_entry)!=AUX_ENTRY_END-AUX_ENTRY_START:
@@ -873,12 +976,24 @@ def output_fragments(llvm_mc: Path) -> dict[int, bytes]:
     service_alloc = restore_service_alloc_return_packet(assemble(llvm_mc,SERVICE_ALLOC_SOURCE))
     assert SERVICE_END == SERVICE_MMIO_START and SERVICE_MMIO_END == SERVICE_FLAGS_START
     assert SERVICE_FLAGS_END == SERVICE_ALLOC_START
-    return {ATOMIC_START: atomic + controller, SERVICE_START: service+service_mmio+service_flags+service_alloc,
-            AUX_START: auxiliary, AUX_INIT_START: aux_init,
-            AUX_GUARD_START: aux_guard+aux_stage+aux_mmio+aux_heap+aux_worker+aux_lookup,
-            AUX_DISPATCH_START:aux_dispatch+aux_type+aux_notify+aux_entry+aux_validator+aux_runtime_init+aux_veneers+aux_registration+aux_diagnostic_helpers+aux_session_prefix,
-            AUX_FIND_FREE_START:aux_find_free+aux_resolve,
-            AUX_SESSION_REGISTRY_START:aux_session_registry+aux_insert_controller+aux_remove_controller+aux_callback+aux_find_controller+aux_release_registry}
+    # All adjacent auxiliary controller routines are now source generated:
+    # 0x446650..0x447448 is one continuous verified executable block.
+    registry=(aux_dispatch+aux_type+aux_notify+aux_entry+aux_validator+
+              aux_runtime_init+aux_veneers+aux_registration+
+              aux_diagnostic_helpers+aux_session_prefix+aux_session_validation+
+              aux_find_free+aux_resolve+aux_session_registry+aux_insert_controller+
+              aux_remove_controller+aux_callback+aux_find_controller+
+              aux_release_registry)
+    if len(registry)!=AUX_RELEASE_REGISTRY_END-AUX_DISPATCH_START:
+        raise ValueError("source-generated auxiliary registry block is not contiguous")
+    return {
+        ATOMIC_START:atomic+controller,
+        SERVICE_START:service+service_mmio+service_flags+service_alloc,
+        AUX_START:auxiliary,
+        AUX_INIT_START:aux_init,
+        AUX_GUARD_START:aux_guard+aux_stage+aux_mmio+aux_heap+aux_worker+aux_lookup,
+        AUX_DISPATCH_START:registry,
+    }
 
 
 def executable_segments(reference: bytes) -> dict[int, tuple[int, int, int, int]]:

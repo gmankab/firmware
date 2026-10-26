@@ -685,3 +685,37 @@ NABU_HEXAGON_LLVM_MC=/path/to/llvm6/bin/llvm-mc \
 NABU_MODEM_REFERENCE=/private/modem.mbn \
   python3 -m unittest discover -s tests -p 'test_*.py'
 ```
+
+## Checkpoint 26 — Close unsupported framekey session-validation gap
+
+The full session-validation function `[file 0x446ee8,0x447028)` is now
+independently reconstructed: 316 bytes assemble from annotated Hexagon V60
+packets in `modem_late_aux_session_validation.s`; the remaining **4 bytes**
+represent public control-register instruction `r3 = framekey` and are emitted
+from a checked ISA field encoder, **not imported from the original firmware**.
+The LLVM6 assembler cannot parse that mnemonic, but its decoder confirms the
+opcode class for multiple destination registers; negative and unsupported
+register fields are rejected by tests. The `.space 4` in the assembly source
+is a layout placeholder which is strictly checked to be zero and overwritten
+with the independently encoded operation. The reference is never consulted
+for replacement bytes.
+
+The reconstruction preserves conditional predicate producers, new-value
+branches, control-flow targets, debug callback packets and the stack frame
+restoration. Eight packet relocations/order corrections are validated for
+ISA opcode classes, target deltas and parse-marker legality, refusing
+unrecognized compiler output. The 320-byte generated result matches the
+SHA-256-pinned modem image **without a single byte difference**.
+
+With checkpoint 25's completed registry insertion, all source-built routines
+at `[file 0x446650,0x447448)` join into one continuous **3,576-byte**
+auxiliary-controller block, VMA `[0x1e400650,0x1e401448)`, physical
+`[0x90000650,0x90001448)`. The emitter now returns this as **one**
+explicit verified segment; the previous 8 fragments consolidate into 6
+fragments without overlap. Total generated executable coverage is **5,040
+byte-identical bytes**, all verified against the exact pinned original.
+
+The next unclaimed auxiliary executable interval is
+`[file 0x446488,0x446650)` (456 bytes). Other much larger later-baseband
+code remains untouched. This checkpoint does not rebuild the whole modem,
+verify hardware execution, or create a Xiaomi-signed firmware.
