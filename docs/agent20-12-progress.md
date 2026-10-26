@@ -1351,3 +1351,21 @@ reconstructed ELF metadata** and **12 alignment-zero** bytes. All reference
 comparisons pass with pinned `modem.mbn`; **169 Rust tests, 90 Python tests**
 and the offline release build passed. The modem image remains incomplete;
 no OEM signing or on-hardware equivalence is claimed.
+
+## Checkpoint 56 — Verified callback dispatch and earlier scan return
+
+Independently Hexagon V60 source-assembled **80 more exact executable bytes**
+in `[0x448228,0x448278)` (`[0x1e402228,0x1e402278)` VMA). This code
+checks the presence of a callback, packages a buffer descriptor, invokes
+an indirect callback and a platform notifier, then returns to the earlier
+resource scan. All 80 bytes assembled directly with LLVM6 after deriving
+correct **symbolic** notifier and scan targets from the disassembled
+relative branch offsets; the resulting instruction words are not patched
+or copied from the OEM firmware. The generator strictly checks the full
+contiguous auxiliary interval against the SHA-256-pinned original.
+
+Total source-generated later-modem coverage is now **9,436 bytes**:
+**9,128 executable**, **296 ELF metadata**, **12 alignment**. The contiguous
+auxiliary prefix is **8,824 bytes**, file `[0x446000,0x448278)`. Zero byte
+differences; **169 Rust tests**, **91 Python tests** and the offline release
+build pass. The modem firmware image and authentication remain incomplete.

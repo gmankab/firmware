@@ -44,6 +44,27 @@ class ModemLateTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError,'16 source-assembled bytes'):
             agent12.restore_aux_large_controller_phase13_gap_packet(bytes(12))
 
+    def test_phase27_callback_dispatch_preserves_symbolic_targets(self):
+        self.assertEqual((agent12.AUX_LARGE_CONTROLLER_PHASE27_START,
+                          agent12.AUX_LARGE_CONTROLLER_PHASE27_END),
+                         (0x448228,0x448278))
+        text=agent12.AUX_LARGE_CONTROLLER_PHASE27_SOURCE.read_text()
+        for prohibited in ('.word','.byte','.incbin'):
+            self.assertNotIn(prohibited,text)
+        self.assertIn('if (p0.new) jump:t no_callback',text)
+        self.assertIn('if (cmp.eq(r4.new,#0)) jump:nt callback_empty',text)
+        self.assertIn('call controller_notify',text)
+        self.assertIn('jump prior_resource_scan',text)
+        self.assertIn('phase27 - 0x1a88',text)
+        self.assertIn('phase27 - 0x788',text)
+        if os.getenv('NABU_HEXAGON_LLVM_MC'):
+            assembled=agent12.assemble(Path(os.environ['NABU_HEXAGON_LLVM_MC']),
+                                       agent12.AUX_LARGE_CONTROLLER_PHASE27_SOURCE)
+            self.assertEqual(len(assembled),80)
+            if os.getenv('NABU_MODEM_REFERENCE'):
+                reference=Path(os.environ['NABU_MODEM_REFERENCE']).read_bytes()
+                self.assertEqual(assembled,reference[0x448228:0x448278])
+
     def test_phase26_indexed_buffer_stores_join_only_expected_packets(self):
         self.assertEqual((agent12.AUX_LARGE_CONTROLLER_PHASE26_START,
                           agent12.AUX_LARGE_CONTROLLER_PHASE26_END),
@@ -1445,8 +1466,8 @@ class ModemLateTests(unittest.TestCase):
         a = agent12.output_fragments(Path(os.environ["NABU_HEXAGON_LLVM_MC"]))
         self.assertEqual({k: len(v) for k, v in a.items()},
                          {0x7C000:160, 0x7C2EC:452,
-                          0x446000:agent12.AUX_LARGE_CONTROLLER_PHASE26_END-agent12.AUX_START})
-        self.assertEqual(sum(map(len,a.values())),agent12.AUX_LARGE_CONTROLLER_PHASE26_END - agent12.AUX_START + 612)
+                          0x446000:agent12.AUX_LARGE_CONTROLLER_PHASE27_END-agent12.AUX_START})
+        self.assertEqual(sum(map(len,a.values())),agent12.AUX_LARGE_CONTROLLER_PHASE27_END - agent12.AUX_START + 612)
         self.assertEqual(a[0x446000][0x0d8:0x200],agent12.emit_auxiliary_elf_symbols())
         self.assertEqual(a[0x446000][0x254:0x260],bytes(12))
         self.assertEqual(a[0x446000][0x1448:0x1460],
