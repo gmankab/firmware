@@ -578,3 +578,12 @@ Original reference: private `map220v-nabu-firmware/venus.mbn`, SHA-256 `9d4af65d
 - Reconstructs a codec-format table interpolation/scaling helper with **eight ARM-to-Thumb BLX immediate calls**. The return at `0x37164` is verified; the trailing pool holds fixed-point factors and controller addresses, not instructions.
 - Exact full-fragment reference comparison passes and independent LLVM/Clang mnemonic reassembly confirms all 356 bytes. LLVM/Lld emits benign `R_ARM_CALL` warnings for external non-STT_FUNC BLX branch symbols; both emitted bytes and target offsets match the original. Instruction binary equivalence does not establish hardware behavior.
 - Next function begins at `0x37180`, below the reserved `0x40000` boundary.
+
+## Checkpoint 85 — codec input-mode classification and fixed defaults
+
+- Verified source-encoded ARM32 `[0x21c78,0x37be8)` = **89,968 byte-identical bytes**; original MBN `[0x25c78,0x3bbe8)`. New `[0x37180,0x37be8)` = **2,664 bytes**, **656 typed A32 instructions** and **ten controller threshold/diagnostic literal data words** `[0x37b24,0x37b4c)`.
+- The main classifier has distinct codec channel fallbacks and branches, returns via original POP/PC at `0x379c0` and has reachable tail cases through `0x37b20`. After its literal pool are two fixed configuration helpers `[0x37b4c,0x37be8)`, each terminating in original `BX LR`; no artificial return was inserted.
+- Added a checked local A32 register-offset `LDRSH` pre-indexed-writeback encoder, with tested public ISA fields (`0xe1b560f1`, `0xe1b650f0`) rather than reference opcode literal reuse. Reused public `arm32::transfer_byte_preindexed_writeback` for byte accesses.
+- Full region directly matches the pinned `venus.mbn` source, zero differing bytes. Independent Clang/LLVM reassembly matches the entire newly generated 2,664-byte interval with no differences; linker's external BLX `R_ARM_CALL` warnings do not change encoded bytes. 253 Rust tests (across workspace crates) and 13 Python tests pass. An optimized release build has not been independently confirmed for this checkpoint.
+- Whole generated region SHA-256: `e7201d50391e37bb32b6da3a9ca0a7ad69e9fa334113550d93a4b6ef48268db3`. Next routine entry `0x37be8` (file `0x3bbe8`) remains in the Agent 20-03 reserved range `[0x21c78,0x40000)`.
+- This is instruction-level re-encoding and independent byte validation, not complete high-level source recovery, OEM authentication, or hardware/flashability validation.
