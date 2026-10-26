@@ -19,10 +19,10 @@ class SourceOnlyForwardTests(unittest.TestCase):
     def test_manifest_exact_boundaries(self):
         m=module()
         self.assertEqual(m.START,0x568c)
-        self.assertEqual(m.validate_manifest(),0x6214)
+        self.assertEqual(m.validate_manifest(),0x6404)
         self.assertEqual(m.FILE_BASE+m.START,0x4568c)
-        self.assertEqual(m.FILE_BASE+m.validate_manifest(),0x46214)
-        self.assertEqual(sum(length for _,_,_,length in m.FRAGMENTS),2952)
+        self.assertEqual(m.FILE_BASE+m.validate_manifest(),0x46404)
+        self.assertEqual(sum(length for _,_,_,length in m.FRAGMENTS),3448)
 
     def test_validator_forbids_opaque_data_and_layout_holes(self):
         m=module()
@@ -109,6 +109,19 @@ class SourceOnlyForwardTests(unittest.TestCase):
         assert int.from_bytes(encoded[4:8],'little')==0x0b004035
         assert ':endloop0' in fragments['controller-loop-tail'][0].read_text()
         assert 'loop0(0x18,#6)' in fragments['controller-loop-start'][0].read_text()
+
+    def test_controller_register_update_fragments_have_exact_boundaries(self):
+        m=module()
+        fragments={name:(source,offset,size) for name,source,offset,size in m.FRAGMENTS}
+        assert fragments['controller-select-planes'][1:]==(0x6214,0xec)
+        assert fragments['controller-report-status'][1:]==(0x6300,0x80)
+        assert fragments['controller-report-callbacks'][1:]==(0x6380,0x40)
+        assert fragments['controller-register-updates'][1:]==(0x63c0,0x44)
+        asm=fragments['controller-report-status'][0].read_text()
+        assert '}:mem_noshuf' in asm
+        assert 'memw(r23+#896)' in asm
+        assert 'r18 = memw(r29+#12)' in asm
+        assert '##-1342151444' in fragments['controller-register-updates'][0].read_text()
 
     def test_structured_predicate_duplex_sources(self):
         m=module()

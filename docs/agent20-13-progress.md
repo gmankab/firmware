@@ -329,3 +329,11 @@ python3 tools/build-wlanmdsp-agent13.py /tmp/wlan-prefix-through-27a0.bin \
 - The controller loop and following record-table packets assemble independently to zero byte differences against the exact pinned WLAN MBN. Cumulative **disjoint continuation** `[0x4568c,0x46214)` is **2,952 genuine Hexagon instruction bytes**, with no padding/external code in this new span. SHA-256 `365cdc36213968ffaa8e77fd13064f42b321a5a16beef49c70aaf508659d698c`.
 - Full 160 Rust tests and 34 executed Python tests passed (2 skips), offline release build and `git diff --check` passed.
 - Next missing instruction packet starts at file `0x46214` (vaddr `0xb0006214`), still within the same controller initialization function. Branch descended from checkpoint 16; missing checkpoint17–25 source history must be integrated before claiming a whole contiguous startup prefix.
+
+## Checkpoint 34 (disjoint) — indexed-plane updates and controller callbacks
+
+- Added **496 independently assembled Hexagon instruction bytes** at WLAN file offsets `[0x46214,0x46404)` (VMA `[0xb0006214,0xb0006404)`), implementing indexed-plane selection, codec-format offset calculations, controller state callbacks, error-path flags and public controller notification.
+- Four fragment boundaries are explicitly asserted (`0x46214`, `0x46300`, `0x46380`, `0x463c0`, `0x46404`). An original three-instruction packet at `0x46300` required `:mem_noshuf` to preserve store/load operation order. A wide signed immediate (`-1342151444`) is emitted with native Hexagon syntax, not copied machine words.
+- Cumulative **disjoint continuation** `[0x4568c,0x46404)` is **3,448 source-built Hexagon instruction bytes**, SHA-256 `30d978d596933ee81ae95bcb42859a7d6df25be324f9fa0814b4ca9ce020c616`, with **zero differences** against the pinned original. There are no external code bytes or padding in the new span.
+- Full 160 Rust and 35 executed Python tests passed (2 optional skipped). Offline release build passed and Git diff is clean.
+- Next missing packet starts file `0x46404` (VMA `0xb0006404`) within the controller routine. Still based on checkpoint 16; checkpoint17–25 ancestry is not included in this branch. Partial program cannot be flashed or newly authenticated.
