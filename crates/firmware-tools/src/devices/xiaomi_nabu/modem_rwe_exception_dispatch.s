@@ -916,3 +916,52 @@ MODEM_RWE_SWAP_SGP0 31,1
 MODEM_RWE_LR_MOVE_TO 1,1
 .set modem_rwe_alt_exception_restore, agent11_modem_exception_dispatch_entry + (0x38854-0x38108)
 MODEM_RWE_COMPACT_LR_NEG1_RETURN (0x38854 - 0x38944),3
+// Begin saving an interrupted thread's full register bank into a designated
+// protected descriptor. The controller selects a special frame based on the
+// restored predicate state, then clears cachelines before copying context.
+.macro MODEM_RWE_Y_CONFIG_READ gpr, field, marker=1
+    .if (\gpr < 0) || (\gpr > 31) || (\field < 0) || (\field > 31) || (\marker < 1) || (\marker > 3)
+      .error "invalid Hexagon Y-config register read operand"
+    .endif
+    .word (0x6a000000 | (\field << 16) | (\marker << 14) | \gpr)
+.endm
+.globl agent11_modem_rwe_capture_interrupted_context
+agent11_modem_rwe_capture_interrupted_context:
+MODEM_RWE_PREDICATE_READ 28,1
+{
+    p0 = cmp.eq(r0,##-1065269088)
+    memd(r0+#40) = r29:28
+}
+MODEM_RWE_Y_CONFIG_READ 29,8,1     // SP = USR
+{
+    r22 = add(r0,#64)
+    memd(r0+#32) = lr:fp
+    memd(r0+#56) = r23:22
+}
+MODEM_RWE_Y_CONFIG_READ 23,10,1   // UGP
+// LLVM6 extended jump relocations are +4 relative to this packet base.
+.set modem_rwe_special_frame, agent11_modem_exception_dispatch_entry + (0xec34-0x38108)
+{
+    if (p0) jump:nt ##modem_rwe_special_frame
+    fp = r0
+}
+MODEM_RWE_Y_CONFIG_READ 22,11,1   // GP
+{
+    fp = add(r22,#32)
+    dczeroa(r22)
+}
+MODEM_RWE_CONTROL_PAIR_READ 20,0,1    // LC0:SA0
+{
+    memd(r0+#64) = r21:20
+    memd(r0+#72) = r19:18
+}
+MODEM_SYS_READ 18,3,1              // ELR
+{
+    memd(r0+#80) = r17:16
+    memd(r0+#88) = r15:14
+}
+{
+    fp = add(fp,#32)
+    r17 = r0
+    dczeroa(fp)
+}
