@@ -638,3 +638,17 @@ python3 tools/agent20_06_a32_roundtrip.py /private/venus.mbn 0xa8ea0 0xa92c8 \
   ```
 
 - **242 Rust tests and 13 Python tests pass**. A successful new release build is not claimed. Next missing VMA `0xc11bc`, file `0xc51bc`; the assigned upper bound remains `0x1029f4`. This old-base provisional branch is not checkpoint-50-integrated, nor an independent behavioral source-level decompilation/OEM-authenticated firmware image.
+
+## Checkpoint 71 — controller resource guards and channel cleanup
+
+- Contiguous Venus runtime `[0xa8000,0xc1514)` = **103,700 independently generated, original-reference-identical bytes**; MBN `[0xac000,0xc5514)`.
+- Newly reconstructed `[0xc11bc,0xc1514)` = **856 bytes**, with **209 typed ARM32 instructions (836 bytes)** and **five classified noncode message pointers (20 bytes)** in `[0xc1474,0xc1488)`.
+- Two complete routines check codec plane availability across format variants, report original controller diagnostics, and close channel-associated resource records. Original conditional returns and cleanup calls are preserved; the inline message table is not decoded as A32 instructions.
+- Entire emitted region equals pinned `venus.mbn` (zero differences); independent Clang/LLVM reassembly reproduces all 836 code bytes and 20 declared data bytes:
+
+  ```sh
+  python3 tools/agent20_06_a32_roundtrip.py /private/venus.mbn 0xc11bc 0xc1514 \
+    --data-range 0xc1474:0xc1488
+  ```
+
+- **243 Rust tests and 13 Python tests passed.** Release build not claimed. Next uncovered VMA `0xc1514`, file `0xc5514`, within the exclusive `[0xa8000,0x1029f4)` ownership region. Still provisional, old-Agent-03-based; byte equality is not independently recovered high-level code behavior or a new OEM-authenticated build.
