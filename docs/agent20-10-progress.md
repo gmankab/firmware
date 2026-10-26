@@ -700,3 +700,19 @@ python3 tools/verify-agent20-10-cdsp-controller-secondary-bitloop.py \
   --generated /private/secondary-bitloop-88.bin \
   --prefix /private/controller-rwe-2060.bin --reference /private/cdsp.mbn
 ```
+
+## Checkpoint 35 — second plane capacity and command header through 0x56848; 3,276 executable bytes
+
+- Added **60 independently typed Hexagon V66 executable bytes** at file `[0x5680c,0x56848)`, physical `[0x96cc880c,0x96cc8848)` to the controller function which began at file `0x56600`. The routine is not finished; its shared success/error exits follow this new span.
+- Checked constructors produce the signed 31-bitplane headroom adjustment, fused unsigned comparisons and physical branch targets `0x96cc881c`, `0x96cc884c` and `0x96cc88c8`, the alternate `R2/R18` plane-size shift, full-width `0xc0000000` and `0x77000000` extended command constants, and nested 0x1ffffe masked plane packing. Unsupported register tuples, mask sizes or targets return errors.
+- Source-generated output **matches all 60 bytes** in pinned `cdsp.mbn` SHA-256 `febeae7b8e47bad4eeabc159a3c24b74cda26dfa12b384c31de5de30817e06ea`; generated full `[0x56000,0x56848)` prefix also matches its 2,120 original bytes. Of the prefix, **2,076 bytes are independently encoded executable instructions and 44 bytes are separately modeled NOP/fill**. Adding the disjoint 1,200-byte complete controller at `[0x55000,0x554b0)` yields **3,276 source-generated executable bytes**.
+- Independently authored LLVM6 V60 source fixture `tools/agent20-10-cdsp-controller-secondary-completion.s` reassembles **all 15 instruction words byte-for-byte identical** to the Rust output and original firmware. `tools/verify-agent20-10-cdsp-controller-secondary-completion.py` validates original V66 packet markers, two extenders, three guarded branch destinations and exact joined-prefix bytes with the Rizin V66 decoder. No private reference code bytes are copied into the Rust emitter.
+- Full offline Rust suite **256 tests**, Python suite **23 tests**, release build all pass. The next uncovered file offset is `0x56848` (physical `0x96cc8848`). This provisional branch descends from older Agent05 CDSP history, not yet a verified checkpoint-50 integrated base. No complete OEM-authorized firmware or hardware execution proof is claimed.
+
+```sh
+cargo run --offline --locked -p firmware-tools --bin cdsp-late-controller-secondary-completion -- verify-prefix /private/cdsp.mbn
+python3 tools/verify-agent20-10-cdsp-controller-secondary-completion.py \
+  --llvm-mc /private/llvm6/bin/llvm-mc --rz-asm /private/rz-asm \
+  --generated /private/secondary-completion-60.bin \
+  --prefix /private/controller-rwe-2120.bin --reference /private/cdsp.mbn
+```
