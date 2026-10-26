@@ -1008,3 +1008,22 @@ The original 452-byte seam `[0x100000,0x1001c4)` crosses Agent 13's prior
 boundary and is still not covered. The repository remains a portable Agent 14
 branch based on prior WLAN checkpoint `d6104bb`, **not** an integrated
 checkpoint-50 descendant.
+
+## Checkpoint 22 — acknowledgement/status helper
+
+Reconstructed complete function `[0x1050d8,0x105140)` = **104 independently
+assembled exact executable bytes** (ten Hexagon packets and 26 encoded words).
+The helper logs an error or requests a status record, constructs a small
+structured byte reply, and tail-returns through the original stack frame.
+The function description is inferred from instruction dataflow rather than
+validated against hardware or official symbol names.
+
+LLVM 18/V66 and independent LLVM 6/V65 emit identical bytes, SHA-256
+`2352709d0573685290f97eeae53d86644b3fbc4f62dd0d75f31219afbd861df9`,
+matching the pinned `wlanmdsp.mbn`. Cumulative contiguous executable bytes
+`[0x1001c4,0x105140)` = **20,348**. The two separate source-derived
+jump tables total **496 bytes**, giving **20,844 source-derived bytes**.
+The next function starts at file `0x105140` (runtime `0xb00c5140`), while
+Agent 13's 452-byte leading function seam remains unfinished. No OEM
+reference byte arrays, headers, signatures, linker padding or hardware
+execution evidence are included in generated code.

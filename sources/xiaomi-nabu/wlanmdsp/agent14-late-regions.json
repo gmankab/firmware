@@ -639,6 +639,16 @@
       "sha256": "edb482bed18bae21b5da93724800ea18b9e9c7054ed45cbcf838b176287b619a",
       "checkpoint": 21,
       "classification": "executable"
+    },
+    {
+      "name": "record-ack-thunk",
+      "file_start": 1069272,
+      "file_end": 1069376,
+      "source": "sources/xiaomi-nabu/wlanmdsp/agent14-late-record-ack-thunk.S",
+      "symbol": "agent14_late_record_ack_thunk",
+      "sha256": "2352709d0573685290f97eeae53d86644b3fbc4f62dd0d75f31219afbd861df9",
+      "checkpoint": 22,
+      "classification": "executable"
     }
   ]
 }

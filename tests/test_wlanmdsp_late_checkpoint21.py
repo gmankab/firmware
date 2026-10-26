@@ -38,9 +38,10 @@ class InterfaceRecordDispatcherTests(unittest.TestCase):
 
     def test_registration_rejects_overlapping_or_out_of_range_fragments(self):
         import copy
-        info=late.load_registry()
+        info=late.select_regions(late.load_registry(),through_checkpoint=21)
         self.assertEqual(info[-1].sha256,'edb482bed18bae21b5da93724800ea18b9e9c7054ed45cbcf838b176287b619a')
         payload=__import__('json').loads((ROOT/'sources/xiaomi-nabu/wlanmdsp/agent14-late-regions.json').read_text())
+        payload['regions']=[r for r in payload['regions'] if r['checkpoint']<=21]
         bad=copy.deepcopy(payload)
         bad['regions'][-1]['file_start']-=4
         with self.assertRaises(late.BuildError):late.validate_registry(bad)
