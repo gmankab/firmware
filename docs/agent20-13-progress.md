@@ -312,3 +312,12 @@ python3 tools/build-wlanmdsp-agent13.py /tmp/wlan-prefix-through-27a0.bin \
 - Current **disjoint continuation** `[0x4568c,0x45ea4)` is **2,072 independently source-assembled instruction bytes**, zero OEM opcode arrays and zero linker fill in this new continuation. SHA-256 `b410164de7c9f2561c1409f35e589dbb751931cbc4712b8781aa3484f8f7af4b`.
 - Private reference SHA-256 `87c2c7bb1fe97eaf007a947832feba0898644b4d6626ac8ef49d8b94dd82604b` was verified; source-only builder accepts the reference only for comparison. All 160 Rust and 33 executed Python tests passed (2 optional skips), and the offline release build passed.
 - This function began at file `0x45c20` and continues after `0x45ea4`. Checkpoint 25 remains unavailable in this repository's Git ancestry; do **not** claim that `[0x40000,0x45ea4)` is a reconstructed contiguous prefix. Next missing packet starts file `0x45ea4`. Original firmware is not included in Git or the bundle.
+
+## Checkpoint 32 (disjoint) — controller stream status and loop entry
+
+- Added **676 source-assembled instruction bytes** across five-file controller stage-3 extension, file offsets `[0x45ea4,0x46148)` (original WLAN vaddr `[0xb0005ea4,0xb0006148)`). The previous 180-byte stage-3 flag group remains independently verified in checkpoint 31.
+- Four new structured packet sections preserve status masks, input-codec callback fields, rate/pitch information and bounded session readiness checks. The last part builds the hardware-loop entry and packet-local loop-state predicates through an exact packet boundary at `0x46148`.
+- LLVM6 semantic assembly emitted all new bytes; no `.word`, `.incbin`, or private OEM opcode array was used. Four pieces were assembled independently to preserve original packet grouping and numeric **packet-relative** call/branch offsets.
+- Current **disjoint** source-generated continuation `[0x4568c,0x46148)` totals **2,748 bytes**, SHA-256 `6bab8cf6203a9b292124e4b442847477671e369149ba46ef995ed40c57cf11d9`, with **zero byte mismatches** against the SHA-256-pinned `wlanmdsp.mbn` original. The standalone builder is independent of the reference except during the optional comparison.
+- Full 160 Rust tests passed; Python discovery 35 tests, 33 executed and passed, two optional skips; offline release build and `git diff --check` passed.
+- WLAN controller initialization still continues at file `0x46148`. Checkpoint 25 Git ancestry is not available; this remains based on checkpoint 16 and must not be counted as a contiguous `0x40000` prefix without checkpoints 17–25.

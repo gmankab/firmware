@@ -37,6 +37,10 @@ FRAGMENTS = (
     ('compound-memory', SOURCE_DIR / 'agent13-runtime-controller-init-memory-packet.S', 0x5d00, 0x08),
     ('controller-initialize-stage2', SOURCE_DIR / 'agent13-runtime-controller-init-stage2.S', 0x5d08, 0xe8),
     ('controller-initialize-stage3-flags', SOURCE_DIR / 'agent13-runtime-controller-init-stage3-part1.S', 0x5df0, 0xb4),
+    ('controller-initialize-stage3-state', SOURCE_DIR / 'agent13-runtime-controller-init-stage3-part2.S', 0x5ea4, 0x5c),
+    ('controller-initialize-stage3-mask', SOURCE_DIR / 'agent13-runtime-controller-init-stage3-part3.S', 0x5f00, 0x100),
+    ('controller-initialize-stage3-validation', SOURCE_DIR / 'agent13-runtime-controller-init-stage3-part4.S', 0x6000, 0x100),
+    ('controller-initialize-stage3-loop-entry', SOURCE_DIR / 'agent13-runtime-controller-init-stage3-part5.S', 0x6100, 0x48),
 )
 
 
@@ -148,7 +152,7 @@ def main():
         parent.check_reference(fragment,args.reference.read_bytes(),runtime_offset=START)
     args.output.parent.mkdir(parents=True,exist_ok=True)
     args.output.write_bytes(fragment)
-    report={'agent':13,'checkpoint':'31-disjoint',
+    report={'agent':13,'checkpoint':'32-disjoint',
             'source_base':'Agent 13 checkpoint 16 (7c730bf); checkpoint25 source unavailable',
             'is_checkpoint25_descendant':False,
             'file_start':FILE_BASE+START,'file_end':FILE_BASE+end,
