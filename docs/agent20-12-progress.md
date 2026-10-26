@@ -1235,3 +1235,24 @@ Totals: **8,816 independently generated file bytes** = **8,508 Hexagon V60
 executable**, **296 ELF metadata** and **12 linker alignment** bytes. Zero
 mismatches against the pinned original `modem.mbn`. No new OEM signatures,
 complete baseband program, or on-hardware execution are claimed.
+
+## Checkpoint 50 — Controller-registry notification and result handling
+
+Reconstructed **92 source-assembled Hexagon V60 executable bytes** at modem
+file `[0x44800c,0x448068)` (virtual `[0x1e40200c,0x1e402068)`). This
+continuation performs conditional controller notification and diagnostics,
+updates 64-bit resource packets, calls a controller callback and branches
+back to the existing scan routine. LLVM6 assembles all ISA instructions, but
+its fused `cmp.eq(.new)` / predicated jump is over-extended by 24 bytes when
+resolving the source's symbolic target. The new checked conversion verifies
+the compound branch opcode and registers, source-generated relocation
+value and packet marker; then it derives the architectural branch's original
+halfword displacement. Altered encodings fail closed in new negative tests.
+The other 88 bytes do not require rewriting. No original OEM opcode words are
+used as inputs.
+
+The auxiliary reconstructed prefix is now **8,296 continuous bytes**
+`[0x446000,0x448068)`. Overall there are **8,908 verified file bytes**,
+including **8,600 executable**, **296 authored ELF metadata**, and **12
+linker alignment** bytes. The rest of the modem image remains unimplemented;
+no new authentication or hardware testing is claimed.
