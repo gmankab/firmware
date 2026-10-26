@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-only
 //! Isolated CDSP Agent 09 forward reconstruction CLI; original image stays private.
-use firmware_tools::devices::xiaomi_nabu::{cdsp_early_worker_decision as decision,cdsp_early_worker_command as command,cdsp_early_worker_callbacks as callbacks,cdsp_early_worker_privileged_state as privstate,cdsp_early_worker_snapshot as snapshot,cdsp_early_worker_final_calls as finalcalls,cdsp_early_worker_guard_exit as guardexit,cdsp_early_worker_sync as sync};
+use firmware_tools::devices::xiaomi_nabu::{cdsp_early_worker_decision as decision,cdsp_early_worker_command as command,cdsp_early_worker_callbacks as callbacks,cdsp_early_worker_privileged_state as privstate,cdsp_early_worker_snapshot as snapshot,cdsp_early_worker_final_calls as finalcalls,cdsp_early_worker_guard_exit as guardexit,cdsp_early_worker_sync as sync,cdsp_early_worker_handoff as handoff};
 use std::{env,fs};
 fn main()->Result<(),Box<dyn std::error::Error>>{
     let args:Vec<String>=env::args().skip(1).collect();
@@ -29,7 +29,9 @@ fn main()->Result<(),Box<dyn std::error::Error>>{
         [action,path] if action=="verify-guard-exit" => guardexit::verify_reference(&fs::read(path)?)?,
         [action,path] if action=="emit-sync" => fs::write(path,sync::build_worker_sync()?)?,
         [action,path] if action=="verify-sync" => sync::verify_reference(&fs::read(path)?)?,
-        _=>return Err("usage: cdsp-agent09-forward [emit-decision OUTPUT | verify-decision REFERENCE | emit-command OUTPUT | verify-command REFERENCE | emit-callbacks OUTPUT | verify-callbacks REFERENCE | emit-privstate OUTPUT | verify-privstate REFERENCE | emit-snapshot OUTPUT | verify-snapshot REFERENCE | emit-finalcalls OUTPUT | verify-finalcalls REFERENCE | emit-guard-exit OUTPUT | verify-guard-exit REFERENCE | emit-sync OUTPUT | verify-sync REFERENCE]".into())
+        [action,path] if action=="emit-handoff" => fs::write(path,handoff::build_worker_handoff()?)?,
+        [action,path] if action=="verify-handoff" => handoff::verify_reference(&fs::read(path)?)?,
+        _=>return Err("usage: cdsp-agent09-forward [emit-decision OUTPUT | verify-decision REFERENCE | emit-command OUTPUT | verify-command REFERENCE | emit-callbacks OUTPUT | verify-callbacks REFERENCE | emit-privstate OUTPUT | verify-privstate REFERENCE | emit-snapshot OUTPUT | verify-snapshot REFERENCE | emit-finalcalls OUTPUT | verify-finalcalls REFERENCE | emit-guard-exit OUTPUT | verify-guard-exit REFERENCE | emit-sync OUTPUT | verify-sync REFERENCE | emit-handoff OUTPUT | verify-handoff REFERENCE]".into())
     }
     let (start,end)=match args[0].as_str(){
         "emit-decision"|"verify-decision"=>(decision::FILE_OFFSET,decision::REGION_END),
@@ -40,6 +42,7 @@ fn main()->Result<(),Box<dyn std::error::Error>>{
         "emit-finalcalls"|"verify-finalcalls"=>(finalcalls::FILE_OFFSET,finalcalls::REGION_END),
         "emit-guard-exit"|"verify-guard-exit"=>(guardexit::FILE_OFFSET,guardexit::REGION_END),
         "emit-sync"|"verify-sync"=>(sync::FILE_OFFSET,sync::REGION_END),
+        "emit-handoff"|"verify-handoff"=>(handoff::FILE_OFFSET,handoff::REGION_END),
         _=>unreachable!(),
     };
     println!("Agent09 forward worker {}: CDSP file {:#x}..{:#x}, {} typed V66 bytes; partial, not signed/flashable",
