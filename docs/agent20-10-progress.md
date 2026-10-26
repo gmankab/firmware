@@ -549,3 +549,21 @@ python3 tools/verify-agent20-10-cdsp-large-prologue.py \
   ```
 
 - **Next missing executable byte:** file offset `0x56698`, physical `0x96cc8698`. This is still within the same larger controller function. Git lineage remains a **provisional Agent05 branch**, not checkpoint-50 integration.
+
+## Checkpoint 29 — controller buffer transfer and retry path, 2,884 executable bytes
+
+- Added **40 independently generated Hexagon V66 executable bytes** at CDSP file `[0x56698,0x566c0)` (physical `[0x96cc8698,0x96cc86c0)`, VMA `[0xc00c8698,0xc00c86c0)`). The first pair of packets copy GP-buffer pointers and call physical helpers `0x96cd1020` and `0x96cd0480`; a second packet loads the returned controller handle, performs a `.new` equality test and branches backward to `0x96cc8670` or forward to error exit `0x96cc88bc`. This is part of the larger controller function beginning at `0x56600`, not a standalone function.
+- The standalone `cdsp_late_controller_transfer` module uses checked operand encodings for two duplex input-pointer copies, both relative calls, handle loads and signed `.new` backedge. It rejects unsupported sources, base registers, offsets and branch targets. No OEM opcode array or reference-binary byte imports are present in generated code.
+- The entire RWE prefix `[file 0x56000,0x566c0)` matches **1,728 source-generated file bytes**: **1,684 executable bytes** and **44 distinctly counted NOP/fill layout bytes**. With the separate complete controller `[0x55000,0x554b0)` = 1,200 executable bytes, the agent's independently authored cumulative executable coverage is **2,884 bytes**, disjoint between two segments, and **0 reference byte mismatches**.
+- Independent LLVM6 source `tools/agent20-10-cdsp-rwe-controller-transfer.s` emits all ten equivalent Hexagon V66 instructions. The assembler orders each two-word call/duplex packet call-first whereas original Hexagon code places duplex first; after a documented swap **8/10 instruction words match unchanged**. The two call fields differ by one instruction position because the calls move by four bytes; both target the same absolute physical addresses. Rizin V66 independently decodes **all ten original-order words**, checks the signed retry loop, error jump and both call targets. No unsupported assertion of unchanged full LLVM assembly is made.
+- `cargo run --offline --locked -p firmware-tools --bin cdsp-late-controller-transfer -- verify-prefix /private/cdsp.mbn` and direct `verify` pass with pinned original SHA-256 `febeae7b8e47bad4eeabc159a3c24b74cda26dfa12b384c31de5de30817e06ea`. Full Rust regression suite **245 tests**, 23 Python tests and release build pass. Independent validation:
+
+  ```sh
+  python3 tools/verify-agent20-10-cdsp-rwe-controller-transfer.py \
+    --llvm-mc /private/llvm6/bin/llvm-mc --rz-asm /private/rz-asm \
+    --generated /private/controller-transfer-40.bin \
+    --prefix /private/controller-rwe-1728.bin \
+    --reference /private/cdsp.mbn
+  ```
+
+- **Next unimplemented byte** is CDSP file `0x566c0` (physical `0x96cc86c0`). This branch remains provisional on Agent05 checkpoint17's older base and is **not** descended from the missing checkpoint-50 integration; no full authenticated firmware or hardware execution is implied.
