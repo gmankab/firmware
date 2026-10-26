@@ -276,3 +276,11 @@ python3 -m unittest discover -s tests -p 'test_*.py'
 - Complete generated 1,248-byte SHA-256 `0d6c09025636197a11579ba5f7ede563183c62e52e64a2edfa56efb79c07dd86` and **zero** reference differences.
 - Tests: 169 Rust tests, 39 Python tests, including a fail-closed negative test for the packet normalizer. Release profile remains unverified in this current session.
 - The next protected exception handler begins at file `0x385e8` and remains outside this checkpoint. The original modem is not independently source-complete or authenticated for new use.
+
+## Checkpoint 32 — Vector index lookup and first protected context snapshot
+
+- The RWE Hexagon V60 exception continuation now covers **1,396 independently encoded, byte-identical bytes** at file `[0x38108,0x3867c)`, virtual `[0xc0840108,0xc084067c)` and physical `[0x8e040108,0x8e04067c)`. The new 148-byte interval is `[0x385e8,0x3867c)`.
+- The handler resolves a two-level interrupt vector by indexed words, dispatches the handler through `jumpr r13`, saves controller registers and predicate-selected context fields, and branches/returns to the linked frame handler.
+- The old LLVM6 Hexagon assembler cannot express `r9:8 = c17:16` and `r9:8 = c19:18`; a checked public-ISA controller-pair-read macro validates both even register pairs and packet-marker fields and constructs their instruction encodings from operands. All other instructions come from source-level LLVM6 assembly. The 148 new bytes and complete 1,396-byte emitter agree with the pinned private reference exactly; **zero byte mismatches**.
+- Emitted SHA-256 `6fad73e0bcee0deeda7bbf7a14cbce280bc1476daf1fdc5996793d78bb0a42f5`. Full offline locked Rust 169 tests, Python 39 tests, and **release build passed**. This source is still a disjoint modem RWE fragment, not independently rebuilt complete firmware or a newly OEM-authenticated image.
+- Next unimplemented instruction is file offset `0x3867c` in an adjacent protected-controller helper.

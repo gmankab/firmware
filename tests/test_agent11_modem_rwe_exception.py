@@ -14,7 +14,7 @@ spec.loader.exec_module(module)
 
 class ModemRweException(unittest.TestCase):
     def test_exact_address_mapping(self):
-        self.assertEqual((module.FILE_START, module.FILE_END), (0x38108, 0x385e8))
+        self.assertEqual((module.FILE_START, module.FILE_END), (0x38108, 0x3867c))
         self.assertEqual(module.VIRTUAL_START-module.FILE_START, 0xc0808000)
         self.assertEqual(module.PHYSICAL_START-module.FILE_START, 0x8e008000)
 
@@ -32,10 +32,17 @@ class ModemRweException(unittest.TestCase):
             self.skipTest('Set AGENT11_LLVM_MC to run LLVM6 Hexagon assembler test')
         source = SCRIPT.parents[1]/'crates/firmware-tools/src/devices/xiaomi_nabu/modem_rwe_exception_dispatch.s'
         data = module.assemble(Path(mc), source)
-        self.assertEqual(len(data), 1248)
+        self.assertEqual(len(data), 1396)
         self.assertEqual(data[0x381b8-module.FILE_START:0x381bc-module.FILE_START],bytes.fromhex('00c0e057'))
         self.assertEqual(data[0:4], bytes.fromhex('00c00058'))
-        self.assertEqual(data[-4:], bytes.fromhex('00c0e057'))
+        # First 148 bytes after the restored RTE encode vector resolution,
+        # paired controller reads and the protected context snapshot.
+        self.assertEqual(data[0x385e8-module.FILE_START:0x385ec-module.FILE_START],
+                         (0x850d4300).to_bytes(4, 'little'))
+        self.assertEqual(data[0x38638-module.FILE_START:0x3863c-module.FILE_START],
+                         (0x68104008).to_bytes(4, 'little'))
+        self.assertEqual(data[0x38654-module.FILE_START:0x38658-module.FILE_START],
+                         (0x6812c008).to_bytes(4, 'little'))
         ref = os.environ.get('AGENT11_MODEM_MBN')
         if ref:
             module.verify_pinned(Path(ref).read_bytes(), data)

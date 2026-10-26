@@ -494,3 +494,77 @@ modem_rwe_callback_clear_done:
     memw(##-1065090812) = r8.new
 }
 MODEM_RWE_RETURN_FROM_EXCEPTION 3
+// Resolve frame-vector entries by index, then save the first half of the
+// privilege context before dispatching the requested exception class.
+// The LLVM6 assembler has no paired C-register read mnemonic. This is the
+// checked public-ISA Y2 pair-transfer encoding; operands are even low regs.
+.macro MODEM_RWE_CONTROL_PAIR_READ general_low, control_low, marker=3
+    .if (\general_low < 0) || (\general_low > 30) || ((\general_low & 1) != 0)
+      .error "invalid paired destination"
+    .endif
+    .if (\control_low < 0) || (\control_low > 30) || ((\control_low & 1) != 0)
+      .error "invalid paired controller source"
+    .endif
+    .if (\marker < 1) || (\marker > 3)
+      .error "invalid Hexagon packet marker"
+    .endif
+    .word (0x68000000 | (\control_low << 16) | (\marker << 14) | \general_low)
+.endm
+.globl agent11_modem_rwe_vector_followup
+agent11_modem_rwe_vector_followup:
+{
+    p0 = tstbit(r13,#3)
+    r13 = memw(r14+r13<<#2)
+}
+{ r13 = memw(r13+r7<<#2) }
+{ jumpr r13 }
+MODEM_SYS_READ 11,7,1
+{
+    r14 = and(r7,#-4)
+    memd(r6+#80) = r17:16
+    memd(r6+#72) = r19:18
+}
+MODEM_SYS_WRITE 6,13,1
+{
+    r29 = add(r10,#-16)
+    memd(r6+#64) = r21:20
+    memd(r6+#56) = r23:22
+}
+{
+    r10 = ugp
+    r13:12 = combine(#56,#0)
+    memd(r6+#200) = r25:24
+    memd(r6+#192) = r27:26
+}
+{
+    r13 = usr
+    r30 = add(r6,#32)
+    if (p3) r8 = memb(r6+r13<<#2)
+    memw(r6+#52) = r10
+}
+MODEM_RWE_CONTROL_PAIR_READ 8,16,1
+{
+    r31.l = #1368
+    p3 = !cmp.gt(r8,#-1)
+}
+MODEM_SYS_READ 10,2,1
+{
+    memw(r6+#236) = ##-1065260224
+    memd(r6+#248) = r9:8
+}
+MODEM_RWE_CONTROL_PAIR_READ 8,18,3
+{
+    memd(r6+#304) = r9:8
+    memb(r6+#226) = r10
+}
+{
+    r31.h = #49284
+    if (!p3) jumpr:nt r14
+    memw(r6+#220) = r11
+    memd(r6+#176) = r13:12
+}
+{
+    r0 = #37
+    jumpr r31
+    memw(r6+#24) = r28
+}
