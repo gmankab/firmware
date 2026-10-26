@@ -1208,8 +1208,8 @@ MODEM_SYS_WRITE 18,3,3           // SYSCFG = r3
     .word (0x64000000 | ((0x60 | \source) << 16) | (\marker << 14) | 0x40)
 .endm
 .macro MODEM_RWE_CIAD_FRAME source, marker=1
-    .if (\source != 31) || (\marker != 1)
-      .error "CIAD controller source must be LR in a nonterminal packet"
+    .if (\source != 31) || ((\marker != 1) && (\marker != 3))
+      .error "CIAD controller source must be LR with a valid packet marker"
     .endif
     .word (0x64000000 | (\source << 16) | (\marker << 14) | 0x60)
 .endm
@@ -1322,3 +1322,41 @@ MODEM_RWE_SWAP_SGP0 31,1
 MODEM_RWE_LR_MOVE_TO 1,1
 MODEM_RWE_LR_WORD_LOAD 0,1
 MODEM_RWE_COMPACT_LR_NEG1_RETURN_FOUR (0x38c78 - 0x38d84),3
+// Publish the current saved-context pointer and dispatch the next exception
+// class based on the VID index, preserving both packet-local .new predicates.
+.globl agent11_modem_rwe_vid_context_publisher
+agent11_modem_rwe_vid_context_publisher:
+{ fp = ##-1065269088; lr = #1; memd(r0+#32) = lr:fp }
+MODEM_RWE_PREDICATE_READ 28,1    // R28 = P3:0
+{ lr = asl(lr,#2); memd(r0+#40) = r29:28; memd(r0+#56) = r23:22 }
+MODEM_SYS_READ 29,21,3         // SP = VID
+.set modem_rwe_vid_owner_previous,agent11_modem_exception_dispatch_entry + (0x38bf0-0x38108)
+.set modem_rwe_vid_owner_resume,agent11_modem_exception_dispatch_entry + (0x38c58-0x38108)
+{
+    if (p1.new) jump:nt modem_rwe_vid_owner_previous
+    if (p2.new) jump:nt modem_rwe_vid_owner_resume
+    p1 = cmp.eq(sp,#0)
+    p2 = cmp.eq(sp,#5)
+}
+// Common alternate-frame save path following the video-ID/predicate switch.
+// CIAD synchronizes LR's controller-indirection descriptor before the
+// zeroed frame and caller GP/UGP snapshots are written to saved memory.
+.globl agent11_modem_rwe_video_frame_setup
+agent11_modem_rwe_video_frame_setup:
+MODEM_RWE_CIAD_FRAME 31,3
+{ p0 = cmp.eq(r0,fp) }
+.set modem_rwe_video_frame_already_saved, agent11_modem_exception_dispatch_entry + (0xec80-0x38108)
+{ if (p0) jump:nt ##modem_rwe_video_frame_already_saved; r22 = add(r0,#64) }
+{ dczeroa(r22) }
+{ r21 = add(r0,#96); memd(r0+#64) = r21:20 }
+{ r21 = add(r0,#128) }
+{ dczeroa(r21) }
+{ dczeroa(r21) }
+MODEM_RWE_Y_CONFIG_READ 29,8,1  // SP = USR
+{ r9 = sp; memd(r0+#112) = r9:8; memd(r0+#136) = r3:2 }
+MODEM_RWE_Y_CONFIG_READ 23,10,1 // UGP
+{ memd(r0+#80) = r17:16; memd(r0+#88) = r15:14 }
+MODEM_RWE_Y_CONFIG_READ 22,11,1 // GP
+{ memd(r0+#96) = r13:12; memd(r0+#104) = r11:10 }
+.set modem_rwe_video_frame_capture,agent11_modem_exception_dispatch_entry + (0xdd1c-0x38108)
+{ call ##modem_rwe_video_frame_capture; r0 = r9; r2 = #1; r17 = r0 }

@@ -14,7 +14,7 @@ spec.loader.exec_module(module)
 
 class ModemRweException(unittest.TestCase):
     def test_exact_address_mapping(self):
-        self.assertEqual((module.FILE_START, module.FILE_END), (0x38108, 0x38d94))
+        self.assertEqual((module.FILE_START, module.FILE_END), (0x38108, 0x38e2c))
         self.assertEqual(module.VIRTUAL_START-module.FILE_START, 0xc0808000)
         self.assertEqual(module.PHYSICAL_START-module.FILE_START, 0x8e008000)
 
@@ -32,7 +32,7 @@ class ModemRweException(unittest.TestCase):
             self.skipTest('Set AGENT11_LLVM_MC to run LLVM6 Hexagon assembler test')
         source = SCRIPT.parents[1]/'crates/firmware-tools/src/devices/xiaomi_nabu/modem_rwe_exception_dispatch.s'
         data = module.assemble(Path(mc), source)
-        self.assertEqual(len(data), 3212)
+        self.assertEqual(len(data), 3364)
         self.assertEqual(data[0x381b8-module.FILE_START:0x381bc-module.FILE_START],bytes.fromhex('00c0e057'))
         self.assertEqual(data[0:4], bytes.fromhex('00c00058'))
         # First 148 bytes after the restored RTE encode vector resolution,
@@ -86,6 +86,17 @@ class ModemRweException(unittest.TestCase):
         self.assertEqual(at(0x38d74), 0x62000000 | ((21+32)<<16) | (1<<14) | 4)
         self.assertEqual(at(0x38d8c), 0x91800000 | (31<<16) | (1<<14))
         self.assertEqual(at(0x38d90),0x2606e000 | ((((-0x10c)>>9)&3)<<20) | (((-0x10c)>>1)&255))
+        # CIAD frame publication and cacheline initialization packet:
+        # a p0.new branch, GP/UGP field snapshot and packet-local callback.
+        self.assertEqual(at(0x38dc8),0x64000000|(31<<16)|(3<<14)|0x60)
+        self.assertEqual(at(0x38dcc),0xf2005e00)
+        self.assertEqual(at(0x38dd4),0x5c004868)
+        self.assertEqual(at(0x38de8),0xb0005015)
+        self.assertEqual(at(0x38df4),0x6a000000|(8<<16)|(1<<14)|29)
+        self.assertEqual(at(0x38e04),0x6a000000|(10<<16)|(1<<14)|23)
+        self.assertEqual(at(0x38e10),0x6a000000|(11<<16)|(1<<14)|22)
+        self.assertEqual(at(0x38e20),0x5a004000)
+        self.assertEqual(at(0x38e28),0x28123009) # source-assembled duplex
         ref = os.environ.get('AGENT11_MODEM_MBN')
         if ref:
             module.verify_pinned(Path(ref).read_bytes(), data)
