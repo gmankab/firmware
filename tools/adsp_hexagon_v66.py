@@ -46,6 +46,7 @@ class SystemRegister(IntEnum):
     DIAG = 28
     S20 = 20
     REV = 29
+    PCYCLELO = 30  # low 32 bits of processor cycle count, V66
     SGP0 = 0
     S63 = 63
     S60 = 60

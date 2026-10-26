@@ -690,3 +690,32 @@ ADSP RWE instruction coverage rises from **4,324 to 4,440 bytes across four
 separate regions** (3,132 + 836 + 356 + 116), with all intervening fill and
 unclassified data deliberately excluded. LLVM6 and strict reference comparison
 pass. The final MBN image and OEM signatures remain unimplemented.
+
+## Checkpoint 36: complete controller record allocator `[0x10c40,0x10dc4)`
+
+Extended the 116-byte checkpoint-35 record initializer with **272 further
+source-generated, byte-identical executable bytes**, completing the whole
+**388-byte routine** at file `[0x10c40,0x10dc4)`. The completed code sets
+up the remaining command records, walks a three-record hardware loop,
+reads the `PCYCLELO` system counter, applies a bitmask to controller state,
+and preserves both the ABI-correct `dealloc_return` and the zero-result
+`jumpr lr` variant. The ordinary operations are independently assembled
+by LLVM6 and all instructions/packet markers match the pinned reference.
+
+The V66-only `R4=PCYCLELO` (S30) is emitted using the checked register
+encoder after verifying an exact LLVM6 NOP sentinel. LLVM6 initially put
+`p0=cmp.eq(r4,#0)` into a separate packet, but the original groups it with
+the following compact R5/R1:0 scalar-immediate duplex; the source builds
+the two instructions independently and changes only P0's checked Hexagon
+packet-continuation bits. The original has **LOADS** of R19:18 and R21:20
+near the epilogue; reversing them to stores was caught by direct comparison
+and corrected. Rizin independently decodes the final P0 producer, `PCYCLELO`,
+two-register loads and both returns.
+
+The generated `[0x10c40,0x10dc4)` function has SHA-256
+`3396fd7b2a302a0b37ae979defc987f2cdb6ab58ded5a349be4a44dae92ef839`.
+The **ADSP source-derived RWE executable total is now 4,712 bytes in four
+disjoint source-built regions** (3,132 + 836 + 356 + 388); the 996-byte
+zero area and 16-byte unclassified table immediately preceding this routine
+remain **excluded**. Next uncovered `0x10dc4` is a standalone return followed
+by the next function at `0x10dc8`. No complete/signed ADSP image exists yet.
