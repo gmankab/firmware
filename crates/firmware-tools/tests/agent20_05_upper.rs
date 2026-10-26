@@ -95,3 +95,16 @@ fn alternate_occupancy_matches_optional_reference(){
         assert_eq!(&bytes[..],firmware.get(off..off+bytes.len()).unwrap());
     }
 }
+
+#[path="../src/devices/xiaomi_nabu/venus_agent20_05_occupancy_commit.rs"]
+mod occupancy_commit;
+#[test]
+fn committed_occupancy_matches_optional_reference(){
+    let bytes=occupancy_commit::fragment().unwrap();
+    assert_eq!(bytes.len(),occupancy_commit::END-occupancy_commit::START);
+    if let Some(reference)=std::env::var_os("NABU_VENUS_REFERENCE"){
+        let fw=std::fs::read(reference).unwrap();
+        let off=occupancy_commit::START+occupancy_commit::FILE_BASE;
+        assert_eq!(&bytes[..],fw.get(off..off+bytes.len()).unwrap());
+    }
+}
