@@ -970,3 +970,21 @@ Total independently generated coverage: **7,220 bytes**, partitioned as
 contiguous auxiliary prefix is **6,608 bytes** `[0x446000,0x4479d0)`.
 The next controller packet starts at `0x4479d0`, and this large routine
 remains incomplete.
+
+## Checkpoint 37 — Session callback cleanup and state-result branches
+
+Three adjacent independently source-assembled blocks add **276 executable
+bytes** at modem file `[0x4479d0,0x447ae4)` (VMA
+`[0x1e4019d0,0x1e401ae4)`). They select fallback logging depending on
+callback results, perform a resource cleanup, and check diagnostic status.
+The initial 84-byte callback packet and 136-byte error/cleanup packet
+assemble **directly** under LLVM6; the final 56-byte diagnostic packet
+requires one checked reorder of an immediate-extended P0.new branch.
+Every emitted word matches the pinned original; new negative tests validate
+opcode classes, packet markers, registers and malformed length.
+
+Total independently generated modem coverage is **7,496 bytes**:
+**7,188 executable**, **296 ELF metadata** and **12 layout alignment**.
+The auxiliary prefix now spans **6,884 contiguous bytes** `[0x446000,0x447ae4)`.
+The enclosing controller-session routine has further unimplemented code
+starting at file `0x447ae4`; no new OEM signing or whole-firmware claim.

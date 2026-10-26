@@ -1110,3 +1110,32 @@ class ModemLateCallbackAndDuplexTests(unittest.TestCase):
                 agent12.restore_aux_large_controller_phase5_packets(struct.pack('<10I',*changed))
         with self.assertRaisesRegex(ValueError,'40 bytes'):
             agent12.restore_aux_large_controller_phase5_packets(before[:-4])
+
+
+class ModemLateControllerResponseTests(unittest.TestCase):
+    def test_source_assembled_callback_paths_and_checked_diagnostic_branch(self):
+        self.assertEqual((agent12.AUX_LARGE_CONTROLLER_PHASE6_START,
+                          agent12.AUX_LARGE_CONTROLLER_PHASE8_END),
+                         (0x4479D0,0x447AE4))
+        for asm in (agent12.AUX_LARGE_CONTROLLER_PHASE6_SOURCE,
+                    agent12.AUX_LARGE_CONTROLLER_PHASE7_SOURCE,
+                    agent12.AUX_LARGE_CONTROLLER_PHASE8_SOURCE):
+            text=asm.read_text()
+            self.assertNotIn('.word',text)
+            self.assertNotIn('.incbin',text)
+        self.assertIn('callr r4',agent12.AUX_LARGE_CONTROLLER_PHASE6_SOURCE.read_text())
+        self.assertIn('r17 = #0',agent12.AUX_LARGE_CONTROLLER_PHASE7_SOURCE.read_text())
+        words=[0x7800c000]*14
+        i=0x08//4
+        words[i:i+3]=[0x5c205812,0x01e4440d,0x7e80e083]
+        packed=struct.pack('<14I',*words)
+        result=struct.unpack('<14I',agent12.restore_aux_large_controller_phase8_packet(packed))
+        self.assertEqual(result[i:i+3],(0x01e4440d,0x7e806083,0x5c20d812))
+        for off,other,msg in [(i,0x78005812,'classes'),
+                              (i+1,0x01e4c40d,'markers'),
+                              (i+2,0x7e80e084,'target or move register')]:
+            bad=words.copy();bad[off]=other
+            with self.assertRaisesRegex(ValueError,msg):
+                agent12.restore_aux_large_controller_phase8_packet(struct.pack('<14I',*bad))
+        with self.assertRaisesRegex(ValueError,'56 bytes'):
+            agent12.restore_aux_large_controller_phase8_packet(packed[:-4])
