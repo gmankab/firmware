@@ -529,3 +529,11 @@ Original reference: private `map220v-nabu-firmware/venus.mbn`, SHA-256 `9d4af65d
 - Existing checked long multiply and ADC/carry encoders are reused; zero executable opcode arrays copied. Exact full-region generation and reference comparison pass. Independent Clang/LLVM assembly reproduces the complete 484-byte new interval.
 - SHA-256 of generated contiguous 80,376 bytes: `f2ad196ae196fc633bc0efc676abfbe5eac4f96571af1c884c99f67178e2d03e`.
 - Function boundary at **`0x35670`**; next queue enqueue routine starts there. Instruction-byte equivalence is not proof of reverse-engineered high-level semantics, OEM authentication or hardware execution.
+
+## Checkpoint 79 — bounded controller ring queue and descriptor transfers
+
+- Full source-encoded A32 fragment `[0x21c78,0x3580c)` = **80,788 byte-identical bytes**; Venus MBN file offsets `[0x25c78,0x3980c)`.
+- New function group `[0x35670,0x3580c)` = **412 bytes**, **103 explicitly typed ARM32 instructions, zero data words**, implementing 32-entry bounded controller enqueue/dequeue operations, paired 64-bit `STRD` descriptor writes, IRQ owner synchronization callbacks, and queue-count wraparound.
+- End address `0x3580c` coincides with the start of the next event classifier, which contains an 18-way dispatch table; this table is **not** treated as executable by this checkpoint.
+- Full fragment independently compared against reference Venus SHA-256 `9d4af65d7ede845e900f1b29ff425b7a8e2947056e695e246e58a2091445a085`; no mismatches. Standalone Clang/LLVM reassembly of all 412 new bytes also matches. A guarded opt-in Rust unit test can emit/compare the entire interval using `NABU_VENUS_REFERENCE` and `NABU_VENUS_EMIT` without bundling OEM firmware bytes.
+- Results demonstrate exact A32 instruction re-encoding, not behaviorally verified source-level decompilation or flashable/authenticated firmware.
