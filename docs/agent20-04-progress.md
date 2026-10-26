@@ -253,3 +253,10 @@ git diff --check
 - Encoded A32 `UMULL` and `ADC Rd,Rn,#0` explicitly in a dedicated checked module-local encoder, rather than swapping carry-aware semantics for ordinary `ADD`.
 - Private reference comparison via opt-in `AGENT04_PRIVATE_VENUS` test passed with **zero mismatches**, as did Clang independent mnemonic reassembly of all 317 instructions plus four literal words.
 - Contiguous Agent 04 coverage `[0x40a2c,0x54028)` = **79,356 byte-identical bytes**. Uncovered reservation prefix `[0x40000,0x40a2c)` is not counted; next uncovered runtime `0x54028`. Checkpoint remains provisional old-Agent-03 ancestry, not checkpoint 50.
+
+## Checkpoint 29 — fixed codec register and format-property initializer
+
+- New independently generated runtime `[0x54028,0x54854)` = **2,092 exact bytes** (MBN `[0x58028,0x58854)`), consisting of **522 ARM32 instructions and one four-byte noninstruction capability word** `0x001fa3ff` at `0x54850`, immediately after the genuine saved-register return at `0x5484c`.
+- The two typed sections initialize codec controller property records, multiple format/pixel layout presets, byte-sized hardware flags and default buffer values. Register-list `STM`, signed-byte register loads and conditional moves use checked A32 architectural encoders rather than copied opcode words.
+- Private reference compare via `AGENT04_PRIVATE_VENUS` passes with zero differences. Independent Clang/LLVM mnemonic reconstruction using `--start 0x54028 --end 0x54854 --data 0x54850:0x54854:0x001fa3ff --file-offset 0x58028` matches all new instructions and the literal pool.
+- Combined contiguous Agent 04 interval `[0x40a2c,0x54854)` now **81,448 byte-identical bytes**, exclusive of the still-unimplemented prefix `[0x40000,0x40a2c)`. The next function starts at runtime `0x54854`. The branch is still provisional old-Agent-03 ancestry, **not** checkpoint 50.
