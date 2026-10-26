@@ -186,3 +186,12 @@ git diff --check
 - `tools/agent20_04_roundtrip.py` with the original reference and `--data 0x4eb54:0x4eb60:0xffc03f0f,0x7fff8000,0x0548eba0` independently reassembled all 1,021 instructions with Clang/LLVM, matching the generated Rust bytes and original Venus MBN with zero differences.
 - Contiguous Agent04 coverage now `[0x40a2c,0x4f000)` = **58,836 bytes**, comprising **14,652 instructions**, **57 distinct non-instruction words**; first missing runtime address `0x4f000`. The earlier `[0x40000,0x40a2c)` gap remains outside measured coverage, and the whole branch is **provisional old Agent03 history**, not checkpoint 50.
 - Offline Rust workspace: 210 tests; Python: 13 passed; `CARGO_PROFILE_RELEASE_OPT_LEVEL=0 cargo build --workspace --release --offline --locked` passed. Default optimized release not claimed tested for this checkpoint.
+
+## Checkpoint 21 — codec normalization and next controller list
+
+- New exact Venus `[0x4f000,0x50000)` = **4,096 bytes**, MBN `[0x53000,0x54000)`, with **1,019 typed A32 instructions** and **five separately identified post-return data words**: diagnostic pointer `0x000ee028`, `0xffc03f0f`, `0x7fff8000` at `[0x4f3b4,0x4f3c0)`, and `0xffc03f0f`, `0x0548eba0` at `[0x4f924,0x4f92c)`.
+- The first function ends at `0x4f3b0`; the next ends at `0x4f920`. Neither data pool is executed. `venus_agent20_04_controller_span_4f000.rs` explicitly models both pools with structural tests and rebuilds every other word with public typed A32 encoders.
+- `tools/agent20_04_roundtrip.py` reassembled the original ARM mnemonics with Clang/LLVM (1,019 instructions), preserving the classified pools, and matched both independently generated Rust bytes and the original MBN exactly (zero byte differences).
+- Agent04 continuous source-generated region `[0x40a2c,0x50000)` is now **62,932 bytes**, **15,671 ARM32 instructions and 62 data words**, no source-unknown fill or original executable-byte imports. Prior `[0x40000,0x40a2c)` remains excluded. The next byte is `0x50000`, inside a function.
+- Offline Rust workspace **211 tests** and Python **13 tests** passed; `CARGO_PROFILE_RELEASE_OPT_LEVEL=0 cargo build --workspace --release --offline --locked` passed. Default `--release` optimization is not asserted passed.
+- This branch derives from older Agent 03 ancestry, not the still-unavailable checkpoint-50 commit; merge as a provisional patch only.
