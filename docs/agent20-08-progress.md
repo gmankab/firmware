@@ -713,3 +713,16 @@ with zero mismatches. The two alignment NOPs `[0x41008,0x41010)` are
 excluded from code totals. **New verified code: 240 bytes, 2 functions;
 cumulative 7,604 independently source-assembled executable bytes across
 95 fragments.** All other ADSP code and OEM authentication are incomplete.
+
+
+**Checkpoint 48 — guarded controller mode validator:** Reconstructed a
+172-byte complete Hexagon controller-mode validation function at original
+ADSP file `[0x410a0,0x4114c)` (SHA-256
+`9e57afaef6b11cb2eb5dd19a2662f2bf25e42f593a1cad80916aa5f8085f4da8`).
+It validates the request mode, normalizes a packed field, runs a bounded
+platform-query retry loop, handles completion/error codes, then returns from
+its original frame. The two noncanonical packet schedules were rebuilt using
+source-level ordering, not pasted OEM code. The two NOPs preceding `0x410a0`
+are excluded. Newly authored, byte-exact code: **172 bytes**, cumulative
+**7,776 independently assembled executable bytes across 96 fragments**.
+Remainder of the ADSP executable segments is still not reconstructed.

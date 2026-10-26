@@ -114,6 +114,7 @@ FRAGMENTS = {
     'controller-bitmask-difference': (TOOLS / 'adsp-late-controller-bitmask-difference.S', 0x42468, 0x78),
     'controller-remove-registry': (TOOLS / 'adsp-late-controller-remove-registry.S', 0x40F80, 0x88),
     'controller-byte-selector': (TOOLS / 'adsp-late-controller-byte-selector.S', 0x41010, 0x68),
+    'controller-mode-validate': (TOOLS / 'adsp-late-controller-mode-validate.S', 0x410A0, 0xAC),
     'controller-field-00-get': (TOOLS / 'adsp-late-controller-field-00-get.S', 0x3EC80, 0xC),
     'controller-field-00-forward': (TOOLS / 'adsp-late-controller-field-00-forward.S', 0x3EC8C, 0x10),
     'controller-field-01-get': (TOOLS / 'adsp-late-controller-field-01-get.S', 0x3ECA0, 0xC),

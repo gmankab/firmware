@@ -197,9 +197,9 @@ class ADSPExternalsAndCodeTests(unittest.TestCase):
     @unittest.skipUnless(LLVM_MC,'Hexagon LLVM6 assembler required')
     def test_complete_fragment_inventory_rejects_overlaps(self):
         manifest,regions=adsp.assembled_inventory(LLVM_MC,None)
-        self.assertEqual(len(manifest['fragments']),95)
-        self.assertEqual(manifest['total_independently_assembled_executable_bytes'],7604)
-        self.assertEqual(sum(map(len,regions.values())),7604)
+        self.assertEqual(len(manifest['fragments']),96)
+        self.assertEqual(manifest['total_independently_assembled_executable_bytes'],7776)
+        self.assertEqual(sum(map(len,regions.values())),7776)
         self.assertEqual(manifest['gap_bytes_included_in_generated_executables'],0)
         self.assertFalse(manifest['complete_adsp_image'])
         self.assertEqual(manifest['external_original_code_bytes_in_output'],0)
@@ -366,7 +366,7 @@ class ADSPExternalsAndCodeTests(unittest.TestCase):
     def test_inventory_every_fragment_uses_correct_original(self):
         inventory,_outputs=adsp.assembled_inventory(LLVM_MC,Path(REFERENCE).read_bytes())
         self.assertTrue(all(x['reference_byte_identical'] for x in inventory['fragments']))
-        self.assertEqual(inventory['total_independently_assembled_executable_bytes'],7604)
+        self.assertEqual(inventory['total_independently_assembled_executable_bytes'],7776)
 
     @unittest.skipUnless(LLVM_MC and REFERENCE,
                          'Hexagon LLVM6 and exact pinned ADSP reference required')
@@ -380,7 +380,7 @@ class ADSPExternalsAndCodeTests(unittest.TestCase):
                 adsp.verify_slice(built,original,off)
                 total+=len(built)
                 ranges.append((off,off+size))
-        self.assertEqual(total,7604)
+        self.assertEqual(total,7776)
         ranges.sort()
         self.assertEqual(ranges[0],(0x39000,0x39054))
         self.assertEqual(ranges[-1],(0x3640a8,0x3640f8))
@@ -1377,3 +1377,23 @@ class ADSPControllerRegistryAndByteSelectorTests(unittest.TestCase):
             self.assertEqual(original[0x41008:0x41010],bytes.fromhex('00c0007f00c0007f'))
         self.assertIn('walk_registered:',adsp.FRAGMENTS[cases[0][0]][0].read_text())
         self.assertIn('inner_loop:',adsp.FRAGMENTS[cases[1][0]][0].read_text())
+
+
+class ADSPControllerModeValidationTests(unittest.TestCase):
+    """Guarded mode choice, platform queries and retry frame, no OEM opcodes."""
+
+    @unittest.skipUnless(LLVM_MC, 'Hexagon LLVM6 assembler required')
+    def test_guarded_mode_validation_exact_source(self):
+        src,off,size=adsp.FRAGMENTS['controller-mode-validate']
+        self.assertEqual((off,size),(0x410a0,172))
+        asm=src.read_text()
+        for forbidden in ('.word ','.long ','.byte ','.incbin ','.fill '):
+            self.assertNotIn(forbidden,asm)
+        for token in ('loop_body:', 'skip_calls:', 'failed:',
+                      'dealloc_return', 'if (!p0) jump:nt done'):
+            self.assertIn(token,asm)
+        rebuilt=adsp.compile_source(LLVM_MC,src,size)
+        self.assertEqual(hashlib.sha256(rebuilt).hexdigest(),
+            '9e57afaef6b11cb2eb5dd19a2662f2bf25e42f593a1cad80916aa5f8085f4da8')
+        if REFERENCE: adsp.verify_slice(rebuilt,Path(REFERENCE).read_bytes(),off)
+        self.assertEqual(off+size,0x4114c)
