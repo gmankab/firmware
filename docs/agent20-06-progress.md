@@ -709,3 +709,17 @@ python3 tools/agent20_06_a32_roundtrip.py /private/venus.mbn 0xa8ea0 0xa92c8 \
   ```
 
 - **247 Rust tests and 13 Python tests passed**; no successful new release build is claimed. Next uncovered VMA `0xc2874`, file `0xc6874`. Work remains an old-Agent-03-derived provisional source fragment, not checkpoint-50 integrated or a newly OEM-signed firmware.
+
+## Checkpoint 76 — runtime codec frame-resource publication
+
+- Contiguous typed Venus ARM32 runtime `[0xa8000,0xc32cc)` = **111,308 byte-identical bytes**, matching original MBN `[0xac000,0xc72cc)`.
+- Newly reconstructed `[0xc2874,0xc32cc)` = **2,648 bytes**, containing **658 typed ARM32 instructions** (2,632 bytes) and **four distinguished runtime data words** (16 bytes) at `[0xc32bc,0xc32cc)`.
+- The routine publishes controller frame resources and plane registers, copies active codec tables to MMIO and preserves its caller's return and diagnostic pool. The four data constants are recorded separately from executable source, not copied as opcode words.
+- Full emitter-vs-pinned-original comparison found **zero mismatched bytes**. Independent Clang/LLVM mnemonic reconstruction verified 2,632 instructions bytes plus 16 manually classified data bytes:
+
+  ```sh
+  python3 tools/agent20_06_a32_roundtrip.py /private/venus.mbn 0xc2874 0xc32cc \
+    --data-range 0xc32bc:0xc32cc
+  ```
+
+- **248 Rust tests and 13 Python tests passed.** No successful new release build is claimed. Next uncovered runtime address `0xc32cc`, file offset `0xc72cc`. The branch is provisional and rooted in older Agent 03, not checkpoint-50-integrated or newly OEM-signed firmware. Byte equality of typed A32 encoding does not establish high-level functional equivalence or on-device behavior.
