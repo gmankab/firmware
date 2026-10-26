@@ -932,3 +932,16 @@ python3 -S tools/adsp-agent20-rwe-next-controller-global-handoff.py \
   --llvm-mc "$HEXAGON_LLVM_MC" --reference "$NABU_ADSP_REFERENCE" \
   --output /tmp/adsp-controller-global-handoff-88.bin
 ```
+
+## Checkpoint 50: **complete** global controller startup `[0x11450,0x11698)`
+
+- All **584 executable bytes (146 original Hexagon V66 instruction words)** reconstruct from five consecutive source sections, with no vendor opcode arrays and no copied OEM file spans. LLVM6 assembles 143 ordinary words, and three named/operand-checked V66 operations (`CSwi(R0)`, `ciad(R0)`, `IMASK=R1`) replace strictly validated source NOP placeholders. Independent Rizin decoding agrees on original packet positions.
+- Physical mapping `[0x8be0e450,0x8be0e698)`. The complete function stores MMIO pointers, initializes controller per-channel SRAM offsets, runs a conditional hardware setup callback, performs a 128KiB physical-resource publication and returns through its *original* saved-frame/branch handoff at file `0x11694`.
+- Exactly **eight following zero bytes** `[0x11698,0x116a0)` are verified linker fill, **not** reconstructed executable source. The next function begins at file `0x116a0` (physical `0x8be0e6a0`), separate from this completed function.
+- Cumulative independently source-generated RWE Hexagon code is **6,832 bytes across eleven disjoint executable intervals**, with original firmware authentication and many ADSP later text/data regions still absent. The checked forward work remains a portable older-Agent-04-based branch until proper checkpoint-50 integration.
+
+```sh
+python3 -S tools/adsp-agent20-rwe-next-controller-global-full.py \
+  --llvm-mc "$HEXAGON_LLVM_MC" --reference "$NABU_ADSP_REFERENCE" \
+  --output /tmp/adsp-controller-global-complete-584.bin
+```
