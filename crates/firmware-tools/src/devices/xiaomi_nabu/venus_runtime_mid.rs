@@ -8,7 +8,7 @@
 use arm32::{Condition as C, DataOp as Op, Register as R, Shift, BlockMode};
 
 pub const START: usize = 0x21c78;
-pub const END: usize = 0x3e304;
+pub const END: usize = 0x3ead8;
 pub const FILE_BASE:usize = 0x4000;
 pub const FILE_OFFSET:usize=FILE_BASE+START;
 pub const RESERVATION_END:usize=0x40000;
@@ -263,6 +263,8 @@ mod stream_control_final_writes;
 mod stream_control_complete;
 #[path="venus_runtime_mid_codec_descriptor_queue.rs"]
 mod codec_descriptor_queue;
+#[path="venus_runtime_mid_codec_register_matrix.rs"]
+mod codec_register_matrix;
 
 fn frame_allocation(c:&mut Code)->Result<(),String>{
     c.check(START)?;
@@ -851,6 +853,7 @@ pub fn fragment()->Result<Vec<u8>,String>{
     stream_control_final_writes::emit(&mut code)?;
     stream_control_complete::emit(&mut code)?;
     codec_descriptor_queue::emit(&mut code)?;
+    codec_register_matrix::emit(&mut code)?;
     Ok(code.bytes)
 }
 
@@ -868,7 +871,7 @@ pub fn verify_reference(reference:&[u8])->Result<usize,String>{
 #[cfg(test)] mod tests {
     use super::*;
     #[test] fn generated_region_exact_layout(){
-        assert_eq!(END-START,0x1c68c);
+        assert_eq!(END-START,0x1ce60);
         assert_eq!(fragment().unwrap().len(),END-START);
         assert_eq!(FILE_OFFSET,0x25c78);
     }

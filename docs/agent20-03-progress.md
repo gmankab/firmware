@@ -681,3 +681,11 @@ Original reference: private `map220v-nabu-firmware/venus.mbn`, SHA-256 `9d4af65d
 - Reconstructed original saved-register return and guarded queue/capacity branch. No vendor instruction data was pasted into the Rust emitter.
 - Direct source vs reference and independently linked Clang/LLVM mnemonic reassembly produce zero byte differences. Test results are recorded in checkpoint log; not proof of whole-firmware signing or functional behavior.
 - Next uncovered runtime entry `0x3e304`; assigned upper limit `0x40000`. The portable branch does **not** descend from checkpoint-50.
+
+## Checkpoint 98 — codec register-matrix geometry and frame sizes
+
+- Full typed Venus `[0x21c78,0x3ead8)` = **118,368 byte-identical bytes**, MBN `[0x25c78,0x42ad8)`.
+- New `[0x3e304,0x3ead8)` = **2,004 bytes**, **489 typed ARM32 instructions** and **12 non-executable geometry/capability/diagnostic data words** `[0x3eaa8,0x3ead8)`.
+- Reconstructs codec register-size matrix, signed/unsigned long multiplies, plane allocation and stride calculations; the routine returns through its actual POP/PC at `0x3eaa4`.
+- Full-fragment direct comparison and independent mnemonic Clang/LLVM round-trip match with zero byte differences.
+- Next original runtime entry `0x3ead8`, strictly before exclusive upper bound `0x40000`. Portable branch not descended from checkpoint-50.
