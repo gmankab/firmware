@@ -221,3 +221,20 @@ agent11_modem_rwe_mask_break:
 { nop; nop; nop }:endloop0:endloop1
 { jumpr lr }
 .set agent11_modem_rwe_mask_retry_previous,agent11_modem_rwe_mask_retry - 0xc
+// Bounded MODECTL retry/update. When masked controller status becomes zero,
+// clear the shared word; otherwise update the current per-thread lane.
+.globl agent11_modem_rwe_sync_controller_modectl
+agent11_modem_rwe_sync_controller_modectl:
+{ r5 = ##-1065081912; r4 = #10000; nop }
+agent11_modem_rwe_sync_controller_poll:
+{ r4 = add(r4,#-1); p0 = cmp.eq(r4,#0); if (!p0.new) jump:nt agent11_modem_rwe_sync_controller_read }
+{ jump agent11_modem_rwe_sync_controller_done; memw(r5+#0) = r1 }
+agent11_modem_rwe_sync_controller_read:
+MODEM_FU_SYS_READ 1,17,3 // MODECTL
+{ r2 = extractu(r1,#4,#0); r3 = extractu(r1,#4,#16); r4 = memw(r28+##-1065068280) }
+{ r2 = xor(r2,r3) }
+{ r2 = and(r2,r4) }
+{ r2 = clrbit(r2,r0); if (!cmp.eq(r2.new,#0)) jump:t agent11_modem_rwe_sync_controller_poll }
+{ r4 = #0; memw(r5+#0) = r4.new }
+agent11_modem_rwe_sync_controller_done:
+{ jumpr lr }

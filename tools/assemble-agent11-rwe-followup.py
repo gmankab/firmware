@@ -15,7 +15,7 @@ import tempfile
 from pathlib import Path
 
 FILE_START=0x39920
-FILE_END=0x39b70
+FILE_END=0x39bc0
 PINNED_SHA256='6f5cb32bc10e41abb40938d185805e788f5637a41d3ebcef278e4e169fc36782'
 
 
@@ -32,7 +32,8 @@ def normalize_hexagon_gp_relative(data: bytes) -> bytes:
     # extender and register. V60 GP-relative memory is a distinct ISA class.
     # Each mapping is guarded by the generic assembler's register/marker word.
     forms=((0x39aec,0x919cc101,0x0c085164),  # R1 = memw(GP+##offset)
-           (0x39b20,0x919cc105,0x0c085164)) # R5 = memw(GP+##offset)
+           (0x39b20,0x919cc105,0x0c085164), # R5 = memw(GP+##offset)
+           (0x39ba0,0x919cc104,0x0c085164)) # R4 = memw(GP+##offset)
     repaired=bytearray(data)
     V60_GP_RELATIVE_WORD_LOAD_CLASS=0x4980
     for address,expected,extword in forms:
@@ -45,6 +46,18 @@ def normalize_hexagon_gp_relative(data: bytes) -> bytes:
             raise ValueError(f'LLVM6 GP-relative controller load class/operands differ at {address:#x}')
         struct.pack_into('<I',repaired,offset,
             (V60_GP_RELATIVE_WORD_LOAD_CLASS<<16)|(before&0xffff))
+    if len(repaired) >= 0x39bc0-FILE_START:
+        # LLVM6 schedules the conditional compare/jump ahead of its preceding
+        # saturating decrement even though both packet orders are legal. The
+        # reference uses decrement as continuation, then branch as packet end.
+        offset=0x39b80-FILE_START
+        branch,subtract=struct.unpack_from('<II',repaired,offset)
+        if branch!=0x10444008 or subtract!=0xbfe4ffe4:
+            raise ValueError('unexpected Hexagon MODECTL decrement/branch packet')
+        continuation_marker=1<<14;end_marker=3<<14;mask=3<<14
+        struct.pack_into('<II',repaired,offset,
+            (subtract &~mask)|continuation_marker,
+            (branch &~mask)|end_marker)
     return bytes(repaired)
 
 
