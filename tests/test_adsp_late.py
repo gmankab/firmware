@@ -197,9 +197,9 @@ class ADSPExternalsAndCodeTests(unittest.TestCase):
     @unittest.skipUnless(LLVM_MC,'Hexagon LLVM6 assembler required')
     def test_complete_fragment_inventory_rejects_overlaps(self):
         manifest,regions=adsp.assembled_inventory(LLVM_MC,None)
-        self.assertEqual(len(manifest['fragments']),53)
-        self.assertEqual(manifest['total_independently_assembled_executable_bytes'],3432)
-        self.assertEqual(sum(map(len,regions.values())),3432)
+        self.assertEqual(len(manifest['fragments']),54)
+        self.assertEqual(manifest['total_independently_assembled_executable_bytes'],3508)
+        self.assertEqual(sum(map(len,regions.values())),3508)
         self.assertEqual(manifest['gap_bytes_included_in_generated_executables'],0)
         self.assertFalse(manifest['complete_adsp_image'])
         self.assertEqual(manifest['external_original_code_bytes_in_output'],0)
@@ -366,7 +366,7 @@ class ADSPExternalsAndCodeTests(unittest.TestCase):
     def test_inventory_every_fragment_uses_correct_original(self):
         inventory,_outputs=adsp.assembled_inventory(LLVM_MC,Path(REFERENCE).read_bytes())
         self.assertTrue(all(x['reference_byte_identical'] for x in inventory['fragments']))
-        self.assertEqual(inventory['total_independently_assembled_executable_bytes'],3432)
+        self.assertEqual(inventory['total_independently_assembled_executable_bytes'],3508)
 
     @unittest.skipUnless(LLVM_MC and REFERENCE,
                          'Hexagon LLVM6 and exact pinned ADSP reference required')
@@ -380,7 +380,7 @@ class ADSPExternalsAndCodeTests(unittest.TestCase):
                 adsp.verify_slice(built,original,off)
                 total+=len(built)
                 ranges.append((off,off+size))
-        self.assertEqual(total,3432)
+        self.assertEqual(total,3508)
         ranges.sort()
         self.assertEqual(ranges[0],(0x39000,0x39054))
         self.assertEqual(ranges[-1],(0x3640a8,0x3640f8))
@@ -791,3 +791,27 @@ class ADSPControllerDescriptorRefreshTests(unittest.TestCase):
         self.assertEqual(hashlib.sha256(code).hexdigest(),
             '9bd8cf35a95e3e0979b840e7b31a65c2ab38b8e0b79f284ffe3d54189081ac7d')
         if REFERENCE:adsp.verify_slice(code,Path(REFERENCE).read_bytes(),off)
+
+
+class ADSPCheckedArgumentForwardTests(unittest.TestCase):
+    """Bounded controller-mode check plus complete 6-slot stack argument relay."""
+
+    @unittest.skipUnless(LLVM_MC,'Hexagon LLVM6 assembler required')
+    def test_complete_forwarder_is_independently_assembled(self):
+        src,off,n=adsp.FRAGMENTS['checked-argument-forward']
+        self.assertEqual((off,n),(0x3efa8,76))
+        text=src.read_text()
+        for forbidden in ('.word ','.long ','.byte ','.incbin ','.fill '):
+            self.assertNotIn(forbidden,text)
+        for insn in ('if (!p0.new) jump:nt forward',
+                     'r6 = memw(r29+#52)', 'memw(r29+#20) = r6.new',
+                     'r13 = memw(r29+#32)',
+                     '.set platform_forward, adsp_late_checked_argument_forward+0xeb920',
+                     'dealloc_return'):
+            self.assertIn(insn,text)
+        built=adsp.compile_source(LLVM_MC,src,n)
+        self.assertEqual(hashlib.sha256(built).hexdigest(),
+            'dad239580745f2b380bdf94ba096884c5ff4ef5f95bb7c0c4b662fef1759b932')
+        if REFERENCE: adsp.verify_slice(built,Path(REFERENCE).read_bytes(),off)
+        # Preceding three NOPs after the prior function are not source bytes.
+        self.assertEqual(off-0x3ef94,20)

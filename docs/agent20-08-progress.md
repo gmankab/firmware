@@ -407,3 +407,15 @@ reference exactly, SHA-256
 across 53 disjoint fragments**. The large nearby controller functions,
 platform gaps, non-executable data and OEM authentication remain
 unreconstructed and outside the coverage totals.
+
+
+**Checkpoint 27 — checked controller-mode argument relay:** Added a source-authored
+76-byte Hexagon V66 function at original ADSP file `[0x3efa8,0x3eff4)`
+that rejects out-of-range controller mode arguments, forwards six stack
+arguments and dispatches an external platform handler. Its 19 instruction
+words are exact under independent LLVM6 reassembly; SHA-256
+`dad239580745f2b380bdf94ba096884c5ff4ef5f95bb7c0c4b662fef1759b932`.
+The four-byte NOPs at `[0x3ef94,0x3efa8)` are **not** counted as code.
+This raises independently generated executable coverage to **3,508 bytes
+in 54 distinct fragments**, with zero external OEM bytes in output.
+The larger controller routines remain unreconstructed.
