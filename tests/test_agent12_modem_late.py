@@ -44,6 +44,41 @@ class ModemLateTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError,'16 source-assembled bytes'):
             agent12.restore_aux_large_controller_phase13_gap_packet(bytes(12))
 
+    def test_phase24_size_report_branch_order(self):
+        self.assertEqual((agent12.AUX_LARGE_CONTROLLER_PHASE24_START,
+                          agent12.AUX_LARGE_CONTROLLER_PHASE24_END),
+                         (0x448138,0x44817c))
+        text=agent12.AUX_LARGE_CONTROLLER_PHASE24_SOURCE.read_text()
+        for raw in ('.word','.byte','.incbin'):
+            self.assertNotIn(raw,text)
+        self.assertIn('r3 = add(r2,r4)',text)
+        self.assertIn('if (!p0) jump:nt alternate_error',text)
+        self.assertIn('memw(r29+#0) = r2',text)
+        w=[0x7800c000]*17
+        w[1]=(0x5c<<24)|agent12.CONTINUE_MARKER|0x10
+        w[2]=(0xf3<<24)|agent12.END_MARKER|0x403
+        source=struct.pack('<17I',*w)
+        result=struct.unpack('<17I',agent12.restore_aux_large_controller_phase24_size_report(source))
+        self.assertEqual(result[1:3],
+                         ((w[2]&~agent12.MARKER_MASK)|agent12.CONTINUE_MARKER,
+                          (w[1]&~agent12.MARKER_MASK)|agent12.END_MARKER))
+        self.assertEqual(result[:1],tuple(w[:1]))
+        self.assertEqual(result[3:],tuple(w[3:]))
+        for index,bad,reason in [
+            (1,0x78004010,'opcode classes'),
+            (2,0x7800c403,'opcode classes'),
+            (1,0x5c204011,'instruction operands'),
+            (2,0xf302c404,'instruction operands'),
+            (1,0x5c20c010,'packet markers'),
+            (2,0xf3024403,'packet markers'),
+        ]:
+            broken=w.copy();broken[index]=bad
+            with self.assertRaisesRegex(ValueError,reason):
+                agent12.restore_aux_large_controller_phase24_size_report(
+                    struct.pack('<17I',*broken))
+        with self.assertRaisesRegex(ValueError,'68 source-assembled bytes'):
+            agent12.restore_aux_large_controller_phase24_size_report(source[:-4])
+
     def test_phase22_extender_and_predicated_branch_packet_reconstruction(self):
         self.assertEqual((agent12.AUX_LARGE_CONTROLLER_PHASE22_START,
                           agent12.AUX_LARGE_CONTROLLER_PHASE22_END),
@@ -1345,8 +1380,8 @@ class ModemLateTests(unittest.TestCase):
         a = agent12.output_fragments(Path(os.environ["NABU_HEXAGON_LLVM_MC"]))
         self.assertEqual({k: len(v) for k, v in a.items()},
                          {0x7C000:160, 0x7C2EC:452,
-                          0x446000:agent12.AUX_LARGE_CONTROLLER_PHASE23_END-agent12.AUX_START})
-        self.assertEqual(sum(map(len,a.values())),agent12.AUX_LARGE_CONTROLLER_PHASE23_END - agent12.AUX_START + 612)
+                          0x446000:agent12.AUX_LARGE_CONTROLLER_PHASE24_END-agent12.AUX_START})
+        self.assertEqual(sum(map(len,a.values())),agent12.AUX_LARGE_CONTROLLER_PHASE24_END - agent12.AUX_START + 612)
         self.assertEqual(a[0x446000][0x0d8:0x200],agent12.emit_auxiliary_elf_symbols())
         self.assertEqual(a[0x446000][0x254:0x260],bytes(12))
         self.assertEqual(a[0x446000][0x1448:0x1460],
