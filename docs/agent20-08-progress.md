@@ -498,3 +498,15 @@ reconstructed release checker (`0x3e4d0–0x3e5a8`) and controller reset
 contiguous executable bytes**. Cumulative independently authored coverage is
 **4,668 executable bytes in 70 fragments**. The immediately following two
 4-byte NOPs (`[0x3e798,0x3e7a0)`) are still excluded.
+
+
+**Checkpoint 34 — bounded indexed controller state:** Reconstructed the
+**108-byte** Hexagon V66 source routine `[file 0x3e9e0,0x3ea4c)` controlling
+allocation of a small array of registered controller indices. The routine
+clamps the requested count, bounds allocation, initializes the indexed
+controller table and invokes the failure logger when allocation fails.
+Original Hexagon packet and GP-indexed register forms independently assemble
+with SHA-256 `ac1162b9f4d84447ea7d2904f93dafacba7d04d4b12403719517d4948b90dcbd`.
+The four-byte NOP `[0x3ea4c,0x3ea50)` is excluded from executable-source
+bytes. Independently generated cumulative source coverage: **4,776 bytes
+across 71 fragments**, byte-for-byte against pinned `adsp.mbn`.

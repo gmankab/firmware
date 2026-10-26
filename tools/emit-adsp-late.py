@@ -89,6 +89,7 @@ FRAGMENTS = {
     'controller-reset-status': (TOOLS / 'adsp-late-controller-reset-status.S', 0x3E750, 0x48),
     'controller-allocate': (TOOLS / 'adsp-late-controller-allocate.S', 0x3E5A8, 0xB0),
     'controller-validate-input': (TOOLS / 'adsp-late-controller-validate-input.S', 0x3E658, 0xF8),
+    'controller-indexed-init': (TOOLS / 'adsp-late-controller-indexed-init.S', 0x3E9E0, 0x6C),
     'controller-field-00-get': (TOOLS / 'adsp-late-controller-field-00-get.S', 0x3EC80, 0xC),
     'controller-field-00-forward': (TOOLS / 'adsp-late-controller-field-00-forward.S', 0x3EC8C, 0x10),
     'controller-field-01-get': (TOOLS / 'adsp-late-controller-field-01-get.S', 0x3ECA0, 0xC),
