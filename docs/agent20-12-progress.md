@@ -1093,3 +1093,22 @@ Total generated agent coverage: **8,164** bytes including **7,856 executable**,
 fragments exactly match the SHA-256-pinned original `modem.mbn`. Neither the
 large controller function nor the full Qualcomm image is complete, and no new
 OEM authentication/signature has been produced.
+
+## Checkpoint 43 — Controller allocation and paired diagnostic callbacks
+
+Added **140 source-assembled Hexagon V60 executable bytes** at modem file
+`[0x447d90,0x447e1c)` (virtual `[0x1e401d90,0x1e401e1c)`). The source
+performs first/second controller resource allocation, sets corresponding
+slot and register descriptors, updates callback state, handles unavailable
+controller pointers and branches back into earlier session-scanning code.
+Both diagnostic helper calls are deliberately grouped with their extended
+immediate and following stack store, preserving the producer's packet ends
+**directly in LLVM6**, with no post-assembly patch to the new range.
+
+The validated independently generated total is **8,304** file bytes:
+**7,996 executable**, **296 source-authored ELF metadata**, and **12
+alignment**. The auxiliary prefix `[0x446000,0x447d28)` is **7,464 bytes**;
+there is still an **unreconstructed 16-byte packet `[0x447d28,0x447d38)`**.
+A second separate verified interval `[0x447d38,0x447e1c)` is **228 bytes**.
+The entire `modem.mbn` remains incomplete, and externally signed OEM content
+has not been regenerated.

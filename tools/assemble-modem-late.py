@@ -54,6 +54,7 @@ AUX_LARGE_CONTROLLER_PHASE11_SOURCE = ROOT / "crates/firmware-tools/src/devices/
 AUX_LARGE_CONTROLLER_PHASE12_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_aux_large_controller_phase12.s"
 AUX_LARGE_CONTROLLER_PHASE13_GATE_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_aux_large_controller_phase13_gate.s"
 AUX_LARGE_CONTROLLER_PHASE13_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_aux_large_controller_phase13.s"
+AUX_LARGE_CONTROLLER_PHASE14_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_aux_large_controller_phase14.s"
 AUX_DISPATCH_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_aux_dispatch_helpers.s"
 AUX_TYPE_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_aux_type_config.s"
 AUX_NOTIFY_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_aux_controller_notify.s"
@@ -188,6 +189,8 @@ AUX_LARGE_CONTROLLER_PHASE13_GATE_END = 0x447D28
 # 0x447D28–0x447D38 remains a 16-byte *unclaimed* instruction packet.
 AUX_LARGE_CONTROLLER_PHASE13_START = 0x447D38
 AUX_LARGE_CONTROLLER_PHASE13_END = 0x447D90
+AUX_LARGE_CONTROLLER_PHASE14_START = AUX_LARGE_CONTROLLER_PHASE13_END
+AUX_LARGE_CONTROLLER_PHASE14_END = 0x447E1C
 MARKER_MASK = 3 << 14
 CONTINUE_MARKER = 1 << 14
 END_MARKER = 3 << 14
@@ -1561,6 +1564,7 @@ def output_fragments(llvm_mc: Path) -> dict[int, bytes]:
     aux_large_controller_phase13_gate=assemble(llvm_mc,AUX_LARGE_CONTROLLER_PHASE13_GATE_SOURCE)
     aux_large_controller_phase13=restore_aux_large_controller_phase13_packets(
         assemble(llvm_mc,AUX_LARGE_CONTROLLER_PHASE13_SOURCE))
+    aux_large_controller_phase14=assemble(llvm_mc,AUX_LARGE_CONTROLLER_PHASE14_SOURCE)
     aux_dispatch = assemble(llvm_mc,AUX_DISPATCH_SOURCE)
     aux_type = restore_aux_type_return_packets(assemble(llvm_mc,AUX_TYPE_SOURCE))
     aux_notify = restore_aux_controller_notify_packets(assemble(llvm_mc,AUX_NOTIFY_SOURCE))
@@ -1623,6 +1627,7 @@ def output_fragments(llvm_mc: Path) -> dict[int, bytes]:
         (aux_large_controller_phase12,AUX_LARGE_CONTROLLER_PHASE12_START,AUX_LARGE_CONTROLLER_PHASE12_END,'large controller phase12'),
         (aux_large_controller_phase13_gate,AUX_LARGE_CONTROLLER_PHASE13_GATE_START,AUX_LARGE_CONTROLLER_PHASE13_GATE_END,'large controller phase13 gate'),
         (aux_large_controller_phase13,AUX_LARGE_CONTROLLER_PHASE13_START,AUX_LARGE_CONTROLLER_PHASE13_END,'large controller phase13 disjoint'),
+        (aux_large_controller_phase14,AUX_LARGE_CONTROLLER_PHASE14_START,AUX_LARGE_CONTROLLER_PHASE14_END,'large controller phase14 callback'),
     ]:
         if len(fragment)!=end-start:
             raise ValueError(f"auxiliary {label} source length mismatch")
@@ -1679,7 +1684,8 @@ def output_fragments(llvm_mc: Path) -> dict[int, bytes]:
             AUX_LARGE_CONTROLLER_PHASE11_END==AUX_LARGE_CONTROLLER_PHASE12_START):
         raise ValueError("missing source after controller registry block")
     if not (AUX_LARGE_CONTROLLER_PHASE12_END==AUX_LARGE_CONTROLLER_PHASE13_GATE_START and
-            AUX_LARGE_CONTROLLER_PHASE13_GATE_END+16==AUX_LARGE_CONTROLLER_PHASE13_START):
+            AUX_LARGE_CONTROLLER_PHASE13_GATE_END+16==AUX_LARGE_CONTROLLER_PHASE13_START and
+            AUX_LARGE_CONTROLLER_PHASE13_END==AUX_LARGE_CONTROLLER_PHASE14_START):
         raise ValueError("controller phase13 gap was silently bridged")
     if AUX_LOOKUP_END!=AUX_REGISTRY_CORE_START or AUX_REGISTRY_CORE_END!=AUX_DISPATCH_START:
         raise ValueError("modem auxiliary registry source intervals have a gap")
@@ -1697,7 +1703,7 @@ def output_fragments(llvm_mc: Path) -> dict[int, bytes]:
                         aux_large_controller_phase9+aux_large_controller_phase10+
                         aux_large_controller_phase11+aux_large_controller_phase12+
                         aux_large_controller_phase13_gate,
-        AUX_LARGE_CONTROLLER_PHASE13_START:aux_large_controller_phase13,
+        AUX_LARGE_CONTROLLER_PHASE13_START:aux_large_controller_phase13+aux_large_controller_phase14,
     }
 
 

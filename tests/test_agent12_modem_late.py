@@ -15,6 +15,20 @@ spec.loader.exec_module(agent12)
 
 
 class ModemLateTests(unittest.TestCase):
+    def test_aux_controller_phase14_callback_source(self):
+        self.assertEqual((agent12.AUX_LARGE_CONTROLLER_PHASE14_START,
+                          agent12.AUX_LARGE_CONTROLLER_PHASE14_END),
+                         (0x447d90,0x447e1c))
+        source=agent12.AUX_LARGE_CONTROLLER_PHASE14_SOURCE.read_text()
+        self.assertEqual(source.count('call resource_callback_logger'),2)
+        self.assertIn('r18 = mux(p0,#1,r23)',source)
+        self.assertIn('r22 = +mpyi(r18,#28)',source)
+        self.assertIn('callr r2',source)
+        self.assertNotIn('.word',source)
+        self.assertNotIn('.incbin',source)
+        self.assertEqual(agent12.AUX_LARGE_CONTROLLER_PHASE13_END,
+                         agent12.AUX_LARGE_CONTROLLER_PHASE14_START)
+
     def test_aux_controller_phase13_disjoint_source_and_packet(self):
         self.assertEqual((agent12.AUX_LARGE_CONTROLLER_PHASE13_GATE_START,
                           agent12.AUX_LARGE_CONTROLLER_PHASE13_GATE_END),
