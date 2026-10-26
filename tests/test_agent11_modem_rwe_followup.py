@@ -13,8 +13,8 @@ spec.loader.exec_module(mod)
 
 class ExceptionFollowup(unittest.TestCase):
     def test_disjoint_bounds_and_no_implicit_vendor_fill(self):
-        self.assertEqual((mod.FILE_START,mod.FILE_END),(0x39920,0x39954))
-        self.assertEqual(mod.FILE_END-mod.FILE_START,52)
+        self.assertEqual((mod.FILE_START,mod.FILE_END),(0x39920,0x39a0c))
+        self.assertEqual(mod.FILE_END-mod.FILE_START,236)
         self.assertGreater(mod.FILE_START,0x390dc)
         self.assertEqual(mod.FILE_START-0x390dc,0x844)
 
@@ -27,12 +27,20 @@ class ExceptionFollowup(unittest.TestCase):
         if not mc:self.skipTest('Set AGENT11_LLVM_MC for Hexagon source assembly test')
         source=SCRIPT.parents[1]/'crates/firmware-tools/src/devices/xiaomi_nabu/modem_rwe_exception_followup.s'
         data=mod.assemble(Path(mc),source)
-        self.assertEqual(len(data),52)
+        self.assertEqual(len(data),236)
         word=lambda off:int.from_bytes(data[off-mod.FILE_START:off-mod.FILE_START+4],'little')
         self.assertEqual(word(0x39920),0x9200c012) # memw_locked(r0)
         self.assertEqual(word(0x39930),0xa0a0d200) # checked memw_locked(r0,p0)=r18
         self.assertEqual(word(0x39944),0x529f4000) # packet-local jumpr lr
         self.assertEqual(word(0x3994c),0x529f4000) # failure-path return
+        # Four hardware IMASK selectors, S57:56, and exact dealloc_return.
+        self.assertEqual(word(0x3997c),0x6f000000|(56<<16)|(3<<14)|18)
+        self.assertEqual(word(0x399b8),0x66000000|(1<<16)|(3<<14)|28)
+        self.assertEqual(word(0x399c4),0x66000000|(1<<16)|(3<<14)|28)
+        self.assertEqual(word(0x399d0),0x66000000|(1<<16)|(3<<14)|28)
+        self.assertEqual(word(0x399dc),0x66000000|(1<<16)|(3<<14)|28)
+        self.assertEqual(word(0x39a00),0x62000000|((19+32)<<16)|(1<<14)|4)
+        self.assertEqual(word(0x39a08),0x961ec01e)
         ref=os.environ.get('AGENT11_MODEM_MBN')
         if ref:mod.verify(Path(ref).read_bytes(),data)
 

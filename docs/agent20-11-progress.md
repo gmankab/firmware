@@ -434,3 +434,11 @@ python3 -m unittest discover -s tests -p 'test_*.py'
 - Rebuilt the next clearly function-aligned controller lock at `[file 0x39920,0x39954)`, **52 Hexagon V60 instruction bytes**, physical `[0x8e041920,0x8e041954)`, virtual `[0xc0841920,0xc0841954)`. The function reads a locked 32-bit status word, tests bits 31/30, sets/clears the claim bit, conditionally retries, then returns a status result on success/failure.
 - LLVM6 assembles the **entire 52-byte fragment exactly** from source with no normalization, no reference-machine-word imports and no padding. The standalone verifier rejects a wrong firmware SHA-256. Fragment digest `62ed6e78018bc34417c2cf25d0aac96a4b751f5b751cd9f2beaf07bec26915e6`.
 - Tests: **169 Rust, 42 Python, and offline locked release build pass**; pinned modem reference comparison has zero differences. The next high-confidence function begins file `0x39954`.
+
+## Checkpoint 54 — Protected controller snapshot function
+
+- The second disjoint RWE code island now spans modem file `[0x39920,0x39a0c)`: **236 source-authored, byte-identical Hexagon V60 executable bytes**. Newly added `[0x39954,0x39a0c)` is 184 bytes; the preceding `[0x39920,0x39954)` 52-byte lock helper is retained and reverified.
+- This routine saves SYSCFG, MODECTL, PCYCLE, privileged C-register pairs, and four interrupt masks to an exception context before restoring the saved predicate state and returning. Its instruction packets assemble from original typed LLVM6 Hexagon source without reference opcode insertion or packet-order normalization.
+- Pinned modem reference SHA-256: `6f5cb32bc10e41abb40938d185805e788f5637a41d3ebcef278e4e169fc36782`. Entire new fragment SHA-256: `1ddc0cce396e172a14eedf882d3f32f6233503be61c9d429a243c0dbcda343db`; byte mismatches **zero**. RWE virtual/physical mappings are `[0xc0841920,0xc0841a0c)` / `[0x8e041920,0x8e041a0c)`.
+- Source code in the previously completed `[0x38108,0x390dc)` exception island remains separate; the intervening `[0x390dc,0x39920)` data/fill gap is **not** counted as reconstructed executable bytes.
+- Verification: **169 Rust tests, 42 Python tests, locked offline release build pass**. The next independent function starts at file `0x39a0c` and copies a protected exception register bank.

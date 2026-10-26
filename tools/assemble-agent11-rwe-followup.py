@@ -14,7 +14,7 @@ import tempfile
 from pathlib import Path
 
 FILE_START=0x39920
-FILE_END=0x39954
+FILE_END=0x39a0c
 PINNED_SHA256='6f5cb32bc10e41abb40938d185805e788f5637a41d3ebcef278e4e169fc36782'
 
 
