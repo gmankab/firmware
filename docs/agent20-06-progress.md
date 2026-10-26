@@ -485,3 +485,11 @@ python3 tools/agent20_06_a32_roundtrip.py /private/venus.mbn 0xa8ea0 0xa92c8 \
 - Full fragment byte equality against the pinned `venus.mbn` is exact, **zero differing bytes**. Independent Clang/LLVM ARM32 mnemonic reassembly matches all 536 bytes exactly.
 - **228 Rust and 13 Python tests passed**. A successful release build is not claimed at this checkpoint.
 - First missing runtime `0xbbcd4`, file offset `0xbfcd4`. The next ARM32 controller function starts here. This remains provisional older-Agent-03 ancestry and not a source-level semantic rebuild, full firmware, or new OEM-authenticated image.
+
+## Checkpoint 57 — codec MMIO controller and frame-register programming
+
+- Continuous independently encoded Venus ARM32 region `[0xa8000,0xbc598)` = **83,352 reference-identical bytes**, original MBN `[0xac000,0xc0598)`.
+- Newly reconstructed `[0xbbcd4,0xbc598)` = **2,244 typed ARM32 instruction bytes** (561 instructions), without embedded data pools. The function sets up a controller MMIO and frame-resource state, copies optional tuning blocks, writes output-plane command fields and queues frame metadata.
+- The PC-relative reference constants for this function are **outside** the emitted end boundary; no OEM data bytes were inserted to fill the future pool. This is a **partial function**, with the next missing instruction at runtime `0xbc598` (MBN offset `0xc0598`).
+- Exact full-fragment reference compare passed (0 mismatching bytes). Independent Clang/LLVM mnemonic reassembly for the entire new interval passed (0 differences). **229 Rust and 13 Python tests passed**. No completed release-build result is claimed.
+- This Git branch remains a provisional descendant of older Agent 03 history, not of the missing checkpoint-50-based integrated Git branch. Byte-identical ISA encoding is not source-level behavioral decompilation or OEM signing.
