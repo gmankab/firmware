@@ -156,6 +156,7 @@ pub mod cdsp_early_worker_guard;
 pub mod cdsp_early_worker_snapshot;
 pub mod cdsp_early_worker_final_calls;
 pub mod cdsp_early_worker_guard_exit;
+pub mod cdsp_early_worker_sync;
 pub mod cdsp_early_worker_privileged_state;
 pub mod cdsp_early_worker_callbacks;
 pub mod cdsp_early_worker_command;
