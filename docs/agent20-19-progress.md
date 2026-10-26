@@ -715,3 +715,27 @@ new executable bytes are added. See
 - This remains based on the older-base preview `941c805…`, not true
   checkpoint 50. Bring the portable mbox to the integration owner for
   replay and rerun the complete CI gates there.
+
+## Agent 20-19 checkpoint 19 — narrow 4-entry and 18-record bank relocations
+
+- Rebuilt **764 more dependent DLM bytes**, using two independent source-bank
+  spans and two upper-bank destinations; **zero independently authored bytes**
+  added. Four bounded descriptor pointers shift their low 15-bit word indices
+  by `0x1000` between banks. In an adjacent 748-byte window, two u16 indices
+  shift by `0x10` in 16 of 18 narrow controller records; special records
+  8 and 9 remain identical. Other fields are copied from externally supplied
+  lower-bank data, never hardcoded from OEM payloads.
+- New dependent destinations `[0x29220,0x29230)` and `[0x29460,0x2974c)`
+  are disjoint from preexisting mirrors/aliases/relocations and source data.
+  Their file offsets and SRAM mapping (file minus `0x2000`) are individually
+  checked. Both original lower-bank intervals remain **unknown source**, so
+  this does **not** count as source-level reconstruction.
+- Sparse DLM plan: **9,353 source-generated + 10,441 dependent + 29,758
+  external = 49,552** bytes, with **58 external ranges** and 40 additional
+  source/dependent cross-checks. Source-unknown DLM stays **40,199 bytes**.
+- The conditional reassembly, strict postmarketOS hash check, CRC-32/MPEG-2,
+  DLM mirror, independent Python model, and external-seed/malformed-input
+  regressions must continue passing before promotion to integration.
+- See `docs/agent20-19-dlm-narrow-bank-relocation.md` for evidence, complete
+  transformations, failure cases, and reproducible commands. Branch still
+  derives from old integration preview, not checkpoint-50.

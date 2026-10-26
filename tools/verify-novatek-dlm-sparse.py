@@ -44,6 +44,43 @@ SMALL_COPIES=tuple(
 assert len(SMALL_COPIES)==60
 SMALL_MUTABLE_MIDDLES=tuple(SMALL_RECORD_START+i*SMALL_RECORD_BYTES+24
                             for i in range(30))
+# Two previously unknown narrow-layout control windows can be generated from
+# externally supplied matching lower-bank records, without source credit.
+NARROW_BANK_DELTA=0x4000
+NARROW_DIRECTORY_START=0x25220
+NARROW_DIRECTORY_BYTES=16
+NARROW_WINDOW_START=0x25460
+NARROW_WINDOW_END=0x2574c
+NARROW_RECORD_START=0x254a0
+NARROW_RECORD_STRIDE=40
+NARROW_RECORD_COUNT=18
+NARROW_SKIP_RECORDS=frozenset((8,9))
+NARROW_DEPENDENCIES=((NARROW_DIRECTORY_START,NARROW_DIRECTORY_BYTES),
+                     (NARROW_WINDOW_START,NARROW_WINDOW_END-NARROW_WINDOW_START))
+assert sum(n for _,n in NARROW_DEPENDENCIES)==764
+
+def relocate_narrow_window(start,src):
+    if (start,len(src)) not in NARROW_DEPENDENCIES:
+        raise ValueError('invalid narrow DLM bank window or length')
+    data=bytearray(src)
+    if start==NARROW_DIRECTORY_START:
+        for at in range(0,NARROW_DIRECTORY_BYTES,4):
+            value=int.from_bytes(data[at:at+4],'little')
+            low=value & 0x7fff
+            if low+0x1000>0x7fff:raise ValueError('directory 15-bit index relocation overflows')
+            value=(value&~0x7fff)|(low+0x1000)
+            data[at:at+4]=value.to_bytes(4,'little')
+    else:
+        for i in range(NARROW_RECORD_COUNT):
+            at=NARROW_RECORD_START-NARROW_WINDOW_START+i*NARROW_RECORD_STRIDE
+            if at+4>len(data):raise ValueError('narrow record out of range')
+            if i in NARROW_SKIP_RECORDS:continue
+            for off in (0,2):
+                original=int.from_bytes(data[at+off:at+off+2],'little')
+                if original+0x10>0xffff:raise ValueError('narrow u16 relocation overflows')
+                data[at+off:at+off+2]=(original+0x10).to_bytes(2,'little')
+    return bytes(data)
+
 assert len(SMALL_MUTABLE_MIDDLES)==30
 
 def relocate_middle(record,src):
@@ -76,6 +113,8 @@ def destinations():
         yield start+RECORD_BANK_DELTA,n
     for start in SMALL_MUTABLE_MIDDLES:
         yield start+RECORD_BANK_DELTA,7
+    for start,n in NARROW_DEPENDENCIES:
+        yield start+NARROW_BANK_DELTA,n
     yield PROFILE[2],PROFILE[1]-PROFILE[0]
     yield SIGNATURE[1],SIGNATURE[2]
 
@@ -143,6 +182,8 @@ def rebuild(fragments,seeds):
     for start,n in SMALL_COPIES:place(start+RECORD_BANK_DELTA,read(start,start+n),2)
     for record,start in enumerate(SMALL_MUTABLE_MIDDLES):
         place(start+RECORD_BANK_DELTA,relocate_middle(record,read(start,start+7)),2)
+    for start,n in NARROW_DEPENDENCIES:
+        place(start+NARROW_BANK_DELTA,relocate_narrow_window(start,read(start,start+n)),2)
     first,last,target=PROFILE
     place(target,read(first,last),2)
     first,target,n=SIGNATURE

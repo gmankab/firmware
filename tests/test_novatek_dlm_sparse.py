@@ -19,9 +19,9 @@ class SparseDlmTests(unittest.TestCase):
         self.assertEqual(len(out),m.DLM_SIZE)
         # Nine relocated word indices per each of 21 large descriptors
         # and two shifted indices in 29 small records, plus eight mode flags.
-        self.assertEqual(sum(x!=0 for x in out),9*21+2*29+8)
+        self.assertEqual(sum(x!=0 for x in out),9*21+2*29+8+4+2*(18-2))
         self.assertEqual(int.from_bytes(out[0x26a64+0x48-m.DLM_START:0x26a64+0x4a-m.DLM_START],"little"),0x1000)
-        self.assertEqual(kinds[2],9717)
+        self.assertEqual(kinds[2],10481)
         self.assertEqual(checks,0)
     def test_reject_missing_extra_duplicate_and_wrong_range(self):
         for seeds in (self.seeds[:-1],self.seeds+self.seeds[-1:],
@@ -81,6 +81,35 @@ class SparseDlmTests(unittest.TestCase):
                          b'\x20\x07\x30\x07\xaa\xbb\xfa')
         with self.assertRaisesRegex(ValueError,'overflows'):
             m.relocate_middle(1,b'\xff\xff\x00\x00\x00\x00\x00')
+
+    def test_narrow_bank_directory_and_controller_index_geometry(self):
+        self.assertEqual(sum(n for _,n in m.NARROW_DEPENDENCIES),764)
+        source=(0xc8c,0xcaf,0xcd2,0xcf5)
+        first=b''.join(a.to_bytes(4,'little') for a in source)
+        second=m.relocate_narrow_window(m.NARROW_DIRECTORY_START,first)
+        self.assertEqual(tuple(int.from_bytes(second[i:i+4],'little')
+                               for i in range(0,16,4)),tuple(x+0x1000 for x in source))
+        self.assertEqual(tuple(m.DLM_START+4*x for x in source),
+                         tuple(0x25230+0x8c*i for i in range(4)))
+        with self.assertRaisesRegex(ValueError,'overflows'):
+            m.relocate_narrow_window(m.NARROW_DIRECTORY_START,
+                                    (0x7fff).to_bytes(4,'little')*4)
+        with self.assertRaises(ValueError):
+            m.relocate_narrow_window(0,first)
+    def test_narrow_record_bank_shift_and_exempt_records(self):
+        original=bytearray([0xa5]*(m.NARROW_WINDOW_END-m.NARROW_WINDOW_START))
+        for i in range(m.NARROW_RECORD_COUNT):
+            at=m.NARROW_RECORD_START-m.NARROW_WINDOW_START+i*40
+            original[at:at+4]=bytes((7,0,15,0))
+        restored=m.relocate_narrow_window(m.NARROW_WINDOW_START,original)
+        for i in range(m.NARROW_RECORD_COUNT):
+            at=m.NARROW_RECORD_START-m.NARROW_WINDOW_START+i*40
+            self.assertEqual(restored[at:at+4],bytes((7,0,15,0)) if i in (8,9) else bytes((23,0,31,0)))
+        self.assertEqual(restored[:0x40],bytes(original[:0x40]))
+        with self.assertRaises(ValueError):m.relocate_narrow_window(m.NARROW_WINDOW_START,original[:-1])
+        self.assertTrue(all(not any(a<=base+m.NARROW_BANK_DELTA+i<b for a,b in self.holes)
+                            for base,n in m.NARROW_DEPENDENCIES
+                            for i in range(n) if base+m.NARROW_BANK_DELTA+i<m.DLM_END))
 
     def test_range_bounds_and_derived_table_no_source_credit(self):
         with self.assertRaisesRegex(ValueError,'out-of-bounds'):m.plan([(m.DLM_START-1,b'\0')])
