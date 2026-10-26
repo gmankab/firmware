@@ -442,3 +442,11 @@ python3 -m unittest discover -s tests -p 'test_*.py'
 - Pinned modem reference SHA-256: `6f5cb32bc10e41abb40938d185805e788f5637a41d3ebcef278e4e169fc36782`. Entire new fragment SHA-256: `1ddc0cce396e172a14eedf882d3f32f6233503be61c9d429a243c0dbcda343db`; byte mismatches **zero**. RWE virtual/physical mappings are `[0xc0841920,0xc0841a0c)` / `[0x8e041920,0x8e041a0c)`.
 - Source code in the previously completed `[0x38108,0x390dc)` exception island remains separate; the intervening `[0x390dc,0x39920)` data/fill gap is **not** counted as reconstructed executable bytes.
 - Verification: **169 Rust tests, 42 Python tests, locked offline release build pass**. The next independent function starts at file `0x39a0c` and copies a protected exception register bank.
+
+## Checkpoint 55 — Protected exception-frame republication
+
+- New function `[file 0x39a0c,0x39ad4)` contributes **200 source-assembled Hexagon V60 executable bytes**, producing a contiguous **436-byte** independently rebuilt second RWE island `[file 0x39920,0x39ad4)`. The physical mapping is `[0x8e041920,0x8e041ad4)` and virtual `[0xc0841920,0xc0841ad4)`.
+- Copies four controller frame pointer pairs, captures P3:0, USR, GP/UGP, SA0/SA1/LC0/LC1, M0/M1, CS0/CS1, CCR, C17:16, SSR, ELR, BADVA and STID into a second exception-frame layout. The original `jumpr lr` terminates this function. Five privileged scalar S-register and one C-register pair selectors are sourced from typed, operand-validated Hexagon architectural macros; they are not copied firmware instruction words.
+- Entire `[0x39920,0x39ad4)` fragment independently assembles through LLVM 6 with **no packet normalization**, SHA-256 `315e8ab2bc773515176b68bda1b67ff51a6e7017d2512a4ab360a7a383d8de74` and **zero mismatches** against pinned `modem.mbn` SHA-256 `6f5cb32bc10e41abb40938d185805e788f5637a41d3ebcef278e4e169fc36782`.
+- Tests: **169 Rust**, **42 Python** and the locked offline **release build** pass. The preceding RWE island `[0x38108,0x390dc)` and non-source data/fill gap `[0x390dc,0x39920)` stay separate and are not counted twice.
+- Next unbuilt code begins at modem file `0x39ad4`, where the source contains a `crswap` controller-register helper.

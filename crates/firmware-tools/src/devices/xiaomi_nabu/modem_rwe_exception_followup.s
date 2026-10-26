@@ -97,3 +97,71 @@ MODEM_FU_SYS_READ 28,35,3
 MODEM_FU_CONFIG_WRITE 4,19,1 // P3:0
 { r28 = r18 }
 { dealloc_return }
+// Republish a suspended hardware thread's register snapshot into the next
+// exception frame record. Each pair is a source-described Hexagon packet.
+// Fixed architectural special-register fields encode A32-unrecognized reads.
+.macro MODEM_FU_Y_READ gpr, yreg, marker=1
+    .if (\gpr < 0) || (\gpr > 31) || (\yreg < 0) || (\yreg > 31)
+      .error "invalid Hexagon Y-register operand"
+    .endif
+    .if (\marker < 1) || (\marker > 3)
+      .error "invalid Hexagon Y-register packet marker"
+    .endif
+    .word (0x6a000000 | (\yreg<<16) | (\marker<<14) | \gpr)
+.endm
+.macro MODEM_FU_CONTROL_PAIR_READ gpr_low, creg_low, marker=3
+    .if (\gpr_low < 0) || (\gpr_low > 30) || (\gpr_low & 1) || (\creg_low < 0) || (\creg_low > 30) || (\creg_low & 1)
+      .error "invalid Hexagon C-register pair"
+    .endif
+    .if (\marker < 1) || (\marker > 3)
+      .error "invalid C-register packet marker"
+    .endif
+    .word (0x68000000 | (\creg_low<<16) | (\marker<<14) | \gpr_low)
+.endm
+.globl agent11_modem_rwe_republish_controller_frame
+agent11_modem_rwe_republish_controller_frame:
+{ r3:2 = memd(r0+#56); memd(r1+#8) = r3:2 }
+{ r3:2 = memd(r0+#80); memd(r1+#0) = r3:2 }
+{ r3:2 = memd(r0+#72); memd(r1+#120) = r3:2 }
+{ r3:2 = memd(r0+#64); memd(r1+#112) = r3:2 }
+MODEM_FU_Y_READ 2,4,1 // saved P3:0
+{ memd(r1+#72) = r3:2 }
+MODEM_FU_Y_READ 3,8,1 // USR
+{ memd(r1+#104) = r27:26 }
+MODEM_FU_Y_READ 2,11,1 // GP
+{ memd(r1+#168) = r3:2 }
+MODEM_FU_Y_READ 3,10,1 // UGP
+{ memd(r1+#96) = r25:24 }
+MODEM_FU_Y_READ 2,0,1 // SA0
+{ memd(r1+#136) = r3:2 }
+MODEM_FU_Y_READ 3,1,1 // LC0
+{ memd(r1+#88) = r23:22 }
+MODEM_FU_Y_READ 2,2,1 // SA1
+{ memd(r1+#144) = r3:2 }
+MODEM_FU_Y_READ 3,3,1 // LC1
+{ memd(r1+#80) = r21:20 }
+MODEM_FU_Y_READ 2,6,1 // M0
+{ memd(r1+#152) = r3:2 }
+MODEM_FU_Y_READ 3,7,1 // M1
+{ memd(r1+#64) = r17:16 }
+{ memd(r1+#160) = r3:2 }
+MODEM_FU_Y_READ 2,12,1 // CS0
+{ memd(r1+#56) = r15:14 }
+MODEM_FU_Y_READ 3,13,1 // CS1
+{ memd(r1+#48) = r13:12 }
+{ memd(r1+#184) = r3:2 }
+MODEM_FU_SYS_READ 2,7,1 // CCR, late V60 control register selector
+{ memd(r1+#40) = r11:10 }
+{ memw(r1+#192) = r2 }
+{ memd(r1+#32) = r9:8 }
+{ memd(r1+#24) = r7:6 }
+{ memd(r1+#16) = r5:4 }
+MODEM_FU_CONTROL_PAIR_READ 2,16,3 // C17:16
+{ memd(r1+#216) = r3:2 }
+MODEM_FU_SYS_READ 3,6,3 // SSR
+MODEM_FU_SYS_READ 2,3,3 // ELR
+{ memd(r1+#128) = r3:2 }
+MODEM_FU_SYS_READ 2,9,3 // BADVA
+MODEM_FU_SYS_READ 3,2,3 // STID
+{ r3:2 = memd(r1+#8); memd(r1+#176) = r3:2 }
+{ jumpr lr }
