@@ -44,6 +44,73 @@ class ModemLateTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError,'16 source-assembled bytes'):
             agent12.restore_aux_large_controller_phase13_gap_packet(bytes(12))
 
+    def test_phase22_extender_and_predicated_branch_packet_reconstruction(self):
+        self.assertEqual((agent12.AUX_LARGE_CONTROLLER_PHASE22_START,
+                          agent12.AUX_LARGE_CONTROLLER_PHASE22_END),
+                         (0x4480b8,0x448104))
+        text=agent12.AUX_LARGE_CONTROLLER_PHASE22_SOURCE.read_text()
+        self.assertIn('p0 = r2',text)
+        self.assertIn('if (!p0.new) jump:t error_message',text)
+        self.assertIn('call trace_sink',text)
+        for fragment in ('.word','.byte','.incbin'):
+            self.assertNotIn(fragment,text)
+        w=[0x7800c000]*19
+        i=0x30//4
+        w[i:i+3]=[(0x5c<<24)|agent12.CONTINUE_MARKER|0x1812,
+                  (0x01<<24)|agent12.CONTINUE_MARKER|0x0414,
+                  (0x7e<<24)|agent12.END_MARKER|0x21c3]
+        out=struct.unpack('<19I',agent12.restore_aux_large_controller_phase22_diagnostic_packets(
+            struct.pack('<19I',*w)))
+        self.assertEqual(out[i:i+3],
+            ((w[i+1]&~agent12.MARKER_MASK)|agent12.CONTINUE_MARKER,
+             (w[i+2]&~agent12.MARKER_MASK)|agent12.CONTINUE_MARKER,
+             (w[i]&~agent12.MARKER_MASK)|agent12.END_MARKER))
+        for offset,altered,error in [
+            (i,0x78005812,'opcode classes'),
+            (i,0x5c205813,'operands'),
+            (i+1,0x01e44415,'operands'),
+            (i+2,0x7e80e1c2,'operands'),
+            (i,0x5c20d812,'packet markers'),
+            (i+2,0x7e8061c3,'packet markers'),
+        ]:
+            corrupt=w.copy();corrupt[offset]=altered
+            with self.assertRaisesRegex(ValueError,error):
+                agent12.restore_aux_large_controller_phase22_diagnostic_packets(
+                    struct.pack('<19I',*corrupt))
+        with self.assertRaisesRegex(ValueError,'76 bytes'):
+            agent12.restore_aux_large_controller_phase22_diagnostic_packets(bytes(72))
+
+    def test_phase23_memory_store_then_load_packet(self):
+        self.assertEqual((agent12.AUX_LARGE_CONTROLLER_PHASE23_START,
+                          agent12.AUX_LARGE_CONTROLLER_PHASE23_END),
+                         (0x448104,0x448138))
+        text=agent12.AUX_LARGE_CONTROLLER_PHASE23_SOURCE.read_text()
+        self.assertIn('memw(r29+#80) = r26',text)
+        self.assertIn('r2 = memw(r17+#28)',text)
+        for fragment in ('.word','.byte','.incbin'):
+            self.assertNotIn(fragment,text)
+        w=[0x7800c000]*13
+        i=0x1c//4
+        w[i]=(0xa1<<24)|(29<<16)|(26<<8)|20|agent12.END_MARKER
+        w[i+1]=(0x91<<24)|(17<<16)|2|agent12.END_MARKER
+        original=struct.pack('<13I',*w)
+        converted=list(struct.unpack('<13I',
+            agent12.restore_aux_large_controller_phase23_descriptor_packet(original)))
+        self.assertEqual(converted[i],(w[i]&~agent12.MARKER_MASK)|agent12.CONTINUE_MARKER)
+        self.assertEqual(converted[i+1],w[i+1])
+        for off,changed,error in [
+            (i,0x7800c000,'store opcode/operands'),
+            (i,0xa19dda15,'store opcode/operands'),
+            (i+1,0x7800c000,'load opcode/operands'),
+            (i,0xa19d5a14,'packet markers'),
+        ]:
+            corrupt=w.copy();corrupt[off]=changed
+            with self.assertRaisesRegex(ValueError,error):
+                agent12.restore_aux_large_controller_phase23_descriptor_packet(
+                    struct.pack('<13I',*corrupt))
+        with self.assertRaisesRegex(ValueError,'52 bytes'):
+            agent12.restore_aux_large_controller_phase23_descriptor_packet(bytes(48))
+
     def test_phase21_joins_source_zero_and_register_pair_packet(self):
         self.assertEqual((agent12.AUX_LARGE_CONTROLLER_PHASE21_START,
                           agent12.AUX_LARGE_CONTROLLER_PHASE21_END),
@@ -1278,8 +1345,8 @@ class ModemLateTests(unittest.TestCase):
         a = agent12.output_fragments(Path(os.environ["NABU_HEXAGON_LLVM_MC"]))
         self.assertEqual({k: len(v) for k, v in a.items()},
                          {0x7C000:160, 0x7C2EC:452,
-                          0x446000:agent12.AUX_LARGE_CONTROLLER_PHASE21_END-agent12.AUX_START})
-        self.assertEqual(sum(map(len,a.values())),agent12.AUX_LARGE_CONTROLLER_PHASE21_END - agent12.AUX_START + 612)
+                          0x446000:agent12.AUX_LARGE_CONTROLLER_PHASE23_END-agent12.AUX_START})
+        self.assertEqual(sum(map(len,a.values())),agent12.AUX_LARGE_CONTROLLER_PHASE23_END - agent12.AUX_START + 612)
         self.assertEqual(a[0x446000][0x0d8:0x200],agent12.emit_auxiliary_elf_symbols())
         self.assertEqual(a[0x446000][0x254:0x260],bytes(12))
         self.assertEqual(a[0x446000][0x1448:0x1460],
