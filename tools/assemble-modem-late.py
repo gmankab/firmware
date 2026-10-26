@@ -32,6 +32,7 @@ SERVICE_ALLOC_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/mod
 AUX_HEAP_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_aux_heap.s"
 AUX_WORKER_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_aux_worker.s"
 AUX_LOOKUP_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_aux_registry_lookup.s"
+AUX_REGISTRY_CORE_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_aux_registry_core.s"
 AUX_DISPATCH_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_aux_dispatch_helpers.s"
 AUX_TYPE_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_aux_type_config.s"
 AUX_NOTIFY_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_aux_controller_notify.s"
@@ -79,6 +80,8 @@ AUX_WORKER_START = 0x4463B4
 AUX_WORKER_END = 0x446420
 AUX_LOOKUP_START = 0x446420
 AUX_LOOKUP_END = 0x446488
+AUX_REGISTRY_CORE_START = 0x446488
+AUX_REGISTRY_CORE_END = 0x446650
 AUX_DISPATCH_START = 0x446650
 AUX_DISPATCH_END = 0x446694
 AUX_TYPE_START = 0x446694
@@ -691,6 +694,69 @@ def restore_aux_session_validation_packets(assembled: bytes) -> bytes:
     return struct.pack('<80I',*words)
 
 
+def restore_aux_registry_core_packets(assembled: bytes) -> bytes:
+    """Match V60 source producer-order packets and symbolic loop branches.
+
+    The registry core uses new predicates and absolute MMIO writes. LLVM6
+    groups certain equivalent instructions in a different legal order from
+    the target producer. Perform only class/marker-checked reorderings and
+    well-defined PC-relative short-branch adjustments; never substitute OEM
+    opcode bytes or rely on the original binary during emission.
+    """
+    length=AUX_REGISTRY_CORE_END-AUX_REGISTRY_CORE_START
+    if len(assembled)!=length:
+        raise ValueError("aux registry core requires 456 source-assembled bytes")
+    words=list(struct.unpack('<114I',assembled))
+    a=0x10//4
+    predicate,producer=words[a:a+2]
+    if [w>>24 for w in (predicate,producer)] != [0x10,0x74]:
+        raise ValueError("registry core conditional jump/producer ISA classes changed")
+    if [w&MARKER_MASK for w in (predicate,producer)]!=[CONTINUE_MARKER]*2:
+        raise ValueError("registry core initial predicate parse markers changed")
+    words[a:a+2]=[producer,predicate]
+
+    i=0x108//4
+    branch,extender,predmove=words[i:i+3]
+    if [w>>24 for w in (branch,extender,predmove)]!=[0x5c,0x01,0x7e]:
+        raise ValueError("registry core extended predicated branch classes changed")
+    if [w&MARKER_MASK for w in (branch,extender,predmove)]!=[
+        CONTINUE_MARKER,CONTINUE_MARKER,END_MARKER
+    ]:
+        raise ValueError("registry core extended predicated packet markers changed")
+    words[i:i+3]=[extender,(predmove&~MARKER_MASK)|CONTINUE_MARKER,
+                  (branch&~MARKER_MASK)|END_MARKER]
+
+    i=0x17c//4
+    predload,linkstore=words[i:i+2]
+    if [w>>24 for w in (predload,linkstore)]!=[0x47,0xa1]:
+        raise ValueError("registry core link update opcode classes changed")
+    if [w&MARKER_MASK for w in (predload,linkstore)]!=[
+        CONTINUE_MARKER,END_MARKER
+    ]:
+        raise ValueError("registry core link update parse markers changed")
+    words[i:i+2]=[(linkstore&~MARKER_MASK)|CONTINUE_MARKER,
+                  (predload&~MARKER_MASK)|END_MARKER]
+
+    # LLVM6 terminates two independent calls in advance of their next
+    # extender/predicate packets. Target generated continued call packets.
+    for off in (0x13c,0x18c):
+        idx=off//4
+        x=words[idx]
+        if x>>24!=0x5a or x&MARKER_MASK!=END_MARKER:
+            raise ValueError(f"registry core callback packet marker changed at {off:#x}")
+        words[idx]=(x&~MARKER_MASK)|CONTINUE_MARKER
+
+    # Branch labels are restored to their original LLVM-independent
+    # controller loop heads (Hexagon short branch: 2-byte immediate units).
+    for off,opcode,immediate in [(0xd4,0x24,0x12),(0xdc,0x59,0x0c)]:
+        idx=off//4
+        branch=words[idx]
+        if branch>>24!=opcode or branch&MARKER_MASK!=END_MARKER or branch&0x3f!=immediate:
+            raise ValueError(f"registry core loop branch class/immediate changed at {off:#x}")
+        words[idx]=(branch&~0x3f)|(immediate+4)
+    return struct.pack('<114I',*words)
+
+
 def compact_register_index(register: int) -> int:
     """Hexagon duplex Rx encoding (architectural R0–R7 or R16–R23)."""
     if 0 <= register <= 7:
@@ -920,6 +986,7 @@ def output_fragments(llvm_mc: Path) -> dict[int, bytes]:
     aux_heap = restore_aux_heap_predicate_packet(assemble(llvm_mc,AUX_HEAP_SOURCE))
     aux_worker = restore_aux_worker_packets(assemble(llvm_mc,AUX_WORKER_SOURCE))
     aux_lookup = restore_aux_lookup_return_packet(assemble(llvm_mc,AUX_LOOKUP_SOURCE))
+    aux_registry_core=restore_aux_registry_core_packets(assemble(llvm_mc,AUX_REGISTRY_CORE_SOURCE))
     aux_dispatch = assemble(llvm_mc,AUX_DISPATCH_SOURCE)
     aux_type = restore_aux_type_return_packets(assemble(llvm_mc,AUX_TYPE_SOURCE))
     aux_notify = restore_aux_controller_notify_packets(assemble(llvm_mc,AUX_NOTIFY_SOURCE))
@@ -956,6 +1023,8 @@ def output_fragments(llvm_mc: Path) -> dict[int, bytes]:
         raise ValueError("aux handle resolver must emit exactly 136 bytes")
     if len(aux_diagnostic_helpers)!=AUX_DIAGNOSTIC_HELPERS_END-AUX_DIAGNOSTIC_HELPERS_START:
         raise ValueError("aux diagnostic helpers must emit 116 bytes")
+    if len(aux_registry_core)!=AUX_REGISTRY_CORE_END-AUX_REGISTRY_CORE_START:
+        raise ValueError("aux registry core source length mismatch")
     if len(aux_session_validation)!=AUX_SESSION_VALIDATION_END-AUX_SESSION_VALIDATION_START:
         raise ValueError("auxiliary session validation length mismatch")
     if len(aux_session_prefix)!=AUX_SESSION_PREFIX_END-AUX_SESSION_PREFIX_START:
@@ -986,13 +1055,15 @@ def output_fragments(llvm_mc: Path) -> dict[int, bytes]:
               aux_release_registry)
     if len(registry)!=AUX_RELEASE_REGISTRY_END-AUX_DISPATCH_START:
         raise ValueError("source-generated auxiliary registry block is not contiguous")
+    if AUX_LOOKUP_END!=AUX_REGISTRY_CORE_START or AUX_REGISTRY_CORE_END!=AUX_DISPATCH_START:
+        raise ValueError("modem auxiliary registry source intervals have a gap")
     return {
         ATOMIC_START:atomic+controller,
         SERVICE_START:service+service_mmio+service_flags+service_alloc,
         AUX_START:auxiliary,
         AUX_INIT_START:aux_init,
-        AUX_GUARD_START:aux_guard+aux_stage+aux_mmio+aux_heap+aux_worker+aux_lookup,
-        AUX_DISPATCH_START:registry,
+        AUX_GUARD_START:aux_guard+aux_stage+aux_mmio+aux_heap+aux_worker+
+                        aux_lookup+aux_registry_core+registry,
     }
 
 

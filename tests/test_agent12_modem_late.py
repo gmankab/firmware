@@ -226,6 +226,46 @@ class ModemLateTests(unittest.TestCase):
         self.assertNotIn(".word",source)
         self.assertEqual(agent12.AUX_ENTRY_END-agent12.AUX_ENTRY_START,20)
 
+    def test_aux_registry_core_rearrangements_reject_other_packets(self):
+        source=agent12.AUX_REGISTRY_CORE_SOURCE.read_text()
+        self.assertIn('if (!p0.new) r0 = add(r16,#0)',source)
+        self.assertIn('memw(##507617076) = r16',source)
+        self.assertIn('dealloc_return',source)
+        self.assertNotIn('.word',source)
+        self.assertEqual(agent12.AUX_LOOKUP_END,agent12.AUX_REGISTRY_CORE_START)
+        self.assertEqual(agent12.AUX_REGISTRY_CORE_END,agent12.AUX_DISPATCH_START)
+        words=[0x7800c000]*114
+        words[0x10//4:0x18//4]=[0x10486022,0x74906000]
+        words[0x108//4:0x114//4]=[0x5c205812,0x01e44407,0x7e80e763]
+        words[0x17c//4:0x184//4]=[0x479044e2,0xa183c204]
+        for off,raw in [(0xd4,0x2432c0d2),(0xdc,0x59ffffcc),
+                        (0x13c,0x5a00def4),(0x18c,0x5a00c74e)]:
+            words[off//4]=raw
+        binary=struct.pack('<114I',*words)
+        rebuilt=struct.unpack('<114I',agent12.restore_aux_registry_core_packets(binary))
+        self.assertEqual([x>>24 for x in rebuilt[0x10//4:0x18//4]],[0x74,0x10])
+        self.assertEqual([x>>24 for x in rebuilt[0x108//4:0x114//4]],[0x01,0x7e,0x5c])
+        self.assertEqual([x>>24 for x in rebuilt[0x17c//4:0x184//4]],[0xa1,0x47])
+        self.assertEqual(rebuilt[0xd4//4]&0x3f,0x16)
+        self.assertEqual(rebuilt[0xdc//4]&0x3f,0x10)
+        self.assertEqual(rebuilt[0x13c//4]&agent12.MARKER_MASK,agent12.CONTINUE_MARKER)
+        self.assertEqual(rebuilt[0x18c//4]&agent12.MARKER_MASK,agent12.CONTINUE_MARKER)
+        for off,modified,pattern in [
+            (0x10,0x78004022,'classes'),
+            (0x14,0x7490c000,'parse markers'),
+            (0x108,0x78004012,'classes'),
+            (0x10c,0x01e4c407,'packet markers'),
+            (0x17c,0x780044e2,'classes'),
+            (0x180,0xa1834204,'parse markers'),
+            (0x13c,0x5a005ef4,'packet marker'),
+            (0xd4,0x2432c0d6,'branch class/immediate'),
+        ]:
+            bad=words.copy();bad[off//4]=modified
+            with self.assertRaisesRegex(ValueError,pattern):
+                agent12.restore_aux_registry_core_packets(struct.pack('<114I',*bad))
+        with self.assertRaisesRegex(ValueError,'456 source-assembled bytes'):
+            agent12.restore_aux_registry_core_packets(binary[:-4])
+
     def test_public_framekey_encoding_and_parser_layout(self):
         # This tests an ISA class with multiple independently decoded GPRs,
         # rather than embedding the firmware's four-byte instruction word.
@@ -607,7 +647,7 @@ class ModemLateTests(unittest.TestCase):
         self.assertEqual(rebuilt[i+1]&0x3f,0x20)
         self.assertEqual(rebuilt[j]&agent12.MARKER_MASK,agent12.CONTINUE_MARKER)
         bad=words.copy();bad[i+1]=0x7800c01e
-        with self.assertRaisesRegex(ValueError,'ISA classes'):
+        with self.assertRaisesRegex(ValueError,'classes'):
             agent12.restore_aux_worker_packets(struct.pack('<27I',*bad))
         bad=words.copy();bad[i+1]=0x5800c022
         with self.assertRaisesRegex(ValueError,'PC-relative'):
@@ -750,13 +790,14 @@ class ModemLateTests(unittest.TestCase):
         a = agent12.output_fragments(Path(os.environ["NABU_HEXAGON_LLVM_MC"]))
         self.assertEqual({k: len(v) for k, v in a.items()},
                          {0x7C000:160, 0x7C2EC:452, 0x446000:216,
-                          0x446200:84, 0x446260:552, 0x446650:3576})
-        self.assertEqual(sum(map(len,a.values())),5040)
+                          0x446200:84, 0x446260:4584})
+        self.assertEqual(sum(map(len,a.values())),5496)
+        self.assertNotIn(agent12.AUX_DISPATCH_START,a)
         self.assertNotIn(agent12.AUX_SESSION_VALIDATION_START,a)
         self.assertNotIn(agent12.AUX_SESSION_REGISTRY_START,a)
         self.assertNotIn(agent12.AUX_INSERT_CONTROLLER_START,a)
-        k=agent12.AUX_SESSION_REGISTRY_START-agent12.AUX_DISPATCH_START
-        self.assertEqual(a[agent12.AUX_DISPATCH_START][k:k+4],
+        k=agent12.AUX_SESSION_REGISTRY_START-agent12.AUX_GUARD_START
+        self.assertEqual(a[agent12.AUX_GUARD_START][k:k+4],
                          agent12.assemble(Path(os.environ["NABU_HEXAGON_LLVM_MC"]),
                                           agent12.AUX_SESSION_REGISTRY_SOURCE)[:4])
         if os.getenv("NABU_MODEM_REFERENCE"):

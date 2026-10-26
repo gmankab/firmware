@@ -719,3 +719,30 @@ The next unclaimed auxiliary executable interval is
 `[file 0x446488,0x446650)` (456 bytes). Other much larger later-baseband
 code remains untouched. This checkpoint does not rebuild the whole modem,
 verify hardware execution, or create a Xiaomi-signed firmware.
+
+## Checkpoint 27 — Close the controller-core gap and join 4,584 bytes
+
+The remaining controller-core interval `[file 0x446488,0x446650)` is
+**456 independently source-assembled bytes**, VMA
+`[0x1e400488,0x1e400650)`. It begins with an 8-byte return veneer,
+contains an original 440-byte linked-controller/registry state machine
+`[0x446490,0x446648)`, and ends with **two explicit 4-byte NOPs** which
+are still source-encoded executable instructions, not inferred padding.
+Its code checks linked objects, runs registered callbacks, updates MMIO
+resource counters, and maintains the controller head pointer.
+
+LLVM6 groups several predicated register moves, linked controller loads,
+and loop branches in a different legal packet order. The checked
+`restore_aux_registry_core_packets` reconstructs the original Hexagon V60
+source ordering from independently assembled packet encodings, changing
+only validated opcode classes, two branch immediate fields, and packet
+parse markers. **All 456 new bytes match the SHA-256-pinned modem file.**
+
+As a result, the entire auxiliary segment `[file 0x446260,0x447448)`
+(VMA `[0x1e400260,0x1e401448)`) is one **4,584-byte contiguous,
+source-generated** executable fragment, rather than two disjoint regions.
+Total Agent 12 reconstruction is **5,496 byte-identical bytes** across
+five isolated intervals. The remaining gaps before this region are
+`[0x4460d8,0x446200)` (296 bytes) and `[0x446254,0x446260)` (12 bytes),
+plus the much larger later baseband code. No new OEM authentication is
+provided, and no hardware-boot equivalence is claimed.
