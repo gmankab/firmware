@@ -153,6 +153,7 @@ pub mod cdsp_early_worker_trap;
 pub mod cdsp_early_worker_idle;
 pub mod cdsp_early_worker_thread;
 pub mod cdsp_early_worker_guard;
+pub mod cdsp_early_worker_privileged_state;
 pub mod cdsp_early_worker_callbacks;
 pub mod cdsp_early_worker_command;
 pub mod cdsp_early_worker_decision;
