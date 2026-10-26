@@ -799,3 +799,17 @@ python3 -S tools/adsp-agent20-rwe-next-controller-state.py \
   --llvm-mc "$HEXAGON_LLVM_MC" --reference "$NABU_ADSP_REFERENCE" \
   --output /tmp/adsp-controller-state-132.bin
 ```
+
+## Checkpoint 40: K0-locked controller helpers and SSR/SGP0 getters `[0x10fe8,0x11088)`
+
+- Another **160 source-built executable bytes** match the pinned ADSP exactly, physical `[0x8be0dfe8,0x8be0e088)`; SHA-256 `9e233fd82b5fe05dea0d6b7e24c7b113737c8e03bef1c2384ad46e899a5926b0`.
+- Reconstructed the hardware K0-locked word compare/swap loop and two error returns, a separate K0-protected global busy-status setter, a small SSR status getter and SGP0 context forwarding. LLVM6 source assembles 33 ordinary words; **seven** privileged V66 SGP0/SSR/K0 operations are supplied by existing checked architecture encoders, at exact independently assembled `nop` sentinels. The original packet extender and `.new` predicate boundaries are preserved.
+- The original **8 zero bytes** `[0x11088,0x11090)` following these functions are linker fill, not independently generated instructions. Next code starts at `0x11090` and requires a new disjoint source fragment.
+- ADSP RWE source-derived executable coverage totals **5,408 bytes** in five disjoint regions: `[0x6030,0x6c6c)` (3,132), `[0x10330,0x10674)` (836), `[0x106e8,0x1084c)` (356), `[0x10c40,0x10eb4)` (628), and `[0x10ec0,0x11088)` (456). This does not count the 8-byte linker fill or earlier data/zeros.
+- Source: `tools/adsp-agent20-rwe-next-locked-controller.S`, checked emitter `.py`, regression tests. Not a complete ADSP, not OEM-signed, and not based on the missing checkpoint-50 integrated tree.
+
+```sh
+python3 -S tools/adsp-agent20-rwe-next-locked-controller.py \
+  --llvm-mc "$HEXAGON_LLVM_MC" --reference "$NABU_ADSP_REFERENCE" \
+  --output /tmp/adsp-locked-controller-160.bin
+```
