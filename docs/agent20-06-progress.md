@@ -790,3 +790,16 @@ python3 tools/agent20_06_a32_roundtrip.py /private/venus.mbn 0xa8ea0 0xa92c8 \
   ```
 
 - **254 Rust tests and 13 Python tests passed.** No completed release build is claimed. Next uncovered runtime `0xc47c8`, file `0xc87c8`. Still provisional from older Agent 03; no checkpoint-50-rooted integration, semantic behavior certification or new OEM signing.
+
+## Checkpoint 82 — codec frame-plane allocation span and packed metadata
+
+- Complete emitted Venus runtime `[0xa8000,0xc4b28)` = **117,544 byte-identical bytes**, file offsets `[0xac000,0xc8b28)` in the pinned reference.
+- New `[0xc47c8,0xc4b28)` = **864 bytes** (213 typed ARM instructions = 852 bytes, and three explicit diagnostic words = 12 bytes in `[0xc4b1c,0xc4b28)`). The bounded frame-plane scan updates controller size maxima, decodes packed input metadata and preserves conditional diagnostic returns.
+- Whole private-reference comparison found zero differing bytes. Independent Clang/LLVM reassembly matches all declared instructions and data:
+
+  ```sh
+  python3 tools/agent20_06_a32_roundtrip.py /private/venus.mbn 0xc47c8 0xc4b28 \
+    --data-range 0xc4b1c:0xc4b28
+  ```
+
+- **255 Rust tests, 13 Python tests passed**. No completed release build is claimed. The next uncovered runtime address is `0xc4b28`, MBN file `0xc8b28`. This work remains provisional older-Agent03-based and not newly OEM-signed; instruction-byte identity does not prove independent high-level software behavior.
