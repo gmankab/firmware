@@ -545,3 +545,11 @@ Original reference: private `map220v-nabu-firmware/venus.mbn`, SHA-256 `9d4af65d
 - Literal pools: `[0x35830,0x35878)` (18 handler pointers), `[0x35a2c,0x35a30)` (warning), `[0x35b2c,0x35b30)` (format), `[0x35be8,0x35bec)` (warning). No reference opcodes or unknown padding are imported into the typed output.
 - Both direct reference comparison and independent Clang/LLVM mnemonic reassembly pass for the entire newly generated 992-byte interval; SHA-256 of full fragment: `1e430261ad796d23c5033b4ee34b330fbbbca834c577e4c6ade0f4f98f9d8761`.
 - Next function starts at runtime `0x35bec`, still within Agent 20-03 `[0x21c78,0x40000)` reservation. This demonstrates operand-level binary equivalence, not a new high-level source implementation or OEM signing.
+
+## Checkpoint 81 — controller descriptor consumption and ring accounting
+
+- Contiguous typed ARM32 `[0x21c78,0x35ee4)` = **82,540 exact bytes**, source file `[0x25c78,0x39ee4)`.
+- New `[0x35bec,0x35ee4)` = **760 bytes**, **187 typed A32 instructions** and three explicitly modeled non-instruction MMIO/diagnostic address words at `[0x35d40,0x35d44)`, `[0x35df0,0x35df4)`, `[0x35ea0,0x35ea4)`.
+- Reconstructed descriptor pointer, queue count/index, callback synchronization, wraparound, 2D stride math, buffer deallocation/zeroing and fault-reporting helpers. The instructions are auditable public architecture encodings, not source-level proof of semantic equivalence.
+- Complete 82,540-byte emitter and standalone independent Clang/LLVM reassembly of the new 760 bytes report **zero mismatches** versus the original pinned Venus MBN. Generated-fragment SHA-256: `9e1261ae69b74219d6ba01d28d2179834b0b09ff6a91dfa2aa664a2a2304bcfa`.
+- Next runtime function begins at `0x35ee4`, below Agent 20-03's exclusive `0x40000` reservation boundary.
