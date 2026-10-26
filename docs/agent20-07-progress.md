@@ -893,3 +893,16 @@ python3 -S tools/adsp-agent20-rwe-next-controller-global-startup.py \
   --llvm-mc "$HEXAGON_LLVM_MC" --reference "$NABU_ADSP_REFERENCE" \
   --output /tmp/adsp-controller-global-startup-88.bin
 ```
+
+## Checkpoint 47: controller global MMIO initialization loop `[0x114a8,0x11548)`
+
+- Added **160 source-built, byte-identical executable bytes** from 40 ordinary Hexagon instruction words, file `[0x114a8,0x11548)` (physical `[0x8be0e4a8,0x8be0e548)`). No V66-only instruction replacement is required: LLVM6 assembles all packets, and independent Rizin decoding confirms their packet parse markers.
+- Source builds controller MMIO pointer and state layout, publishes multiple GP-relative status registers, initializes a bounded hardware context, and retries the startup callback using `.new` condition branches. Literal extenders are explicitly present in source, preserving the original four-instruction packet boundaries.
+- The complete **248-byte continuous controller-global prefix** `[0x11450,0x11548)` (checkpoint 46 + 47) is independently regenerated and compared byte-by-byte with the pinned ADSP reference. The function remains **incomplete** beyond `0x11548`; no imaginary return or missing executable bytes have been emitted.
+- Cumulative source-built ADSP RWE executable code is **6,496 bytes across eleven disjoint intervals**; separate OEM diagnostic strings and file-backed zero fill remain excluded. Git lineage still derives from the older Agent 04 branch, awaiting the checkpoint-50 integration tree.
+
+```sh
+python3 -S tools/adsp-agent20-rwe-next-controller-global-memory.py \
+  --llvm-mc "$HEXAGON_LLVM_MC" --reference "$NABU_ADSP_REFERENCE" \
+  --output /tmp/adsp-controller-global-memory-160.bin
+```
