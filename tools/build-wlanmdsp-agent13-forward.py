@@ -51,6 +51,9 @@ FRAGMENTS = (
     ('controller-report-status', SOURCE_DIR / 'agent13-runtime-controller-report-status.S', 0x6300, 0x80),
     ('controller-report-callbacks', SOURCE_DIR / 'agent13-runtime-controller-report-callbacks.S', 0x6380, 0x40),
     ('controller-register-updates', SOURCE_DIR / 'agent13-runtime-controller-register-updates.S', 0x63c0, 0x44),
+    ('controller-init-finalize', SOURCE_DIR / 'agent13-runtime-controller-init-finalize.S', 0x6404, 0xfc),
+    ('session-buffer-loop-start', SOURCE_DIR / 'agent13-runtime-session-buffer-loop-start.S', 0x6500, 0x100),
+    ('session-buffer-loop-body', SOURCE_DIR / 'agent13-runtime-session-buffer-loop-body.S', 0x6600, 0x100),
 )
 
 
@@ -187,7 +190,7 @@ def main():
         parent.check_reference(fragment,args.reference.read_bytes(),runtime_offset=START)
     args.output.parent.mkdir(parents=True,exist_ok=True)
     args.output.write_bytes(fragment)
-    report={'agent':13,'checkpoint':'34-disjoint',
+    report={'agent':13,'checkpoint':'35-disjoint',
             'source_base':'Agent 13 checkpoint 16 (7c730bf); checkpoint25 source unavailable',
             'is_checkpoint25_descendant':False,
             'file_start':FILE_BASE+START,'file_end':FILE_BASE+end,

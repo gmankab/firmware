@@ -19,10 +19,10 @@ class SourceOnlyForwardTests(unittest.TestCase):
     def test_manifest_exact_boundaries(self):
         m=module()
         self.assertEqual(m.START,0x568c)
-        self.assertEqual(m.validate_manifest(),0x6404)
+        self.assertEqual(m.validate_manifest(),0x6700)
         self.assertEqual(m.FILE_BASE+m.START,0x4568c)
-        self.assertEqual(m.FILE_BASE+m.validate_manifest(),0x46404)
-        self.assertEqual(sum(length for _,_,_,length in m.FRAGMENTS),3448)
+        self.assertEqual(m.FILE_BASE+m.validate_manifest(),0x46700)
+        self.assertEqual(sum(length for _,_,_,length in m.FRAGMENTS),4212)
 
     def test_validator_forbids_opaque_data_and_layout_holes(self):
         m=module()
@@ -122,6 +122,19 @@ class SourceOnlyForwardTests(unittest.TestCase):
         assert 'memw(r23+#896)' in asm
         assert 'r18 = memw(r29+#12)' in asm
         assert '##-1342151444' in fragments['controller-register-updates'][0].read_text()
+
+    def test_stage4_loop_and_extended_jump_are_source_defined(self):
+        m=module()
+        f={name:(path,off,size) for name,path,off,size in m.FRAGMENTS}
+        assert f['controller-init-finalize'][1:]==(0x6404,0xfc)
+        assert f['session-buffer-loop-start'][1:]==(0x6500,0x100)
+        assert f['session-buffer-loop-body'][1:]==(0x6600,0x100)
+        assert 'jump ##-0x534c' in f['controller-init-finalize'][0].read_text()
+        assert 'jump ##0x253c' in f['controller-init-finalize'][0].read_text()
+        asm=f['session-buffer-loop-start'][0].read_text()
+        assert 'r23 = #0' in asm and 'r19 = #0' in asm
+        assert 'call' in asm
+        assert 'if (cmp.eq(r3.new,#0))' in asm
 
     def test_structured_predicate_duplex_sources(self):
         m=module()

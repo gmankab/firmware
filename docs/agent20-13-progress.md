@@ -337,3 +337,11 @@ python3 tools/build-wlanmdsp-agent13.py /tmp/wlan-prefix-through-27a0.bin \
 - Cumulative **disjoint continuation** `[0x4568c,0x46404)` is **3,448 source-built Hexagon instruction bytes**, SHA-256 `30d978d596933ee81ae95bcb42859a7d6df25be324f9fa0814b4ca9ce020c616`, with **zero differences** against the pinned original. There are no external code bytes or padding in the new span.
 - Full 160 Rust and 35 executed Python tests passed (2 optional skipped). Offline release build passed and Git diff is clean.
 - Next missing packet starts file `0x46404` (VMA `0xb0006404`) within the controller routine. Still based on checkpoint 16; checkpoint17–25 ancestry is not included in this branch. Partial program cannot be flashed or newly authenticated.
+
+## Checkpoint 35 (disjoint) — controller finalization and session buffer iterator
+
+- Rebuilt **764 source-assembled instruction bytes** at `[file 0x46404,0x46700)` (VMA `[0xb0006404,0xb0006700)`), covering the completion of controller property publication, dependent controller callbacks and the beginning of a bounded session-buffer loop.
+- The far tail branch at `0x4645c` and extended duplex at `0x464ec` required explicit `##` immediates so LLVM6 retained original immediate extender words; no OEM opcode bytes imported. Controller status packet `0x46300` and zero-initialization packet `0x46538` required source-order adjustments to preserve the original load/store and duplex slot selection.
+- Three new packet sections `[0x46404,0x46500)`, `[0x46500,0x46600)`, `[0x46600,0x46700)` are built from original semantic Hexagon instructions, independently assembled and compared directly. Combined **disjoint continuation** `[0x4568c,0x46700)` totals **4,212 source-generated instruction bytes** and SHA-256 `8533db1c52db81827082f87c787bc667574cb46d3359f4fb48d6492abbb32fbf`; zero reference differences, zero external opaque bytes and zero filler inside this range.
+- All 160 Rust tests passed, as did 36 executed Python tests with two optional skips, offline release build and Git diff checks.
+- Next missing packet begins at file `0x46700`. The owning range ends at file `0x100000`, not yet complete. Branch history still starts from checkpoint 16; missing checkpoints 17–25 must be integrated before calling this a continuous source-built prefix from file `0x40000`.
