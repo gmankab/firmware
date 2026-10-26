@@ -723,3 +723,15 @@ python3 tools/agent20_06_a32_roundtrip.py /private/venus.mbn 0xa8ea0 0xa92c8 \
   ```
 
 - **248 Rust tests and 13 Python tests passed.** No successful new release build is claimed. Next uncovered runtime address `0xc32cc`, file offset `0xc72cc`. The branch is provisional and rooted in older Agent 03, not checkpoint-50-integrated or newly OEM-signed firmware. Byte equality of typed A32 encoding does not establish high-level functional equivalence or on-device behavior.
+
+## Checkpoint 77 — controller output register restoration
+
+- Contiguous source-encoded Venus ARM32 runtime `[0xa8000,0xc3574)` = **111,988 exact bytes**; original MBN offsets `[0xac000,0xc7574)`.
+- Newly reconstructed `[0xc32cc,0xc3574)` = **680 bytes of 170 typed ARM32 instructions**, no inline data pools. Two adjacent controller output paths restore the active register set and reset unused codec slots, retaining the hardware pointer state and the original `BX LR`/`POP {...,PC}` returns.
+- Full private-reference comparison confirmed all 111,988 bytes match. Independent Clang/LLVM reassembly of the new 680 instruction bytes reports zero differences:
+
+  ```sh
+  python3 tools/agent20_06_a32_roundtrip.py /private/venus.mbn 0xc32cc 0xc3574
+  ```
+
+- **249 Rust tests and 13 Python tests passed**. New release build not completed/claimed. A prior checkpoint-specific test was adjusted to assert coverage of its historical boundary (`>=`) rather than incorrectly demand a fixed whole-fragment size once extended. Next uncovered VMA `0xc3574`, original MBN file `0xc7574`. Provisional older-Agent03 branch; no OEM signing or high-level algorithmic source recovery claimed.
