@@ -1052,3 +1052,20 @@ python3 -S tools/adsp-agent20-rwe-next-global-record-complete.py \
   --llvm-mc "$HEXAGON_LLVM_MC" --reference "$NABU_ADSP_REFERENCE" \
   --output /tmp/adsp-global-record-complete-152.bin
 ```
+
+## Checkpoint 59: source-built controller-table initializer `[0x11ae0,0x11ba0)`
+
+- Independently authored **192 exact Hexagon V66 instruction bytes** beginning at file offset `0x11ae0` (physical `0x8be0eae0`) and ending at file `0x11ba0` (physical `0x8be0eba0`), SHA-256 `adb6fe0fe056064ec3686af3cb9c962bd9d25725abab6b9d6d705d072fe8c74d`.
+- The code reads shared controller memory, clears aligned record words and tail bytes with **two hardware loops**, writes four controller table arrays, then jumps to the platform finalizer. LLVM6 encodes all 48 scalar/duplex instruction words from mnemonic source. The single changed packet-end field at file `0x11b40` is an explicitly checked architecture **parse-field-only adjustment**: LLVM6 split the register-immediate packet just before its predicate-dependent duplex; no non-parse opcode bits or reference bytes are inserted.
+- Diagnostic string text `[0x119c0,0x11a11)` and the intervening file-backed zero fill up to `0x11ae0` are excluded from source-built executable coverage. This initializer is the first executable island after that data/fill section, so it is **disjoint** from the 256-byte global record initializer at `[0x118c0,0x119c0)`.
+- Cumulative independently generated ADSP RWE executable source: **7,812 bytes across fifteen disjoint intervals** (7,620+192). The following function starts at `0x11ba0`; the rest of the RWE segment and OEM authentication remain unreconstructed.
+
+Reproduce with the pinned original ADSP reference (only required for verification):
+
+```sh
+HEXAGON_LLVM_MC=/path/to/llvm6/bin/llvm-mc
+NABU_ADSP_REFERENCE=/private/adsp.mbn
+python3 -S tools/adsp-agent20-rwe-next-controller-table-init.py \
+  --llvm-mc "$HEXAGON_LLVM_MC" --reference "$NABU_ADSP_REFERENCE" \
+  --output /tmp/adsp-controller-table-init-192.bin
+```
