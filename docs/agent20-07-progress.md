@@ -1027,3 +1027,15 @@ python3 -S tools/adsp-agent20-rwe-next-sram-state-publish-leaf.py \
   --llvm-mc "$HEXAGON_LLVM_MC" --reference "$NABU_ADSP_REFERENCE" \
   --output /tmp/adsp-sram-publish-leaf-32.bin
 ```
+
+## Checkpoint 57: global controller record initialization prefix `[0x118c0,0x11928)`
+
+- Rebuilt **104 V66 instruction bytes** at file `[0x118c0,0x11928)`, physical `[0x8be0e8c0,0x8be0e928)`, SHA-256 `c1700121caea7264587b92c57eb2326e3590963775691d06561b423da9a0bd4f`. The original routine continues past the current interval; do not claim it is complete.
+- LLVM6 assembles **22 ordinary words** (including GP-relative extended loads, conditional `.new` branches/stores, 64-bit record fields and packed allocframe). Four V66 register-bank reads (`R2=SGP0`, `R1=REV`, `R2=GP`, `R4=PCYCLELO`) are emitted using individually checked typed field encoders at LLVM6 `nop` sentinels. Rizin independently decodes the output.
+- The preceding `[0x118b8,0x118c0)` eight-byte linker fill is excluded from source-built code. Total independently generated ADSP RWE code: **7,468 bytes in 14 disjoint intervals**. Next missing code begins at file `0x11928`, still in this record-initialization routine.
+
+```sh
+python3 -S tools/adsp-agent20-rwe-next-global-record-prefix.py \
+  --llvm-mc "$HEXAGON_LLVM_MC" --reference "$NABU_ADSP_REFERENCE" \
+  --output /tmp/adsp-global-record-prefix-104.bin
+```
