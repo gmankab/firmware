@@ -158,3 +158,15 @@ fn merged_controller_interval_is_strictly_gapless(){
         assert_eq!(&combined[..],fw.get(file_offset..file_offset+combined.len()).unwrap());
     }
 }
+
+#[path="../src/devices/xiaomi_nabu/venus_agent20_05_controller_limits.rs"]
+mod controller_limits;
+#[test]fn controller_limits_prefix_matches_optional_reference(){
+    let p=controller_limits::fragment().unwrap();
+    assert_eq!(p.len(),controller_limits::END-controller_limits::START);
+    if let Some(reference)=std::env::var_os("NABU_VENUS_REFERENCE") {
+        let data=std::fs::read(reference).unwrap();
+        let offset=controller_limits::START+controller_limits::FILE_BASE;
+        assert_eq!(&p[..],data.get(offset..offset+p.len()).unwrap());
+    }
+}
