@@ -395,3 +395,11 @@ python3 tools/agent20_06_a32_roundtrip.py /private/venus.mbn 0xa8ea0 0xa92c8 \
 - The function begins at `0xb87d8`; the end of this checkpoint at `0xb8c00` is an **incomplete function boundary**, not an invented return. The rest of the large descriptor state machine will be reconstructed in subsequent checkpoints.
 - Full Rust fragment compares byte-for-byte with the pinned original reference. Independent ARM-mode Clang/LLVM mnemonic reassembly shows **zero mismatches**, explicitly treating the jump tables as data, not executable opcodes. **217 Rust tests and 13 Python tests pass.** Offline release build not claimed.
 - This is a provisional older-base ARM32 instruction-level reconstruction; high-level behavior and OEM authentication remain unproven. Next uncovered runtime `0xb8c00`, MBN file `0xbcc00`.
+
+## Checkpoint 46 — frame command writer and third four-way jump table
+
+- Total Venus runtime `[0xa8000,0xb9208)` = **70,152 byte-identical source-encoded bytes**, file `[0xac000,0xbd208)`.
+- Newly encoded `[0xb8c00,0xb9208)` = **1,544 bytes**, consisting of 382 ARM32 instructions (1,528 bytes) and a four-entry handler address table `[0xb91f8,0xb9208)` (16 bytes).
+- Continues the large command-buffer routine, including conditionally packed controller descriptors, frame-size accounting, output callback dispatch and layout classification. Original PC-indexed branch into the handler table is encoded explicitly.
+- Entire Rust fragment compares equal to the pinned reference, with zero differing bytes. Independent ARM-mode Clang/LLVM reassembles the new 1,528 instruction bytes, with separate 16-byte data pool; zero differences. **218 Rust tests and 13 Python tests pass.** Offline release build not claimed.
+- Next missing runtime `0xb9208`, MBN file `0xbd208`, still inside this large function; this is provisional old-base instruction-level reconstruction, not semantic completeness, OEM-signature generation, or hardware execution proof.
