@@ -665,3 +665,11 @@ Original reference: private `map220v-nabu-firmware/venus.mbn`, SHA-256 `9d4af65d
 - New `[0x3c53c,0x3dc00)` = **5,828 bytes**, **1,457 public ARM32 instructions** and zero interspersed noninstruction words. This block populates controller registers, callback descriptor arrays and stream format metadata, referring backward to the two previously separated literal pools.
 - Direct Rust emission and Clang/LLVM mnemonic reassembly match every byte. **266 Rust and 13 Python tests passed**; optimized release build not independently verified.
 - This checkpoint stops at `0x3dc00` inside a large function. Remaining control-flow cleanup and a trailing literal pool precede the next function. Source bytes are exact but high-level semantics and OEM signing are not established.
+
+## Checkpoint 96 — complete controller stream initializer, return and diagnostic pool
+
+- Verified typed Venus `[0x21c78,0x3dfec)` = **115,572 byte-identical bytes**, MBN file offsets `[0x25c78,0x41fec)`.
+- New `[0x3dc00,0x3dfec)` = **1,004 bytes**, **154 ARM32 instructions** and **97 classified data words** across nine disjoint literal/jump-table intervals. It handles descriptor type dispatch and signed byte/halfword copying, finishes at the true POP/PC return at `0x3def8`, and follows with a 60-word diagnostic pool `[0x3defc,0x3dfec)`.
+- Three independently typed opcode pools encode 10-way input data types, 10-way output types and 7-way payload-copy dispatch. Checked ARMv7 signed byte/halfword preindexed writeback helper includes ISA field tests; no opaque reference instructions are pasted.
+- Complete fragment direct source/reference comparison and an independent Clang/LLVM reassembly of all 1,004 new bytes match with **zero differences**. **268 Rust and 13 Python tests passed**; optimized release build not confirmed.
+- Next function begins at runtime `0x3dfec` (MBN file `0x41fec`) below the assigned upper bound `0x40000`. Byte equality is not new high-level source equivalence, hardware execution or OEM signing.
