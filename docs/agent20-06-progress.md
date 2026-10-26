@@ -403,3 +403,11 @@ python3 tools/agent20_06_a32_roundtrip.py /private/venus.mbn 0xa8ea0 0xa92c8 \
 - Continues the large command-buffer routine, including conditionally packed controller descriptors, frame-size accounting, output callback dispatch and layout classification. Original PC-indexed branch into the handler table is encoded explicitly.
 - Entire Rust fragment compares equal to the pinned reference, with zero differing bytes. Independent ARM-mode Clang/LLVM reassembles the new 1,528 instruction bytes, with separate 16-byte data pool; zero differences. **218 Rust tests and 13 Python tests pass.** Offline release build not claimed.
 - Next missing runtime `0xb9208`, MBN file `0xbd208`, still inside this large function; this is provisional old-base instruction-level reconstruction, not semantic completeness, OEM-signature generation, or hardware execution proof.
+
+## Checkpoint 47 — complete frame descriptor dispatch and error tails
+
+- Entire generated Venus runtime `[0xa8000,0xb9904)` = **71,940 consecutive byte-identical bytes**, file `[0xac000,0xbd904)`.
+- New `[0xb9208,0xb9904)` = **1,788 bytes**: **428 typed ARM32 instructions** (1,712 bytes) and 19 data words (76 bytes) across four explicitly classified pools: singleton `[0xb9800,0xb9804)`, diagnostics `[0xb9830,0xb9838)`, MMIO mode constants `[0xb9860,0xb986c)`, final diagnostics `[0xb98d0,0xb9904)`.
+- Finishes the large frame-descriptor state machine that begins at `0xb87d8`, including its original `pop {...,pc}` return at `0xb9768`, optional recovery and error tails, resource metadata and input format control. The next function begins at `0xb9904` with a PUSH frame prologue.
+- Direct whole-fragment Rust byte verification and independent Clang/LLVM mnemonic reconstruction report **zero differences**. **219 Rust tests and 13 Python tests passed.** No release build claimed.
+- Still an older-base, provisional ARM32 instruction-level re-encoding, not a signed/flashable OEM firmware image or evidence of high-level source semantics equivalence.
