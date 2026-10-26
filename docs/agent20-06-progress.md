@@ -803,3 +803,16 @@ python3 tools/agent20_06_a32_roundtrip.py /private/venus.mbn 0xa8ea0 0xa92c8 \
   ```
 
 - **255 Rust tests, 13 Python tests passed**. No completed release build is claimed. The next uncovered runtime address is `0xc4b28`, MBN file `0xc8b28`. This work remains provisional older-Agent03-based and not newly OEM-signed; instruction-byte identity does not prove independent high-level software behavior.
+
+## Checkpoint 83 — controller descriptor-builder entry and packet preparation
+
+- Typed Venus runtime `[0xa8000,0xc5000)` covers **118,784 consecutive byte-identical bytes**, MBN reference file offsets `[0xac000,0xc9000)`.
+- Newly generated `[0xc4b28,0xc5000)` = **1,240 typed ARM32 instruction bytes** (310 instructions), with **zero literal data words in this particular interval**. The routine begins with its original saved-register prologue, prepares codec command buffers and formats per-plane controller fields.
+- The current function **continues beyond `0xc5000`**, including its final return and late literal pool. Those bytes are NOT represented by placeholders and are NOT counted here. The next uncovered VMA is `0xc5000`, original file `0xc9000`.
+- Whole Rust generator matches the private pinned reference with **zero byte differences**; independent Clang/LLVM verifies all 310 new ARM instruction encodings:
+
+  ```sh
+  python3 tools/agent20_06_a32_roundtrip.py /private/venus.mbn 0xc4b28 0xc5000
+  ```
+
+- **256 Rust tests and 13 Python tests passed.** No new successful release build claimed. Work is still provisional from older Agent 03, not checkpoint50 integrated, independently OEM signed, or validated for on-device behavior.
