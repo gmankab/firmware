@@ -347,3 +347,11 @@ python3 tools/agent20_06_a32_roundtrip.py /private/venus.mbn 0xa8ea0 0xa92c8 \
 - Release codec session callbacks, reset per-resource state, traverse outstanding response slots and return via the original POP/PC; no fabricated return or copied machine-code words.
 - Full source-generated fragment verified against the pinned Venus MBN. Independent Clang/LLVM reconstruction reassembled all 696 instruction bytes and classified 36 data bytes with zero differences; **211 Rust** and **13 Python tests** pass. The offline release build exceeded this session's execution limit and is **not claimed as passing**.
 - First uncovered runtime address `0xb71b8` (MBN file `0xbb1b8`). Work remains provisional, on the older agent branch, not merged onto checkpoint 50. Instruction-byte equality does not establish high-level behavioral equivalence or OEM authentication.
+
+## Checkpoint 40 — close active codec slot contexts and drain callbacks
+
+- Cumulative source-encoded Venus runtime `[0xa8000,0xb76f4)` = **63,220 bytes**; pinned MBN file `[0xac000,0xbb6f4)` with zero differing bytes.
+- New `[0xb71b8,0xb76f4)` = **1,340 bytes**: 327 explicitly encoded A32 instructions (1,308 bytes) and eight named literal diagnostic/controller words (32 bytes) `[0xb76d4,0xb76f4)`.
+- Covers channel close/reset state transitions, draining remaining codec slots, freeing individually owned controller buffers, and optional callback notifications; original return/tail branches retained.
+- Direct whole-fragment verification, independent Clang/LLVM reassembly, 212 Rust and 13 Python tests all pass. No release build claimed for this checkpoint (the earlier attempt exceeded the execution limit).
+- Next uncovered ARM runtime `0xb76f4`, original MBN file `0xbb6f4`. Provisional older-base instruction re-encoding; no high-level semantic equivalence or new OEM authentication established.
