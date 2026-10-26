@@ -435,3 +435,12 @@ python3 tools/agent20_06_a32_roundtrip.py /private/venus.mbn 0xa8ea0 0xa92c8 \
 - Three original functions: select/finish codec stream end state, settle pending DMA resource statuses, and reset controller session/command slots. Original ARM return sequences and controller callbacks are retained; the pools contain device-global and diagnostic pointers, not executable code.
 - Full Rust-emitted region and independent mnemonic-only Clang/LLVM reassembly show **zero byte mismatches** with the pinned reference. **222 Rust tests, 13 Python tests** pass. The attempted offline release build **exceeded the execution limit and is not claimed as passed**.
 - Next uncovered ARM runtime `0xba40c`, reference file offset `0xbe40c`. The branch remains provisional on older Agent 03 ancestry, **not** checkpoint-50-based integrated Git history; this is ISA-level re-encoding, not a source-level behavioral rebuild or an OEM-authenticated image.
+
+## Checkpoint 51 — codec buffer window layout, reconciliation and DMA state
+
+- Contiguous independently encoded ARM runtime `[0xa8000,0xbb078)` = **77,944 bytes**; matching `venus.mbn` file `[0xac000,0xbf078)` (exclusive endpoints).
+- Added full controller resource layout and DMA-window state routine `[0xba40c,0xbb078)` = **3,180 bytes**. This is **767 typed ARM32 instructions (3,068 bytes)** followed by **28 separately classified non-executable controller/literal words (112 bytes)** at `[0xbb008,0xbb078)`.
+- It synchronizes controller resource pointers, buffer plane sizes, queued DMA metadata and fallback status, then preserves the original return at `0xbaf6c` and error handler branch tail through `0xbb004`.
+- Direct typed-Rust fragment verification against pinned Venus SHA-256 `9d4af65d7ede845e900f1b29ff425b7a8e2947056e695e246e58a2091445a085` passes with **0 differing bytes**. Independent Clang/LLVM mnemonic reassembly passes with 0 differences when `[0xbb008,0xbb078)` is explicitly classified as data.
+- **223 Rust and 13 Python tests passed**. The offline release build has not finished within this environment's execution limit, so it is not claimed as passed for this checkpoint.
+- First uncovered runtime address: `0xbb078` (original MBN offset `0xbf078`). The branch is still provisional on the older Agent 03 base and not integrated atop the unavailable checkpoint-50 history. Byte identity at the instruction level does not prove high-level semantics or independent OEM signing.
