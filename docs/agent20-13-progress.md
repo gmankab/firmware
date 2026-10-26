@@ -345,3 +345,11 @@ python3 tools/build-wlanmdsp-agent13.py /tmp/wlan-prefix-through-27a0.bin \
 - Three new packet sections `[0x46404,0x46500)`, `[0x46500,0x46600)`, `[0x46600,0x46700)` are built from original semantic Hexagon instructions, independently assembled and compared directly. Combined **disjoint continuation** `[0x4568c,0x46700)` totals **4,212 source-generated instruction bytes** and SHA-256 `8533db1c52db81827082f87c787bc667574cb46d3359f4fb48d6492abbb32fbf`; zero reference differences, zero external opaque bytes and zero filler inside this range.
 - All 160 Rust tests passed, as did 36 executed Python tests with two optional skips, offline release build and Git diff checks.
 - Next missing packet begins at file `0x46700`. The owning range ends at file `0x100000`, not yet complete. Branch history still starts from checkpoint 16; missing checkpoints 17–25 must be integrated before calling this a continuous source-built prefix from file `0x40000`.
+
+## Checkpoint 36 (disjoint) — session buffer selection and plane records
+
+- Added **776 independently source-assembled Hexagon instruction bytes** at `[file 0x46700,0x46a08)` (VMA `[0xb0006700,0xb0006a08)`). Code performs linked session-table traversal, indexed record lookup, codec mode-dependent plane selection, metadata status updates and buffer record copy preparation.
+- Source grouped as three adjacent packet-encoded functions/sections at `[0x46700,0x46800)`, `[0x46800,0x46900)` and `[0x46900,0x46a08)`. The latter two require `:mem_noshuf` for five dependent data access packets; no opaque reference instructions are used.
+- Full new disjoint continuation `[0x4568c,0x46a08)` totals **4,988 actual Hexagon instruction bytes**, no structural layout padding and no externally supplied code; SHA-256 `e0b26407966ce02eb735b7806d000dccfa17b87a8ba662ac45f301ab57487aea`. LLVM6 assembly compared against SHA-256 pinned `wlanmdsp.mbn`: **zero differing bytes**.
+- All 160 Rust tests passed; 37 Python tests executed and passed with two optional skips; offline release build passed; `git diff --check` clean.
+- First missing code now begins at file `0x46a08` (VMA `0xb0006a08`), in the continuing WLAN controller routine. This branch still descends from checkpoint16 rather than unavailable checkpoint25; provenance and whole-firmware warnings remain unchanged.

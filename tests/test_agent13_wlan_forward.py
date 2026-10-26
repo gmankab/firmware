@@ -19,10 +19,10 @@ class SourceOnlyForwardTests(unittest.TestCase):
     def test_manifest_exact_boundaries(self):
         m=module()
         self.assertEqual(m.START,0x568c)
-        self.assertEqual(m.validate_manifest(),0x6700)
+        self.assertEqual(m.validate_manifest(),0x6a08)
         self.assertEqual(m.FILE_BASE+m.START,0x4568c)
-        self.assertEqual(m.FILE_BASE+m.validate_manifest(),0x46700)
-        self.assertEqual(sum(length for _,_,_,length in m.FRAGMENTS),4212)
+        self.assertEqual(m.FILE_BASE+m.validate_manifest(),0x46a08)
+        self.assertEqual(sum(length for _,_,_,length in m.FRAGMENTS),4988)
 
     def test_validator_forbids_opaque_data_and_layout_holes(self):
         m=module()
@@ -135,6 +135,15 @@ class SourceOnlyForwardTests(unittest.TestCase):
         assert 'r23 = #0' in asm and 'r19 = #0' in asm
         assert 'call' in asm
         assert 'if (cmp.eq(r3.new,#0))' in asm
+
+    def test_session_plane_packet_order_and_layout(self):
+        m=module()
+        fragments={name:(path,start,length) for name,path,start,length in m.FRAGMENTS}
+        assert fragments['session-buffer-iteration'][1:]==(0x6700,0x100)
+        assert fragments['session-buffer-selection'][1:]==(0x6800,0x100)
+        assert fragments['session-buffer-plane-copies'][1:]==(0x6900,0x108)
+        assert fragments['session-buffer-selection'][0].read_text().count('}:mem_noshuf')>=3
+        assert fragments['session-buffer-plane-copies'][0].read_text().count('}:mem_noshuf')>=2
 
     def test_structured_predicate_duplex_sources(self):
         m=module()
