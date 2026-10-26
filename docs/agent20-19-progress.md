@@ -612,3 +612,21 @@ none are promoted to source. The current 9,353 generated DLM bytes and
 metadata/envelope, all 12 CRC fields, mirror, Rust/Python tests and release
 build are rechecked at each checkpoint. See
 `docs/agent20-19-dlm-descriptor-geometry.md` for formulas and method limits.
+
+## Checkpoint 14 — typed absolute DLM address cross-references, zero source delta
+
+Agent 18's independent upper-ILM and EX9 sources contain 34 explicit
+DLM SRAM address constants: 28 upper-ILM MOVI instructions and six EX9
+entries. Converting SRAM pointers with the `+0x2000` DLM file bias and
+classifying them against Agent 19's ledger yields 27 references to
+17 distinct `unknown_dlm` addresses and seven references into existing
+source-authored DLM structures. This is separate from the 79 GP accesses:
+an immediate pointer **does not prove an actual read/write or initializer**.
+
+A standalone Python report and tests verify source-address mapping, EX9
+slot positions, duplicate/truncated input rejection, provenance integrity,
+and the pinned Agent18 checkpoint02 snapshot. The Agent18 code itself stays
+outside Agent19's Git bundle. **No source bytes are credited**: 9,353
+independently generated DLM bytes remain, 40,199 are unknown, and zero
+new executable bytes are added. See
+`docs/agent20-19-dlm-absolute-literals.md`.
