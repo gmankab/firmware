@@ -14,6 +14,7 @@
 #[path = "../devices/xiaomi_nabu/novatek_dlm_control_candidates.rs"] mod novatek_dlm_control_candidates;
 #[path = "../devices/xiaomi_nabu/novatek_dlm_calibration_alias.rs"] mod novatek_dlm_calibration_alias;
 #[path = "../devices/xiaomi_nabu/novatek_dlm_bank_aliases.rs"] mod novatek_dlm_bank_aliases;
+#[path = "../devices/xiaomi_nabu/novatek_dlm_staging_extensions.rs"] mod novatek_dlm_staging_extensions;
 #[path = "../devices/xiaomi_nabu/novatek_dlm_descriptor_geometry.rs"] mod novatek_dlm_descriptor_geometry;
 #[path = "../devices/xiaomi_nabu/novatek_dlm_envelope.rs"] mod novatek_dlm_envelope;
 #[path = "../devices/xiaomi_nabu/novatek_dlm_provenance.rs"] mod novatek_dlm_provenance;
@@ -127,6 +128,8 @@ fn verify_reference(image:&[u8],parts:&[DataFragment])->Result<(),String> {
     novatek_dlm_narrow_bank_relocation::verify_reference_dependent(image)?;
     novatek_dlm_zero_bank_aliases::verify_reference_dependent(image)?;
     novatek_dlm_bank_aliases::assert_uncredited_on_ledger(&ledger(parts)?)?;
+    novatek_dlm_staging_extensions::verify_reference_dependent(image)?;
+    novatek_dlm_staging_extensions::assert_uncredited(&ledger(parts)?)?;
     novatek_dlm_descriptor_geometry::verify_record_first_indices(image)?;
     novatek_dlm_descriptor_geometry::verify_distant_signature_alias(image)?;
     novatek_dlm_descriptor_geometry::assert_geometry_remains_uncredited(&ledger(parts)?)?;
@@ -201,6 +204,13 @@ fn run()->Result<(),String> {
             }
             let verified=novatek_dlm_narrow_bank_relocation::verify_reference_dependent(&image)?;
             println!("Verified {verified} conditional narrow-layout descriptor bytes; lower-bank values remain externally supplied; ZERO independent source-byte credit");
+        }
+        Some("verify-staging-extensions") if args.len()==2 => {
+            let image=fs::read(&args[1]).map_err(|e|e.to_string())?;
+            if hex_digest(&image)!=REFERENCE_SHA256 {return Err("reference SHA-256 mismatch".into());}
+            let checked=novatek_dlm_staging_extensions::verify_reference_dependent(&image)?;
+            novatek_dlm_staging_extensions::assert_uncredited(&ledger(&generated_fragments()?)?)?;
+            println!("Verified {checked} lower-to-upper DLM staging bytes; lower-bank values remain external and ZERO independent source credit added");
         }
         Some("verify-bank-aliases") if args.len()==2 => {
             let image=fs::read(&args[1]).map_err(|e|e.to_string())?;
@@ -305,7 +315,7 @@ fn run()->Result<(),String> {
             println!("Emitted {} data fragments ({} bytes), with explicit holes retained in the provenance manifest.",
                 parts.len(),parts.iter().map(|part|part.bytes.len()).sum::<usize>());
         }
-        _=>return Err("usage: novatek-dlm ledger | sparse-plan | seed-manifest | verify-seed-manifest <pinned-image.bin> | assemble-sparse <seed-dir> <output-DLM.bin> | verify-sparse-rebuild <pinned-image.bin> | emit <directory> | verify-reference <pinned-image.bin> | check-envelope <image.bin> | verify-bank-pairs <pinned-image.bin> | verify-calibration-alias <pinned-image.bin> | verify-bank-aliases <pinned-image.bin> | verify-record-suffixes <pinned-image.bin> | verify-small-records <pinned-image.bin> | verify-narrow-bank <pinned-image.bin> | verify-zero-bank-aliases <pinned-image.bin> | verify-descriptor-geometry <pinned-image.bin> | inspect-control-candidates <pinned-image.bin>".into()),
+        _=>return Err("usage: novatek-dlm ledger | sparse-plan | seed-manifest | verify-seed-manifest <pinned-image.bin> | assemble-sparse <seed-dir> <output-DLM.bin> | verify-sparse-rebuild <pinned-image.bin> | emit <directory> | verify-reference <pinned-image.bin> | check-envelope <image.bin> | verify-bank-pairs <pinned-image.bin> | verify-calibration-alias <pinned-image.bin> | verify-bank-aliases <pinned-image.bin> | verify-staging-extensions <pinned-image.bin> | verify-record-suffixes <pinned-image.bin> | verify-small-records <pinned-image.bin> | verify-narrow-bank <pinned-image.bin> | verify-zero-bank-aliases <pinned-image.bin> | verify-descriptor-geometry <pinned-image.bin> | inspect-control-candidates <pinned-image.bin>".into()),
     }
     Ok(())
 }

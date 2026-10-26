@@ -18,13 +18,13 @@ class TestDlmExternalSeedManifest(unittest.TestCase):
     def setUp(self):
         self.text=M.read_text();self.entries=m.parse_manifest(self.text)
         self.plan={"schema":"agent20-19-dlm-sparse-v1", "source_dlm_bytes":9353,
-          "dependent_unique_bytes":12984,"required_external_seed_bytes":27215,
+          "dependent_unique_bytes":13106,"required_external_seed_bytes":27093,
           "independent_dependent_crosschecks":40,"seed_ranges":[
               {"file_start":a,"file_end":b,"bytes":b-a} for a,b,_ in self.entries]}
 
     def test_canonical_manifest_boundaries_and_seed_totals(self):
-        self.assertEqual(len(self.entries),60)
-        self.assertEqual(sum(b-a for a,b,_ in self.entries),27215)
+        self.assertEqual(len(self.entries),61)
+        self.assertEqual(sum(b-a for a,b,_ in self.entries),27093)
         self.assertEqual(self.entries[0][:2],(0x22000,0x22488))
         self.assertEqual(self.entries[-1][:2],(0x2e18d,0x2e190))
         self.assertIsNone(m.verify_plan(self.plan,self.entries))

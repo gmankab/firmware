@@ -20,6 +20,8 @@ PAIRS=((0x22a64,0x26a64,17),(0x25230,0x29230,4))
 DESCRIPTOR_BYTES=0x8c
 ALIASES=((0x2387c,406),(0x23df8,228),(0x24186,182),
          (0x245a6,862),(0x24fc4,604),(0x2574c,616),(0x25c5e,238))
+STAGING_EXTENSIONS=((0x23860,24),(0x23a13,98))
+assert sum(n for _,n in STAGING_EXTENSIONS)==122
 PROFILE=(0x22224,0x223d0,0x2d648)
 SIGNATURE=(0x22710,0x2df8c,12)
 RECORD_BYTES=0x60
@@ -113,6 +115,8 @@ def destinations():
         yield dest,count*DESCRIPTOR_BYTES
     for start,n in ALIASES:
         yield start+0x4000,n
+    for start,n in STAGING_EXTENSIONS:
+        yield start+0x4000,n
     for start,n in RECORD_SUFFIXES:
         yield start+RECORD_BANK_DELTA,n
     for start,n in SMALL_COPIES:
@@ -186,6 +190,7 @@ def rebuild(fragments,seeds):
                 buf[i:i+2]=(high|(low+0x1000)).to_bytes(2,'little')
         place(target,buf,2)
     for start,n in ALIASES:place(start+0x4000,read(start,start+n),2)
+    for start,n in STAGING_EXTENSIONS:place(start+0x4000,read(start,start+n),2)
     for start,n in RECORD_SUFFIXES:place(start+RECORD_BANK_DELTA,read(start,start+n),2)
     for start,n in SMALL_COPIES:place(start+RECORD_BANK_DELTA,read(start,start+n),2)
     for record,start in enumerate(SMALL_MUTABLE_MIDDLES):

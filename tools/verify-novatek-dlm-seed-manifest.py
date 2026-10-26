@@ -18,8 +18,8 @@ HEADERS = (
     "# novatek-dlm-external-seeds-v1",
     "# profile postmarketos-nabu",
     "# reference-sha256 " + PINNED,
-    "# ranges 60",
-    "# external-bytes 27215",
+    "# ranges 61",
+    "# external-bytes 27093",
     "# start-inclusive end-exclusive sha256",
 )
 RECORD = re.compile(r"(0x[0-9a-f]{6})\t(0x[0-9a-f]{6})\t([0-9a-f]{64})\Z")
@@ -29,8 +29,8 @@ def parse_manifest(text: str) -> list[tuple[int, int, str]]:
     lines = text.splitlines()
     if tuple(lines[:6]) != HEADERS:
         raise ValueError("manifest version/profile/reference hash/plan headers mismatch")
-    if len(lines) != 66:
-        raise ValueError(f"expected 60 DLM seed records, got {len(lines)-6}")
+    if len(lines) != 67:
+        raise ValueError(f"expected 61 DLM seed records, got {len(lines)-6}")
     found = []
     prior_end = DLM_START
     for i, line in enumerate(lines[6:]):
@@ -42,14 +42,14 @@ def parse_manifest(text: str) -> list[tuple[int, int, str]]:
             raise ValueError(f"bad, duplicate, overlapping or out-of-bounds seed range {i}")
         found.append((a, b, match[3]))
         prior_end = b
-    if len(found) != 60 or sum(b-a for a, b, _ in found) != 27215:
+    if len(found) != 61 or sum(b-a for a, b, _ in found) != 27093:
         raise ValueError("DLM external seed count/byte totals differ from pinned profile")
     return found
 
 
 def verify_plan(plan: dict, entries: list[tuple[int, int, str]]) -> None:
     expected = {"schema":"agent20-19-dlm-sparse-v1", "source_dlm_bytes":9353,
-                "dependent_unique_bytes":12984,"required_external_seed_bytes":27215,
+                "dependent_unique_bytes":13106,"required_external_seed_bytes":27093,
                 "independent_dependent_crosschecks":40}
     for field, value in expected.items():
         if plan.get(field) != value:

@@ -7,6 +7,7 @@
 //! external primary bytes. A complete source-only build still has holes.
 //! The OEM reference is never consulted by the plan or reconstruction code.
 use super::{novatek_dlm::DataFragment, novatek_dlm_bank_aliases,
+    novatek_dlm_staging_extensions,
     novatek_dlm_bank_transform, novatek_dlm_calibration_alias,
     novatek_dlm_descriptor_geometry, novatek_dlm_record_suffix,
     novatek_dlm_small_records, novatek_dlm_small_relocations,
@@ -51,6 +52,9 @@ fn derived_destinations()->Vec<SeedRange>{
     }
     for alias in novatek_dlm_bank_aliases::ALIASES {
         spans.push(SeedRange{file_start:alias.later_start(),file_end:alias.later_end()});
+    }
+    for span in novatek_dlm_staging_extensions::SPANS {
+        spans.push(SeedRange{file_start:span.second(),file_end:span.second_end()});
     }
     for span in novatek_dlm_record_suffix::dependent_spans() {
         spans.push(SeedRange{file_start:span.later_start(),file_end:span.later_end()});
@@ -167,6 +171,11 @@ pub fn assemble(parts:&[DataFragment],seeds:&[ExternalSeed])->Result<Vec<u8>,Str
         let rebuilt=novatek_dlm_bank_aliases::duplicate_from_external_primary(alias,&primary)?;
         put_derived(&mut dst,&mut state,alias.later_start(),&rebuilt)?;
     }
+    for span in novatek_dlm_staging_extensions::SPANS {
+        let primary=read_covered(&dst,&state,span.first,span.first_end())?;
+        let rebuilt=novatek_dlm_staging_extensions::from_external_primary(span,&primary)?;
+        put_derived(&mut dst,&mut state,span.second(),&rebuilt)?;
+    }
     for span in novatek_dlm_record_suffix::dependent_spans() {
         let primary=read_covered(&dst,&state,span.earlier_start,span.earlier_end())?;
         let rebuilt=novatek_dlm_record_suffix::copy_from_supplied_primary(span,&primary)?;
@@ -245,8 +254,8 @@ pub fn seeds_from_private_reference(image:&[u8],plan:&SparsePlan)->Result<Vec<Ex
         let p=plan(&authored()).unwrap();
         assert_eq!(p.source_bytes,9353);
         assert_eq!(p.source_and_dependent_crosschecks,40);
-        assert_eq!(p.dependent_bytes,12984);
-        assert_eq!(p.externally_required_bytes,27215);
+        assert_eq!(p.dependent_bytes,13106);
+        assert_eq!(p.externally_required_bytes,27093);
         assert_eq!(p.source_bytes+p.dependent_bytes+p.externally_required_bytes,DLM_BYTES);
         for pair in p.ranges.windows(2){assert!(pair[0].file_end<pair[1].file_start);}
         assert_eq!(p.ranges.first().unwrap().file_start,DLM_FILE_START);
@@ -265,6 +274,7 @@ pub fn seeds_from_private_reference(image:&[u8],plan:&SparsePlan)->Result<Vec<Ex
         image[DLM_FILE_START..DLM_FILE_END].copy_from_slice(&output);
         assert_eq!(novatek_dlm_bank_transform::verify_against_supplied_reference(&image).unwrap(),2940);
         assert_eq!(novatek_dlm_bank_aliases::verify_reference_assisted_aliases(&image).unwrap(),3136);
+        assert_eq!(novatek_dlm_staging_extensions::verify_reference_dependent(&image).unwrap(),122);
         assert_eq!(novatek_dlm_record_suffix::verify_reference_dependent(&image).unwrap(),2001);
         assert_eq!(novatek_dlm_small_records::verify_reference_dependent(&image).unwrap(),990);
         assert_eq!(novatek_dlm_small_relocations::verify_reference_dependent(&image).unwrap(),210);

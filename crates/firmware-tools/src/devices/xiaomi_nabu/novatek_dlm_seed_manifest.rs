@@ -38,15 +38,15 @@ pub fn parse_manifest(text:&str,plan:&SparsePlan)->Result<Vec<PinnedSeed>,String
         "# novatek-dlm-external-seeds-v1",
         "# profile postmarketos-nabu",
         "# reference-sha256 8b845514621ebfd95759a0919f3aa3d825314abb478a7cad1c3fb4c6872b70b5",
-        "# ranges 60",
-        "# external-bytes 27215",
+        "# ranges 61",
+        "# external-bytes 27093",
         "# start-inclusive end-exclusive sha256",
     ];
     for header in expected_headers {
         if lines.next()!=Some(header){return Err("DLM seed manifest schema/profile/reference/plan header mismatch".into());}
     }
-    if plan.ranges.len()!=60 || plan.externally_required_bytes!=27215 ||
-        plan.source_bytes!=9353 || plan.dependent_bytes!=12984 {
+    if plan.ranges.len()!=61 || plan.externally_required_bytes!=27093 ||
+        plan.source_bytes!=9353 || plan.dependent_bytes!=13106 {
         return Err("DLM sparse plan differs from pinned manifest revision; regenerate only after source review".into());
     }
     let mut out=Vec::with_capacity(plan.ranges.len());
@@ -106,8 +106,8 @@ pub fn verify_pinned_seeds(plan:&SparsePlan,seeds:&[ExternalSeed])->Result<(),St
     }
     #[test] fn pinned_seed_manifest_agrees_with_actual_sparse_plan(){
         let p=current();let rows=pinned_manifest(&p).unwrap();
-        assert_eq!(rows.len(),60);
-        assert_eq!(rows.iter().map(|r|r.range.len()).sum::<usize>(),27215);
+        assert_eq!(rows.len(),61);
+        assert_eq!(rows.iter().map(|r|r.range.len()).sum::<usize>(),27093);
         for (row,span) in rows.iter().zip(&p.ranges){assert_eq!(row.range,*span);}
     }
     #[test] fn wrong_profile_missing_extra_and_reordered_entries_are_rejected(){

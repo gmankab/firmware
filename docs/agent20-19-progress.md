@@ -771,3 +771,14 @@ new executable bytes are added. See
 ### Checkpoint 21 executed gates
 
 The workspace test run completed with **449 Rust tests passed**, **215 Python test cases discovered (58 skipped, 157 executed/passed)**; the full offline workspace release build passed under Rust 1.99.1. The release-built CLI accepted all 60 exact external seeds and emitted a 49,552-byte conditional DLM matching the original image (DLM SHA-256 `c09ed40d0f123b7680a12097fb329ff35515e5936abd7a3b4526b042fc689591`). An altered private seed failed before an output file was created. The CLI rejected the older map220v firmware revision before seed comparison. No private image, unknown seed blob or rebuilt conditional full DLM is shipped in this checkpoint.
+
+## Agent 20-19 checkpoint 22 — staging-bank boundary copies, zero new source credit
+
+- Added two additional lower-to-upper DLM staging dependencies: 24 bytes `[0x23860,0x23878)` → `[0x27860,0x27878)` and 98 bytes `[0x23a13,0x23a75)` → `[0x27a13,0x27a75)`. The earlier 406-byte codec-bank alias ends at `0x23a12`, so the one-byte mismatch at that boundary remains external; a four-byte preceding gap is also left external.
+- Both pinned postmarketOS and older map220v Novatek firmware revisions satisfy the 122-byte relations. Rust and independent Python synthetic tests propagate nonzero primary values and reject tampering/truncation. The original primary data remain unknown; **zero new independently authored bytes**.
+- Total DLM plan is now **9,353 independently authored source bytes + 13,106 source-dependent bytes + 27,093 external required bytes = 49,552**; **61 exact external seed ranges**. The strict SHA-256 manifest is updated and rejects the previous 60-range layout or wrong firmware revision.
+- The source-unknown ledger still reports **40,199 DLM bytes**. This checkpoint refines reference-conditional reconstruction, not compiler-producible source or OEM firmware authentication. See `docs/agent20-19-dlm-staging-extensions.md`.
+
+### Checkpoint 22 executed gates
+
+The full offline workspace test suite passes **451 Rust tests** and **219 Python discovered cases (58 skipped, 161 executed/passed)**. The workspace release build succeeds. Release-built `novatek-dlm verify-sparse-rebuild` and `verify-seed-manifest` pass on the pinned postmarketOS reference. The release `assemble-sparse` command accepts all 61 checked private inputs and produces the same SHA-256 `c09ed40d0f123b7680a12097fb329ff35515e5936abd7a3b4526b042fc689591` as checkpoint 21's full 49,552-byte conditional DLM output. Rust/Python synthetic tests and the independent cross-revision script verify both new staging dependencies without encoding reference payload as source.
