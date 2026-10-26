@@ -42,6 +42,7 @@ AUX_CONTROLLER_SLOT_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_na
 AUX_LARGE_CONTROLLER_PREFIX_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_aux_large_controller_prefix.s"
 AUX_LARGE_CONTROLLER_MID_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_aux_large_controller_mid.s"
 AUX_LARGE_CONTROLLER_PHASE2_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_aux_large_controller_phase2.s"
+AUX_LARGE_CONTROLLER_PHASE3_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_aux_large_controller_phase3.s"
 AUX_DISPATCH_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_aux_dispatch_helpers.s"
 AUX_TYPE_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_aux_type_config.s"
 AUX_NOTIFY_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_aux_controller_notify.s"
@@ -151,6 +152,8 @@ AUX_LARGE_CONTROLLER_MID_START = AUX_LARGE_CONTROLLER_PREFIX_END
 AUX_LARGE_CONTROLLER_MID_END = 0x4477FC
 AUX_LARGE_CONTROLLER_PHASE2_START = AUX_LARGE_CONTROLLER_MID_END
 AUX_LARGE_CONTROLLER_PHASE2_END = 0x4478A4
+AUX_LARGE_CONTROLLER_PHASE3_START = AUX_LARGE_CONTROLLER_PHASE2_END
+AUX_LARGE_CONTROLLER_PHASE3_END = 0x44795C
 MARKER_MASK = 3 << 14
 CONTINUE_MARKER = 1 << 14
 END_MARKER = 3 << 14
@@ -1224,6 +1227,42 @@ def restore_aux_large_controller_phase2_packet(assembled: bytes) -> bytes:
     return struct.pack('<42I',*words)
 
 
+def restore_aux_large_controller_phase3_packets(assembled: bytes) -> bytes:
+    """Reconstruct two source-assembled V60 predicate/loop packet orders.
+
+    LLVM6 schedules the P0.new producer before the compare, and a later
+    conditional branch ahead of its immediate-extended comparison. Both
+    reorderings remain within their original packet and are fail-closed on
+    unexpected ISA opcode classes, registers, immediates or parse markers.
+    """
+    expected_len=AUX_LARGE_CONTROLLER_PHASE3_END-AUX_LARGE_CONTROLLER_PHASE3_START
+    if len(assembled)!=expected_len:
+        raise ValueError("controller phase3 must assemble 184 bytes")
+    words=list(struct.unpack('<46I',assembled))
+    i=0x08//4
+    p0branch,prodmov=words[i:i+2]
+    if (p0branch>>24,prodmov>>24)!=(0x10,0x7e):
+        raise ValueError("controller phase3 predicate/move opcode classes changed")
+    if (p0branch&MARKER_MASK,prodmov&MARKER_MASK)!=(
+            CONTINUE_MARKER,CONTINUE_MARKER):
+        raise ValueError("controller phase3 predicate/move packet markers changed")
+    if prodmov&0x3f != 0x16 or p0branch&0x3f != 0x3c:
+        raise ValueError("controller phase3 predicate/move operands changed")
+    words[i:i+2]=[prodmov,p0branch]
+    j=0x28//4
+    jump,ext,compare=words[j:j+3]
+    if [v>>24 for v in (jump,ext,compare)] != [0x5c,0x00,0x75]:
+        raise ValueError("controller phase3 loop jump/extender/compare classes changed")
+    if [v&MARKER_MASK for v in (jump,ext,compare)] != [
+            CONTINUE_MARKER,CONTINUE_MARKER,END_MARKER]:
+        raise ValueError("controller phase3 loop branch packet markers changed")
+    if (jump&0x3f)!=0x04 or (compare&0x3f)!=0x00:
+        raise ValueError("controller phase3 loop branch target/compare operands changed")
+    words[j:j+3]=[ext,(compare&~MARKER_MASK)|CONTINUE_MARKER,
+                        (jump&~MARKER_MASK)|END_MARKER]
+    return struct.pack('<46I',*words)
+
+
 def assemble(llvm_mc: Path, source: Path) -> bytes:
     with tempfile.TemporaryDirectory(prefix="nabu-modem-late-") as tmp:
         obj = Path(tmp) / "late.o"
@@ -1262,6 +1301,7 @@ def output_fragments(llvm_mc: Path) -> dict[int, bytes]:
     aux_large_controller_prefix=assemble(llvm_mc,AUX_LARGE_CONTROLLER_PREFIX_SOURCE)
     aux_large_controller_mid=assemble(llvm_mc,AUX_LARGE_CONTROLLER_MID_SOURCE)
     aux_large_controller_phase2=restore_aux_large_controller_phase2_packet(assemble(llvm_mc,AUX_LARGE_CONTROLLER_PHASE2_SOURCE))
+    aux_large_controller_phase3=restore_aux_large_controller_phase3_packets(assemble(llvm_mc,AUX_LARGE_CONTROLLER_PHASE3_SOURCE))
     aux_dispatch = assemble(llvm_mc,AUX_DISPATCH_SOURCE)
     aux_type = restore_aux_type_return_packets(assemble(llvm_mc,AUX_TYPE_SOURCE))
     aux_notify = restore_aux_controller_notify_packets(assemble(llvm_mc,AUX_NOTIFY_SOURCE))
@@ -1312,6 +1352,7 @@ def output_fragments(llvm_mc: Path) -> dict[int, bytes]:
         (aux_large_controller_prefix,AUX_LARGE_CONTROLLER_PREFIX_START,AUX_LARGE_CONTROLLER_PREFIX_END,'large controller prefix'),
         (aux_large_controller_mid,AUX_LARGE_CONTROLLER_MID_START,AUX_LARGE_CONTROLLER_MID_END,'large controller continuation'),
         (aux_large_controller_phase2,AUX_LARGE_CONTROLLER_PHASE2_START,AUX_LARGE_CONTROLLER_PHASE2_END,'large controller phase2'),
+        (aux_large_controller_phase3,AUX_LARGE_CONTROLLER_PHASE3_START,AUX_LARGE_CONTROLLER_PHASE3_END,'large controller phase3'),
     ]:
         if len(fragment)!=end-start:
             raise ValueError(f"auxiliary {label} source length mismatch")
@@ -1355,7 +1396,8 @@ def output_fragments(llvm_mc: Path) -> dict[int, bytes]:
             AUX_FIND_CLASS_END==AUX_CONTROLLER_SLOT_START and
             AUX_CONTROLLER_SLOT_END==AUX_LARGE_CONTROLLER_PREFIX_START and
             AUX_LARGE_CONTROLLER_PREFIX_END==AUX_LARGE_CONTROLLER_MID_START and
-            AUX_LARGE_CONTROLLER_MID_END==AUX_LARGE_CONTROLLER_PHASE2_START):
+            AUX_LARGE_CONTROLLER_MID_END==AUX_LARGE_CONTROLLER_PHASE2_START and
+            AUX_LARGE_CONTROLLER_PHASE2_END==AUX_LARGE_CONTROLLER_PHASE3_START):
         raise ValueError("missing source after controller registry block")
     if AUX_LOOKUP_END!=AUX_REGISTRY_CORE_START or AUX_REGISTRY_CORE_END!=AUX_DISPATCH_START:
         raise ValueError("modem auxiliary registry source intervals have a gap")
@@ -1366,7 +1408,8 @@ def output_fragments(llvm_mc: Path) -> dict[int, bytes]:
                   aux_guard+aux_stage+aux_mmio+aux_heap+aux_worker+
                         aux_lookup+aux_registry_core+registry+aux_notify_scan+aux_cleanup+
                         aux_factory+aux_find_format+aux_find_class+aux_controller_slot+
-                        aux_large_controller_prefix+aux_large_controller_mid+aux_large_controller_phase2,
+                        aux_large_controller_prefix+aux_large_controller_mid+aux_large_controller_phase2+
+                        aux_large_controller_phase3,
     }
 
 

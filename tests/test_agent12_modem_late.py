@@ -1043,3 +1043,36 @@ class ModemLatePhase2Tests(unittest.TestCase):
                 agent12.restore_aux_large_controller_phase2_packet(struct.pack('<42I',*bad))
         with self.assertRaisesRegex(ValueError,'168 bytes'):
             agent12.restore_aux_large_controller_phase2_packet(src[:-4])
+
+
+class ModemLateSessionLoopTests(unittest.TestCase):
+    def test_checked_loop_compare_packet_layout(self):
+        self.assertEqual((agent12.AUX_LARGE_CONTROLLER_PHASE3_START,
+                          agent12.AUX_LARGE_CONTROLLER_PHASE3_END),
+                         (0x4478A4,0x44795C))
+        src=agent12.AUX_LARGE_CONTROLLER_PHASE3_SOURCE.read_text()
+        self.assertIn('loop0(.Lscan_iter,r3)',src)
+        self.assertIn(':endloop0',src)
+        self.assertIn('callr r6',src)
+        self.assertNotIn('.word',src)
+        self.assertNotIn('.incbin',src)
+        words=[0x7800c000]*46
+        i=0x08//4;j=0x28//4
+        words[i:i+2]=[0x100340bc,0x7e006016]
+        words[j:j+3]=[0x5c205844,0x00204000,0x7503c000]
+        rebuilt=struct.unpack('<46I',agent12.restore_aux_large_controller_phase3_packets(
+            struct.pack('<46I',*words)))
+        self.assertEqual(rebuilt[i:i+2],(0x7e006016,0x100340bc))
+        self.assertEqual(rebuilt[j:j+3],(0x00204000,0x75034000,0x5c20d844))
+        for offset,value,msg in [(i,0x780040bc,'opcode classes'),
+                                 (i,0x1003c0bc,'packet markers'),
+                                 (i+1,0x7e006017,'operands'),
+                                 (j,0x78005844,'classes'),
+                                 (j+2,0x75034000,'packet markers'),
+                                 (j,0x5c205805,'target/compare')]:
+            bad=words.copy();bad[offset]=value
+            with self.assertRaisesRegex(ValueError,msg):
+                agent12.restore_aux_large_controller_phase3_packets(
+                    struct.pack('<46I',*bad))
+        with self.assertRaisesRegex(ValueError,'184 bytes'):
+            agent12.restore_aux_large_controller_phase3_packets(bytes(180))
