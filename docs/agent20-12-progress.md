@@ -1065,3 +1065,31 @@ The contiguous auxiliary file prefix is **7,456 bytes** `[0x446000,0x447d20)`.
 All emitted bytes match SHA-256-pinned `modem.mbn` exactly. The large
 controller-session function remains incomplete beyond `0x447d20`; this is
 not an independently signed or complete modem firmware image.
+
+## Checkpoint 42 — Bounded scan continuation, with a 16-byte unresolved packet
+
+Added **96 independently encoded executable bytes** from the pinned Hexagon
+V60 modem at two **disjoint** intervals, respecting the source/function
+boundaries instead of claiming one contiguous span:
+
+- **8 bytes** `[0x447d20,0x447d28)`: a checked 32-bit immediate extension
+  and register materialization of `65535`, assembled directly by LLVM6.
+- **88 bytes** `[0x447d38,0x447d90)`: initialization callbacks, a retry
+  jump into earlier controller code, a hardware `loop0`/`endloop0` over
+  tagged entries, and selection of the next resource callback. Compiler
+  output already matches except a checked packet-end bit for the predicate
+  before its register-list duplex; the transformation fails closed on changes
+  to the instruction classes, operands, and neighboring parse bits.
+
+**Unreconstructed gap `[0x447d28,0x447d38)` = 16 bytes** contains a
+four-word packet that LLVM6 does not successfully decode as a unit. It is
+**not** filled with original reference instruction bytes, inferred NOPs or
+zeroes. This gap separates the two newly verified intervals; the contiguous
+file prefix `[0x446000,0x447d28)` is 7,464 bytes and must not be claimed to
+extend through `0x447d90` until the gap has independent source code.
+
+Total generated agent coverage: **8,164** bytes including **7,856 executable**,
+**296 generated ELF32 metadata** and **12 alignment** bytes. Four disjoint
+fragments exactly match the SHA-256-pinned original `modem.mbn`. Neither the
+large controller function nor the full Qualcomm image is complete, and no new
+OEM authentication/signature has been produced.

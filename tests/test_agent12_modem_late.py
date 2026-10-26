@@ -15,6 +15,42 @@ spec.loader.exec_module(agent12)
 
 
 class ModemLateTests(unittest.TestCase):
+    def test_aux_controller_phase13_disjoint_source_and_packet(self):
+        self.assertEqual((agent12.AUX_LARGE_CONTROLLER_PHASE13_GATE_START,
+                          agent12.AUX_LARGE_CONTROLLER_PHASE13_GATE_END),
+                         (0x447d20,0x447d28))
+        self.assertEqual((agent12.AUX_LARGE_CONTROLLER_PHASE13_START,
+                          agent12.AUX_LARGE_CONTROLLER_PHASE13_END),
+                         (0x447d38,0x447d90))
+        self.assertEqual(agent12.AUX_LARGE_CONTROLLER_PHASE13_START-
+                         agent12.AUX_LARGE_CONTROLLER_PHASE13_GATE_END,16)
+        a=agent12.AUX_LARGE_CONTROLLER_PHASE13_SOURCE.read_text()
+        b=agent12.AUX_LARGE_CONTROLLER_PHASE13_GATE_SOURCE.read_text()
+        for src in [a,b]:
+            self.assertNotIn('.word',src)
+            self.assertNotIn('.incbin',src)
+        self.assertIn('loop0(scan_body,r6)',a)
+        self.assertIn('}:endloop0',a)
+        self.assertIn('r3 = ##65535',b)
+        words=[0x7800c000]*22
+        words[0x14//4:0x20//4]=[0xbfe27fe6,0x7582c021,0x480307d4]
+        result=struct.unpack('<22I',agent12.restore_aux_large_controller_phase13_packets(
+            struct.pack('<22I',*words)))
+        self.assertEqual(result[0x18//4],0x75824021)
+        for idx,bad,reason in [
+            (0x14//4,0x7f007fe6,'ISA fields'),
+            (0x18//4,0x7582c022,'ISA fields'),
+            (0x1c//4,0x480307d3,'ISA fields'),
+            (0x18//4,0x75824021,'packet markers'),
+            (0x1c//4,0x480347d4,'packet markers'),
+        ]:
+            other=words.copy();other[idx]=bad
+            with self.assertRaisesRegex(ValueError,reason):
+                agent12.restore_aux_large_controller_phase13_packets(
+                    struct.pack('<22I',*other))
+        with self.assertRaisesRegex(ValueError,'88 source-assembled bytes'):
+            agent12.restore_aux_large_controller_phase13_packets(bytes(84))
+
     def test_insert_controller_source_and_guarded_packet_reordering(self):
         self.assertEqual((agent12.AUX_INSERT_CONTROLLER_START,
                           agent12.AUX_INSERT_CONTROLLER_END),(0x447234,0x4472d0))
