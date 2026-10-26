@@ -216,6 +216,17 @@ class L2GlobalCommand(IntEnum):
     CLEAN = 0xA820D000
 
 
+class KernelZeroLock(IntEnum):
+    """Nullary V66 kernel K0 lock/unlock privileged operations.
+
+    These have no encoded operands; the public ISA semantic names are
+    independently confirmed with a Hexagon decoder. An assembler that
+    lacks V66 support must not silently substitute a NOP at these slots.
+    """
+    LOCK=0x6C20C060
+    UNLOCK=0x6C20C080
+
+
 class TlbControl(IntEnum):
     """Nullary v66 privileged TLB synchronization operations."""
     LOCK = 0x6C20C020
