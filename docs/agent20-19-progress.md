@@ -739,3 +739,23 @@ new executable bytes are added. See
 - See `docs/agent20-19-dlm-narrow-bank-relocation.md` for evidence, complete
   transformations, failure cases, and reproducible commands. Branch still
   derives from old integration preview, not checkpoint-50.
+
+## Agent 20-19 checkpoint 20 — three chained, uncredited DLM bank-copy windows
+
+- A read-only comparison of **both pinned Novatek revisions** confirms
+  identical zero-valued windows `[0x2271c,0x2286c)`, `[0x22875,0x22a00)`
+  and `[0x262ec,0x26a00)` at destination file `+0x4000`.
+- Added **2,543 reference-dependent bytes** to the sparse DLM linker; the
+  primary spans still require external source and **zero new independent
+  bytes** are credited. The linker copies unknown data, never silently fills
+  regions with zeros. Synthetic nonzero-source tests confirm dependency
+  propagation through the two-stage three-bank chain and reject altered or
+  absent input.
+- Conditional exact DLM rebuild now uses **9,353 authored**, **12,984
+  dependent**, and **27,215 external seed** bytes in **60 seed ranges**.
+  The underlying 40,199 source-unrecovered DLM bytes remain unchanged.
+- Full Rust/Python/release and original reference checks remain required.
+  See `docs/agent20-19-dlm-zero-bank-aliases.md` for the exact bounds,
+  cross-version checks, provenance limitations and reproducer.
+- Agent 19 remains a portable branch from the older integration preview,
+  not a descendant of the missing checkpoint-50 Git commit.

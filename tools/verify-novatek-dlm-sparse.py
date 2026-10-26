@@ -57,6 +57,12 @@ NARROW_RECORD_COUNT=18
 NARROW_SKIP_RECORDS=frozenset((8,9))
 NARROW_DEPENDENCIES=((NARROW_DIRECTORY_START,NARROW_DIRECTORY_BYTES),
                      (NARROW_WINDOW_START,NARROW_WINDOW_END-NARROW_WINDOW_START))
+# Topologically ordered secondary-bank copies. Both pinned revisions contain
+# equal, zero-valued spans. Their SOURCE is still external/unknown; the copy
+# engine must not materialize zero-filled data without those source bytes.
+ZERO_TAIL_COPIES=((0x2271c,336),(0x22875,395),(0x262ec,1812))
+assert sum(n for _,n in ZERO_TAIL_COPIES)==2543
+
 assert sum(n for _,n in NARROW_DEPENDENCIES)==764
 
 def relocate_narrow_window(start,src):
@@ -115,6 +121,8 @@ def destinations():
         yield start+RECORD_BANK_DELTA,7
     for start,n in NARROW_DEPENDENCIES:
         yield start+NARROW_BANK_DELTA,n
+    for start,n in ZERO_TAIL_COPIES:
+        yield start+0x4000,n
     yield PROFILE[2],PROFILE[1]-PROFILE[0]
     yield SIGNATURE[1],SIGNATURE[2]
 
@@ -184,6 +192,8 @@ def rebuild(fragments,seeds):
         place(start+RECORD_BANK_DELTA,relocate_middle(record,read(start,start+7)),2)
     for start,n in NARROW_DEPENDENCIES:
         place(start+NARROW_BANK_DELTA,relocate_narrow_window(start,read(start,start+n)),2)
+    for start,n in ZERO_TAIL_COPIES:
+        place(start+0x4000,read(start,start+n),2)
     first,last,target=PROFILE
     place(target,read(first,last),2)
     first,target,n=SIGNATURE

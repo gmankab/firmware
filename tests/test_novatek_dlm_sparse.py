@@ -21,7 +21,7 @@ class SparseDlmTests(unittest.TestCase):
         # and two shifted indices in 29 small records, plus eight mode flags.
         self.assertEqual(sum(x!=0 for x in out),9*21+2*29+8+4+2*(18-2))
         self.assertEqual(int.from_bytes(out[0x26a64+0x48-m.DLM_START:0x26a64+0x4a-m.DLM_START],"little"),0x1000)
-        self.assertEqual(kinds[2],10481)
+        self.assertEqual(kinds[2],13024)
         self.assertEqual(checks,0)
     def test_reject_missing_extra_duplicate_and_wrong_range(self):
         for seeds in (self.seeds[:-1],self.seeds+self.seeds[-1:],
@@ -110,6 +110,25 @@ class SparseDlmTests(unittest.TestCase):
         self.assertTrue(all(not any(a<=base+m.NARROW_BANK_DELTA+i<b for a,b in self.holes)
                             for base,n in m.NARROW_DEPENDENCIES
                             for i in range(n) if base+m.NARROW_BANK_DELTA+i<m.DLM_END))
+
+    def test_chained_unknown_bank_windows_require_real_primary_bytes(self):
+        self.assertEqual(sum(n for _,n in m.ZERO_TAIL_COPIES),2543)
+        out,_,kinds,_=m.rebuild(self.parts,self.seeds)
+        self.assertEqual(kinds[2],13024)
+        for start,n in m.ZERO_TAIL_COPIES:
+            self.assertEqual(out[start-m.DLM_START:start-m.DLM_START+n],
+                             out[start+0x4000-m.DLM_START:start+0x4000-m.DLM_START+n])
+        # The later span's input overlaps two *earlier derived outputs*;
+        # mutation of the lower external primary propagates twice.
+        seeds=[(a,bytearray(b)) for a,b in self.seeds]
+        needle=m.ZERO_TAIL_COPIES[0][0]+7
+        for at,b in seeds:
+            if at<=needle<at+len(b):b[needle-at]^=0x5a;break
+        else:self.fail('expected initial primary to be externally supplied')
+        modified,_,_,_=m.rebuild(self.parts,seeds)
+        self.assertEqual(modified[needle-m.DLM_START],0x5a)
+        self.assertEqual(modified[needle+0x4000-m.DLM_START],0x5a)
+        self.assertEqual(modified[needle+0x8000-m.DLM_START],0x5a)
 
     def test_range_bounds_and_derived_table_no_source_credit(self):
         with self.assertRaisesRegex(ValueError,'out-of-bounds'):m.plan([(m.DLM_START-1,b'\0')])
