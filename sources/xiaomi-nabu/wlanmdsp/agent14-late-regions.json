@@ -579,6 +579,16 @@
       "sha256": "ba7b671190e4093f6d1c950b8761c3faaa2865c7daddde84f0afd572af36fb00",
       "checkpoint": 18,
       "classification": "executable"
+    },
+    {
+      "name": "interface-command-pipeline",
+      "file_start": 1063756,
+      "file_end": 1065880,
+      "source": "sources/xiaomi-nabu/wlanmdsp/agent14-late-interface-command-pipeline.S",
+      "symbol": "agent14_late_interface_command_pipeline",
+      "sha256": "9fe0ef263735014e95566985b5043ec1c94e22ede8818f6e074796768711c190",
+      "checkpoint": 19,
+      "classification": "executable"
     }
   ]
 }

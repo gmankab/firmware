@@ -902,3 +902,39 @@ still requires separate coordination. Next complete function entry is
 Full checks: **160 Rust tests**, **147 Python tests with zero skipped**,
 workspace release build, two independent Hexagon assemblers, V66 decoder,
 cumulative pinned byte equality, `git diff --check`, and bundle verification.
+
+## Checkpoint 19 — interface command pipeline, word field unpacking and status replies
+
+The complete Hexagon V66 function `[0x103b4c,0x104398)` is source-authored
+from named packet mnemonics and local labels, producing **2,124 exact
+executable bytes**. Its conditional paths validate record signatures, call
+an interface callback, unpack byte fields into 32-bit command words, check
+per-interface counters and write packed reply metadata. External helper
+identities and names are inferred from dataflow rather than recovered C
+function symbols or observed on-device execution.
+
+Using explicit `##` branch extenders preserves two long in-function predicates
+and the shared external jump. External call displacements are relative to
+packet starts rather than absolute function offsets. Four packets need
+carefully chosen legal source instruction ordering to preserve duplex choices
+at offsets `0x0d0`, `0x0308`, `0x0510`, and `0x051c`; one mixed memory packet
+at `0x05cc` requires `:mem_noshuf`. All other encoded packets are rebuilt
+normally using ISA mnemonics; **no raw instruction words, vendor binaries,
+or reference-derived executable slices** appear in the generated source.
+
+The primary LLVM 18/V66 builder and independent LLVM 6/V65 assembler emit
+identical **2,124** bytes, SHA-256
+`9fe0ef263735014e95566985b5043ec1c94e22ede8818f6e074796768711c190`,
+which match the pinned `wlanmdsp.mbn` reference with zero differences.
+The V66 decoder recognizes all words. Source derived contiguous WLAN code
+now covers `[0x1001c4,0x104398)` = **16,852 bytes**. The independently
+assembled two dispatch tables remain **496 separate data bytes** in
+`[0x2f6cd0,0x2f6ec0)`, for **17,348 unique source-derived bytes total**.
+These are not full-image bytes and the leading Agent 13 seam
+`[0x100000,0x1001c4)` remains uncovered. First next complete function starts
+at `0x104398` (runtime `0xb00c4398`).
+
+Checkpoint 19 passes **160 Rust tests** and **125 Python-discovered tests**
+(**103 passed, 22 skipped** for optional external tools), workspace release
+build, Git whitespace checks, original-reference binary comparison,
+independent LLVM assembler output, and strict packet-structure validation.
