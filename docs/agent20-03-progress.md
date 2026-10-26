@@ -471,3 +471,10 @@ Original reference: private `map220v-nabu-firmware/venus.mbn`, SHA-256 `9d4af65d
 - Whole-fragment Rust emitter exactly matches pinned `venus.mbn` and independent Clang/LLVM assembler comparison confirms all 1,588 newly rebuilt bytes.
 - **237 Rust tests** and **13 Python tests** passed. Release build **not verified** for this checkpoint.
 - Generated fragment SHA-256 `8b709ee54c7a69ba600c9bf895a4bee92b88c8c635710a3c7a7b1b7b8f96b9d8`. Next unimplemented entry begins at `0x33abc`, below Agent 20-03's exclusive `0x40000` boundary. Instruction-byte agreement does not prove behavioral equivalence or OEM authentication.
+
+## Checkpoint 71 — stream callback queues and input validation
+
+- Full contiguous typed ARM32 `[0x21c78,0x33e10)` = **74,136 byte-identical bytes**. New `[0x33abc,0x33e10)` = **852 bytes**: **197 instructions** and **16 non-instruction literal data words** across six pools (`0x33c90–0x33ca8`, `0x33ce8–0x33cf0`, `0x33d30–0x33d38`, `0x33d78–0x33d80`, `0x33dc0–0x33dc8`, and `0x33e08–0x33e10`).
+- Rebuilds two codec stream callback queue drainers and five guarded stream/mode validation helpers. Device diagnostic pointers and codec class IDs are modeled as data rather than A32 instructions.
+- Direct generated-fragment match against pinned Venus MBN and independent Clang/LLVM reassembly both pass **all 852 new bytes** with zero mismatches. **237 Rust tests** and **13 Python tests** pass. Release build not verified for this checkpoint.
+- Generated fragment SHA-256: `c1ec7d06950813ef757d55f305e915ec223ca0b4f355428c9e4c0a211f8031de`. First uncovered routine starts at runtime `0x33e10`; source is ARM32 instruction encoding, not complete semantic decompilation or a signed firmware image.
