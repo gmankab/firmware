@@ -575,3 +575,18 @@ payload are included in the source generator; the output matches all 116
 reference bytes. **Cumulative independently authored executable coverage:
 5,904 bytes across 77 verified fragments**. Non-executable padding remains
 excluded; the remaining large ADSP executable and data regions are unfinished.
+
+**Checkpoint 39 — controller-global callback publisher:** Reconstructed
+**96 independently source-assembled bytes** at original ADSP ELF file
+`[0x3f31c,0x3f37c)`, SHA-256
+`b8b76f904a02005d8c89da368363a0fedec827464656b5a2a4b82931e59e5b81`.
+The original sequence publishes a fixed controller-global table, installs
+platform callback pointers and records the controller initialization result.
+Matching the firmware required two packet-structure details: a four-word
+packet with two `immext` operations, and a `:mem_noshuf` packet containing
+a `memw` followed by a register-pair `memd`; the external callback is
+specified by its source-level relative target `+0xec508`. No OEM executable
+word or padded filler was copied. **Cumulative verified executable code is
+6,000 bytes in 78 disjoint fragments** (including checkpoint 38’s bounded
+V66 duplex stream-transfer loop). The many remaining ADSP executable bytes
+and original authentication remain outside independent source coverage.

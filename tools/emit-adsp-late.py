@@ -96,6 +96,7 @@ FRAGMENTS = {
     'controller-report-default': (TOOLS / 'adsp-late-controller-report-default.S', 0x3E8F4, 0x1C),
     'controller-service-root': (TOOLS / 'adsp-late-controller-service-root.S', 0x3EA50, 0x1B4),
     'bounded-stream-transfer': (TOOLS / 'adsp-late-bounded-stream-transfer.S', 0x3F000, 0x74),
+    'controller-publish-globals': (TOOLS / 'adsp-late-controller-publish-globals.S', 0x3F31C, 0x60),
     'controller-field-00-get': (TOOLS / 'adsp-late-controller-field-00-get.S', 0x3EC80, 0xC),
     'controller-field-00-forward': (TOOLS / 'adsp-late-controller-field-00-forward.S', 0x3EC8C, 0x10),
     'controller-field-01-get': (TOOLS / 'adsp-late-controller-field-01-get.S', 0x3ECA0, 0xC),

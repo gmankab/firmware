@@ -197,9 +197,9 @@ class ADSPExternalsAndCodeTests(unittest.TestCase):
     @unittest.skipUnless(LLVM_MC,'Hexagon LLVM6 assembler required')
     def test_complete_fragment_inventory_rejects_overlaps(self):
         manifest,regions=adsp.assembled_inventory(LLVM_MC,None)
-        self.assertEqual(len(manifest['fragments']),77)
-        self.assertEqual(manifest['total_independently_assembled_executable_bytes'],5904)
-        self.assertEqual(sum(map(len,regions.values())),5904)
+        self.assertEqual(len(manifest['fragments']),78)
+        self.assertEqual(manifest['total_independently_assembled_executable_bytes'],6000)
+        self.assertEqual(sum(map(len,regions.values())),6000)
         self.assertEqual(manifest['gap_bytes_included_in_generated_executables'],0)
         self.assertFalse(manifest['complete_adsp_image'])
         self.assertEqual(manifest['external_original_code_bytes_in_output'],0)
@@ -366,7 +366,7 @@ class ADSPExternalsAndCodeTests(unittest.TestCase):
     def test_inventory_every_fragment_uses_correct_original(self):
         inventory,_outputs=adsp.assembled_inventory(LLVM_MC,Path(REFERENCE).read_bytes())
         self.assertTrue(all(x['reference_byte_identical'] for x in inventory['fragments']))
-        self.assertEqual(inventory['total_independently_assembled_executable_bytes'],5904)
+        self.assertEqual(inventory['total_independently_assembled_executable_bytes'],6000)
 
     @unittest.skipUnless(LLVM_MC and REFERENCE,
                          'Hexagon LLVM6 and exact pinned ADSP reference required')
@@ -380,7 +380,7 @@ class ADSPExternalsAndCodeTests(unittest.TestCase):
                 adsp.verify_slice(built,original,off)
                 total+=len(built)
                 ranges.append((off,off+size))
-        self.assertEqual(total,5904)
+        self.assertEqual(total,6000)
         ranges.sort()
         self.assertEqual(ranges[0],(0x39000,0x39054))
         self.assertEqual(ranges[-1],(0x3640a8,0x3640f8))
@@ -1118,3 +1118,30 @@ class ADSPV66BoundedStreamTransferTests(unittest.TestCase):
                 'r18 = add(r9,r20); r17 = add(r10,r20)'))
             with self.assertRaisesRegex(adsp.LateAdspError,'Invalid V66 duplex operands'):
                 adsp.compile_source(LLVM_MC,broken,size)
+
+
+class ADSPControllerGlobalPublisherTests(unittest.TestCase):
+    """Platform controller register setup and mixed memory-op packet."""
+
+    @unittest.skipUnless(LLVM_MC, 'Hexagon LLVM6 assembler required')
+    def test_controller_global_publish_source_matches_reference(self):
+        source, off, size = adsp.FRAGMENTS['controller-publish-globals']
+        self.assertEqual((off, size), (0x3f31c, 96))
+        asm=source.read_text()
+        self.assertIn('memw(r16+#12) = r0; r17:16 = memd(r29+#0) }:mem_noshuf',asm)
+        self.assertIn('platform_register_device',asm)
+        for forbidden in ('.word ', '.long ', '.byte ', '.incbin ', '.fill '):
+            self.assertNotIn(forbidden,asm)
+        built=adsp.compile_source(LLVM_MC,source,size)
+        self.assertEqual(hashlib.sha256(built).hexdigest(),
+            'b8b76f904a02005d8c89da368363a0fedec827464656b5a2a4b82931e59e5b81')
+        if REFERENCE:
+            adsp.verify_slice(built,Path(REFERENCE).read_bytes(),off)
+
+    @unittest.skipUnless(LLVM_MC and REFERENCE,
+                         'Hexagon LLVM6 and pinned reference required')
+    def test_controller_global_publish_following_private_reference(self):
+        source,off,n=adsp.FRAGMENTS['controller-publish-globals']
+        original=Path(REFERENCE).read_bytes()
+        adsp.verify_slice(adsp.compile_source(LLVM_MC,source,n),original,off)
+        self.assertEqual(off+n,0x3f37c)
