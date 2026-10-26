@@ -597,3 +597,16 @@ python3 tools/agent20_06_a32_roundtrip.py /private/venus.mbn 0xa8ea0 0xa92c8 \
 - Added opt-in `AGENT20_06_REFERENCE_VENUS` and `AGENT20_06_EMIT_BIN` regression hooks, which permit full binary comparison and artifact emission from Rust tests without distributing the proprietary firmware reference. Paths are supplied externally and no opaque executable bytes enter the source code.
 - **239 Rust tests and 13 Python tests passed**. A fresh release build was not completed during checkpoint 67 and is not claimed to pass.
 - Next uncovered runtime address `0xbfe54`, file offset `0xc3e54`. This provisional Git history is rooted in older Agent 03 commits, not checkpoint-50 integration. Byte-identity is only instruction-level verification, not independent algorithmic decompilation or OEM signing.
+
+## Checkpoint 68 — complete codec profile allocator
+
+- Continuous Venus runtime `[0xa8000,0xc049c)` = **99,484 independently generated, reference-identical bytes** (file offsets `[0xac000,0xc449c)`).
+- New `[0xbfe54,0xc049c)` = **1,608 bytes** consisting of **391 typed ARM32 instructions (1,564 bytes)** and an **11-word literal pool (44 bytes)** `[0xc0470,0xc049c)`. The routine initializes codec profile buffer allocations, computes input/output dimensions, formats hardware slots and reports original controller diagnostics.
+- Entire source-emitted region matches the original Venus reference with **zero differing bytes**. Independent Clang/LLVM ARM mnemonic round-trip matches all code and declared data:
+
+  ```sh
+  python3 tools/agent20_06_a32_roundtrip.py /private/venus.mbn 0xbfe54 0xc049c \
+    --data-range 0xc0470:0xc049c
+  ```
+
+- **240 Rust tests and 13 Python tests passed**; successful release build not claimed. The next uncovered ARM runtime `0xc049c` (original file `0xc449c`) begins another controller helper. No OEM payload or signed metadata has been imported as opaque executable source; work is still old-base-provisional and not high-level semantic decompilation.
