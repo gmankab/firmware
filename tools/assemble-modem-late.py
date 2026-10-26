@@ -43,6 +43,8 @@ AUX_LARGE_CONTROLLER_PREFIX_SOURCE = ROOT / "crates/firmware-tools/src/devices/x
 AUX_LARGE_CONTROLLER_MID_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_aux_large_controller_mid.s"
 AUX_LARGE_CONTROLLER_PHASE2_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_aux_large_controller_phase2.s"
 AUX_LARGE_CONTROLLER_PHASE3_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_aux_large_controller_phase3.s"
+AUX_LARGE_CONTROLLER_PHASE4_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_aux_large_controller_phase4.s"
+AUX_LARGE_CONTROLLER_PHASE5_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_aux_large_controller_phase5.s"
 AUX_DISPATCH_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_aux_dispatch_helpers.s"
 AUX_TYPE_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_aux_type_config.s"
 AUX_NOTIFY_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_aux_controller_notify.s"
@@ -154,6 +156,10 @@ AUX_LARGE_CONTROLLER_PHASE2_START = AUX_LARGE_CONTROLLER_MID_END
 AUX_LARGE_CONTROLLER_PHASE2_END = 0x4478A4
 AUX_LARGE_CONTROLLER_PHASE3_START = AUX_LARGE_CONTROLLER_PHASE2_END
 AUX_LARGE_CONTROLLER_PHASE3_END = 0x44795C
+AUX_LARGE_CONTROLLER_PHASE4_START = AUX_LARGE_CONTROLLER_PHASE3_END
+AUX_LARGE_CONTROLLER_PHASE4_END = 0x4479A8
+AUX_LARGE_CONTROLLER_PHASE5_START = AUX_LARGE_CONTROLLER_PHASE4_END
+AUX_LARGE_CONTROLLER_PHASE5_END = 0x4479D0
 MARKER_MASK = 3 << 14
 CONTINUE_MARKER = 1 << 14
 END_MARKER = 3 << 14
@@ -1263,6 +1269,34 @@ def restore_aux_large_controller_phase3_packets(assembled: bytes) -> bytes:
     return struct.pack('<46I',*words)
 
 
+def restore_aux_large_controller_phase5_packets(assembled: bytes) -> bytes:
+    """Checked fixup for V60 slot-conflicting four-operation branch packet.
+
+    LLVM6 cannot assemble the compound `r2 += add(...)` in the same
+    packet as a P0.new branch and predicated store, although this valid
+    packet occurs in the target V60 executable. Assemble the same source
+    instructions separately, join their existing parse markers and restore
+    the defined two-byte-unit branch displacement. Also join the earlier
+    resource callback with its independently emitted arithmetic packet.
+    """
+    n=AUX_LARGE_CONTROLLER_PHASE5_END-AUX_LARGE_CONTROLLER_PHASE5_START
+    if len(assembled)!=n:
+        raise ValueError("controller phase5 must source-assemble 40 bytes")
+    words=list(struct.unpack('<10I',assembled))
+    call,arith,branch=words[0],words[0x18//4],words[0x20//4]
+    if [x>>24 for x in (call,arith,branch)]!=[0x5a,0xe2,0x5c]:
+        raise ValueError("controller phase5 call/add/branch opcode classes changed")
+    if [x&MARKER_MASK for x in (call,arith,branch)]!=[
+            END_MARKER,END_MARKER,CONTINUE_MARKER]:
+        raise ValueError("controller phase5 source packet markers changed")
+    if (call&0x3f,arith&0x3f,branch&0x3f)!=(0x04,0x22,0x14):
+        raise ValueError("controller phase5 call/operand/branch relocation changed")
+    words[0]=(call&~MARKER_MASK)|CONTINUE_MARKER
+    words[0x18//4]=(arith&~MARKER_MASK)|CONTINUE_MARKER
+    words[0x20//4]=(branch&~0x3f)|0x16
+    return struct.pack('<10I',*words)
+
+
 def assemble(llvm_mc: Path, source: Path) -> bytes:
     with tempfile.TemporaryDirectory(prefix="nabu-modem-late-") as tmp:
         obj = Path(tmp) / "late.o"
@@ -1302,6 +1336,8 @@ def output_fragments(llvm_mc: Path) -> dict[int, bytes]:
     aux_large_controller_mid=assemble(llvm_mc,AUX_LARGE_CONTROLLER_MID_SOURCE)
     aux_large_controller_phase2=restore_aux_large_controller_phase2_packet(assemble(llvm_mc,AUX_LARGE_CONTROLLER_PHASE2_SOURCE))
     aux_large_controller_phase3=restore_aux_large_controller_phase3_packets(assemble(llvm_mc,AUX_LARGE_CONTROLLER_PHASE3_SOURCE))
+    aux_large_controller_phase4=assemble(llvm_mc,AUX_LARGE_CONTROLLER_PHASE4_SOURCE)
+    aux_large_controller_phase5=restore_aux_large_controller_phase5_packets(assemble(llvm_mc,AUX_LARGE_CONTROLLER_PHASE5_SOURCE))
     aux_dispatch = assemble(llvm_mc,AUX_DISPATCH_SOURCE)
     aux_type = restore_aux_type_return_packets(assemble(llvm_mc,AUX_TYPE_SOURCE))
     aux_notify = restore_aux_controller_notify_packets(assemble(llvm_mc,AUX_NOTIFY_SOURCE))
@@ -1353,6 +1389,8 @@ def output_fragments(llvm_mc: Path) -> dict[int, bytes]:
         (aux_large_controller_mid,AUX_LARGE_CONTROLLER_MID_START,AUX_LARGE_CONTROLLER_MID_END,'large controller continuation'),
         (aux_large_controller_phase2,AUX_LARGE_CONTROLLER_PHASE2_START,AUX_LARGE_CONTROLLER_PHASE2_END,'large controller phase2'),
         (aux_large_controller_phase3,AUX_LARGE_CONTROLLER_PHASE3_START,AUX_LARGE_CONTROLLER_PHASE3_END,'large controller phase3'),
+        (aux_large_controller_phase4,AUX_LARGE_CONTROLLER_PHASE4_START,AUX_LARGE_CONTROLLER_PHASE4_END,'large controller phase4'),
+        (aux_large_controller_phase5,AUX_LARGE_CONTROLLER_PHASE5_START,AUX_LARGE_CONTROLLER_PHASE5_END,'large controller phase5'),
     ]:
         if len(fragment)!=end-start:
             raise ValueError(f"auxiliary {label} source length mismatch")
@@ -1397,7 +1435,9 @@ def output_fragments(llvm_mc: Path) -> dict[int, bytes]:
             AUX_CONTROLLER_SLOT_END==AUX_LARGE_CONTROLLER_PREFIX_START and
             AUX_LARGE_CONTROLLER_PREFIX_END==AUX_LARGE_CONTROLLER_MID_START and
             AUX_LARGE_CONTROLLER_MID_END==AUX_LARGE_CONTROLLER_PHASE2_START and
-            AUX_LARGE_CONTROLLER_PHASE2_END==AUX_LARGE_CONTROLLER_PHASE3_START):
+            AUX_LARGE_CONTROLLER_PHASE2_END==AUX_LARGE_CONTROLLER_PHASE3_START and
+            AUX_LARGE_CONTROLLER_PHASE3_END==AUX_LARGE_CONTROLLER_PHASE4_START and
+            AUX_LARGE_CONTROLLER_PHASE4_END==AUX_LARGE_CONTROLLER_PHASE5_START):
         raise ValueError("missing source after controller registry block")
     if AUX_LOOKUP_END!=AUX_REGISTRY_CORE_START or AUX_REGISTRY_CORE_END!=AUX_DISPATCH_START:
         raise ValueError("modem auxiliary registry source intervals have a gap")
@@ -1409,7 +1449,8 @@ def output_fragments(llvm_mc: Path) -> dict[int, bytes]:
                         aux_lookup+aux_registry_core+registry+aux_notify_scan+aux_cleanup+
                         aux_factory+aux_find_format+aux_find_class+aux_controller_slot+
                         aux_large_controller_prefix+aux_large_controller_mid+aux_large_controller_phase2+
-                        aux_large_controller_phase3,
+                        aux_large_controller_phase3+aux_large_controller_phase4+
+                        aux_large_controller_phase5,
     }
 
 

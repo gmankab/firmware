@@ -1076,3 +1076,37 @@ class ModemLateSessionLoopTests(unittest.TestCase):
                     struct.pack('<46I',*bad))
         with self.assertRaisesRegex(ValueError,'184 bytes'):
             agent12.restore_aux_large_controller_phase3_packets(bytes(180))
+
+
+class ModemLateCallbackAndDuplexTests(unittest.TestCase):
+    def test_direct_76_bytes_and_checked_followup_40_bytes(self):
+        self.assertEqual((agent12.AUX_LARGE_CONTROLLER_PHASE4_START,
+                          agent12.AUX_LARGE_CONTROLLER_PHASE4_END),
+                         (0x44795C,0x4479A8))
+        self.assertEqual((agent12.AUX_LARGE_CONTROLLER_PHASE5_START,
+                          agent12.AUX_LARGE_CONTROLLER_PHASE5_END),
+                         (0x4479A8,0x4479D0))
+        a=agent12.AUX_LARGE_CONTROLLER_PHASE4_SOURCE.read_text()
+        b=agent12.AUX_LARGE_CONTROLLER_PHASE5_SOURCE.read_text()
+        self.assertIn('r22 = #0',a)
+        self.assertIn('memw(r29+#84)',a)
+        self.assertIn('r2 += add(r23,#-1)',b)
+        self.assertNotIn('.word',a+b)
+        self.assertNotIn('.incbin',a+b)
+        words=[0x7800c000]*10
+        words[0]=0x5a00fe04
+        words[0x18//4]=0xe217dfe2
+        words[0x20//4]=0x5c205814
+        before=struct.pack('<10I',*words)
+        rebuilt=struct.unpack('<10I',agent12.restore_aux_large_controller_phase5_packets(before))
+        self.assertEqual((rebuilt[0],rebuilt[6],rebuilt[8]),
+                         (0x5a007e04,0xe2175fe2,0x5c205816))
+        for offset,new,err in [(0,0x7800fe04,'classes'),
+                               (0,0x5a007e04,'markers'),
+                               (0x18//4,0xe217dfe3,'relocation'),
+                               (0x20//4,0x5c205818,'relocation')]:
+            changed=words.copy();changed[offset]=new
+            with self.assertRaisesRegex(ValueError,err):
+                agent12.restore_aux_large_controller_phase5_packets(struct.pack('<10I',*changed))
+        with self.assertRaisesRegex(ValueError,'40 bytes'):
+            agent12.restore_aux_large_controller_phase5_packets(before[:-4])
