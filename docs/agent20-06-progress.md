@@ -500,3 +500,10 @@ python3 tools/agent20_06_a32_roundtrip.py /private/venus.mbn 0xa8ea0 0xa92c8 \
 - Newly reconstructed `[0xbc598,0xbc7dc)` = **580 bytes**, with 138 ARM32 instructions (552 bytes) and 7 separately classified literal/data words (28 bytes) at `[0xbc78c,0xbc7a8)`. The full controller command routine ends via its original POP/PC or conditional tail at `0xbc788`. Three adjacent short helpers implement controller MMIO register writes and original BX LR returns.
 - Whole Rust-generated region compares against pinned original Venus with **zero mismatches**; independent Clang/LLVM ARM32 instruction reassembly also matches all code bytes and classified data. **230 Rust and 13 Python tests pass**; release build not claimed.
 - Next uncovered VMA is `0xbc7dc`, file offset `0xc07dc`; a separate codec controller function begins there. Still provisional older Agent-03 branch, not checkpoint-50-rooted integrated Git history, nor a high-level decompiled/OEM-signed firmware image.
+
+## Checkpoint 59 — complete hardware codec profile programming
+
+- Entire emitted Venus runtime `[0xa8000,0xbd000)` = **86,016 consecutive byte-identical bytes**, original MBN file `[0xac000,0xc1000)`.
+- Added the full codec hardware-profile controller routine `[0xbc7dc,0xbd000)` = **2,084 bytes**, comprising **511 independently re-encoded ARM32 instructions** (2,044 bytes) and **ten separately modeled non-instruction literal words** (40 bytes) at `[0xbcfd8,0xbd000)`. Contains codec status/MMIO writes, structured frame-row registers, channel geometry, fallback reports and the original POP/PC return.
+- Entire generated output exactly matches pinned `venus.mbn` (zero different bytes). Independent Clang/LLVM mnemonic reconstruction matches all code bytes, with the literal pool classified as data. **231 Rust + 13 Python tests passed**; no release build claimed.
+- Next uncovered runtime `0xbd000` (file `0xc1000`), next function prologue begins here. Work stays on the provisional old-Agent-03 Git branch, not a checkpoint-50-based integration. Instruction-byte equality does not establish recovered high-level source semantics or OEM authentication.
