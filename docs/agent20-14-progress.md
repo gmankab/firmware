@@ -1143,3 +1143,26 @@ function starts at file `0x105e70` (runtime `0xb00c5e70`); the 452-byte
 leading Agent13 seam is still uncovered, and the broader WLAN firmware is
 not independently reconstructed or newly signed. Portable branch ancestry
 remains on `d6104bb`, pending validated checkpoint-50 integration.
+
+## Checkpoint 27 — session record helpers and status guard
+
+Four complete adjacent Hexagon V66 functions at file offsets `[0x105e70,0x106128)`
+(runtime `[0xb00c5e70,0xb00c6128)`) contribute **696 source-assembled
+executable bytes**, independently verified with LLVM 22/V66 and LLVM 6/V65:
+
+- `[0x105e70,0x105f48)` — 216-byte record/session initialization and status publication.
+- `[0x105f48,0x106044)` — 252-byte session record allocation, field setup and publication.
+- `[0x106044,0x1060e0)` — 156-byte detach, record list update and callback dispatch.
+- `[0x1060e0,0x106128)` — 72-byte guarded session-state predicate and zero-result return.
+
+The second helper has a duplex instruction packet at function offset `0x68`;
+source-level reordering of independent operations preserves its precise
+Hexagon parse/class bits without raw reference instruction words. All four
+fragments have **zero byte differences** under both assemblers and match
+pinned `wlanmdsp.mbn`. No OEM executable bytes or signed content are checked in.
+
+Cumulative executable coverage `[0x1001c4,0x106128)` is **24,420 bytes**.
+The two noncontiguous source-authored dispatch tables remain **496 data
+bytes**, totaling **24,916 source-derived bytes**. The next function starts
+at `0x106128`. The 452-byte Agent13 boundary seam and the remaining owned
+WLAN executable region remain unimplemented. On-device behavior is unverified.
