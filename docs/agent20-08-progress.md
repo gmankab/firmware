@@ -910,3 +910,36 @@ bytes in 106 disjoint fragments**. Full private-image comparison is exact;
 200 Python tests were discovered (197 pass, 3 skip), 160 Rust tests pass,
 and the offline release build succeeds. Most ADSP remains unreconstructed;
 this older-base branch is still provisional pending checkpoint-50 integration.
+
+
+**Checkpoint 58 — callback-dispatch and locked registry forwarder:**
+Recovered **two complete, adjacent Hexagon functions totaling 668
+source-assembled executable bytes**, after excluding the 12-byte NOP alignment
+region `[0x3f074,0x3f080)`:
+
+- `controller-dispatch-context`: **320 bytes**, file `[0x3f080,0x3f1c0)`,
+  SHA-256 `747bb8947253bbf0a9bb8ce39677b3f0d4d9786ee508c7bcad0e8c1a011023e4`.
+  It marshals a large callback stack frame, performs a bounded callback-list
+  traversal, and invokes an indirect function with checked context fields.
+- `controller-request-forward`: **348 bytes**, file `[0x3f1c0,0x3f31c)`,
+  SHA-256 `cfa07edc49fc92443c9b673fa4210910a9ee1cabcd86de6cf1527ac9c9b67b55`.
+  It switches on request mode, forwards parameters, and uses `memw_locked`
+  compare-and-swap for registration. LLVM6 required exact ordering of
+  predicate/register loads and stores. A missing predicate-check packet,
+  a branch to the middle of a combined memory-write packet, and an
+  out-of-range symbolic call were corrected from the original control-flow
+  disassembly. The final 348 bytes are a perfect match, with no vendor
+  opcode literals or unknown filler.
+
+The new functions join the prior publisher (`0x3f31c–0x3f37c`) and
+register-query dispatcher (`0x3f37c–0x3f464`) to form **996 contiguous,
+verified, source-generated executable bytes** `[0x3f080,0x3f464)`.
+The separately reconstructed `[0x3f000,0x3f074)` bounded transfer precedes
+this by **three original alignment NOPs** `[0x3f074,0x3f080)`; they are not
+counted as original source-generated executable bytes in the ledger.
+
+**Total verified Agent 08 executable: 10,420 bytes across 108 nonoverlapping
+source-assembled fragments.** The entire manifest matches the pinned
+ADSP reference. 160 Rust and 199 Python tests pass, 3 Python tests skip;
+release build passes. This is a provisional older-base source branch, not
+checkpoint-50-rooted integration or a complete/signed ADSP firmware.

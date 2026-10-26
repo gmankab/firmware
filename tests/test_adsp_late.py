@@ -197,9 +197,9 @@ class ADSPExternalsAndCodeTests(unittest.TestCase):
     @unittest.skipUnless(LLVM_MC,'Hexagon LLVM6 assembler required')
     def test_complete_fragment_inventory_rejects_overlaps(self):
         manifest,regions=adsp.assembled_inventory(LLVM_MC,None)
-        self.assertEqual(len(manifest['fragments']),106)
-        self.assertEqual(manifest['total_independently_assembled_executable_bytes'],9752)
-        self.assertEqual(sum(map(len,regions.values())),9752)
+        self.assertEqual(len(manifest['fragments']),108)
+        self.assertEqual(manifest['total_independently_assembled_executable_bytes'],10420)
+        self.assertEqual(sum(map(len,regions.values())),10420)
         self.assertEqual(manifest['gap_bytes_included_in_generated_executables'],0)
         self.assertFalse(manifest['complete_adsp_image'])
         self.assertEqual(manifest['external_original_code_bytes_in_output'],0)
@@ -366,7 +366,7 @@ class ADSPExternalsAndCodeTests(unittest.TestCase):
     def test_inventory_every_fragment_uses_correct_original(self):
         inventory,_outputs=adsp.assembled_inventory(LLVM_MC,Path(REFERENCE).read_bytes())
         self.assertTrue(all(x['reference_byte_identical'] for x in inventory['fragments']))
-        self.assertEqual(inventory['total_independently_assembled_executable_bytes'],9752)
+        self.assertEqual(inventory['total_independently_assembled_executable_bytes'],10420)
 
     @unittest.skipUnless(LLVM_MC and REFERENCE,
                          'Hexagon LLVM6 and exact pinned ADSP reference required')
@@ -380,7 +380,7 @@ class ADSPExternalsAndCodeTests(unittest.TestCase):
                 adsp.verify_slice(built,original,off)
                 total+=len(built)
                 ranges.append((off,off+size))
-        self.assertEqual(total,9752)
+        self.assertEqual(total,10420)
         ranges.sort()
         self.assertEqual(ranges[0],(0x39000,0x39054))
         self.assertEqual(ranges[-1],(0x3640a8,0x3640f8))
@@ -1645,3 +1645,45 @@ class ADSPControllerParameterDispatcherTests(unittest.TestCase):
         # (parse 00), followed by one continuing word and a packet terminator.
         words=[int.from_bytes(code[i:i+4],'little') for i in (0x58,0x5c,0x60)]
         self.assertEqual([(w>>14)&3 for w in words],[0,1,3])
+
+
+class ADSPControllerContextAndForwardTests(unittest.TestCase):
+    """Source-assembled 668-byte function pair bridging a controller gap."""
+
+    @unittest.skipUnless(LLVM_MC,'LLVM6 Hexagon assembler required')
+    def test_callback_context_and_forwarder_match_reference(self):
+        expected={
+            'controller-dispatch-context':(0x3f080,0x140,
+                '747bb8947253bbf0a9bb8ce39677b3f0d4d9786ee508c7bcad0e8c1a011023e4'),
+            'controller-request-forward':(0x3f1c0,0x15c,
+                'cfa07edc49fc92443c9b673fa4210910a9ee1cabcd86de6cf1527ac9c9b67b55'),
+        }
+        original=Path(REFERENCE).read_bytes() if REFERENCE else None
+        for name,(offset,length,digest) in expected.items():
+            with self.subTest(name=name):
+                source,actual_off,actual_size=adsp.FRAGMENTS[name]
+                self.assertEqual((actual_off,actual_size),(offset,length))
+                text=source.read_text()
+                for forbidden in ('.word ','.long ','.byte ','.incbin ','.fill '):
+                    self.assertNotIn(forbidden,text)
+                output=adsp.compile_source(LLVM_MC,source,length)
+                self.assertEqual(hashlib.sha256(output).hexdigest(),digest)
+                if original is not None:
+                    adsp.verify_slice(output,original,offset)
+        self.assertEqual(adsp.FRAGMENTS['controller-dispatch-context'][1]+0x140,0x3f1c0)
+        self.assertEqual(adsp.FRAGMENTS['controller-request-forward'][1]+0x15c,0x3f31c)
+        self.assertEqual(adsp.FRAGMENTS['controller-publish-globals'][1],0x3f31c)
+        self.assertEqual(0x140+0x15c+0x60+0xe8,996)
+
+    @unittest.skipUnless(LLVM_MC,'LLVM6 Hexagon assembler required')
+    def test_predicated_stores_and_atomic_registry_linkage(self):
+        src=adsp.FRAGMENTS['controller-request-forward'][0].read_text()
+        for marker in ('cas_retry:', 'memw_locked(r2,p0) = r19',
+                       'registry_store:', 'p0 = cmp.eq(r18,#4)',
+                       'memw(r19+#8) = r0', 'if (p0.new) memw(r29+#16) = r8'):
+            self.assertIn(marker,src)
+        code=adsp.compile_source(LLVM_MC,adsp.FRAGMENTS['controller-request-forward'][0],0x15c)
+        # The combined predicate, branch and guarded store remain in one
+        # architectural packet, rather than splitting at offset 0xd4.
+        parse=[(int.from_bytes(code[i:i+4],'little')>>14)&3 for i in (0xd0,0xd4,0xd8)]
+        self.assertEqual(parse,[1,1,3])
