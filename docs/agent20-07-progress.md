@@ -1173,3 +1173,15 @@ python3 -S tools/adsp-agent20-rwe-next-controller-slot-reserve.py \
   --llvm-mc "$HEXAGON_LLVM_MC" --reference "$NABU_ADSP_REFERENCE" \
   --output /tmp/adsp-slot-reserve-192.bin
 ```
+
+## Checkpoint 68: controller slot deactivation `[0x12098,0x12114)`
+
+- **124 independently source-assembled Hexagon V66 bytes** (31 instruction words), file `[0x12098,0x12114)`, physical `[0x8be0f098,0x8be0f114)`. SHA-256 `2801241a15300e18c9ee413670249e519c74270203032dbf65e3e75fdd6b9ac8`.
+- Disables the selected slot, clears per-controller state words, publishes a class-flag indication and invokes the optional controller callback. LLVM6 assembles all 31 exact words with original packet boundaries and extender offsets, **no privileged opcodes or parse-bit patches**. The following `[0x12114,0x12118)` contains four original zero linker-fill bytes, explicitly not counted as code.
+- Previous `[0x11ae0,0x12098)` and this routine form a **1,588-byte code island** `[0x11ae0,0x12114)`; the source-built RWE executable total is **9,208 bytes in fifteen disjoint islands**. Next executable function starts at file `0x12118`.
+
+```sh
+python3 -S tools/adsp-agent20-rwe-next-controller-slot-deactivate.py \
+ --llvm-mc "$HEXAGON_LLVM_MC" --reference "$NABU_ADSP_REFERENCE" \
+ --output /tmp/adsp-controller-slot-deactivate-124.bin
+```
