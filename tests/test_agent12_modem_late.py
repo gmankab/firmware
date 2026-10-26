@@ -378,6 +378,59 @@ class ModemLateTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError,'312 independently assembled bytes'):
             agent12.restore_aux_session_registry_packets(binary[:-4])
 
+    def test_factory_format_and_class_scanners_reject_malformed_packets(self):
+        for file,lines in [
+            (agent12.AUX_FACTORY_SOURCE,('allocframe(#8)','dealloc_return')),
+            (agent12.AUX_FIND_FORMAT_SOURCE,('loop0(',':endloop0')),
+            (agent12.AUX_FIND_CLASS_SOURCE,('loop0(',':endloop0')),
+            (agent12.AUX_CONTROLLER_SLOT_SOURCE,('memw(r0+#48)','jumpr r31')),
+        ]:
+            text=file.read_text()
+            self.assertNotIn('.word',text)
+            for term in lines:
+                self.assertIn(term,text)
+        self.assertEqual((agent12.AUX_FACTORY_START,agent12.AUX_FACTORY_END),
+                         (0x4475c0,0x447608))
+        self.assertEqual((agent12.AUX_FIND_FORMAT_START,agent12.AUX_FIND_FORMAT_END),
+                         (0x447608,0x447664))
+        self.assertEqual((agent12.AUX_FIND_CLASS_START,agent12.AUX_FIND_CLASS_END),
+                         (0x447664,0x4476b8))
+        self.assertEqual((agent12.AUX_CONTROLLER_SLOT_START,agent12.AUX_CONTROLLER_SLOT_END),
+                         (0x4476b8,0x4476bc))
+        fmt=[0x7800c000]*23
+        fmt[0x24//4:0x34//4]=[0x5c00480e,0x00204000,0x75044000,0x7e00e000]
+        original=struct.pack('<23I',*fmt)
+        out=struct.unpack('<23I',agent12.restore_aux_find_format_predicate_packet(original))
+        self.assertEqual(out[0x24//4:0x34//4],
+                         (0x00204000,0x75044000,0x7e006000,0x5c00c80e))
+        for off,bad,reason in [
+            (0x24,0x7800400e,'opcode classes'),
+            (0x28,0x0020c000,'packet markers'),
+            (0x30,0x7e006000,'packet markers')]:
+            mutated=fmt.copy();mutated[off//4]=bad
+            with self.assertRaisesRegex(ValueError,reason):
+                agent12.restore_aux_find_format_predicate_packet(struct.pack('<23I',*mutated))
+        with self.assertRaisesRegex(ValueError,'92 compiled bytes'):
+            agent12.restore_aux_find_format_predicate_packet(original[:-4])
+        cls=[0x7800c000]*21
+        cls[0x08//4:0x14//4]=[0x5c005814,0xf2474110,0xfb21e787]
+        cls[0x14//4]=0x4585c0e6
+        packed=struct.pack('<21I',*cls)
+        result=struct.unpack('<21I',agent12.restore_aux_find_class_new_predicate(packed))
+        self.assertEqual(result[0x08//4:0x14//4],
+                         (0xf2474110,0xfb216787,0x5c005814))
+        self.assertEqual(result[0x14//4],0x4785c0e6)
+        for off,bad,why in [
+            (0x08,0x78004014,'ISA classes'),
+            (0x10,0xfb216787,'packet markers'),
+            (0x14,0x4585c0e7,'operand/ISA class'),
+            (0x14,0x458540e6,'packet marker')]:
+            mutated=cls.copy();mutated[off//4]=bad
+            with self.assertRaisesRegex(ValueError,why):
+                agent12.restore_aux_find_class_new_predicate(struct.pack('<21I',*mutated))
+        with self.assertRaisesRegex(ValueError,'84 compiled bytes'):
+            agent12.restore_aux_find_class_new_predicate(packed[:-4])
+
     def test_auxiliary_cleanup_packet_producers_are_checked(self):
         source=agent12.AUX_CLEANUP_SOURCE.read_text()
         self.assertIn('memw(r16+#32) = r2.new',source)
@@ -893,8 +946,8 @@ class ModemLateTests(unittest.TestCase):
     def test_optional_llvm6_exact_source_lengths(self):
         a = agent12.output_fragments(Path(os.environ["NABU_HEXAGON_LLVM_MC"]))
         self.assertEqual({k: len(v) for k, v in a.items()},
-                         {0x7C000:160, 0x7C2EC:452, 0x446000:5568})
-        self.assertEqual(sum(map(len,a.values())),6180)
+                         {0x7C000:160, 0x7C2EC:452, 0x446000:5820})
+        self.assertEqual(sum(map(len,a.values())),6432)
         self.assertEqual(a[0x446000][0x0d8:0x200],agent12.emit_auxiliary_elf_symbols())
         self.assertEqual(a[0x446000][0x254:0x260],bytes(12))
         self.assertEqual(a[0x446000][0x1448:0x1460],
@@ -913,6 +966,15 @@ class ModemLateTests(unittest.TestCase):
                          agent12.restore_aux_cleanup_compare_packets(
                              agent12.assemble(Path(os.environ["NABU_HEXAGON_LLVM_MC"]),
                                               agent12.AUX_CLEANUP_SOURCE))[:12])
+        for location, source, adapter in [
+            (0x4475c0,agent12.AUX_FACTORY_SOURCE,lambda b:b),
+            (0x447608,agent12.AUX_FIND_FORMAT_SOURCE,agent12.restore_aux_find_format_predicate_packet),
+            (0x447664,agent12.AUX_FIND_CLASS_SOURCE,agent12.restore_aux_find_class_new_predicate),
+            (0x4476b8,agent12.AUX_CONTROLLER_SLOT_SOURCE,lambda b:b),
+        ]:
+            actual=adapter(agent12.assemble(Path(os.environ["NABU_HEXAGON_LLVM_MC"]),source))
+            offset=location-agent12.AUX_START
+            self.assertEqual(a[agent12.AUX_START][offset:offset+len(actual)],actual)
         if os.getenv("NABU_MODEM_REFERENCE"):
             agent12.verify_reference(Path(os.environ["NABU_MODEM_REFERENCE"]).read_bytes(), a)
 

@@ -35,6 +35,10 @@ AUX_LOOKUP_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_
 AUX_REGISTRY_CORE_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_aux_registry_core.s"
 AUX_NOTIFY_SCAN_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_aux_notify_callbacks.s"
 AUX_CLEANUP_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_aux_cleanup.s"
+AUX_FACTORY_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_aux_object_factory.s"
+AUX_FIND_FORMAT_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_aux_find_format.s"
+AUX_FIND_CLASS_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_aux_find_codec_class.s"
+AUX_CONTROLLER_SLOT_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_aux_controller_slot.s"
 AUX_DISPATCH_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_aux_dispatch_helpers.s"
 AUX_TYPE_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_aux_type_config.s"
 AUX_NOTIFY_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_aux_controller_notify.s"
@@ -130,6 +134,14 @@ AUX_NOTIFY_SCAN_START = AUX_RELEASE_REGISTRY_END
 AUX_NOTIFY_SCAN_END = 0x4474B0
 AUX_CLEANUP_START = AUX_NOTIFY_SCAN_END
 AUX_CLEANUP_END = 0x4475C0
+AUX_FACTORY_START = AUX_CLEANUP_END
+AUX_FACTORY_END = 0x447608
+AUX_FIND_FORMAT_START = AUX_FACTORY_END
+AUX_FIND_FORMAT_END = 0x447664
+AUX_FIND_CLASS_START = AUX_FIND_FORMAT_END
+AUX_FIND_CLASS_END = 0x4476B8
+AUX_CONTROLLER_SLOT_START = AUX_FIND_CLASS_END
+AUX_CONTROLLER_SLOT_END = 0x4476BC
 MARKER_MASK = 3 << 14
 CONTINUE_MARKER = 1 << 14
 END_MARKER = 3 << 14
@@ -1121,6 +1133,62 @@ def restore_aux_cleanup_compare_packets(assembled: bytes) -> bytes:
     return struct.pack('<68I',*words)
 
 
+def restore_aux_find_format_predicate_packet(assembled: bytes) -> bytes:
+    """Reorder checked V60 new-value compare/branch in codec format scan.
+
+    LLVM6 schedules a conditional jump before the immediate-extended compare
+    and the producer's predicated move. Relocate the *already assembled*
+    instructions and recompute their packet markers, without OEM operands.
+    """
+    if len(assembled) != AUX_FIND_FORMAT_END - AUX_FIND_FORMAT_START:
+        raise ValueError("auxiliary format scanner must emit 92 compiled bytes")
+    words=list(struct.unpack('<23I',assembled))
+    jump,extend,compare,predmove=words[0x24//4:0x34//4]
+    if [v>>24 for v in (jump,extend,compare,predmove)]!=[0x5c,0x00,0x75,0x7e]:
+        raise ValueError("format scanner jump/extender/compare/move opcode classes changed")
+    if [v&MARKER_MASK for v in (jump,extend,compare,predmove)] != [
+        CONTINUE_MARKER,CONTINUE_MARKER,CONTINUE_MARKER,END_MARKER
+    ]:
+        raise ValueError("format scanner predicate packet markers changed")
+    words[0x24//4:0x34//4]=[extend,compare,
+        (predmove&~MARKER_MASK)|CONTINUE_MARKER,
+        (jump&~MARKER_MASK)|END_MARKER]
+    return struct.pack('<23I',*words)
+
+
+def restore_aux_find_class_new_predicate(assembled: bytes) -> bytes:
+    """Restore new-value predicate and branch order for class scan loop.
+
+    Hexagon's original packet encodes an immediate predicated subtraction
+    before its conditional branch; LLVM6 schedules the jump first and the
+    subsequent predicated memory read with the previous-packet P0 form.
+    A typed V60 P0.new field is enabled only on the exact expected load.
+    """
+    if len(assembled)!=AUX_FIND_CLASS_END-AUX_FIND_CLASS_START:
+        raise ValueError("auxiliary codec class scanner must emit 84 compiled bytes")
+    words=list(struct.unpack('<21I',assembled))
+    jump,compare,sub=words[0x08//4:0x14//4]
+    if [v>>24 for v in (jump,compare,sub)] != [0x5c,0xf2,0xfb]:
+        raise ValueError("codec class compare/branch/sub ISA classes changed")
+    if [v&MARKER_MASK for v in (jump,compare,sub)]!=[
+        CONTINUE_MARKER,CONTINUE_MARKER,END_MARKER
+    ]:
+        raise ValueError("codec class predicate packet markers changed")
+    words[0x08//4:0x14//4]=[compare,
+        (sub&~MARKER_MASK)|CONTINUE_MARKER,
+        (jump&~MARKER_MASK)|CONTINUE_MARKER]
+    load=words[0x14//4]
+    # Opcode 0x45 is the P0-old predicated load, 0x47 the .new form.
+    # The typed operands (r6, r5, 28) are verified before editing field 25.
+    operand_mask=0x00ffffff & ~MARKER_MASK
+    if load>>24!=0x45 or load&operand_mask!=(0x85c0e6&operand_mask):
+        raise ValueError("codec class P0-old predicated load operand/ISA class changed")
+    if (load&MARKER_MASK)!=END_MARKER:
+        raise ValueError("codec class predicated load packet marker changed")
+    words[0x14//4]=load|(1<<25)
+    return struct.pack('<21I',*words)
+
+
 def assemble(llvm_mc: Path, source: Path) -> bytes:
     with tempfile.TemporaryDirectory(prefix="nabu-modem-late-") as tmp:
         obj = Path(tmp) / "late.o"
@@ -1152,6 +1220,10 @@ def output_fragments(llvm_mc: Path) -> dict[int, bytes]:
     aux_registry_core=restore_aux_registry_core_packets(assemble(llvm_mc,AUX_REGISTRY_CORE_SOURCE))
     aux_notify_scan=restore_aux_notify_callback_packets(assemble(llvm_mc,AUX_NOTIFY_SCAN_SOURCE))
     aux_cleanup=restore_aux_cleanup_compare_packets(assemble(llvm_mc,AUX_CLEANUP_SOURCE))
+    aux_factory=assemble(llvm_mc,AUX_FACTORY_SOURCE)
+    aux_find_format=restore_aux_find_format_predicate_packet(assemble(llvm_mc,AUX_FIND_FORMAT_SOURCE))
+    aux_find_class=restore_aux_find_class_new_predicate(assemble(llvm_mc,AUX_FIND_CLASS_SOURCE))
+    aux_controller_slot=assemble(llvm_mc,AUX_CONTROLLER_SLOT_SOURCE)
     aux_dispatch = assemble(llvm_mc,AUX_DISPATCH_SOURCE)
     aux_type = restore_aux_type_return_packets(assemble(llvm_mc,AUX_TYPE_SOURCE))
     aux_notify = restore_aux_controller_notify_packets(assemble(llvm_mc,AUX_NOTIFY_SOURCE))
@@ -1194,6 +1266,14 @@ def output_fragments(llvm_mc: Path) -> dict[int, bytes]:
         raise ValueError("aux notification source length mismatch")
     if len(aux_cleanup)!=AUX_CLEANUP_END-AUX_CLEANUP_START:
         raise ValueError("aux cleanup source length mismatch")
+    for fragment,start,end,label in [
+        (aux_factory,AUX_FACTORY_START,AUX_FACTORY_END,'object factory'),
+        (aux_find_format,AUX_FIND_FORMAT_START,AUX_FIND_FORMAT_END,'format scanner'),
+        (aux_find_class,AUX_FIND_CLASS_START,AUX_FIND_CLASS_END,'class scanner'),
+        (aux_controller_slot,AUX_CONTROLLER_SLOT_START,AUX_CONTROLLER_SLOT_END,'controller slot'),
+    ]:
+        if len(fragment)!=end-start:
+            raise ValueError(f"auxiliary {label} source length mismatch")
     if len(aux_session_validation)!=AUX_SESSION_VALIDATION_END-AUX_SESSION_VALIDATION_START:
         raise ValueError("auxiliary session validation length mismatch")
     if len(aux_session_prefix)!=AUX_SESSION_PREFIX_END-AUX_SESSION_PREFIX_START:
@@ -1226,7 +1306,12 @@ def output_fragments(llvm_mc: Path) -> dict[int, bytes]:
               aux_release_registry)
     if len(registry)!=AUX_RELEASE_REGISTRY_END-AUX_DISPATCH_START:
         raise ValueError("source-generated auxiliary registry block is not contiguous")
-    if AUX_RELEASE_REGISTRY_END!=AUX_NOTIFY_SCAN_START or AUX_NOTIFY_SCAN_END!=AUX_CLEANUP_START:
+    if not (AUX_RELEASE_REGISTRY_END==AUX_NOTIFY_SCAN_START and
+            AUX_NOTIFY_SCAN_END==AUX_CLEANUP_START and
+            AUX_CLEANUP_END==AUX_FACTORY_START and
+            AUX_FACTORY_END==AUX_FIND_FORMAT_START and
+            AUX_FIND_FORMAT_END==AUX_FIND_CLASS_START and
+            AUX_FIND_CLASS_END==AUX_CONTROLLER_SLOT_START):
         raise ValueError("missing source after controller registry block")
     if AUX_LOOKUP_END!=AUX_REGISTRY_CORE_START or AUX_REGISTRY_CORE_END!=AUX_DISPATCH_START:
         raise ValueError("modem auxiliary registry source intervals have a gap")
@@ -1235,7 +1320,8 @@ def output_fragments(llvm_mc: Path) -> dict[int, bytes]:
         SERVICE_START:service+service_mmio+service_flags+service_alloc,
         AUX_START:auxiliary+aux_dynamic+aux_init+aux_align+
                   aux_guard+aux_stage+aux_mmio+aux_heap+aux_worker+
-                        aux_lookup+aux_registry_core+registry+aux_notify_scan+aux_cleanup,
+                        aux_lookup+aux_registry_core+registry+aux_notify_scan+aux_cleanup+
+                        aux_factory+aux_find_format+aux_find_class+aux_controller_slot,
     }
 
 
