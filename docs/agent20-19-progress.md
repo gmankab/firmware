@@ -521,3 +521,30 @@ fragments matched the pinned original with zero differences; 12 CRC fields
 and the 2,304-byte DLM-prefix mirror passed; exact 428-byte repeated profile
 passed the Rust and independently written Python checkers. The portable
 integration base remains old preview `941c805…`, not verified checkpoint 50.
+
+## Checkpoint 10 — source-verified DLM GP consumer map; no extra byte credit
+
+Using Agent 18 checkpoint 02's independently typed `novatek_upper_ilm.rs` and
+`novatek_upper_ex9.rs`, a new **read-only** scanner maps every explicitly
+encoded GP load/store (including EX9.IT expansions) into Agent 19's checked
+DLM source/unknown ledger. On the pinned sources the full map has **79 access
+sites**, 37 distinct addresses, 45 reads, 34 writes, 10 expanded EX9 sites,
+and width counts 35 byte / 23 halfword / 21 word. Exactly 62 sites touch
+unresolved DLM bytes; 17 touch existing source-authored DLM reset fields.
+A strict checkpoint02 input gate rejects shortened/mutated source, a
+reclassified ledger, and invalid memory widths/locations. The independent
+Python tests cover malformed EX9 inputs, GP bounds, profile hashes, and
+source-credit invariance.
+
+Two static bytes match literals written at runtime (`0x2244a = 4` and
+`0x2e128 = 1`), but their ILM sources are event handlers, not unconditional
+boot default setters. **Both bytes stay uncredited**. The new consumer audit
+is evidence for future analysis, not new executable or static data source.
+
+Checkpoint 10 coverage is therefore unchanged at **9,353 independently
+generated DLM bytes**, **40,199 unknown DLM bytes**, **zero new executable
+bytes**, and **45,027 unique source-generated image bytes**. Full pinned
+reference verification, all twelve CRC fields and dependent DLM mirror,
+release emitter, Rust/Python test gates and the independent consumer map
+must all be passed before merging. The branch remains portable on the
+older preview root, not the absent original checkpoint50 base.
