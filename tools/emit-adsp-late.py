@@ -83,6 +83,16 @@ FRAGMENTS = {
     'controller-runtime-init': (TOOLS / 'adsp-late-controller-runtime-init.S', 0x3E0D0, 0x80),
     'controller-descriptor-refresh': (TOOLS / 'adsp-late-controller-descriptor-refresh.S', 0x3E480, 0x50),
     'checked-argument-forward': (TOOLS / 'adsp-late-checked-argument-forward.S', 0x3EFA8, 0x4C),
+    'controller-field-00-get': (TOOLS / 'adsp-late-controller-field-00-get.S', 0x3EC80, 0xC),
+    'controller-field-00-forward': (TOOLS / 'adsp-late-controller-field-00-forward.S', 0x3EC8C, 0x10),
+    'controller-field-01-get': (TOOLS / 'adsp-late-controller-field-01-get.S', 0x3ECA0, 0xC),
+    'controller-field-01-forward': (TOOLS / 'adsp-late-controller-field-01-forward.S', 0x3ECAC, 0x10),
+    'controller-field-02-get': (TOOLS / 'adsp-late-controller-field-02-get.S', 0x3ECC0, 0xC),
+    'controller-field-02-forward': (TOOLS / 'adsp-late-controller-field-02-forward.S', 0x3ECCC, 0x10),
+    'controller-field-03-get': (TOOLS / 'adsp-late-controller-field-03-get.S', 0x3ECE0, 0xC),
+    'controller-field-04-get': (TOOLS / 'adsp-late-controller-field-04-get.S', 0x3ECF0, 0xC),
+    'controller-field-03-forward': (TOOLS / 'adsp-late-controller-field-03-forward.S', 0x3ECFC, 0x10),
+    'controller-field-04-forward': (TOOLS / 'adsp-late-controller-field-04-forward.S', 0x3ED0C, 0x10),
 }
 
 class LateAdspError(ValueError):

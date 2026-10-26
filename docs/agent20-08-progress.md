@@ -419,3 +419,14 @@ The four-byte NOPs at `[0x3ef94,0x3efa8)` are **not** counted as code.
 This raises independently generated executable coverage to **3,508 bytes
 in 54 distinct fragments**, with zero external OEM bytes in output.
 The larger controller routines remain unreconstructed.
+
+
+**Checkpoint 28 — Hexagon controller field routing:** Added ten checked
+controller-field shims in file intervals spanning `[0x3ec80,0x3ed1c)`.
+Five field base addresses are supplied as named `##` immediates; getter shims
+pass the address in `r0` to the shared field lookup, while forwarding shims
+form `r1:0` using the caller-provided value. **140 source-assembled executable
+bytes** are independently verified against the pinned reference using LLVM6;
+the four interstitial 4-byte linker NOPs are intentionally excluded.
+Cumulative Agent 08 source-generated coverage is **3,648 executable bytes in
+64 disjoint code fragments**. No OEM executable payload is included verbatim.

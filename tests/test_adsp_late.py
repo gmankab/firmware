@@ -197,9 +197,9 @@ class ADSPExternalsAndCodeTests(unittest.TestCase):
     @unittest.skipUnless(LLVM_MC,'Hexagon LLVM6 assembler required')
     def test_complete_fragment_inventory_rejects_overlaps(self):
         manifest,regions=adsp.assembled_inventory(LLVM_MC,None)
-        self.assertEqual(len(manifest['fragments']),54)
-        self.assertEqual(manifest['total_independently_assembled_executable_bytes'],3508)
-        self.assertEqual(sum(map(len,regions.values())),3508)
+        self.assertEqual(len(manifest['fragments']),64)
+        self.assertEqual(manifest['total_independently_assembled_executable_bytes'],3648)
+        self.assertEqual(sum(map(len,regions.values())),3648)
         self.assertEqual(manifest['gap_bytes_included_in_generated_executables'],0)
         self.assertFalse(manifest['complete_adsp_image'])
         self.assertEqual(manifest['external_original_code_bytes_in_output'],0)
@@ -366,7 +366,7 @@ class ADSPExternalsAndCodeTests(unittest.TestCase):
     def test_inventory_every_fragment_uses_correct_original(self):
         inventory,_outputs=adsp.assembled_inventory(LLVM_MC,Path(REFERENCE).read_bytes())
         self.assertTrue(all(x['reference_byte_identical'] for x in inventory['fragments']))
-        self.assertEqual(inventory['total_independently_assembled_executable_bytes'],3508)
+        self.assertEqual(inventory['total_independently_assembled_executable_bytes'],3648)
 
     @unittest.skipUnless(LLVM_MC and REFERENCE,
                          'Hexagon LLVM6 and exact pinned ADSP reference required')
@@ -380,7 +380,7 @@ class ADSPExternalsAndCodeTests(unittest.TestCase):
                 adsp.verify_slice(built,original,off)
                 total+=len(built)
                 ranges.append((off,off+size))
-        self.assertEqual(total,3508)
+        self.assertEqual(total,3648)
         ranges.sort()
         self.assertEqual(ranges[0],(0x39000,0x39054))
         self.assertEqual(ranges[-1],(0x3640a8,0x3640f8))
@@ -815,3 +815,42 @@ class ADSPCheckedArgumentForwardTests(unittest.TestCase):
         if REFERENCE: adsp.verify_slice(built,Path(REFERENCE).read_bytes(),off)
         # Preceding three NOPs after the prior function are not source bytes.
         self.assertEqual(off-0x3ef94,20)
+
+
+class ADSPControllerFieldShimTests(unittest.TestCase):
+    """Five controller-address shims, two packet forms and excluded linker NOPs."""
+
+    @unittest.skipUnless(LLVM_MC,'Hexagon LLVM6 assembler required')
+    def test_field_accessor_and_forwarder_pairs_round_trip(self):
+        expected=[
+            ('00-get',0x3ec80,12),('00-forward',0x3ec8c,16),
+            ('01-get',0x3eca0,12),('01-forward',0x3ecac,16),
+            ('02-get',0x3ecc0,12),('02-forward',0x3eccc,16),
+            ('03-get',0x3ece0,12),('04-get',0x3ecf0,12),
+            ('03-forward',0x3ecfc,16),('04-forward',0x3ed0c,16),
+        ]
+        self.assertEqual(sum(x[2] for x in expected),140)
+        original=Path(REFERENCE).read_bytes() if REFERENCE else None
+        for name,off,n in expected:
+            with self.subTest(name=name):
+                src,got_off,got_n=adsp.FRAGMENTS['controller-field-'+name]
+                self.assertEqual((got_off,got_n),(off,n))
+                text=src.read_text()
+                for forbidden in ('.word ','.byte ','.long ','.fill ','.incbin '):
+                    self.assertNotIn(forbidden,text)
+                self.assertIn('jump shared_field_',text)
+                if name.endswith('forward'):
+                    self.assertIn('r1:0 = combine(r2,##',text)
+                else:
+                    self.assertIn('r0 = ##',text)
+                payload=adsp.compile_source(LLVM_MC,src,n)
+                self.assertEqual(len(payload),n)
+                if original:adsp.verify_slice(payload,original,off)
+        self.assertEqual(adsp.FRAGMENTS['controller-field-00-get'][1],0x3ec80)
+        self.assertEqual(adsp.FRAGMENTS['controller-field-04-forward'][1]+16,0x3ed1c)
+        # Original 4-byte NOPs separate these functions; they remain ungenerated.
+        forbidden_gaps=((0x3ec9c,0x3eca0),(0x3ecbc,0x3ecc0),
+                        (0x3ecdc,0x3ece0),(0x3ecec,0x3ecf0))
+        covered=set()
+        for _name,off,n in expected: covered.update(range(off,off+n))
+        self.assertTrue(all(not (covered & set(range(a,b))) for a,b in forbidden_gaps))
