@@ -1218,3 +1218,29 @@ total **26,304 source-derived bytes**. The next complete function starts
 at file `0x106694`. The 452-byte seam with Agent13 remains unowned by this
 branch, and substantially more of Agent14's large WLAN allocation remains
 unreconstructed. On-device behavior and new OEM authorization remain unverified.
+
+## Checkpoint 30 — session-mode callbacks, queue updates and packet dispatch
+
+Seven adjacent V66 functions covering file `[0x106694,0x106ab4)`
+(runtime `[0xb00c6694,0xb00c6ab4)`) add **1,056 executable bytes**:
+
+- `[0x106694,0x10671c)`: session mode and status-bit handling, 136 bytes.
+- `[0x10671c,0x1067d4)`: session bit flag dispatch and notifications, 184 bytes.
+- `[0x1067d4,0x1068bc)`: session event/status update, 232 bytes.
+- `[0x1068bc,0x10691c)`: event queue initialization, 96 bytes.
+- `[0x10691c,0x1069c4)`: callback/buffer init path, 168 bytes.
+- `[0x1069c4,0x1069d0)`: missing-session diagnostic thunk, 12 bytes.
+- `[0x1069d0,0x106ab4)`: guarded session packet dispatch, 228 bytes.
+
+Two packets initially assembled with a different, still-legal duplex pairing.
+Reordering three independent named operands in each packet preserved the
+original parse/duplex fields; no reference opcode words were copied into the
+source. All seven full functions independently assemble under LLVM22/V66
+and LLVM6/V65 and match the pinned MBN with zero byte differences.
+
+Cumulative contiguous executable `[0x1001c4,0x106ab4)` contains
+**26,864 bytes**; the existing authored dispatch tables contribute another
+496 separate data bytes, giving **27,360 source-derived bytes**. The next
+function begins at file `0x106ab4`. The initial 452-byte Agent13 seam and
+remaining WLAN code are still unimplemented. No on-device validation or
+new OEM authentication has been performed.

@@ -899,6 +899,76 @@
       "sha256": "2400012a6e3592a18f52cf6af09d2b5f3a9263e1a84caf4fd2b89c14908b6500",
       "checkpoint": 29,
       "classification": "executable"
+    },
+    {
+      "name": "session-mode-toggle",
+      "file_start": 1074836,
+      "file_end": 1074972,
+      "source": "sources/xiaomi-nabu/wlanmdsp/agent14-late-session-mode-toggle.S",
+      "symbol": "agent14_late_session_mode_toggle",
+      "sha256": "e5dc1a049c4546767d23864b95025a146d59be35fa671b220429436ebda18b03",
+      "checkpoint": 30,
+      "classification": "executable"
+    },
+    {
+      "name": "session-bit-dispatch",
+      "file_start": 1074972,
+      "file_end": 1075156,
+      "source": "sources/xiaomi-nabu/wlanmdsp/agent14-late-session-bit-dispatch.S",
+      "symbol": "agent14_late_session_bit_dispatch",
+      "sha256": "a65688020fa41cbb09f0a6ea3cc7ce2abb415fd56eed8072c82a070989c872b0",
+      "checkpoint": 30,
+      "classification": "executable"
+    },
+    {
+      "name": "session-events-update",
+      "file_start": 1075156,
+      "file_end": 1075388,
+      "source": "sources/xiaomi-nabu/wlanmdsp/agent14-late-session-events-update.S",
+      "symbol": "agent14_late_session_events_update",
+      "sha256": "f1b4fe32cf36e1ca632ca3a73dd3ab17348417240dc1ee4315d6fc9215e001e7",
+      "checkpoint": 30,
+      "classification": "executable"
+    },
+    {
+      "name": "session-queue-create",
+      "file_start": 1075388,
+      "file_end": 1075484,
+      "source": "sources/xiaomi-nabu/wlanmdsp/agent14-late-session-queue-create.S",
+      "symbol": "agent14_late_session_queue_create",
+      "sha256": "3adca516faf70cb488628c234afe6c9bb29f188ea46626f94d791cdc3a64cb33",
+      "checkpoint": 30,
+      "classification": "executable"
+    },
+    {
+      "name": "session-queue-init",
+      "file_start": 1075484,
+      "file_end": 1075652,
+      "source": "sources/xiaomi-nabu/wlanmdsp/agent14-late-session-queue-init.S",
+      "symbol": "agent14_late_session_queue_init",
+      "sha256": "8e0754bcaaaa0c3a4fdc2e7468a683791295492d4d9564b9d0cbbe978204b3cc",
+      "checkpoint": 30,
+      "classification": "executable"
+    },
+    {
+      "name": "session-missing-thunk",
+      "file_start": 1075652,
+      "file_end": 1075664,
+      "source": "sources/xiaomi-nabu/wlanmdsp/agent14-late-session-missing-thunk.S",
+      "symbol": "agent14_late_session_missing_thunk",
+      "sha256": "3ff490c5761f61df44ed44943612c419972b7088882111ec610c6199c3c4d9fb",
+      "checkpoint": 30,
+      "classification": "executable"
+    },
+    {
+      "name": "session-packet-dispatch",
+      "file_start": 1075664,
+      "file_end": 1075892,
+      "source": "sources/xiaomi-nabu/wlanmdsp/agent14-late-session-packet-dispatch.S",
+      "symbol": "agent14_late_session_packet_dispatch",
+      "sha256": "8e12027e9d2666ac8466dbfafeebf9e285fcd3d4584556b0456d830137e8cd30",
+      "checkpoint": 30,
+      "classification": "executable"
     }
   ]
 }
