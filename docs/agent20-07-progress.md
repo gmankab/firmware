@@ -1002,3 +1002,16 @@ python3 -S tools/adsp-agent20-rwe-next-controller-publish.py \
   --llvm-mc "$HEXAGON_LLVM_MC" --reference "$NABU_ADSP_REFERENCE" \
   --output /tmp/adsp-controller-publish-116.bin
 ```
+
+## Checkpoint 55: complete ADSP SRAM/controller state routine `[0x116a0,0x11894)`
+
+- Added **136 independently source-built bytes** `[file 0x1180c,0x11894)`, physical `[0x8be0e80c,0x8be0e894)`, SHA-256 `b95077dde6b16537d44a0b6ca54346b7f5d14a6e439372c1955d800ed2c500e6`. LLVM6 assembles 30 of 34 words; four validated V66 field encodings replace source `nop` placeholders: `R0=SYSCFG`, `SYSCFG=R0`, and two `R2=SGP0` reads. The original ABI-sensitive packet grouping is preserved, including paired call/load instructions, `memw_locked`, isync, and a `jump + deallocframe` tail call.
+- The **entire 500-byte controller SRAM function** `[0x116a0,0x11894)` is independently assembled from five contiguous source files (56+124+68+116+136), and the concatenation matches the pinned ADSP image byte for byte. Rizin decodes the newly generated source/privileged operations independently. A focused unit test rejects source tampering, incorrect reference revisions and unchecked privileged substitution.
+- Exactly **four trailing zero bytes** `[0x11894,0x11898)` are original linker fill and are **not** counted as independently reconstructed code. The next function begins at `0x11898`.
+- Total source-generated RWE Hexagon executable is now **7,332 bytes in 12 disjoint intervals**. ADSP other segments and OEM-signed full-image construction remain unfinished. Branch ancestry is older Agent 04 history, **not** checkpoint 50.
+
+```sh
+python3 -S tools/adsp-agent20-rwe-next-sram-state-finalize.py \
+  --llvm-mc "$HEXAGON_LLVM_MC" --reference "$NABU_ADSP_REFERENCE" \
+  --output /tmp/adsp-sram-finalize-136.bin
+```
