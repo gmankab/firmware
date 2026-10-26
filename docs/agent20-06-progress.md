@@ -523,3 +523,10 @@ python3 tools/agent20_06_a32_roundtrip.py /private/venus.mbn 0xa8ea0 0xa92c8 \
 - Initializes codec buffer record state, reconciles stream planes, computes active command status, and enters a longer codec controller packet sequence. The function is **not complete** at this boundary; its branches reference addresses above `0xbdc00`.
 - During direct validation, one word at `0xbd854` differed because a jump-table handler address was initially treated as a `MULEQ` instruction. The whole seven-word table was reclassified as named data, and the full byte comparison then passed exactly. Independent Clang/LLVM reassembly matches all 1,436 instruction bytes plus the seven explicit handler targets. **233 Rust and 13 Python tests passed**; no release build claimed.
 - First missing runtime address `0xbdc00`, file offset `0xc1c00`. Work remains provisional on older Agent-03 Git ancestry, without OEM signing or evidence of high-level behavioral decompilation.
+
+## Checkpoint 62 — eight-way codec controller frame-mode dispatcher
+
+- Typed Venus runtime `[0xa8000,0xbe000)` = **90,112 exact bytes**, original file `[0xac000,0xc2000)`.
+- New interval `[0xbdc00,0xbe000)` = **1,024 bytes**, comprising **248 typed ARM32 instructions (992 bytes)** and **eight explicit branch-table pointers (32 data bytes)** at `[0xbdc84,0xbdca4)`. Retains the original computed `LDR PC` dispatch, resource pointers, and MMIO programming paths. This is a partial function, still continuing at `0xbe000`.
+- Full source-emitted fragment matches original reference with zero differing bytes, and independent Clang/LLVM reassembly matches the 992 instruction bytes plus eight data words. **234 Rust and 13 Python tests passed**; no release build claimed.
+- Next missing VMA `0xbe000`, MBN offset `0xc2000`. Older Agent-03-derived provisional history; not high-level semantic decompilation, new OEM authentication, or an integrated checkpoint-50 build.
