@@ -644,3 +644,10 @@ Original reference: private `map220v-nabu-firmware/venus.mbn`, SHA-256 `9d4af65d
 - New `[0x3a2e4,0x3aa00)` = **1,820 typed executable bytes, 455 ARM instructions**, zero new data words. The code constructs a large descriptor matrix on the stack, using backward PC-relative references into the preceding 147-word diagnostic table; that table remains data and its previous byte identity is rechecked in the complete output.
 - Full Rust emitter matches the pinned reference (zero byte differences); independent Clang/LLVM ARM assembler reproduces all 1,820 bytes. **263 Rust and 13 Python tests passed**. Release build not confirmed.
 - Current function continues after `0x3aa00`: this is a verified partial-function checkpoint without an invented return. The source remains on the earlier portable branch, not checkout of checkpoint 50; no signing/hardware test is claimed.
+
+## Checkpoint 93 — controller stream parameter matrix continuation
+
+- Full typed Venus interval `[0x21c78,0x3b800)` = **105,352 reference-exact bytes**, MBN `[0x25c78,0x3f800)`.
+- New `[0x3aa00,0x3b800)` = **3,584 bytes**, **896 typed A32 instructions**, **zero new data words**. The compiler-like routine populates channel-specific command slots in a stack-backed matrix, repeatedly referencing the pre-existing explicit diagnostic address table. No vendor instruction arrays or unknown data fillers are imported.
+- Direct reference check of the full generated region and independent Clang/LLVM A32 assembly of all 3,584 new bytes pass with zero mismatches. **264 Rust and 13 Python tests passed**; optimized release build not yet confirmed for this checkpoint.
+- The main controller initializer remains incomplete after `0x3b800`. Next code starts at runtime `0x3b800`; exclusive reservation ends at `0x40000`. Byte agreement is not high-level semantics or OEM authentication.
