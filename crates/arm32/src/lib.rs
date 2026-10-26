@@ -443,6 +443,20 @@ fn shifted_register(rm: Register, shift: Shift, amount: u8) -> Result<u32, Strin
     Ok((u32::from(amount) << 7) | ((shift as u32) << 5) | rm.number())
 }
 
+/// ARM A32 RRX (rotate right by one bit through the carry flag), an
+/// architectural alias of MOV Rd,Rm,ROR #0. This form cannot be encoded
+/// through `mov_shifted_register`, which correctly rejects zero ROR amounts
+/// to prevent unintentionally selecting carry-dependent semantics.
+/// The optional S-bit updates APSR condition flags.
+pub fn rotate_right_with_extend(condition: Condition, rd: Register, rm: Register,
+                                set_flags: bool) -> Result<u32, String> {
+    if rd == Register::PC || rm == Register::PC {
+        return Err("A32 RRX requires non-PC register operands".into());
+    }
+    Ok(cond(condition) | (13 << 21) | if set_flags { 1 << 20 } else { 0 }
+       | (rd.number() << 12) | (3 << 5) | rm.number())
+}
+
 pub fn mov_shifted_register(condition: Condition, rd: Register, rm: Register,
                             shift: Shift, amount: u8) -> Result<u32, String> {
     Ok(cond(condition) | (13 << 21) | (rd.number() << 12)
