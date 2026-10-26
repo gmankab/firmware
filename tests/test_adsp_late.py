@@ -197,9 +197,9 @@ class ADSPExternalsAndCodeTests(unittest.TestCase):
     @unittest.skipUnless(LLVM_MC,'Hexagon LLVM6 assembler required')
     def test_complete_fragment_inventory_rejects_overlaps(self):
         manifest,regions=adsp.assembled_inventory(LLVM_MC,None)
-        self.assertEqual(len(manifest['fragments']),68)
-        self.assertEqual(manifest['total_independently_assembled_executable_bytes'],4244)
-        self.assertEqual(sum(map(len,regions.values())),4244)
+        self.assertEqual(len(manifest['fragments']),70)
+        self.assertEqual(manifest['total_independently_assembled_executable_bytes'],4668)
+        self.assertEqual(sum(map(len,regions.values())),4668)
         self.assertEqual(manifest['gap_bytes_included_in_generated_executables'],0)
         self.assertFalse(manifest['complete_adsp_image'])
         self.assertEqual(manifest['external_original_code_bytes_in_output'],0)
@@ -366,7 +366,7 @@ class ADSPExternalsAndCodeTests(unittest.TestCase):
     def test_inventory_every_fragment_uses_correct_original(self):
         inventory,_outputs=adsp.assembled_inventory(LLVM_MC,Path(REFERENCE).read_bytes())
         self.assertTrue(all(x['reference_byte_identical'] for x in inventory['fragments']))
-        self.assertEqual(inventory['total_independently_assembled_executable_bytes'],4244)
+        self.assertEqual(inventory['total_independently_assembled_executable_bytes'],4668)
 
     @unittest.skipUnless(LLVM_MC and REFERENCE,
                          'Hexagon LLVM6 and exact pinned ADSP reference required')
@@ -380,7 +380,7 @@ class ADSPExternalsAndCodeTests(unittest.TestCase):
                 adsp.verify_slice(built,original,off)
                 total+=len(built)
                 ranges.append((off,off+size))
-        self.assertEqual(total,4244)
+        self.assertEqual(total,4668)
         ranges.sort()
         self.assertEqual(ranges[0],(0x39000,0x39054))
         self.assertEqual(ranges[-1],(0x3640a8,0x3640f8))
@@ -947,3 +947,37 @@ class ADSPControllerResetStatusTests(unittest.TestCase):
         if REFERENCE:adsp.verify_slice(code,Path(REFERENCE).read_bytes(),off)
         # Two actual alignment NOPs follow this function at 0x3e798–0x3e7a0.
         self.assertEqual(adsp.FRAGMENTS['controller-reset-status'][1]+n,0x3e798)
+
+
+class ADSPControllerAllocationAndValidationTests(unittest.TestCase):
+    """Connected allocator, command validator, and reset-status controller trio."""
+
+    @unittest.skipUnless(LLVM_MC,'Hexagon LLVM6 assembler required')
+    def test_three_adjacent_controller_routines_source_rebuild(self):
+        entries=[
+            ('controller-allocate',0x3e5a8,176,
+             'f320970f977b0506e07c083d6a216dcf0bd8148bd52515d07042d5b07ca07071'),
+            ('controller-validate-input',0x3e658,248,
+             '015c37d846d9243af290ca2957ec9fb3c22e217c252d0ffb8b7b4c2b45958f36'),
+            ('controller-reset-status',0x3e750,72,
+             '3568d1d71fbbb7ab4e72697c61a8d8aa0a629e1f7951ee27f5eac59117ff82b9'),
+        ]
+        orig=Path(REFERENCE).read_bytes() if REFERENCE else None
+        rebuilt=[]
+        for name,off,n,digest in entries:
+            with self.subTest(name=name):
+                src,offset,size=adsp.FRAGMENTS[name]
+                self.assertEqual((offset,size),(off,n))
+                text=src.read_text()
+                for forbidden in ('.word ','.long ','.byte ','.incbin ','.fill '):
+                    self.assertNotIn(forbidden,text)
+                code=adsp.compile_source(LLVM_MC,src,n)
+                self.assertEqual(hashlib.sha256(code).hexdigest(),digest)
+                if orig:adsp.verify_slice(code,orig,off)
+                rebuilt.append((off,code))
+        self.assertEqual([a+len(v) for a,v in rebuilt[:-1]],[b for b,_ in rebuilt[1:]])
+        self.assertEqual(sum(len(v) for _,v in rebuilt),496)
+        # Link directly to the 216-byte previously verified release checker.
+        start=adsp.FRAGMENTS['controller-release-check'][1]
+        self.assertEqual(start+adsp.FRAGMENTS['controller-release-check'][2],rebuilt[0][0])
+        self.assertEqual(rebuilt[-1][0]+len(rebuilt[-1][1])-start,712)

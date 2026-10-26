@@ -484,3 +484,17 @@ packet groups, never extracted opcode words. Digest
 The two alignment NOPs at `[0x3e798,0x3e7a0)` are excluded from code totals.
 Total independently recompiled code: **4,244 bytes in 68 verified functions
 or fragments**, with all other large firmware areas still unfinished.
+
+
+**Checkpoint 33 — contiguous controller allocation and command validation:**
+Hexagon source reconstructs the **176-byte allocator** `[0x3e5a8,0x3e658)`
+(SHA-256 `f320970f977b0506e07c083d6a216dcf0bd8148bd52515d07042d5b07ca07071`)
+and the **248-byte 64-bit input-size validator** `[0x3e658,0x3e750)`
+(SHA-256 `015c37d846d9243af290ca2957ec9fb3c22e217c252d0ffb8b7b4c2b45958f36`).
+Both preserve packed predicate/new-value branch behavior and the original
+control-flow destinations; no OEM opcode literals are copied. The previously
+reconstructed release checker (`0x3e4d0–0x3e5a8`) and controller reset
+(`0x3e750–0x3e798`) connect without gaps, giving **712 independently authored
+contiguous executable bytes**. Cumulative independently authored coverage is
+**4,668 executable bytes in 70 fragments**. The immediately following two
+4-byte NOPs (`[0x3e798,0x3e7a0)`) are still excluded.
