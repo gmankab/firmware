@@ -339,3 +339,10 @@ python3 -m unittest discover -s tests -p 'test_*.py'
 - The source-generated modem RWE exception continuation now spans `[0x38108,0x38a7c)` = **2,420 Hexagon V60 instruction bytes**. Its new `[0x389b0,0x38a7c)` 204-byte section records the interrupted thread's SSR, packets, loop states, general/control register pairs, SGP0 pointers, and saved frame metadata; then it invokes the selected codec frame callback.
 - ISA operand encoders for controller pair reads/writes and immediate-extension command fields preserve the exact Hexagon packets. LLVM6 requires explicit **+4-byte packet relocation offsets** for the extended callback and conditional branch on this instruction group. These adjustments are independently bounded to specified source-level destinations, not copied vendor code words. The complete 2,420-byte assembled result matches SHA-pinned `modem.mbn` with zero differences.
 - Function continues at file offset `0x38a7c`; the rest of RWE executable and all OEM authentication remains unreconstructed. This is a partial executable fragment, not an independently signed modem image.
+
+## Checkpoint 41 — Restore suspended codec special registers
+
+- Rebuilt 128 more bytes `[0x38a7c,0x38afc)` following the protected frame callback. The contiguous RWE exception source fragment now covers `[0x38108,0x38afc)` = **2,548 independently assembled bytes**.
+- The new code restores SGP0, special GP/UGP, SSR, ELR, general and paired registers and issues `dcfetch` prefetches on the saved frame. Hexagon V60 typed class encoders express the nonstandard special transfers.
+- An LLVM6 PC-relative extended call at file `0x38a8c` needs the source target `0xdd1c` (rather than the +4 compensation appropriate to the earlier packet). Its relocation was checked by comparing all generated words; exactly one relocation target adjustment was required. No reference opcode bytes are imported by the generator.
+- Generated image matches the pinned modem reference with **zero differing bytes**. The function continues from file `0x38afc`; no new OEM auth/signature or complete modem firmware is produced.

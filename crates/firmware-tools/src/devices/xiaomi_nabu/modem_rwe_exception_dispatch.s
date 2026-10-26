@@ -1046,3 +1046,55 @@ MODEM_SYS_READ 1,8,1
     memd(r17+#184) = r13:12
 }
 { jump modem_rwe_capture_done }
+// Restore a suspended codec task's controller registers using the selected
+// SGP0 frame. Each word is created from a public-ISA Hexagon instruction or
+// a checked privileged-register operand; no OEM instruction bytes are read.
+.globl agent11_modem_rwe_restore_suspended_codec
+agent11_modem_rwe_restore_suspended_codec:
+MODEM_SYS_READ 0,0,3              // Read SGP0 into r0, standalone.
+{ r2 = #10; fp = memw(r0+#0) }
+.set modem_rwe_resume_saved_frame, agent11_modem_exception_dispatch_entry + (0xdd1c-0x38108)
+{
+    call ##modem_rwe_resume_saved_frame
+    r1 = fp
+    r0 = memw(fp+#20)
+}
+{
+    r15 = add(fp,#0)
+    r14 = add(fp,#176)
+    r1:0 = memd(fp+#24)
+    r3:2 = memd(fp+#48)
+}
+MODEM_RWE_CONFIG_WRITE 10,3,1      // UGP = r3
+{
+    r14 = add(r14,#-32)
+    lr:fp = memd(r15+#32)
+    dcfetch(r14+#0)
+}
+MODEM_RWE_CONFIG_WRITE 11,2,1      // GP = r2
+{
+    r14 = add(r14,#-32)
+    r29:28 = memd(r15+#40)
+    dcfetch(r14+#0)
+}
+MODEM_SYS_WRITE 6,1,3              // SSR = r1
+MODEM_SYS_WRITE 3,0,1              // ELR = r0
+{
+    r13 = memub(r15+#20)
+    r5:4 = memd(r15+#248)
+}
+{
+    r7:6 = memd(r15+#304)
+    r24 = memub(r15+#226)
+}
+{
+    r14 = add(r14,#-32)
+    r1:0 = memd(r15+#176)
+    dcfetch(r14+#0)
+}
+MODEM_RWE_CONFIG_WRITE 8,1,1       // USR = r1
+{
+    r24 = insert(r13,#8,#16)
+    r19:18 = memd(r15+#168)
+    dcfetch(r14+#0)
+}
