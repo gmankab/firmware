@@ -241,3 +241,25 @@ python3 tools/build-wlanmdsp-agent13.py /tmp/wlan-prefix-through-27a0.bin \
 - Still **not a direct descendant** of missing Agent 13 checkpoint 25.
   The exclusive file region `[0x44cd4,0x4568c)` must be imported from
   checkpoints 17–25 before reporting a contiguous merged prefix.
+
+## Checkpoint 28 (disjoint) — bitmap scan with reconstructed duplex packet
+
+- Added `[file 0x45b58,0x45c0c)` = **180 source-generated Hexagon bytes**
+  for a bounded hardware-loop scan of per-slot bitmap flags, load widths,
+  unsigned max comparisons and optional result writeback.
+- The original three-word packet at `[file 0x45b78,0x45b84)` has *two separate
+  predicate operations* and a final **duplex** instruction comprising a register
+  move and `r0=-1`. The LLVM6 canonical packet shuffle emits an equivalent
+  but byte-different packet. Instead, the source generator assembles the
+  two predicates with LLVM6 `-mno-pairing` and independently assembles the
+  duplex from `{ r2 = r6; r0 = #-1 }`. Only those compiler-generated semantic
+  instruction pieces are concatenated—**no extracted OEM instruction bytes**
+  or `.word` directives are included in the build. The combined packet is
+  byte-identical, and the hardware-loop target uses `loop0(L_00514,r7)`.
+- Combined with checkpoints 26 and 27, the current disjoint forward fragment
+  `[file 0x4568c,0x45c0c)` is **1,408 independent source-built bytes**, with
+  zero mismatches against the pinned WLAN original.
+- Agent13 checkpoint 25 is still not mounted. The preceding
+  `[0x44cd4,0x4568c)` therefore remains **unavailable in this checkout**;
+  do not claim a continuous `0x40000–0x45c0c` prefix until that parent history
+  is recovered and merged.

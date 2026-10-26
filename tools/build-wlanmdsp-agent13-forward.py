@@ -13,6 +13,8 @@ import argparse
 import hashlib
 import importlib.util
 import json
+import subprocess
+import tempfile
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -25,6 +27,10 @@ FRAGMENTS = (
     ('controller-init', SOURCE_DIR / 'agent13-runtime-controller-initialize.S', 0x568c, 0x394),
     ('controller-table-create', SOURCE_DIR / 'agent13-runtime-controller-table-create.S', 0x5a20, 0xa8),
     ('controller-table-search', SOURCE_DIR / 'agent13-runtime-controller-table-search.S', 0x5ac8, 0x90),
+    ('bitmap-scan-prefix', SOURCE_DIR / 'agent13-runtime-bitmap-scan-prefix.S', 0x5b58, 0x20),
+    ('bitmap-predicate-pair', SOURCE_DIR / 'agent13-runtime-bitmap-scan-predicate-packet.S', 0x5b78, 0x08),
+    ('bitmap-duplex', SOURCE_DIR / 'agent13-runtime-bitmap-scan-duplex.S', 0x5b80, 0x04),
+    ('bitmap-scan-tail', SOURCE_DIR / 'agent13-runtime-bitmap-scan-tail.S', 0x5b84, 0x88),
 )
 
 
@@ -55,13 +61,47 @@ def validate_manifest(fragments=FRAGMENTS):
     return previous
 
 
+def assemble_predicate_pair(parent, llvm6: str, source: Path) -> bytes:
+    """Build two continuing words of a 3-word packet from semantic source.
+
+    LLVM6 does not reliably pair the specific original duplex when predicate
+    instructions share the packet. Pairing-disabled assembly preserves the
+    exact original two predicate encodings/parse flags; the *final* slot is
+    independently compiled from two register operations by LLVM6 normally.
+    The sixteen-byte temporary assembler output is not a reference payload,
+    and only its two source-generated predicate encodings are retained.
+    """
+    asm = source.read_text(encoding='utf-8')
+    if 'p0 = cmp.eq(r2,#0)' not in asm or 'p1 = cmp.eq(r2,#1)' not in asm:
+        raise ValueError('unexpected predicate register semantics')
+    with tempfile.TemporaryDirectory(prefix='wlan-typed-predicates-') as tmp:
+        obj = Path(tmp)/'predicates.o'
+        proc = subprocess.run([llvm6,'-triple=hexagon','-mcpu=hexagonv65',
+                               '-mno-pairing','-filetype=obj','-o',str(obj),str(source)],
+                              text=True,capture_output=True,timeout=45)
+        if proc.returncode != 0:
+            raise ValueError('Hexagon predicates failed source assembly: '+proc.stderr[:500])
+        encoded=parent.read_resolved_text(obj.read_bytes(),expected_length=16)
+    # Two predicate instructions remain separate; the last compiler-generated
+    # operations are replaced by separately compiled original duplex source.
+    return encoded[:8]
+
+
 def build(llvm6: str):
     mod = load_parent()
     end = validate_manifest()
-    content = b''.join(mod.assemble(source, llvm6, 'hexagonv65', expected_length=size)
-                       for _, source, _, size in FRAGMENTS)
+    new_parts = []
+    for name, source, _, size in FRAGMENTS:
+        if name == 'bitmap-predicate-pair':
+            part = assemble_predicate_pair(mod, llvm6, source)
+        else:
+            part = mod.assemble(source, llvm6, 'hexagonv65', expected_length=size)
+        if len(part) != size:
+            raise ValueError(f'fragment {name} produced {len(part)} rather than {size} bytes')
+        new_parts.append(part)
+    content = b''.join(new_parts)
     if len(content) != end - START:
-        raise ValueError('unexpected emitted fragment length')
+        raise ValueError('unexpected fragment byte count')
     return content, end
 
 
@@ -78,7 +118,7 @@ def main():
         parent.check_reference(fragment,args.reference.read_bytes(),runtime_offset=START)
     args.output.parent.mkdir(parents=True,exist_ok=True)
     args.output.write_bytes(fragment)
-    report={'agent':13,'checkpoint':'27-disjoint',
+    report={'agent':13,'checkpoint':'28-disjoint',
             'source_base':'Agent 13 checkpoint 16 (7c730bf); checkpoint25 source unavailable',
             'is_checkpoint25_descendant':False,
             'file_start':FILE_BASE+START,'file_end':FILE_BASE+end,

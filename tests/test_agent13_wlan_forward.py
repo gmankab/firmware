@@ -19,10 +19,10 @@ class SourceOnlyForwardTests(unittest.TestCase):
     def test_manifest_exact_boundaries(self):
         m=module()
         self.assertEqual(m.START,0x568c)
-        self.assertEqual(m.validate_manifest(),0x5b58)
+        self.assertEqual(m.validate_manifest(),0x5c0c)
         self.assertEqual(m.FILE_BASE+m.START,0x4568c)
-        self.assertEqual(m.FILE_BASE+m.validate_manifest(),0x45b58)
-        self.assertEqual(sum(length for _,_,_,length in m.FRAGMENTS),1228)
+        self.assertEqual(m.FILE_BASE+m.validate_manifest(),0x45c0c)
+        self.assertEqual(sum(length for _,_,_,length in m.FRAGMENTS),1408)
 
     def test_validator_forbids_opaque_data_and_layout_holes(self):
         m=module()
@@ -49,7 +49,22 @@ class SourceOnlyForwardTests(unittest.TestCase):
         self.assertIn('jump ##',controller)
         loop=m.FRAGMENTS[2][1].read_text()
         self.assertIn('loop0(L_00460,r5)',loop)
+        bitmap=m.FRAGMENTS[6][1].read_text()
+        self.assertIn('loop0(L_00514,r7)',bitmap)
+        self.assertIn('}:endloop0',bitmap)
         self.assertIn('}:endloop0',loop)
+
+    def test_structured_predicate_duplex_sources(self):
+        m=module()
+        names=[fragment[0] for fragment in m.FRAGMENTS]
+        self.assertIn('bitmap-predicate-pair',names)
+        self.assertIn('bitmap-duplex',names)
+        predicate=m.FRAGMENTS[4][1].read_text()
+        duplex=m.FRAGMENTS[5][1].read_text()
+        self.assertIn('p0 = cmp.eq(r2,#0)',predicate)
+        self.assertIn('p1 = cmp.eq(r2,#1)',predicate)
+        self.assertIn('r2 = r6; r0 = #-1',duplex)
+        self.assertEqual(m.FRAGMENTS[4][3]+m.FRAGMENTS[5][3],12)
 
 
 if __name__=='__main__':unittest.main()
