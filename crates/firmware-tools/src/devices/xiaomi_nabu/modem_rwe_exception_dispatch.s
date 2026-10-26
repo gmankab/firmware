@@ -1392,3 +1392,18 @@ MODEM_RWE_CONTROL_PAIR_READ 18,12,1   // CS1:0
 MODEM_RWE_CONFIG_WRITE 8,20,1         // USR
 { r20 = memw(r28+##-1065265172); memd(r17+#168) = r15:14 }
 MODEM_SYS_WRITE 7,20,1                 // CCR
+// Publish codec exception-frame state to the active video lane. The saved
+// controller bits and descriptor-pointer updates share original V60 packets.
+.globl agent11_modem_rwe_control_frame_publish
+agent11_modem_rwe_control_frame_publish:
+{ r14 = ##-1065089300 }
+MODEM_RWE_CONTROL_PAIR_READ 2,16,3 // r3:2 = c17:16
+MODEM_RWE_CONTROL_PAIR_READ 4,18,3 // r5:4 = c19:18
+{ if (p1) r3:2 = memd(r10+#0); memd(r17+#248) = r3:2 }
+{ memd(r17+#304) = r5:4 }
+MODEM_SYS_READ 1,8,1 // HTID
+{ r0 = r17; memd(r17+#184) = r19:18; memd(r17+#200) = r25:24 }
+MODEM_SYS_READ 5,2,1 // S2 video fault mode
+.set modem_rwe_frame_publish_next, agent11_modem_exception_dispatch_entry + (0x38f34-0x38108)
+{ if (!p1) jump:nt modem_rwe_frame_publish_next; memw(r17+#236) = r14; memd(r17+#192) = r27:26 }
+{ memb(r17+#226) = r5 }

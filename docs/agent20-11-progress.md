@@ -389,3 +389,10 @@ python3 -m unittest discover -s tests -p 'test_*.py'
 - Saved the interrupted codec's SSR/ELR and frame flags, both loop/packet-count and paired controller register banks, USR, STID/CCR, and three per-mode descriptor pointers. Standalone S3 and LC0 reads have distinct packet markers from their neighboring stores and extenders.
 - The V60-specific GP-relative load class differs from the LLVM6 generic r28+offset form in three instances. Strict normalization validates each original LLVM6 immediate extender, register operand and packet marker before selecting that public architectural class. Every byte of the whole new 3,524-byte fragment equals the SHA-pinned original `modem.mbn`.
 - Tests: 169 Rust, 39 Python, release build passed. The next missing instruction is modem file `0x38ecc`; authentication and later Hexagon segments remain unfinished.
+
+## Checkpoint 48 — Video exception-frame publication, first packet groups
+
+- The contiguous RWE exception handler `[file 0x38108,0x38f0c)` now covers **3,588 independently assembled, byte-identical Hexagon bytes**, with new `[0x38ecc,0x38f0c)` = **64 source-authored executable bytes**, physical `[0x8e040ecc,0x8e040f0c)` / virtual `[0xc0840ecc,0xc0840f0c)`.
+- Reads two paired controller registers C17:16 and C19:18, uses P1-dependent `memd` to snapshot frame state, records selected video lane/descriptor fields, reads HTID and privileged S2 state, and conditionally branches to the next controller path. Source uses checked architecture register macros and LLVM6 Hexagon V60 packet syntax; no proprietary instruction bytes or unverified padding are imported.
+- LLVM6 independent assembly and the SHA-256 pinned original modem reference match all 3,588 bytes with **zero mismatches**. The following compound branch/callback packet at `file 0x38f0c` is **not yet reconstructed** and is not claimed as source code.
+- Tests: **169 Rust** and **39 Python** tests pass, as does `cargo build --workspace --release --offline --locked`. SHA-256 of the 3,588-byte emitted fragment: `d89773745c88ede67e0d9d62729ad8372dff0c80cfafa92c11189db9c42f3bdc`.

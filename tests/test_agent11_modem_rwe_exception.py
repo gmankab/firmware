@@ -14,7 +14,7 @@ spec.loader.exec_module(module)
 
 class ModemRweException(unittest.TestCase):
     def test_exact_address_mapping(self):
-        self.assertEqual((module.FILE_START, module.FILE_END), (0x38108, 0x38ecc))
+        self.assertEqual((module.FILE_START, module.FILE_END), (0x38108, 0x38f0c))
         self.assertEqual(module.VIRTUAL_START-module.FILE_START, 0xc0808000)
         self.assertEqual(module.PHYSICAL_START-module.FILE_START, 0x8e008000)
 
@@ -32,7 +32,7 @@ class ModemRweException(unittest.TestCase):
             self.skipTest('Set AGENT11_LLVM_MC to run LLVM6 Hexagon assembler test')
         source = SCRIPT.parents[1]/'crates/firmware-tools/src/devices/xiaomi_nabu/modem_rwe_exception_dispatch.s'
         data = module.assemble(Path(mc), source)
-        self.assertEqual(len(data), 3524)
+        self.assertEqual(len(data), 3588)
         self.assertEqual(data[0x381b8-module.FILE_START:0x381bc-module.FILE_START],bytes.fromhex('00c0e057'))
         self.assertEqual(data[0:4], bytes.fromhex('00c00058'))
         # First 148 bytes after the restored RTE encode vector resolution,
@@ -105,6 +105,13 @@ class ModemRweException(unittest.TestCase):
         self.assertEqual(at(0x38ea4),0x49804614)
         self.assertEqual(at(0x38ec0),0x49804594)
         self.assertEqual(at(0x38ec8),0x67000000 | (20<<16) | (1<<14) | 7)
+        # Check the newly added frame-publication path: two paired-control
+        # reads, the HTID video-lane snapshot, and byte-descriptor write.
+        self.assertEqual(at(0x38ed4), 0x68000000 | (16<<16) | (3<<14) | 2)
+        self.assertEqual(at(0x38ed8), 0x68000000 | (18<<16) | (3<<14) | 4)
+        self.assertEqual(at(0x38ee8), 0x6e800000 | (8<<16) | (1<<14) | 1)
+        self.assertEqual(at(0x38ef8), 0x6e800000 | (2<<16) | (1<<14) | 5)
+        self.assertEqual(at(0x38f08) & (3<<14), (3<<14))
         ref = os.environ.get('AGENT11_MODEM_MBN')
         if ref:
             module.verify_pinned(Path(ref).read_bytes(), data)
