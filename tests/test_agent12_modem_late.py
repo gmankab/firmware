@@ -1204,3 +1204,17 @@ class ModemLateSessionConditionTests(unittest.TestCase):
                     struct.pack('<26I',*invalid))
         with self.assertRaisesRegex(ValueError,'104 source bytes'):
             agent12.restore_aux_large_controller_phase10_packets(bytes(100))
+
+
+class ModemLateResourceCallbackTests(unittest.TestCase):
+    def test_callback_resource_path_has_direct_hexagon_assembly(self):
+        self.assertEqual((agent12.AUX_LARGE_CONTROLLER_PHASE11_START,
+                          agent12.AUX_LARGE_CONTROLLER_PHASE11_END),
+                         (0x447BC4,0x447C74))
+        asm=agent12.AUX_LARGE_CONTROLLER_PHASE11_SOURCE.read_text()
+        self.assertIn('r2 += add(r4,#-1)',asm)
+        self.assertIn('r3 = ##507577286',asm)
+        self.assertIn('callr r6',asm)
+        self.assertIn('jump cleanup',asm)
+        self.assertNotIn('.word',asm)
+        self.assertNotIn('.incbin',asm)

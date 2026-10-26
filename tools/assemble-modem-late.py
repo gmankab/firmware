@@ -50,6 +50,7 @@ AUX_LARGE_CONTROLLER_PHASE7_SOURCE = ROOT / "crates/firmware-tools/src/devices/x
 AUX_LARGE_CONTROLLER_PHASE8_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_aux_large_controller_phase8.s"
 AUX_LARGE_CONTROLLER_PHASE9_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_aux_large_controller_phase9.s"
 AUX_LARGE_CONTROLLER_PHASE10_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_aux_large_controller_phase10.s"
+AUX_LARGE_CONTROLLER_PHASE11_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_aux_large_controller_phase11.s"
 AUX_DISPATCH_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_aux_dispatch_helpers.s"
 AUX_TYPE_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_aux_type_config.s"
 AUX_NOTIFY_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_aux_controller_notify.s"
@@ -175,6 +176,8 @@ AUX_LARGE_CONTROLLER_PHASE9_START = AUX_LARGE_CONTROLLER_PHASE8_END
 AUX_LARGE_CONTROLLER_PHASE9_END = 0x447B5C
 AUX_LARGE_CONTROLLER_PHASE10_START = AUX_LARGE_CONTROLLER_PHASE9_END
 AUX_LARGE_CONTROLLER_PHASE10_END = 0x447BC4
+AUX_LARGE_CONTROLLER_PHASE11_START = AUX_LARGE_CONTROLLER_PHASE10_END
+AUX_LARGE_CONTROLLER_PHASE11_END = 0x447C74
 MARKER_MASK = 3 << 14
 CONTINUE_MARKER = 1 << 14
 END_MARKER = 3 << 14
@@ -1467,6 +1470,7 @@ def output_fragments(llvm_mc: Path) -> dict[int, bytes]:
     aux_large_controller_phase8=restore_aux_large_controller_phase8_packet(assemble(llvm_mc,AUX_LARGE_CONTROLLER_PHASE8_SOURCE))
     aux_large_controller_phase9=restore_aux_large_controller_phase9_packets(assemble(llvm_mc,AUX_LARGE_CONTROLLER_PHASE9_SOURCE))
     aux_large_controller_phase10=restore_aux_large_controller_phase10_packets(assemble(llvm_mc,AUX_LARGE_CONTROLLER_PHASE10_SOURCE))
+    aux_large_controller_phase11=assemble(llvm_mc,AUX_LARGE_CONTROLLER_PHASE11_SOURCE)
     aux_dispatch = assemble(llvm_mc,AUX_DISPATCH_SOURCE)
     aux_type = restore_aux_type_return_packets(assemble(llvm_mc,AUX_TYPE_SOURCE))
     aux_notify = restore_aux_controller_notify_packets(assemble(llvm_mc,AUX_NOTIFY_SOURCE))
@@ -1525,6 +1529,7 @@ def output_fragments(llvm_mc: Path) -> dict[int, bytes]:
         (aux_large_controller_phase8,AUX_LARGE_CONTROLLER_PHASE8_START,AUX_LARGE_CONTROLLER_PHASE8_END,'large controller phase8'),
         (aux_large_controller_phase9,AUX_LARGE_CONTROLLER_PHASE9_START,AUX_LARGE_CONTROLLER_PHASE9_END,'large controller phase9'),
         (aux_large_controller_phase10,AUX_LARGE_CONTROLLER_PHASE10_START,AUX_LARGE_CONTROLLER_PHASE10_END,'large controller phase10'),
+        (aux_large_controller_phase11,AUX_LARGE_CONTROLLER_PHASE11_START,AUX_LARGE_CONTROLLER_PHASE11_END,'large controller phase11'),
     ]:
         if len(fragment)!=end-start:
             raise ValueError(f"auxiliary {label} source length mismatch")
@@ -1576,7 +1581,8 @@ def output_fragments(llvm_mc: Path) -> dict[int, bytes]:
             AUX_LARGE_CONTROLLER_PHASE6_END==AUX_LARGE_CONTROLLER_PHASE7_START and
             AUX_LARGE_CONTROLLER_PHASE7_END==AUX_LARGE_CONTROLLER_PHASE8_START and
             AUX_LARGE_CONTROLLER_PHASE8_END==AUX_LARGE_CONTROLLER_PHASE9_START and
-            AUX_LARGE_CONTROLLER_PHASE9_END==AUX_LARGE_CONTROLLER_PHASE10_START):
+            AUX_LARGE_CONTROLLER_PHASE9_END==AUX_LARGE_CONTROLLER_PHASE10_START and
+            AUX_LARGE_CONTROLLER_PHASE10_END==AUX_LARGE_CONTROLLER_PHASE11_START):
         raise ValueError("missing source after controller registry block")
     if AUX_LOOKUP_END!=AUX_REGISTRY_CORE_START or AUX_REGISTRY_CORE_END!=AUX_DISPATCH_START:
         raise ValueError("modem auxiliary registry source intervals have a gap")
@@ -1591,7 +1597,8 @@ def output_fragments(llvm_mc: Path) -> dict[int, bytes]:
                         aux_large_controller_phase3+aux_large_controller_phase4+
                         aux_large_controller_phase5+aux_large_controller_phase6+
                         aux_large_controller_phase7+aux_large_controller_phase8+
-                        aux_large_controller_phase9+aux_large_controller_phase10,
+                        aux_large_controller_phase9+aux_large_controller_phase10+
+                        aux_large_controller_phase11,
     }
 
 
