@@ -8,7 +8,7 @@
 use arm32::{Condition as C, DataOp as Op, Register as R, Shift, BlockMode};
 
 pub const START: usize = 0x21c78;
-pub const END: usize = 0x347a0;
+pub const END: usize = 0x34ca0;
 pub const FILE_BASE:usize = 0x4000;
 pub const FILE_OFFSET:usize=FILE_BASE+START;
 pub const RESERVATION_END:usize=0x40000;
@@ -217,6 +217,8 @@ mod event_type_resolve;
 mod codec_irq_frames;
 #[path="venus_runtime_mid_codec_frame_update.rs"]
 mod codec_frame_update;
+#[path="venus_runtime_mid_controller_stream_ops.rs"]
+mod controller_stream_ops;
 
 fn frame_allocation(c:&mut Code)->Result<(),String>{
     c.check(START)?;
@@ -782,6 +784,7 @@ pub fn fragment()->Result<Vec<u8>,String>{
     event_type_resolve::emit(&mut code)?;
     codec_irq_frames::emit(&mut code)?;
     codec_frame_update::emit(&mut code)?;
+    controller_stream_ops::emit(&mut code)?;
     Ok(code.bytes)
 }
 
@@ -799,7 +802,7 @@ pub fn verify_reference(reference:&[u8])->Result<usize,String>{
 #[cfg(test)] mod tests {
     use super::*;
     #[test] fn generated_region_exact_layout(){
-        assert_eq!(END-START,0x12b28);
+        assert_eq!(END-START,0x13028);
         assert_eq!(fragment().unwrap().len(),END-START);
         assert_eq!(FILE_OFFSET,0x25c78);
     }

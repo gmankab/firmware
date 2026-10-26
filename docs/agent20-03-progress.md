@@ -500,3 +500,10 @@ Original reference: private `map220v-nabu-firmware/venus.mbn`, SHA-256 `9d4af65d
 - Reconstructs controller-selected codec stream-plane metadata and format/status transitions, updates MMIO output state and invokes the original callback path. Data values are emitted separately from executable A32 instructions.
 - Whole generated region matches the pinned Venus MBN with zero byte differences; independent Clang/LLVM reassembly reproduces all 736 new bytes exactly. **240 Rust** and **13 Python tests** pass; optimized release build unconfirmed.
 - SHA-256 of generated fragment `c9cf88dd0bd974573628f411b096b3ae1abccc27c0c59ac55c149382242b8456` (verify digest before publication); next function begins at `0x347a0`.
+
+## Checkpoint 75 — controller stream callback and packet management
+
+- Contiguous typed ARM32 `[0x21c78,0x34ca0)` = **77,864 exact bytes**, new `[0x347a0,0x34ca0)` = **1,280 bytes**: **299 A32 instructions** and **21 literal data words** in four separately identified pools (`0x34888–0x3489c`, `0x34b0c–0x34b24`, `0x34bb0–0x34bc4`, `0x34c8c–0x34ca0`).
+- Handles controller stream-format validation, three indirect callback dispatcher helpers, stale-packet cleanup and stream response construction. Data words are distinct from the ARM instruction stream.
+- Generated fragment matches pinned Venus MBN exactly; independent Clang/LLVM assembler confirms all 1,280 new bytes without mismatch. **241 Rust tests**, **13 Python tests** pass. Release build not verified for this increment.
+- Full fragment SHA-256 `0b3640e6666f748dcb850c4ff3d76632ef9406cc702cf5e1e0baba9eb101cfec`. The next routine begins at runtime `0x34ca0` below our exclusive upper limit `0x40000`.
