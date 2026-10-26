@@ -44,6 +44,44 @@ class ModemLateTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError,'16 source-assembled bytes'):
             agent12.restore_aux_large_controller_phase13_gap_packet(bytes(12))
 
+    def test_aux_controller_phase18_stores_join_descriptor_loads(self):
+        self.assertEqual((agent12.AUX_LARGE_CONTROLLER_PHASE18_START,
+                          agent12.AUX_LARGE_CONTROLLER_PHASE18_END),
+                         (0x447f38,0x447fa8))
+        text=agent12.AUX_LARGE_CONTROLLER_PHASE18_SOURCE.read_text()
+        self.assertIn('r3:2 = add(r3:2,r5:4)', text)
+        self.assertIn('p0 = bitsclr(r2,r7)', text)
+        self.assertIn('r3 = insert(r9,#18,#0)', text)
+        self.assertNotIn('.word', text)
+        # Build synthetic A32 V60 STORE/LOAD words from public register/offset
+        # encoding fields, not from proprietary firmware bytes.
+        w=[0x7800c000]*28
+        for offset,base,source,index in [
+            (0x40,6,3,3), (0x48,2,0,0),
+            (0x5c,2,3,5), (0x64,2,20,6),
+        ]:
+            i=offset//4
+            w[i]=0xa1000000|(base<<16)|(source<<8)|index|agent12.END_MARKER
+            w[i+1]=0x91000000|(17<<16)|(0x80<<8)|2|agent12.END_MARKER
+        encoded=struct.pack('<28I',*w)
+        generated=struct.unpack('<28I',agent12.restore_aux_large_controller_phase18_packets(encoded))
+        for offset,_,_,_ in [(0x40,6,3,3),(0x48,2,0,0),(0x5c,2,3,5),(0x64,2,20,6)]:
+            i=offset//4
+            self.assertEqual(generated[i],(w[i]&~agent12.MARKER_MASK)|agent12.CONTINUE_MARKER)
+            self.assertEqual(generated[i+1],w[i+1])
+        for offset,replacement,kind in [
+            (0x40,0x7800c000,'store opcode/operands'),
+            (0x40,0xa186c302,'store opcode/operands'),
+            (0x40,0xa1864303,'packet marker'),
+            (0x44,0x7800c000,'load opcode/operands'),
+            (0x44,0x919140e2,'packet marker'),
+        ]:
+            malformed=w.copy();malformed[offset//4]=replacement
+            with self.assertRaisesRegex(ValueError,kind):
+                agent12.restore_aux_large_controller_phase18_packets(struct.pack('<28I',*malformed))
+        with self.assertRaisesRegex(ValueError,'112 bytes'):
+            agent12.restore_aux_large_controller_phase18_packets(encoded[:-4])
+
     def test_aux_controller_phase17_hwloop_packet_encoding(self):
         self.assertEqual((agent12.AUX_LARGE_CONTROLLER_PHASE17_START,
                           agent12.AUX_LARGE_CONTROLLER_PHASE17_END),
