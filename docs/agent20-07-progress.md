@@ -1121,3 +1121,16 @@ python3 -S tools/adsp-agent20-rwe-next-controller-slot-status.py \
   --llvm-mc "$HEXAGON_LLVM_MC" --reference "$NABU_ADSP_REFERENCE" \
   --output /tmp/adsp-controller-slot-status-100.bin
 ```
+
+## Checkpoint 64: controller slot bitmap publication `[0x11ed0,0x11f18)`
+
+- Added **72 exact source-assembled Hexagon bytes**, file `[0x11ed0,0x11f18)` (physical `[0x8be0eed0,0x8be0ef18)`), SHA-256 `2749c2e454c9f7e655ed6a5426bb9692f41fb83d6458a9646515c68bf08142be`.
+- The leaf calls the controller-state getter, derives the five-bit word/bit index of the selected channel, publishes the bit to the GP-backed table and calls the original controller notification helper. All 18 original instruction words come directly from LLVM6, including the `if (p0.new)` conditional read in the same packet as its predicate producer, with no privileged substitutions.
+- With the preceding lookup and status helpers the ADSP slot-control executable island `[0x11ae0,0x11f18)` now totals **1,080 contiguous byte-identical code bytes**. Original diagnostic strings, linker fill, unrelated regions and all OEM authentication are not counted.
+- Cumulative independently reconstructed ADSP RWE executable source: **8,700 bytes across fifteen disjoint intervals**; next missing code begins at `0x11f18`.
+
+```sh
+python3 -S tools/adsp-agent20-rwe-next-controller-slot-bitmap-publish.py \
+  --llvm-mc "$HEXAGON_LLVM_MC" --reference "$NABU_ADSP_REFERENCE" \
+  --output /tmp/adsp-controller-slot-bitmap-publish-72.bin
+```
