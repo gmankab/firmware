@@ -223,3 +223,21 @@ python3 tools/build-wlanmdsp-agent13.py /tmp/wlan-prefix-through-27a0.bin \
 - **Do not sum** this 916-byte region into checkpoint 16's 19,668-byte prefix
   as contiguous: checkpoint 17–25 sources covering `[0x44cd4,0x4568c)` are
   absent from this session and must be applied first.
+
+## Checkpoint 27 (disjoint; checkpoint25 still absent) — controller table routines
+
+- Rebuilt controller-table creation and diagnostic fallbacks:
+  `[file 0x45a20,0x45ac8)` = **168 Hexagon instruction bytes**.
+- Rebuilt bounded two-word-key table search with a hardware loop:
+  `[file 0x45ac8,0x45b58)` = **144 independently assembled instruction bytes**.
+- These are adjacent to checkpoint 26’s original 916-byte controller
+  initialization. Together, source-built `[file 0x4568c,0x45b58)` totals
+  **1,228 bytes with zero byte differences** against the original SHA-256-pinned
+  WLAN executable `PT_LOAD`.
+- Exact packet identity required the table-create diagnostic packet to place
+  `r1 = ##...; deallocframe` ahead of `r2=#25` *in source* so the assembler
+  chose the original slot order. Table-search loop packet uses symbolic
+  `loop0(L_00460,r5)` rather than an incorrect absolute immediate.
+- Still **not a direct descendant** of missing Agent 13 checkpoint 25.
+  The exclusive file region `[0x44cd4,0x4568c)` must be imported from
+  checkpoints 17–25 before reporting a contiguous merged prefix.

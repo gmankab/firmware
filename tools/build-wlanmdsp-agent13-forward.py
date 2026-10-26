@@ -23,6 +23,8 @@ VADDR = 0xb0000000
 START = 0x568c
 FRAGMENTS = (
     ('controller-init', SOURCE_DIR / 'agent13-runtime-controller-initialize.S', 0x568c, 0x394),
+    ('controller-table-create', SOURCE_DIR / 'agent13-runtime-controller-table-create.S', 0x5a20, 0xa8),
+    ('controller-table-search', SOURCE_DIR / 'agent13-runtime-controller-table-search.S', 0x5ac8, 0x90),
 )
 
 
@@ -76,7 +78,7 @@ def main():
         parent.check_reference(fragment,args.reference.read_bytes(),runtime_offset=START)
     args.output.parent.mkdir(parents=True,exist_ok=True)
     args.output.write_bytes(fragment)
-    report={'agent':13,'checkpoint':'26-disjoint',
+    report={'agent':13,'checkpoint':'27-disjoint',
             'source_base':'Agent 13 checkpoint 16 (7c730bf); checkpoint25 source unavailable',
             'is_checkpoint25_descendant':False,
             'file_start':FILE_BASE+START,'file_end':FILE_BASE+end,
