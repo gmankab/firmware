@@ -132,7 +132,7 @@ mod record_select;
 
 #[test]
 fn merged_controller_interval_is_strictly_gapless(){
-    let pieces: [(usize,usize,fn()->Result<Vec<u8>,String>);14] = [
+    let pieces: [(usize,usize,fn()->Result<Vec<u8>,String>);15] = [
         (quality::START,quality::END,quality::fragment),
         (record_metrics::START,record_metrics::END,record_metrics::fragment),
         (magnitude::START,magnitude::END,magnitude::fragment),
@@ -147,6 +147,7 @@ fn merged_controller_interval_is_strictly_gapless(){
         (controller_alloc::START,controller_alloc::END,controller_alloc::fragment),
         (controller_run_prefix::START,controller_run_prefix::END,controller_run_prefix::fragment),
         (controller_run_tail::START,controller_run_tail::END,controller_run_tail::fragment),
+        (controller_small_helpers::START,controller_small_helpers::END,controller_small_helpers::fragment),
     ];
     let mut combined=Vec::new();
     let mut cursor=0x710c0;
@@ -156,8 +157,8 @@ fn merged_controller_interval_is_strictly_gapless(){
         assert_eq!(bytes.len(),end-start,"incorrect emitted function size");
         combined.extend_from_slice(&bytes);cursor=end;
     }
-    assert_eq!(cursor,0x7389c);
-    assert_eq!(combined.len(),10204);
+    assert_eq!(cursor,0x73e10);
+    assert_eq!(combined.len(),11600);
     if let Some(reference)=std::env::var_os("NABU_VENUS_REFERENCE"){
         let fw=std::fs::read(reference).unwrap();
         let file_offset=0x710c0+0x4000;
@@ -187,6 +188,8 @@ mod controller_alloc;
 mod controller_run_prefix;
 #[path="../src/devices/xiaomi_nabu/venus_agent20_05_controller_run_tail.rs"]
 mod controller_run_tail;
+#[path="../src/devices/xiaomi_nabu/venus_agent20_05_controller_small_helpers.rs"]
+mod controller_small_helpers;
 #[test]fn controller_limits_tail_matches_optional_reference(){
     let b=controller_limits_tail::fragment().unwrap();
     assert_eq!(b.len(),controller_limits_tail::END-controller_limits_tail::START);
@@ -229,5 +232,14 @@ mod controller_run_tail;
     if let Some(reference)=std::env::var_os("NABU_VENUS_REFERENCE"){
         let fw=std::fs::read(reference).unwrap();let off=controller_run_tail::START+controller_run_tail::FILE_BASE;
         assert_eq!(&b[..],fw.get(off..off+b.len()).unwrap());
+    }
+}
+
+#[test]fn small_controller_helpers_match_private_original_if_available(){
+    let bytes=controller_small_helpers::fragment().unwrap();
+    assert_eq!(bytes.len(),controller_small_helpers::END-controller_small_helpers::START);
+    if let Some(reference)=std::env::var_os("NABU_VENUS_REFERENCE"){
+        let fw=std::fs::read(reference).unwrap();let off=controller_small_helpers::START+controller_small_helpers::FILE_BASE;
+        assert_eq!(&bytes[..],fw.get(off..off+bytes.len()).unwrap());
     }
 }

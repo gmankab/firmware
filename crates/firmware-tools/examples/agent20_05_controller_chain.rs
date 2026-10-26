@@ -15,9 +15,10 @@
 #[path="../src/devices/xiaomi_nabu/venus_agent20_05_controller_alloc.rs"]mod controller_alloc;
 #[path="../src/devices/xiaomi_nabu/venus_agent20_05_controller_run_prefix.rs"]mod controller_run_prefix;
 #[path="../src/devices/xiaomi_nabu/venus_agent20_05_controller_run_tail.rs"]mod controller_run_tail;
+#[path="../src/devices/xiaomi_nabu/venus_agent20_05_controller_small_helpers.rs"]mod controller_small_helpers;
 fn main()->Result<(),Box<dyn std::error::Error>>{
     let out=std::env::args().nth(1).ok_or("usage: agent20_05_controller_chain OUTPUT [PRIVATE_VENUS_MBN]")?;
-    let pieces: [(usize,usize,fn()->Result<Vec<u8>,String>);14] = [
+    let pieces: [(usize,usize,fn()->Result<Vec<u8>,String>);15] = [
         (quality::START,quality::END,quality::fragment),
         (record_metrics::START,record_metrics::END,record_metrics::fragment),
         (magnitude::START,magnitude::END,magnitude::fragment),
@@ -32,22 +33,23 @@ fn main()->Result<(),Box<dyn std::error::Error>>{
         (controller_alloc::START,controller_alloc::END,controller_alloc::fragment),
         (controller_run_prefix::START,controller_run_prefix::END,controller_run_prefix::fragment),
         (controller_run_tail::START,controller_run_tail::END,controller_run_tail::fragment),
+        (controller_small_helpers::START,controller_small_helpers::END,controller_small_helpers::fragment),
     ];
     for base in [quality::FILE_BASE,record_metrics::FILE_BASE,magnitude::FILE_BASE,
                  alt_occupancy::FILE_BASE,occupancy_commit::FILE_BASE,
                  record_append::FILE_BASE,record_select::FILE_BASE,
                  color_unpack::FILE_BASE,controller_limits::FILE_BASE,
-                 controller_limits_tail::FILE_BASE,throughput_tiers::FILE_BASE,controller_alloc::FILE_BASE,controller_run_prefix::FILE_BASE,controller_run_tail::FILE_BASE] {
+                 controller_limits_tail::FILE_BASE,throughput_tiers::FILE_BASE,controller_alloc::FILE_BASE,controller_run_prefix::FILE_BASE,controller_run_tail::FILE_BASE,controller_small_helpers::FILE_BASE] {
         if base != 0x4000 {return Err("unexpected Venus file-to-runtime offset".into());}
     }
-    let mut bytes=Vec::with_capacity(10204);let mut position=0x710c0;
+    let mut bytes=Vec::with_capacity(11600);let mut position=0x710c0;
     for (start,end,emit) in pieces {
         if start!=position{return Err(format!("gap or overlap at 0x{position:x}").into());}
         let next=emit()?;
         if next.len()!=end-start{return Err(format!("unexpected fragment length at 0x{start:x}").into());}
         bytes.extend_from_slice(&next);position=end;
     }
-    if position!=0x7389c || bytes.len()!=10204{return Err("unexpected controller-chain coverage".into());}
+    if position!=0x73e10 || bytes.len()!=11600{return Err("unexpected controller-chain coverage".into());}
     if let Some(reference)=std::env::args().nth(2){
         let firmware=std::fs::read(reference)?;
         let file_offset=0x710c0+0x4000;
