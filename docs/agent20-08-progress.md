@@ -784,3 +784,24 @@ compact/duplex pairs). An exploratory source attempt is kept outside Git
 and has **not** been counted. Most OEM ADSP executable code and all new OEM
 signing remain unfinished. This branch is still provisional until properly
 integrated on the checkpoint-50-based repository.
+
+**Checkpoint 52 — controller-owned packet buffer expansion:**
+Reconstructed the complete **184-byte** source-assembled Hexagon function
+`[file 0x3eef0,0x3efa8)` with resize/allocation checks, a bounded
+record-copy loop, completion callbacks and both success/failure epilogues.
+SHA-256 `8859197c0e2682cdecb454f58666a14dd34c5093f02af30c3b9a0c2200e98603`;
+all 184 bytes match the private pinned `adsp.mbn` executable bytes.
+The only initial mismatch was the symbolic loop-target address: its branch
+must return to the `call append_context` packet **after** the preceding
+multiply instruction. Restoring that source-level target yielded the original
+Hexagon packet parse fields without importing proprietary opcodes.
+
+It joins the existing checked argument-forwarding routine
+`[0x3efa8,0x3eff4)`, producing **260 contiguous independently assembled
+bytes `[0x3eef0,0x3eff4)`**; the 12-byte structural NOP alignment
+`[0x3eee4,0x3eef0)` and any following alignment are excluded.
+
+Cumulative verified ADSP late executable coverage: **8,448 bytes in 100
+fragments**. The distributor `[0x412b4,0x413b8)` is still unresolved and
+is not counted. Unreconstructed ADSP executable regions and OEM signing
+remain outside the output; this branch is a provisional old-base descendant.

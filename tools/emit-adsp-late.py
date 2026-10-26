@@ -82,6 +82,7 @@ FRAGMENTS = {
     'call-descriptor-dispatch': (TOOLS / 'adsp-late-call-descriptor-dispatch.S', 0x3E0A4, 0x28),
     'controller-runtime-init': (TOOLS / 'adsp-late-controller-runtime-init.S', 0x3E0D0, 0x80),
     'controller-descriptor-refresh': (TOOLS / 'adsp-late-controller-descriptor-refresh.S', 0x3E480, 0x50),
+    'controller-buffer-expand': (TOOLS / 'adsp-late-controller-buffer-expand.S', 0x3EEF0, 0xB8),
     'checked-argument-forward': (TOOLS / 'adsp-late-checked-argument-forward.S', 0x3EFA8, 0x4C),
     'controller-descriptor-setup': (TOOLS / 'adsp-late-controller-descriptor-setup.S', 0x3EDD0, 0x88),
     'controller-field-initialize': (TOOLS / 'adsp-late-controller-field-initialize.S', 0x3ED1C, 0xAC),
