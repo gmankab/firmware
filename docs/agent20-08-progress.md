@@ -699,3 +699,17 @@ and separate packet boundaries yields exact reference bytes. **Cumulative:
 7,364 independently source-assembled executable bytes in 93 fragments.**
 The full ADSP firmware remains far from complete and no private OEM code
 is copied into the source assembler.
+
+
+**Checkpoint 47 — registry removal and bounded byte selector:** Rebuilt a
+136-byte controller-registry unlink routine `[0x40f80,0x41008)` (SHA-256
+`0d5ea1b04a5396ee215f7f3b562eb627149aa29a3c2918ae47a17c718787949b`)
+and a 104-byte lookup/byte selector `[0x41010,0x41078)` (SHA-256
+`819855d1c0b4d0d34cf54674a2f3b471d95fbebfe6004dd0195a5999f7d7fbb2`).
+The latter branches on signed byte input, uses a 20-byte stride table, and
+returns an updated nibble selector. Both were independently built from
+Hexagon assembly using LLVM6 and compared against the pinned ADSP reference
+with zero mismatches. The two alignment NOPs `[0x41008,0x41010)` are
+excluded from code totals. **New verified code: 240 bytes, 2 functions;
+cumulative 7,604 independently source-assembled executable bytes across
+95 fragments.** All other ADSP code and OEM authentication are incomplete.
