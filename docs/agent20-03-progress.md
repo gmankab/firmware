@@ -570,3 +570,11 @@ Original reference: private `map220v-nabu-firmware/venus.mbn`, SHA-256 `9d4af65d
 - Two checked local A32 ISA encoders cover register-indexed halfword transfer and signed byte pre-indexed writeback; focused tests match those publicly specified architecture fields. No OEM executable opcode arrays are copied into the source.
 - Direct private Venus reference comparison reports zero mismatches for the complete fragment. Independent Clang/LLVM mnemonic reassembly confirms **all 4,052 new bytes**. Generated SHA-256: `cc9ea751ca1da0bdcf0fcee200649543b876339ba96b2d466e9ec7207a218446`.
 - The next source function begins at runtime address `0x3701c`, within Agent 20-03's exclusive reservation ending at `0x40000`.
+
+## Checkpoint 84 — stream quantization and interpolated hardware format selection
+
+- Complete typed ARM32 `[0x21c78,0x37180)` = **87,304 consecutive reference-identical bytes**, original MBN `[0x25c78,0x3b180)`.
+- New `[0x3701c,0x37180)` = **356 bytes**, **83 A32 instructions** and **six diagnostic/scaling literal data words** `[0x37168,0x37180)`.
+- Reconstructs a codec-format table interpolation/scaling helper with **eight ARM-to-Thumb BLX immediate calls**. The return at `0x37164` is verified; the trailing pool holds fixed-point factors and controller addresses, not instructions.
+- Exact full-fragment reference comparison passes and independent LLVM/Clang mnemonic reassembly confirms all 356 bytes. LLVM/Lld emits benign `R_ARM_CALL` warnings for external non-STT_FUNC BLX branch symbols; both emitted bytes and target offsets match the original. Instruction binary equivalence does not establish hardware behavior.
+- Next function begins at `0x37180`, below the reserved `0x40000` boundary.
