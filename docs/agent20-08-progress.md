@@ -430,3 +430,18 @@ bytes** are independently verified against the pinned reference using LLVM6;
 the four interstitial 4-byte linker NOPs are intentionally excluded.
 Cumulative Agent 08 source-generated coverage is **3,648 executable bytes in
 64 disjoint code fragments**. No OEM executable payload is included verbatim.
+
+
+**Checkpoint 29 — controller descriptor setup/registry allocator:** Rebuilt
+Hexagon V66 source for the **136-byte** routine at `[0x3edd0,0x3ee58)`. It
+initializes a descriptor, sets up packet metadata, selects a bounded number
+of allocations, and invokes a platform queue publisher until the allocated
+count is exhausted. Original packet order was preserved for the group
+`{ r2 = #0; r16 = r0; memd(r29+#0) = r19:18 }`; LLVM6 then emitted the
+exact original 136 bytes. SHA-256:
+`237791bfa2488cb43ceb0739be371e84906679119a3ec2beebac6b010d8c8db4`.
+The routine immediately joins the five verified getter functions in the
+existing `[0x3ee58,0x3eee4)` interval, forming **276 contiguous source-built
+bytes**. Cumulative independent executable coverage: **3,784 bytes across
+65 distinct fragments**. No NOPs, signed payload or borrowed instruction
+words counted as reconstructed code.
