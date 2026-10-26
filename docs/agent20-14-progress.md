@@ -1,10 +1,10 @@
 # Agent 20-14 — WLAN late Hexagon reconstruction
 
-Latest checkpoint: **17**, with **13,468 contiguous executable bytes**
-and **496 independently generated dispatch-table data bytes**, for **13,964**
-source-derived bytes in disjoint intervals. Checkpoint 17 adds **256**
-Hexagon instruction bytes across two complete functions at
-`[0x103560,0x103660)`. The next function begins at `0x103660`. The
+Latest checkpoint: **18**, with **14,728 contiguous executable bytes**
+and **496 independently generated dispatch-table data bytes**, for **15,224**
+source-derived bytes in disjoint intervals. Checkpoint 18 adds **1,260**
+Hexagon instruction bytes in the counted-record processing function at
+`[0x103660,0x103b4c)`. The next function begins at `0x103b4c`. The
 Agent 13 leading seam `[0x100000,0x1001c4)` remains unimplemented here.
 
 ## Assignment and provenance
@@ -873,3 +873,32 @@ build, complete cumulative byte comparison, independent LLVM 6/V65 assembly,
 LLVM 18/V66 decoding, Git whitespace and bundle integrity checks passed.
 Checkpoint 15's negative fixture test was revised in checkpoint 16 to locate
 its named record, rather than assuming future registry additions cannot occur.
+
+## Checkpoint 18 — counted interface record pipeline
+
+The reconstructed complete routine `[0x103660,0x103b4c)` adds **1,260
+byte-identical executable bytes**. It inspects an active interface record,
+uses a registered callback, checks a status bit and a count field, traverses
+counted six-byte tokens in a Hexagon hardware loop, updates status counters,
+and serializes diagnostic metadata. The external callback names are inferred
+from instructions, not recovered C interfaces; no hardware behavior is claimed.
+
+The source expresses the original V66 packet framing using named Hexagon
+mnemonics. Five packet groups require reordered independent assembly
+instructions or `:mem_noshuf` for precise duplex/load-store selection. The
+hardware loop explicitly has `loop0(0xc,r2)` and its matching `:endloop0`,
+expressing a loop target relative to the loop instruction rather than the
+object's original section offset. An external `jump ##1973488` includes the
+original constant extender. All resulting 1,260 source-built bytes match the
+pinned reference, and independent LLVM 6/V65 agrees with LLVM 18/V66.
+
+Cumulative contiguous executable `[0x1001c4,0x103b4c)` is **14,728 bytes**.
+The disjoint dispatch tables remain 496 authored data bytes, total
+**15,224** distinct source-derived bytes. Layout fill or original firmware
+payload is not used in either output. The Agent 13 452-byte leading seam
+still requires separate coordination. Next complete function entry is
+`0x103b4c`.
+
+Full checks: **160 Rust tests**, **147 Python tests with zero skipped**,
+workspace release build, two independent Hexagon assemblers, V66 decoder,
+cumulative pinned byte equality, `git diff --check`, and bundle verification.

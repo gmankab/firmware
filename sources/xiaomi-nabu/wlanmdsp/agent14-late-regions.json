@@ -569,6 +569,16 @@
       "sha256": "b01a7c5571cb661969f77956a54e62f82c2526f2d7b2ce44cabec0d597b9d518",
       "checkpoint": 17,
       "classification": "executable"
+    },
+    {
+      "name": "interface-record-pipeline",
+      "file_start": 1062496,
+      "file_end": 1063756,
+      "source": "sources/xiaomi-nabu/wlanmdsp/agent14_late_interface_record_pipeline.S",
+      "symbol": "agent14_late_interface_record_pipeline",
+      "sha256": "ba7b671190e4093f6d1c950b8761c3faaa2865c7daddde84f0afd572af36fb00",
+      "checkpoint": 18,
+      "classification": "executable"
     }
   ]
 }
