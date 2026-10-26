@@ -1039,3 +1039,16 @@ python3 -S tools/adsp-agent20-rwe-next-global-record-prefix.py \
   --llvm-mc "$HEXAGON_LLVM_MC" --reference "$NABU_ADSP_REFERENCE" \
   --output /tmp/adsp-global-record-prefix-104.bin
 ```
+
+## Checkpoint 58: complete global-controller record initializer `[0x118c0,0x119c0)`
+
+- Added **152 exact V66 executable bytes** `[file 0x11928,0x119c0)`, physical `[0x8be0e928,0x8be0e9c0)`, SHA-256 `028a722724122f81dcc2556614e53502cc3d1ac9759fe6e354085aae0fadcbf4`. LLVM6 assembles 37 of 38 instruction words; one independently checked `k0unlock` V66 instruction is encoded at its validated LLVM6 `nop` position.
+- Completed the **256-byte global record function** `[0x118c0,0x119c0)` (104-byte prefix + 152-byte completion). Source preserves memory-field initialization, 64-bit record transfers, GP-relative descriptor loads, physical controller callbacks, saved-frame return and original error-report/trap path. The two GP-relative loads use distinct offsets `0xf00250cc` and `0xf00250d0` as confirmed by packet-context decoding.
+- The following bytes beginning at **`0x119c0` contain embedded diagnostic text**, not executable Hexagon instructions; they are excluded from source-code coverage. A long linker-fill area follows the text. The next candidate nonzero routine begins at `0x11ae0` and requires separate packet/section classification.
+- Cumulative source-generated ADSP RWE executable is now **7,620 bytes across 14 disjoint code intervals**. Reference-only authentication and other ADSP executable/data regions are still missing, and branch ancestry remains older Agent 04 rather than an actual checkpoint-50-integrated branch.
+
+```sh
+python3 -S tools/adsp-agent20-rwe-next-global-record-complete.py \
+  --llvm-mc "$HEXAGON_LLVM_MC" --reference "$NABU_ADSP_REFERENCE" \
+  --output /tmp/adsp-global-record-complete-152.bin
+```
