@@ -1123,3 +1123,23 @@ Next complete function begins at file `0x105bac`, runtime `0xb00c5bac`.
 The 452-byte Agent13 leading seam `[0x100000,0x1001c4)` remains uncovered;
 other independently reconstructed functions later in the owned region are
 still outstanding. Portable base `d6104bb`; checkpoint-50 integration pending.
+
+## Checkpoint 26 — record validation and session status dispatch
+
+The next complete function at file `[0x105bac,0x105e70)` (runtime
+`[0xb00c5bac,0xb00c5e70)`) uses counted records, descriptor slots,
+status callbacks and bounded failure paths. Its **708 executable bytes**
+are independently reassembled as 94 valid Hexagon packets (177 encoded words)
+from named instructions, including the original conditional far jumps and
+external diagnostic callback addresses. LLVM22/V66 and LLVM6/V65 match the
+pinned reference byte-for-byte (SHA-256
+`7f95ee99aa874871289cce4d5bead6d5c001d310baca8646d364072503fd9581`).
+There is no original executable data embedded in the checked-in assembly.
+
+The adjacent executable output `[0x1001c4,0x105e70)` now totals **23,724
+bytes**. Separate source-derived dispatch tables total **496 bytes**,
+giving **24,220 source-derived bytes** across the two regions. The next
+function starts at file `0x105e70` (runtime `0xb00c5e70`); the 452-byte
+leading Agent13 seam is still uncovered, and the broader WLAN firmware is
+not independently reconstructed or newly signed. Portable branch ancestry
+remains on `d6104bb`, pending validated checkpoint-50 integration.

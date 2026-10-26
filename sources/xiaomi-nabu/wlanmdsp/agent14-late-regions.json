@@ -729,6 +729,16 @@
       "sha256": "2ec923140346b32f11b007778ca1e13f7399eefac839fb434ef058f6a4e5dc95",
       "checkpoint": 25,
       "classification": "executable"
+    },
+    {
+      "name": "record-validate-dispatch",
+      "file_start": 1072044,
+      "file_end": 1072752,
+      "source": "sources/xiaomi-nabu/wlanmdsp/agent14-late-record-validate-dispatch.S",
+      "symbol": "agent14_late_record_validate_dispatch",
+      "sha256": "7f95ee99aa874871289cce4d5bead6d5c001d310baca8646d364072503fd9581",
+      "checkpoint": 26,
+      "classification": "executable"
     }
   ]
 }
