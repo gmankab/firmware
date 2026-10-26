@@ -372,3 +372,22 @@ opcode values are copied into source. **Cumulative verified executable
 coverage: 3,184 bytes across 50 disjoint inventory entries**, up from
 3,096 bytes and 47 entries. The two NOPs at `[0x3d0c8,0x3d0d0)` and
 three NOPs at `[0x3ec74,0x3ec80)` remain excluded from authored code.
+
+**Checkpoint 25 — controller descriptor callback and initialization path:**
+Reconstructed two additional Hexagon controller routines exactly against
+original ADSP firmware: a 40-byte descriptor callback/tag dispatcher at
+`[file 0x3e0a4,0x3e0cc)` and a 128-byte runtime initialization/retry/error
+path at `[0x3e0d0,0x3e150)`. They are distinct, separated by the one
+alignment NOP at `[0x3e0cc,0x3e0d0)`, which is **not** counted as
+source-reconstructed executable code. Their original relative call sites
+are represented through named `.set` symbols, not OEM opcodes, and the
+controller initializer preserves Hexagon producer/consumer packets,
+including the two-instruction return preparation. Both independently
+compiled outputs match the pinned reference byte-for-byte; SHA-256 digests
+are asserted in regression tests. **Cumulative independent executable:
+3,352 bytes across 52 verified fragments.** This is not a complete
+source-derived or newly authenticated ADSP image. LLVM6 is used for
+reassembly; an independent Rizin decode is not run in this environment
+because the packaged Rizin build lacks compatible `libzip.so.4` and
+`libmspack.so.0` runtime dependencies. Three external-tool tests remain
+skipped rather than claimed as passed.
