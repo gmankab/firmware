@@ -741,3 +741,53 @@ MODEM_RWE_CONFIG_WRITE 3,23,1  // LC1
     r17:16 = memd(r19+#80)
     r19:18 = memd(r19+#72)
 }
+// Restore the protected interrupt ownership bit with the same atomic lock
+// protocol used by the initial exception entry. Restore final loop state and
+// return from protected exception context without inventing a normal return.
+{ r20 = ##-1065090812 }
+modem_rwe_restore_irq_lock_retry:
+{ r21 = memw_locked(r20) }
+{
+    p0 = cmp.eq(r21,#0)
+    if (!p0.new) jump:nt modem_rwe_restore_irq_lock_retry
+    if (p0.new) r21 = #1
+}
+{ memw_locked(r20,p0) = r21 }
+{ if (!p0) jump:nt modem_rwe_restore_irq_lock_retry }
+MODEM_SYS_READ 20,6,1
+{ r21 = ##65536 }
+.set modem_rwe_restore_irq_mask_done, agent11_modem_exception_dispatch_entry + (0x38828-0x38108)
+{
+    p0 = bitsclr(r20,r21)
+    if (p0.new) jump:nt modem_rwe_restore_irq_mask_done
+}
+MODEM_SYS_READ 20,8,1
+{ r21 = memw(##-1065090816) }
+{
+    trace(r21)
+    r21 = clrbit(r21,r20)
+}
+{
+    p0 = !cmp.eq(r21,#0)
+    if (p0.new) jump:t modem_rwe_restore_irq_mask_done
+    memw(##-1065090816) = r21
+}
+MODEM_SYS_READ 20,63
+{
+    trace(r20)
+    r20 = clrbit(r20,#16)
+}
+MODEM_SYS_WRITE 63,20
+{ trace(r20) }
+modem_rwe_restore_irq_mask_done:
+{ r21 = #0; memw(##-1065090812) = r21.new }
+MODEM_RWE_CONFIG_WRITE 2,22,1   // SA1
+{
+    r1 = r23
+    r21:20 = memd(r23+#64)
+    r23:22 = memd(r23+#56)
+}
+MODEM_RWE_CONFIG_WRITE 4,0,1    // P3:0
+MODEM_RWE_INLINE_RTE 1
+{ r1:0 = memd(r1+#144) }
+MODEM_RWE_RETURN_FROM_EXCEPTION 3

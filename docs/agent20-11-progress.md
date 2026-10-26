@@ -306,3 +306,10 @@ python3 -m unittest discover -s tests -p 'test_*.py'
 - The newest 112 bytes `[0x38750,0x387c0)` independently assemble without packet correction; LLVM6 output compares exactly to the pinned modem reference, zero differing bytes.
 - Release build passes; 169 Rust tests, 39 Python tests, and reference verification pass.
 - Next unimplemented file offset `0x387c0` begins protected per-thread interrupt lock handling and hardware restore tail, within the earlier RWE `PT_LOAD`.
+
+## Checkpoint 36 — Atomic interrupt release and protected return
+
+- Extended RWE exception source interval to `[0x38108,0x38854)`: **1,868 executable bytes** exactly matching the pinned modem reference, physical `[0x8e040108,0x8e040854)`.
+- Added **148 bytes** at `[0x387c0,0x38854)` for a second protected `memw_locked` lock protocol, SSR/HTID status-mask management, per-thread interrupt-bit clearing, saved SA1/P3:0 restoration, inline RTE, and a final standalone RTE. The final return packet has its correct `1,3` parse/termination markers.
+- LLVM6 outputs one legal two-word packet with compare/branch order reversed at `0x38804–0x3880c`. A fail-closed normalizer validates both **independently assembler-generated** opcode classes, exact operand bits and packet markers before interchanging only those words. Direct comparison of the complete 1,868-byte source output with SHA-pinned `modem.mbn` then gives zero differences. No OEM code bytes are copied into the generator.
+- Next independent routine begins at modem file `0x38854`; this result is a partial RWE segment, not a fully reconstructed modem image or new OEM authentication.

@@ -17,7 +17,7 @@ import subprocess
 import tempfile
 
 FILE_START = 0x38108
-FILE_END = 0x387c0
+FILE_END = 0x38854
 VIRTUAL_START = 0xc0840108
 PHYSICAL_START = 0x8e040108
 PINNED_SHA256 = '6f5cb32bc10e41abb40938d185805e788f5637a41d3ebcef278e4e169fc36782'
@@ -152,6 +152,16 @@ def normalize_llvm6_locked_packets(data: bytes) -> bytes:
         if read(0x38684)!=0x7800c289:
             raise ValueError('unrecognized Hexagon protected framekey packet')
         write(0x38684, (read(0x38684)&~(3<<14)) | (1<<14))
+    if len(result)>=0x38854-FILE_START:
+        # LLVM6 places the `.new` branch before the status compare. Both
+        # orderings are legal, but original source uses compare first.
+        # Fail closed unless architecture class/operands and parse markers
+        # agree with the two independently assembled words.
+        if read(0x38804)!=0x5c005812 or read(0x38808)!=0x75154010:
+            raise ValueError('unknown final protected restore branch/predicate packet')
+        branch,predicate=read(0x38804),read(0x38808)
+        write(0x38804,predicate)
+        write(0x38808,branch)
     return bytes(result)
 
 
@@ -220,6 +230,13 @@ def assemble(llvm_mc: Path, source: Path) -> bytes:
             for address,encoded in status_checks.items():
                 if word(address) != encoded:
                     raise ValueError(f'Hexagon context restore operand/class mismatch at 0x{address:x}')
+        if len(data) >= 0x38854-FILE_START:
+            if word(0x38844)!=(0x62000000|(32<<16)|(1<<14)|4):
+                raise ValueError('Final saved predicate register restore operand incorrect')
+            if word(0x38848)!=(0x57e00000|(1<<14)):
+                raise ValueError('Inline protected return-from-exception must continue packet')
+            if word(0x38850)!=(0x57e00000|(3<<14)):
+                raise ValueError('Final standalone RTE opcode or packet termination incorrect')
         return data
 
 
