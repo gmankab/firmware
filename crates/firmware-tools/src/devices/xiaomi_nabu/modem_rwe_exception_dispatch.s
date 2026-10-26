@@ -1473,3 +1473,36 @@ MODEM_RWE_CONTROL_PAIR_READ 2,16,1 // C17:16
 { memd(r29+#168) = r21:20 }
 { jumpr lr }
 { memd(r29+#248) = r3:2; memd(r29+#40) = r23:22 }
+// Protected descriptor-ring accessor. Select a hardware-thread ring and
+// publish the current (up to 16-byte) exception metadata record, then
+// fill the associated source-word buffer using a hardware loop.
+.macro MODEM_RWE_SYSTEM_PAIR_READ gpr_low, system_low, marker=1
+    .if (\gpr_low < 0) || (\gpr_low > 30) || (\gpr_low & 1) || (\system_low < 0) || (\system_low > 62) || (\system_low & 1)
+      .error "invalid protected paired S-register read operands"
+    .endif
+    .if (\marker < 1) || (\marker > 3)
+      .error "invalid Hexagon packet marker"
+    .endif
+    .word (0x6f000000 | (\system_low << 16) | (\marker << 14) | \gpr_low)
+.endm
+.globl agent11_modem_rwe_validate_frame_ring
+agent11_modem_rwe_validate_frame_ring:
+MODEM_SYS_READ 12,8,1 // HTID
+{ r15:14 = memd(##3229702208) }
+.set modem_rwe_frame_ring_skip,agent11_modem_exception_dispatch_entry + (0x39054-0x38108)
+{ p0 = tstbit(r15,#14); if (!p0.new) jump:nt modem_rwe_frame_ring_skip }
+{ r13 = add(r14,#-16); r15:14 = memd(r12<<#3+##3229702216) }
+{
+    p0 = cmp.gtu(r13,r14)
+    if (p0.new) r14 = add(r14,#16)
+    if (!p0.new) r14 = #0
+    r13 = add(r15,r14)
+}
+MODEM_RWE_SYSTEM_PAIR_READ 14,56,1 // r15:14=S57:56
+{ memw(r12<<#3+##3229702216) = r14 }
+{ r15.h = #2062; memd(r13+#8) = r1:0 }
+{ memd(r13+#0) = r15:14 }
+{ loop0(agent11_modem_rwe_frame_ring_loop,r2) }
+agent11_modem_rwe_frame_ring_loop:
+{ nop; r0 = add(r0,#4); memw(r0+#0) = r1 }:endloop0
+{ jumpr lr }

@@ -412,3 +412,10 @@ python3 -m unittest discover -s tests -p 'test_*.py'
 - Hexagon LLVM6 assembles all instruction operands and duplex stores from text. The final `jumpr` precedes a legal duplex packet, but LLVM6 emits the return as packet-end. Its parse marker is adjusted **only after exact checks of the independently assembled return, preceding memd and following duplex operands**; no proprietary instruction data is added.
 - Original pinned modem MBN SHA-256 remains `6f5cb32bc10e41abb40938d185805e788f5637a41d3ebcef278e4e169fc36782`; complete new byte comparison has **zero mismatches**. Emitted RWE fragment SHA-256 `3817fdc8704d9e7abc777627dbe717d17653bd05770b2e89a166211965a226e3`.
 - **169 Rust tests, 39 Python tests, and offline locked release build passed**. Next uncovered RWE instruction is at `file 0x3900c` (start of an independent protected frame-table function); full modem firmware and OEM authentication remain incomplete.
+
+## Checkpoint 51 — Protected exception descriptor-ring accessor
+
+- Contiguous modem RWE exception source `[0x38108,0x39064)` = **3,932 byte-identical Hexagon V60 instruction bytes**; this checkpoint adds 88 bytes at file `[0x3900c,0x39064)`, virtual `[0xc084100c,0xc0841064)` and physical `[0x8e04100c,0x8e041064)`.
+- New function reads the hardware-thread ID (S8), reads the indexed descriptor-ring pair, conditionally inserts an exception frame record, reads the source-authored architectural S57:56 pair via a checked operand macro, then copies up to a requested count of descriptor words with `loop0` and an explicit `:endloop0` packet. All instructions and packet markers assemble from source in LLVM6 without normalization.
+- Entire result exactly matches the pinned original `modem.mbn` (zero differences), SHA-256 of generated 3,932-byte fragment `05400dd4910762ecde4f9a71fde5cdc92854680bfa50bf9c92e3bbea0746a52d`. Independent pinned-reference comparison, focused opcode/loop tests and **169 Rust / 39 Python** tests passed. Offline release build passed.
+- Next uncovered instruction is modem file `0x39064`, beginning smaller privileged return and callback helper routines; the whole modem and OEM authentication remain unfinished.
