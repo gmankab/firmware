@@ -14,7 +14,7 @@ spec.loader.exec_module(module)
 
 class ModemRweException(unittest.TestCase):
     def test_exact_address_mapping(self):
-        self.assertEqual((module.FILE_START, module.FILE_END), (0x38108, 0x38f6c))
+        self.assertEqual((module.FILE_START, module.FILE_END), (0x38108, 0x3900c))
         self.assertEqual(module.VIRTUAL_START-module.FILE_START, 0xc0808000)
         self.assertEqual(module.PHYSICAL_START-module.FILE_START, 0x8e008000)
 
@@ -32,7 +32,7 @@ class ModemRweException(unittest.TestCase):
             self.skipTest('Set AGENT11_LLVM_MC to run LLVM6 Hexagon assembler test')
         source = SCRIPT.parents[1]/'crates/firmware-tools/src/devices/xiaomi_nabu/modem_rwe_exception_dispatch.s'
         data = module.assemble(Path(mc), source)
-        self.assertEqual(len(data), 3684)
+        self.assertEqual(len(data), 3844)
         self.assertEqual(data[0x381b8-module.FILE_START:0x381bc-module.FILE_START],bytes.fromhex('00c0e057'))
         self.assertEqual(data[0:4], bytes.fromhex('00c00058'))
         # First 148 bytes after the restored RTE encode vector resolution,
@@ -122,6 +122,17 @@ class ModemRweException(unittest.TestCase):
         self.assertEqual(at(0x38f40),0x3a0e490e) # indexed byte load r14
         self.assertEqual(at(0x38f4c),0x6e800000|(8<<16)|(1<<14)|1)
         self.assertEqual(at(0x38f5c),0x6e800000|(8<<16)|(1<<14)|2)
+        # Frame/register-bank capture must preserve paired control fields,
+        # original 32-byte aligned cache zero and the return + duplex packet.
+        self.assertEqual(at(0x38f74),0x6e800000|(6<<16)|(3<<14)|23) # SSR
+        self.assertEqual(at(0x38f88),0x67000000|(23<<16)|(1<<14)|6) # SSR write
+        self.assertEqual(at(0x38f90),0x6a000000|(10<<16)|(1<<14)|17) # UGP
+        self.assertEqual(at(0x38fc0),0x68000000|(0<<16)|(1<<14)|20) # C1:0
+        self.assertEqual(at(0x38fdc),0x6a000000|(8<<16)|(1<<14)|21) # USR
+        self.assertEqual(at(0x38fe4),0x6a000000|(4<<16)|(1<<14)|20) # P3:0
+        self.assertEqual(at(0x38ffc),0x68000000|(16<<16)|(1<<14)|2) # C17:16
+        self.assertEqual(at(0x39004),0x529f4000) # jumpr LR, continue packet
+        self.assertEqual(at(0x39008),0xeaf90a2f) # duplex frame stores
         ref = os.environ.get('AGENT11_MODEM_MBN')
         if ref:
             module.verify_pinned(Path(ref).read_bytes(), data)

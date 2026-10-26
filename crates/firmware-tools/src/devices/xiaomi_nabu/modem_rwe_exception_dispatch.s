@@ -1437,3 +1437,39 @@ MODEM_SYS_READ 1,8,1
 MODEM_SYS_READ 2,8,1
 .set modem_rwe_callback_init, agent11_modem_exception_dispatch_entry + (0x3c524-0x38108)
 { call ##modem_rwe_callback_init; r1 = r9 }
+// Restore the interrupted exception context to per-thread frame memory.
+// Hexagon V60 packs adjacent memd stores into duplex words, preserving
+// original source register-pair order and controller address alignment.
+.globl agent11_modem_rwe_frame_register_capture
+agent11_modem_rwe_frame_register_capture:
+MODEM_SYS_READ 22,3,1  // ELR
+{ memd(r29+#56) = r23:22 }
+MODEM_SYS_READ 23,6,3  // SSR
+{ r23 = insert(r28,#3,#16); r22 = add(r29,#64); memd(r29+#24) = r23:22 }
+{ r22 = add(r29,#96); dczeroa(r22) }
+MODEM_SYS_WRITE 6,23,1
+{ memd(r29+#64) = r21:20; memd(r29+#72) = r19:18 }
+MODEM_RWE_Y_CONFIG_READ 17,10,1 // UGP
+{ memd(r29+#80) = r17:16; memd(r29+#88) = r15:14 }
+MODEM_RWE_Y_CONFIG_READ 16,11,1 // GP
+{ r22 = add(r29,#128); dczeroa(r22) }
+{ memd(r29+#96) = r13:12; memd(r29+#104) = r11:10 }
+{ memd(r29+#112) = r9:8; memd(r29+#120) = r7:6 }
+{ r22 = add(r29,#32); dczeroa(r22) }
+MODEM_RWE_CONTROL_PAIR_READ 20,0,1 // C1:0
+{ memd(r29+#128) = r5:4; memd(r29+#136) = r3:2 }
+MODEM_RWE_CONTROL_PAIR_READ 20,2,1 // C3:2
+{ memd(r29+#144) = r1:0; memd(r29+#152) = r21:20 }
+MODEM_RWE_CONTROL_PAIR_READ 18,12,1 // C13:12
+{ memd(r29+#192) = r27:26; memd(r29+#200) = r25:24 }
+MODEM_RWE_Y_CONFIG_READ 21,8,1 // USR
+{ memd(r29+#160) = r21:20; memd(r29+#184) = r19:18 }
+MODEM_RWE_PREDICATE_READ 20,1 // P3:0
+{ r23:22 = memd(r28+#8) }
+MODEM_RWE_CONTROL_PAIR_READ 20,6,1 // C7:6
+{ memd(r29+#32) = r23:22; memd(r29+#176) = r21:20 }
+{ r23:22 = memd(r28+#16); memd(r29+#48) = r17:16 }
+MODEM_RWE_CONTROL_PAIR_READ 2,16,1 // C17:16
+{ memd(r29+#168) = r21:20 }
+{ jumpr lr }
+{ memd(r29+#248) = r3:2; memd(r29+#40) = r23:22 }

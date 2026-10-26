@@ -404,3 +404,11 @@ python3 -m unittest discover -s tests -p 'test_*.py'
 - The next 64 bytes resolve a protected per-video handler by byte-indexed lookup, invoke the existing callback and retry from the original branch target. LLVM6 emits this entire code from source with zero additional packet reordering. New source contains no raw OEM bytes or unknown padding.
 - Pinned modem SHA-256 original verified. Full 3,684-byte section matches with **zero differing bytes**; SHA-256 `2d057eb83e9cbb12960fb72ca77f65b3557f5e23c5b7f1f96dca2043a2981a44`. Offline: **169 Rust tests, 39 Python tests, release build passed**.
 - Next missing RWE executable instruction is `file 0x38f6c`; most of the modem image and OEM authentication remain outside the rebuilt subset.
+
+## Checkpoint 50 — Full protected frame-register capture
+
+- RWE exception entry `[file 0x38108,0x3900c)` is now **3,844 independently assembled reference-identical bytes**. New `[0x38f6c,0x3900c)` = **160 actual executable bytes**, physical `[0x8e040f6c,0x8e04100c)` and virtual `[0xc0840f6c,0xc084100c)`.
+- Writes ELR and SSR to a protected controller frame; preserves UGP, GP, USR, P3:0, C1:0/C3:2/C7:6/C13:12/C17:16, general-register pairs, cache-line zeroing, and the original `jumpr lr` followed by two packed 64-bit frame stores.
+- Hexagon LLVM6 assembles all instruction operands and duplex stores from text. The final `jumpr` precedes a legal duplex packet, but LLVM6 emits the return as packet-end. Its parse marker is adjusted **only after exact checks of the independently assembled return, preceding memd and following duplex operands**; no proprietary instruction data is added.
+- Original pinned modem MBN SHA-256 remains `6f5cb32bc10e41abb40938d185805e788f5637a41d3ebcef278e4e169fc36782`; complete new byte comparison has **zero mismatches**. Emitted RWE fragment SHA-256 `3817fdc8704d9e7abc777627dbe717d17653bd05770b2e89a166211965a226e3`.
+- **169 Rust tests, 39 Python tests, and offline locked release build passed**. Next uncovered RWE instruction is at `file 0x3900c` (start of an independent protected frame-table function); full modem firmware and OEM authentication remain incomplete.
