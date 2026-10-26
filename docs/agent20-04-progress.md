@@ -195,3 +195,11 @@ git diff --check
 - Agent04 continuous source-generated region `[0x40a2c,0x50000)` is now **62,932 bytes**, **15,671 ARM32 instructions and 62 data words**, no source-unknown fill or original executable-byte imports. Prior `[0x40000,0x40a2c)` remains excluded. The next byte is `0x50000`, inside a function.
 - Offline Rust workspace **211 tests** and Python **13 tests** passed; `CARGO_PROFILE_RELEASE_OPT_LEVEL=0 cargo build --workspace --release --offline --locked` passed. Default `--release` optimization is not asserted passed.
 - This branch derives from older Agent 03 ancestry, not the still-unavailable checkpoint-50 commit; merge as a provisional patch only.
+
+## Checkpoint 22 — controller buffer transfer and auxiliary packet descriptors
+
+- Added **4,096 exact bytes** at runtime `[0x50000,0x51000)` (original MBN `[0x54000,0x55000)`) rebuilt as **1,017 A32 instructions** and **seven named data words** at `0x502b4`, `0x504dc`, `[0x50ae8,0x50af8)`, and `0x50c6c`. Pool contents are individually verified; the disassembler's `CDPEQ` at `0x50af4` is part of non-executable pointer `0x0ee6b280`, not executable coprocessor code.
+- Original returns at `0x502b0`, `0x504d8`, `0x50aa8`, `0x50c68` bound separate codec routines; data words immediately after these returns are deliberately not encoded as A32 instructions. The next function continues through `0x51000`.
+- Independent Clang/LLVM reassembly using `tools/agent20_04_roundtrip.py` validates all 1,017 instruction bytes and seven data words with zero differences against the typed Rust emitter and pinned Venus reference. See `--data 0x502b4:0x502b8:0x000ee028`, `--data 0x504dc:0x504e0:0x000ee028`, `--data 0x50ae8:0x50af8:0x000ee028,0x000ee12a,0x000e2788,0x0ee6b280`, `--data 0x50c6c:0x50c70:0x000ee028`.
+- Verified continuous Agent04 span `[0x40a2c,0x51000)` = **67,028 bytes**, comprising **16,688 typed A32 instructions** and **69 separate literal/data words**, none vendor-executable bytes copied or implicit zeros.
+- Offline Rust workspace **212 tests**, Python **13 tests** and release build with `CARGO_PROFILE_RELEASE_OPT_LEVEL=0` all passed. Default optimized release not claimed. Provisional older Agent03 ancestry, **not** checkpoint50; still no coverage for `[0x40000,0x40a2c)`.
