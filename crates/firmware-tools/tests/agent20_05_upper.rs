@@ -108,3 +108,14 @@ fn committed_occupancy_matches_optional_reference(){
         assert_eq!(&bytes[..],fw.get(off..off+bytes.len()).unwrap());
     }
 }
+
+#[path="../src/devices/xiaomi_nabu/venus_agent20_05_record_append.rs"]
+mod record_append;
+#[test]fn record_append_matches_optional_reference(){
+    let bytes=record_append::fragment().unwrap();
+    assert_eq!(bytes.len(),record_append::END-record_append::START);
+    if let Some(reference)=std::env::var_os("NABU_VENUS_REFERENCE"){
+        let fw=std::fs::read(reference).unwrap();let off=record_append::START+record_append::FILE_BASE;
+        assert_eq!(&bytes[..],fw.get(off..off+bytes.len()).unwrap());
+    }
+}
