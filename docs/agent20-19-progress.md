@@ -630,3 +630,25 @@ outside Agent19's Git bundle. **No source bytes are credited**: 9,353
 independently generated DLM bytes remain, 40,199 are unknown, and zero
 new executable bytes are added. See
 `docs/agent20-19-dlm-absolute-literals.md`.
+
+## Checkpoint 15 — Fail-closed sparse DLM reconstruction with reference-dependent seeds
+
+- Added a true conditional DLM linker that uses existing independently authored
+  9,353 data bytes and all previous alias/relocation rules. It accepts 37
+  explicit disjoint external seed intervals totaling 33,723 bytes, and derives
+  6,476 other unknown bytes by genuine pointer/index relocation and checked
+  bank/profile copying. It produces **49,552 exact DLM bytes** only when all
+  external seed bytes are supplied, and never counts dependent bytes as source.
+- Descriptor transform spans cover 2,940 physical bytes; 40 schedule-link bytes
+  were already authored and are now mandatory source/derived equality checks.
+- New `novatek-dlm sparse-plan`, `assemble-sparse`, and `verify-sparse-rebuild`
+  modes; no original firmware is embedded and missing external data is not
+  silently zero-filled. The output is DLM-only, not a flashable image.
+- Independent Python implementation validates the complete 37-range plan and
+  bytes against the pinned reference and rejects adversarial/malformed inputs.
+  Synthetic test proves 189 pointer halfwords are actually relocated, rather
+  than copied or left zero.
+- **Independently authored DLM bytes remain 9,353; unresolved original DLM
+  data remain 40,199 (6,476 strictly dependent + 33,723 externally needed).**
+  Firmware source-level implementation remains incomplete; avoid representing
+  this exact conditional DLM output as a reference-free build.
