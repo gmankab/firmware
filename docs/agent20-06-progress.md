@@ -624,3 +624,17 @@ python3 tools/agent20_06_a32_roundtrip.py /private/venus.mbn 0xa8ea0 0xa92c8 \
   ```
 
 - **241 Rust tests and 13 Python tests passed**; successful release build is not claimed. Next missing VMA `0xc09a0` (file `0xc49a0`). This is still the provisional older-Agent-03 branch, not a checkpoint-50-based integrated build, and source-level semantic decompilation/OEM signing remain unverified.
+
+## Checkpoint 70 — complete hardware frame-profile initialization
+
+- Continuous emitted Venus runtime `[0xa8000,0xc11bc)` = **102,844 byte-identical bytes**, MBN `[0xac000,0xc51bc)`.
+- New routine `[0xc09a0,0xc11bc)` adds **2,076 bytes**, comprising **497 typed ARM32 instructions (1,988 bytes)** and **22 non-executable literal words (88 bytes)** `[0xc1164,0xc11bc)`.
+- Initializes the codec hardware frame profile, validates input-plane sizes, writes controller command blocks and handles alternative codec configuration/diagnostics. The original return and all 22 adjacent literal values are modeled separately from ARM instructions.
+- Full Rust emitter compares equal to the pinned private `venus.mbn` reference; independent Clang/LLVM reassembly also verifies the new 1,988 code bytes and 88 data bytes, zero mismatches:
+
+  ```sh
+  python3 tools/agent20_06_a32_roundtrip.py /private/venus.mbn 0xc09a0 0xc11bc \
+    --data-range 0xc1164:0xc11bc
+  ```
+
+- **242 Rust tests and 13 Python tests pass**. A successful new release build is not claimed. Next missing VMA `0xc11bc`, file `0xc51bc`; the assigned upper bound remains `0x1029f4`. This old-base provisional branch is not checkpoint-50-integrated, nor an independent behavioral source-level decompilation/OEM-authenticated firmware image.
