@@ -493,3 +493,10 @@ Original reference: private `map220v-nabu-firmware/venus.mbn`, SHA-256 `9d4af65d
 - Reconstructed frame-type/MMIO selector and controller count update, a short codec-channel reset function, plus guarded descriptor allocation and parameter initialization. Separate diagnostic pools `[0x343a8,0x343bc)` (five words) and `[0x344b8,0x344c0)` (two words) remain data.
 - Full fragment matches pinned `venus.mbn`, and independent Clang/LLVM reassembly of all 1,080 new bytes agrees exactly. **239 Rust tests** and **13 Python tests** pass; release build not independently confirmed for this checkpoint.
 - SHA-256 of cumulative typed fragment: `df86236938128b83e7ed1d9265b18406ce91f23ce89938089657ad41bfa95436`. Next function begins at runtime `0x344c0`. This is instruction-level byte equivalence, not high-level source semantics or signed OEM firmware.
+
+## Checkpoint 74 — codec frame-state and plane-format updates
+
+- Contiguous typed ARM32 `[0x21c78,0x347a0)` = **76,584 byte-identical bytes**, new `[0x344c0,0x347a0)` = **736 bytes**, **177 ARM32 instructions** and **seven non-instruction diagnostic-address data words** in `[0x34784,0x347a0)`.
+- Reconstructs controller-selected codec stream-plane metadata and format/status transitions, updates MMIO output state and invokes the original callback path. Data values are emitted separately from executable A32 instructions.
+- Whole generated region matches the pinned Venus MBN with zero byte differences; independent Clang/LLVM reassembly reproduces all 736 new bytes exactly. **240 Rust** and **13 Python tests** pass; optimized release build unconfirmed.
+- SHA-256 of generated fragment `c9cf88dd0bd974573628f411b096b3ae1abccc27c0c59ac55c149382242b8456` (verify digest before publication); next function begins at `0x347a0`.
