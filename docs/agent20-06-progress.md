@@ -363,3 +363,11 @@ python3 tools/agent20_06_a32_roundtrip.py /private/venus.mbn 0xa8ea0 0xa92c8 \
 - Implements codec context activation, repeated frame packet publication, initial stream record setup, stop/suspend state and callbacks across five original function entrypoints. Separate unit test verifies data words explicitly.
 - Full fragment and independent Clang/LLVM assembler check match the pinned reference with **zero differing bytes**. **213 Rust tests and 13 Python tests pass**. Full release build is **not** claimed here.
 - Next uncovered runtime `0xb7bd8`, original MBN file `0xbbbd8`. This is a provisional older-base instruction-level A32 representation rather than high-level firmware semantics or newly OEM-authenticated code.
+
+## Checkpoint 42 — table-based CRC32 and controller-output messages
+
+- Total reconstructed Venus runtime `[0xa8000,0xb80d8)` = **65,752 byte-identical bytes**, private reference MBN file `[0xac000,0xbc0d8)`.
+- Newly typed `[0xb7bd8,0xb80d8)` = **1,280 bytes**, comprising 307 ARM32 instructions (1,228 bytes) and thirteen separately classified literal words (52 bytes). Data pools `[0xb7ca8,0xb7cb4)`, `[0xb7d90,0xb7d98)`, `[0xb7f84,0xb7f94)`, `[0xb80c8,0xb80d8)`.
+- The first routine performs MSB-first table-based CRC32 using polynomial `0x04c11db7`, and later routines publish codec descriptors, handle deferred output callbacks, and prepare controller packet fields.
+- Direct byte comparison and independent Clang/LLVM round-trip verify with zero differences. **214 Rust tests and 13 Python tests passed**. No full release build is claimed.
+- Next uncovered runtime `0xb80d8`, MBN file `0xbc0d8`. Provisional old-base branch, instruction-byte reconstruction only; remaining Venus firmware and OEM signing are not reconstructed.
