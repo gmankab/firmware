@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: GPL-3.0-only
 """Independently validate conditional DLM reassembly with externally supplied data.
 
-Not a source recovery tool: 31,722 unknown bytes remain externally provided.
+Not a source recovery tool: 30,732 unknown bytes remain externally provided.
 The goal is deterministic, checked linker behavior and accurate provenance.
 Never ship reference-derived seeds or the complete result in a Git bundle.
 """
@@ -33,6 +33,15 @@ RECORD_SUFFIXES=tuple(
     if not (first==0x23edc and i in (7,8))
 )
 assert len(RECORD_SUFFIXES)==23
+SMALL_RECORD_START=0x233b0
+SMALL_RECORD_BYTES=0x28
+SMALL_COPIES=tuple(
+    segment
+    for record in range(30)
+    for segment in ((SMALL_RECORD_START+record*SMALL_RECORD_BYTES,24),
+                    (SMALL_RECORD_START+record*SMALL_RECORD_BYTES+31,9))
+)
+assert len(SMALL_COPIES)==60
 
 
 def span(start,length):
@@ -47,6 +56,8 @@ def destinations():
     for start,n in ALIASES:
         yield start+0x4000,n
     for start,n in RECORD_SUFFIXES:
+        yield start+RECORD_BANK_DELTA,n
+    for start,n in SMALL_COPIES:
         yield start+RECORD_BANK_DELTA,n
     yield PROFILE[2],PROFILE[1]-PROFILE[0]
     yield SIGNATURE[1],SIGNATURE[2]
@@ -112,6 +123,7 @@ def rebuild(fragments,seeds):
         place(target,buf,2)
     for start,n in ALIASES:place(start+0x4000,read(start,start+n),2)
     for start,n in RECORD_SUFFIXES:place(start+RECORD_BANK_DELTA,read(start,start+n),2)
+    for start,n in SMALL_COPIES:place(start+RECORD_BANK_DELTA,read(start,start+n),2)
     first,last,target=PROFILE
     place(target,read(first,last),2)
     first,target,n=SIGNATURE

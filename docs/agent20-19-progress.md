@@ -673,3 +673,22 @@ new executable bytes are added. See
   DLM output against SHA-256 pinned postmarketOS firmware and reject changed
   copies, malformed seed counts and overlapping aliases; no vendor payload
   is packaged in Git or deliverables.
+
+
+## Checkpoint 17 — Dependent heads/tails of thirty 40-byte DLM records
+
+- Added a structurally checked inter-bank rule for 30 consecutive 40-byte
+  descriptor records at first bank file `0x233b0`. In each record, bytes
+  `+0..+23` and `+31..+39` are exact copies in the upper bank at `+0x4000`;
+  **seven middle bytes remain unknown and externally supplied**, because
+  they include pointers/flags whose firmware semantics remain unproven.
+- This generates 60 disjoint new dependent spans totaling **990 bytes**,
+  without overlap with existing aliases or authored DLM fragments.
+- Current *conditional* DLM reconstruction (49,552 bytes) uses **9,353
+  source-generated DLM bytes**, **9,467 uniquely dependent copied/relocated
+  bytes** and **30,732 external seed bytes** in **90 ranges**. All output bytes
+  match the pinned original, and independently written Python and Rust
+  reconstruction paths agree.
+- **New source credit remains zero**. The larger unresolved DLM source ledger
+  remains at **40,199 bytes**. Proving a repeated bank-copy relationship does
+  not establish independent authorship of its unknown primary values.

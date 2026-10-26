@@ -9,6 +9,7 @@
 use super::{novatek_dlm::DataFragment, novatek_dlm_bank_aliases,
     novatek_dlm_bank_transform, novatek_dlm_calibration_alias,
     novatek_dlm_descriptor_geometry, novatek_dlm_record_suffix,
+    novatek_dlm_small_records,
     novatek_layout::{DLM_FILE_START, DLM_FILE_END}};
 
 pub const DLM_BYTES:usize=DLM_FILE_END-DLM_FILE_START;
@@ -51,6 +52,9 @@ fn derived_destinations()->Vec<SeedRange>{
         spans.push(SeedRange{file_start:alias.later_start(),file_end:alias.later_end()});
     }
     for span in novatek_dlm_record_suffix::dependent_spans() {
+        spans.push(SeedRange{file_start:span.later_start(),file_end:span.later_end()});
+    }
+    for span in novatek_dlm_small_records::dependent_spans() {
         spans.push(SeedRange{file_start:span.later_start(),file_end:span.later_end()});
     }
     spans.push(SeedRange{file_start:novatek_dlm_calibration_alias::MIRROR_FILE_START,
@@ -158,6 +162,11 @@ pub fn assemble(parts:&[DataFragment],seeds:&[ExternalSeed])->Result<Vec<u8>,Str
         let rebuilt=novatek_dlm_record_suffix::copy_from_supplied_primary(span,&primary)?;
         put_derived(&mut dst,&mut state,span.later_start(),&rebuilt)?;
     }
+    for span in novatek_dlm_small_records::dependent_spans() {
+        let primary=read_covered(&dst,&state,span.earlier_start,span.earlier_end())?;
+        let rebuilt=novatek_dlm_small_records::copy_from_supplied_primary(span,&primary)?;
+        put_derived(&mut dst,&mut state,span.later_start(),&rebuilt)?;
+    }
     {
         use novatek_dlm_calibration_alias as profile;
         let primary=read_covered(&dst,&state,profile::PRIMARY_FILE_START,profile::PRIMARY_FILE_END)?;
@@ -211,8 +220,8 @@ pub fn seeds_from_private_reference(image:&[u8],plan:&SparsePlan)->Result<Vec<Ex
         let p=plan(&authored()).unwrap();
         assert_eq!(p.source_bytes,9353);
         assert_eq!(p.source_and_dependent_crosschecks,40);
-        assert_eq!(p.dependent_bytes,8477);
-        assert_eq!(p.externally_required_bytes,31722);
+        assert_eq!(p.dependent_bytes,9467);
+        assert_eq!(p.externally_required_bytes,30732);
         assert_eq!(p.source_bytes+p.dependent_bytes+p.externally_required_bytes,DLM_BYTES);
         for pair in p.ranges.windows(2){assert!(pair[0].file_end<pair[1].file_start);}
         assert_eq!(p.ranges.first().unwrap().file_start,DLM_FILE_START);
@@ -232,8 +241,25 @@ pub fn seeds_from_private_reference(image:&[u8],plan:&SparsePlan)->Result<Vec<Ex
         assert_eq!(novatek_dlm_bank_transform::verify_against_supplied_reference(&image).unwrap(),2940);
         assert_eq!(novatek_dlm_bank_aliases::verify_reference_assisted_aliases(&image).unwrap(),3136);
         assert_eq!(novatek_dlm_record_suffix::verify_reference_dependent(&image).unwrap(),2001);
+        assert_eq!(novatek_dlm_small_records::verify_reference_dependent(&image).unwrap(),990);
         assert_eq!(novatek_dlm_calibration_alias::verify_reference_assisted_copy(&image).unwrap(),428);
         assert_eq!(novatek_dlm_descriptor_geometry::verify_distant_signature_alias(&image).unwrap(),12);
+    }
+    #[test]
+    fn opaque_seven_byte_middle_is_not_silently_derived() {
+        let p=plan(&authored()).unwrap();
+        for record in 0..novatek_dlm_small_records::RECORD_COUNT {
+            let middle=novatek_dlm_small_records::RECORD_START
+                +novatek_dlm_small_records::BANK_DELTA
+                +record*novatek_dlm_small_records::RECORD_BYTES
+                +novatek_dlm_small_records::OPAQUE_START;
+            // Every byte, including source-equal coincidences, remains
+            // externally required until those fields acquire semantics.
+            for at in middle..middle+novatek_dlm_small_records::OPAQUE_BYTES {
+                assert!(p.ranges.iter().any(|r|r.file_start<=at&&at<r.file_end),
+                    "unproven 40-byte record middle unexpectedly recovered at 0x{at:x}");
+            }
+        }
     }
     #[test]
     fn rejects_missing_overlong_reordered_or_repeated_external_seeds(){

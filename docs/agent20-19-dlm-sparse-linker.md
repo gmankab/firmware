@@ -6,15 +6,15 @@ This is an **executable build path** for the entire **49,552-byte** DLM region
 `[0x22000,0x2e190)` of the pinned postmarketOS Novatek Nabu image (SHA-256
 `8b845514621ebfd95759a0919f3aa3d825314abb478a7cad1c3fb4c6872b70b5`).
 It does **not** recover unknown firmware algorithm code or proprietary
-calibration bytes. An exact output can be produced only if **31,722 bytes** of
+calibration bytes. An exact output can be produced only if **30,732 bytes** of
 external primary DLM input are separately supplied. No raw OEM bytes are
 compiled into the Rust/Python implementation or checked into this branch.
 
 | Mutually exclusive physical category | Bytes | Source ownership |
 | --- | ---: | --- |
 | Independently generated index schedules, Gaussian coefficients, pointers and state | **9,353** | Reconstructed source DLM data |
-| Reconstructed from earlier *externally supplied* DLM values by checked bank relocations and copies | **8,477** | Dependency only; **not** independent source |
-| Externally required seed bytes, in **60 exact disjoint ranges** | **31,722** | Not independently reconstructed |
+| Reconstructed from earlier *externally supplied* DLM values by checked bank relocations and copies | **9,467** | Dependency only; **not** independent source |
+| Externally required seed bytes, in **90 exact disjoint ranges** | **30,732** | Not independently reconstructed |
 | **Complete DLM output, conditional on all external seeds** | **49,552** | Not a complete firmware image |
 
 Checkpoint 16 adds the independently checked **96-byte record suffix**
@@ -23,6 +23,12 @@ nine bytes remain externally supplied. The original two other records
 already fall inside the seven earlier alias spans and are excluded to avoid
 double accounting. These suffixes are **reference-dependent data copies**;
 the controller command semantics of their primary fields are not proven.
+
+Checkpoint 17 additionally copies the first 24 bytes and last nine bytes of
+30 paired **40-byte descriptor records**; seven intervening bytes in each
+record differ between banks and remain externally supplied. The relationship
+adds 990 dependent bytes and reduces private seed input by the same amount;
+record interpretation is still unproven, so this is not source authorship.
 
 The descriptor relocation source operation touches **2,940 target bytes**, but
 **40** are already covered by independently generated schedule-link fields.
@@ -34,9 +40,10 @@ not counted a second time. The dependency total consists of:
 | 21 relocated `0x8c`-byte descriptor records | 2,940 | 40 | 2,900 |
 | Seven exact lower/upper bank aliases | 3,136 | 0 | 3,136 |
 | 23 repeated 96-byte-record suffixes, 87 bytes each | 2,001 | 0 | 2,001 |
+| 30 lower/upper paired 40-byte records (24-byte head plus nine-byte tail) | 990 | 0 | 990 |
 | Duplicated lower calibration/profile block | 428 | 0 | 428 |
 | Repeated 12-byte profile signature | 12 | 0 | 12 |
-| **Total** | **8,517** | **40** | **8,477** |
+| **Total** | **9,507** | **40** | **9,467** |
 
 Existing bank aliases, calibration/profile copies, 96-byte record suffixes and descriptor relocations
 were previously independently tested as *relationships*, not source
@@ -57,7 +64,7 @@ python3 -m unittest discover -s tests -p 'test_*.py'
 "$CARGO_TARGET_DIR/release/novatek-dlm" sparse-plan > /tmp/novatek-dlm-seed-plan.json
 
 # Compare an in-memory build against an original image you already possess;
-# this uses 31,722 private external bytes and does not export them.
+# this uses 30,732 private external bytes and does not export them.
 "$CARGO_TARGET_DIR/release/novatek-dlm" verify-sparse-rebuild /private/novatek_nt36523_fw.bin
 
 # Independent Python verification against the same original/typed fragments.
@@ -91,7 +98,7 @@ behavior remain separate integration tasks.
   zero differences against the SHA-256-pinned original, given only generated
   source fragments and private seed values; neither reads private firmware
   during the builder's normal `sparse-plan` or `assemble` paths.
-- Python compares the complete 60-range plan, counted source vs dependent
+- Python compares the complete 90-range plan, counted source vs dependent
   bytes, and all 40 cross-checked bytes to Rust output; its test suite includes
   negative conditions for missing/reordered seeds, malformed pointers and
   source-vs-dependent conflicts.
@@ -100,7 +107,7 @@ behavior remain separate integration tasks.
   copying the later bank's original bytes.
 - The preexisting source provenance ledger is not changed. It still records
   **9,353 independently generated DLM bytes** and **40,199 unresolved
-  original DLM bytes**, of which 8,477 can now be built conditionally from
+  original DLM bytes**, of which 9,467 can now be built conditionally from
   earlier externally supplied unknown values. This is not source credit.
 
 ## Dependencies and merge notes
