@@ -19,10 +19,10 @@ class SourceOnlyForwardTests(unittest.TestCase):
     def test_manifest_exact_boundaries(self):
         m=module()
         self.assertEqual(m.START,0x568c)
-        self.assertEqual(m.validate_manifest(),0x6b9c)
+        self.assertEqual(m.validate_manifest(),0x6e00)
         self.assertEqual(m.FILE_BASE+m.START,0x4568c)
-        self.assertEqual(m.FILE_BASE+m.validate_manifest(),0x46b9c)
-        self.assertEqual(sum(length for _,_,_,length in m.FRAGMENTS),5392)
+        self.assertEqual(m.FILE_BASE+m.validate_manifest(),0x46e00)
+        self.assertEqual(sum(length for _,_,_,length in m.FRAGMENTS),6004)
 
     def test_validator_forbids_opaque_data_and_layout_holes(self):
         m=module()
@@ -144,6 +144,18 @@ class SourceOnlyForwardTests(unittest.TestCase):
         assert fragments['session-buffer-plane-copies'][1:]==(0x6900,0x108)
         assert fragments['session-buffer-selection'][0].read_text().count('}:mem_noshuf')>=3
         assert fragments['session-buffer-plane-copies'][0].read_text().count('}:mem_noshuf')>=2
+
+    def test_partial_session_metadata_preserves_duplex_selection(self):
+        m=module()
+        fragments={name:(path,off,size) for name,path,off,size in m.FRAGMENTS}
+        source,offset,length=fragments['session-metadata-prefix']
+        self.assertEqual((offset,length),(0x6b9c,0x264))
+        text=source.read_text()
+        for value in ('allocframe(#384)', 'r22 = add(r29,#140)',
+                      'memb(r29+#200) = r11', 'callr r2'):
+            self.assertIn(value,text)
+        self.assertNotIn('.word',text)
+        self.assertNotIn('.incbin',text)
 
     def test_session_hardware_loop_tail_packet_order(self):
         m=module()

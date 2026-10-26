@@ -373,3 +373,23 @@ python3 tools/build-wlanmdsp-agent13.py /tmp/wlan-prefix-through-27a0.bin \
   checkpoint 16 and does not establish a continuous prefix from `0x40000`.
 - The next source function begins with a call packet at `0x46b9c`. Its
   complete boundary and packet semantics must be checked before extension.
+
+## Checkpoint 38 (disjoint) — session metadata initialization prefix
+
+- Added **612 independently source-assembled Hexagon instruction bytes**
+  at `[file 0x46b9c,0x46e00)` (VMA `[0xb0006b9c,0xb0006e00)`).
+  This begins a larger session initialization function and constructs the
+  controller session-parameter frame, 64-bit counters, data-plane extents,
+  diagnostic metadata, and a callback to an external codec formatter.
+- Three original packets required explicit semantic source reordering to
+  retain the original duplex grouping: source packet positions
+  `0x46bb8`, `0x46bc4`, `0x46bf8`. Reconstructed instructions were encoded
+  entirely by LLVM6, without copying original instruction words.
+- The output is a **partial function**; its next instruction at file
+  `0x46e00` is not decoded by the LLVM6 disassembler and requires separate
+  V66-capable decoding or alternative analysis before encoding. Do not
+  assume surrounding words are data merely because this decoder reports
+  `unknown`.
+- Cumulative disjoint `[file 0x4568c,0x46e00)` is **6,004 matched
+  source-assembled bytes**, no linker fill or opaque external code.
+  The checkpoint-25 provenance gap remains as before.

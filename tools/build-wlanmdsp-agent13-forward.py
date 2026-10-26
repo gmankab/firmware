@@ -58,6 +58,7 @@ FRAGMENTS = (
     ('session-buffer-selection', SOURCE_DIR / 'agent13-runtime-session-buffer-selection.S', 0x6800, 0x100),
     ('session-buffer-plane-copies', SOURCE_DIR / 'agent13-runtime-session-buffer-plane-copies.S', 0x6900, 0x108),
     ('session-buffer-loop-final', SOURCE_DIR / 'agent13-runtime-session-buffer-loop-final.S', 0x6a08, 0x194),
+    ('session-metadata-prefix', SOURCE_DIR / 'agent13-runtime-session-metadata-prefix.S', 0x6b9c, 0x264),
 )
 
 
@@ -194,7 +195,7 @@ def main():
         parent.check_reference(fragment,args.reference.read_bytes(),runtime_offset=START)
     args.output.parent.mkdir(parents=True,exist_ok=True)
     args.output.write_bytes(fragment)
-    report={'agent':13,'checkpoint':'37-disjoint',
+    report={'agent':13,'checkpoint':'38-disjoint',
             'source_base':'Agent 13 checkpoint 16 (7c730bf); checkpoint25 source unavailable',
             'is_checkpoint25_descendant':False,
             'file_start':FILE_BASE+START,'file_end':FILE_BASE+end,
