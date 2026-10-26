@@ -339,3 +339,11 @@ python3 tools/agent20_06_a32_roundtrip.py /private/venus.mbn 0xa8ea0 0xa92c8 \
 - Reconstructs controller buffer dimensions/offsets, allocation checks, callbacks and a six-way mode dispatch. The computed `LDR PC,[R0,R1]` at `0xb6e28` is a valid control transfer, so it uses the PC-capable ARM register transfer encoder rather than the guarded data-only helper.
 - Direct source-built output comparison against `venus.mbn` and independent Clang/LLVM reassembly both show **zero byte differences**. All **210 Rust** and **13 Python** tests pass. Offline release build is not claimed here.
 - Next uncovered runtime `0xb6edc` (reference file offset `0xbaedc`); this remains a provisional older-base instruction-level A32 implementation, not a behavioral high-level decompilation or a newly signed/flashable image.
+
+## Checkpoint 39 — release codec context and reset active queues
+
+- Contiguous typed Venus runtime `[0xa8000,0xb71b8)` = **61,880 byte-identical bytes**, original MBN file `[0xac000,0xbb1b8)`.
+- New `[0xb6edc,0xb71b8)` = **732 bytes**, split into **174 typed ARM32 instructions (696 bytes)** and **nine explicitly classified data words (36 bytes)**. Literal pools: five-entry mode dispatch table `[0xb6f48,0xb6f5c)` and four controller diagnostic pointers `[0xb71a8,0xb71b8)`.
+- Release codec session callbacks, reset per-resource state, traverse outstanding response slots and return via the original POP/PC; no fabricated return or copied machine-code words.
+- Full source-generated fragment verified against the pinned Venus MBN. Independent Clang/LLVM reconstruction reassembled all 696 instruction bytes and classified 36 data bytes with zero differences; **211 Rust** and **13 Python tests** pass. The offline release build exceeded this session's execution limit and is **not claimed as passing**.
+- First uncovered runtime address `0xb71b8` (MBN file `0xbb1b8`). Work remains provisional, on the older agent branch, not merged onto checkpoint 50. Instruction-byte equality does not establish high-level behavioral equivalence or OEM authentication.
