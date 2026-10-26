@@ -1133,3 +1133,25 @@ The auxiliary prefix is **7,464 contiguous bytes** ending at `0x447d28`;
 the 16-byte unimplemented packet `[0x447d28,0x447d38)` remains a real
 hole, followed by **328 verified executable bytes** `[0x447d38,0x447e80)`.
 No new OEM signature, complete modem, or on-device boot is claimed.
+
+## Checkpoint 45 — Controller mode checks and tagged-record fallback
+
+Added **96 independently assembled Hexagon V60 bytes** at modem file
+`[0x447e80,0x447ee0)`, mapped virtual `[0x1e401e80,0x1e401ee0)`.
+The source checks controller-frame mode, uses conditional `.new` predicate
+register assignments, logs invalid state, and branches to both a later
+mode error and the earlier resource scan loop. The far branch is source-
+written with explicit `##` extension to preserve its V60 encoding. LLVM6
+reorders a three-instruction predicated `tstbit`/branch packet; a checked
+transformation validates source instruction classes, branch operands and
+parse fields before restoring the original issue order. Invalid
+instructions/packet boundaries are rejected in focused negative tests.
+
+Exact SHA-256-pinned original verification passes for all source-built
+fragments. Total independent reconstruction is now **8,500 file bytes**:
+**8,192 executable instructions**, 296 authored ELF32 metadata, and 12
+linker-layout zeros. Source-generated auxiliary prefix remains 7,464 bytes
+`[0x446000,0x447d28)` and 16 bytes `[0x447d28,0x447d38)` remain
+explicitly **unreconstructed**, followed by 424 verified bytes
+`[0x447d38,0x447ee0)`. The function and complete signed modem firmware
+remain unfinished.

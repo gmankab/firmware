@@ -15,6 +15,33 @@ spec.loader.exec_module(agent12)
 
 
 class ModemLateTests(unittest.TestCase):
+    def test_aux_controller_phase16_branch_predicate_issue_order(self):
+        self.assertEqual((agent12.AUX_LARGE_CONTROLLER_PHASE16_START,
+                          agent12.AUX_LARGE_CONTROLLER_PHASE16_END),
+                         (0x447e80,0x447ee0))
+        text=agent12.AUX_LARGE_CONTROLLER_PHASE16_SOURCE.read_text()
+        self.assertIn('##controller_state_fail',text)
+        self.assertIn('if (!p0.new) jump:t unsupported_buffer_mode',text)
+        self.assertNotIn('.word',text)
+        words=[0x7800c000]*24
+        words[0x10//4:0x1c//4]=[0x11d26376,0x74196002,0x741ae004]
+        result=struct.unpack('<24I',agent12.restore_aux_large_controller_phase16_packet(
+            struct.pack('<24I',*words)))
+        self.assertEqual(result[0x10//4:0x1c//4],
+                         (0x74196002,0x741a6004,0x11d2e376))
+        for offset,bad,reason in [
+            (0x10//4,0x7800c000,'opcode classes'),
+            (0x10//4,0x11d26377,'operands'),
+            (0x14//4,0x74196003,'operands'),
+            (0x18//4,0x741a6004,'packet markers'),
+        ]:
+            other=words.copy();other[offset]=bad
+            with self.assertRaisesRegex(ValueError,reason):
+                agent12.restore_aux_large_controller_phase16_packet(
+                    struct.pack('<24I',*other))
+        with self.assertRaisesRegex(ValueError,'96 source-assembled bytes'):
+            agent12.restore_aux_large_controller_phase16_packet(bytes(92))
+
     def test_aux_controller_phase15_fail_closed_state_packet(self):
         self.assertEqual((agent12.AUX_LARGE_CONTROLLER_PHASE15_START,
                           agent12.AUX_LARGE_CONTROLLER_PHASE15_END),
