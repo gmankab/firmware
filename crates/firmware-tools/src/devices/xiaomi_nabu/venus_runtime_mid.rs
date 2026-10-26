@@ -8,7 +8,7 @@
 use arm32::{Condition as C, DataOp as Op, Register as R, Shift, BlockMode};
 
 pub const START: usize = 0x21c78;
-pub const END: usize = 0x3f834;
+pub const END: usize = 0x3fc00;
 pub const FILE_BASE:usize = 0x4000;
 pub const FILE_OFFSET:usize=FILE_BASE+START;
 pub const RESERVATION_END:usize=0x40000;
@@ -271,6 +271,8 @@ mod small_queue_helpers;
 mod stream_output_descriptors;
 #[path="venus_runtime_mid_frame_output_queue.rs"]
 mod frame_output_queue;
+#[path="venus_runtime_mid_controller_output_init.rs"]
+mod controller_output_init;
 
 fn frame_allocation(c:&mut Code)->Result<(),String>{
     c.check(START)?;
@@ -863,6 +865,7 @@ pub fn fragment()->Result<Vec<u8>,String>{
     small_queue_helpers::emit(&mut code)?;
     stream_output_descriptors::emit(&mut code)?;
     frame_output_queue::emit(&mut code)?;
+    controller_output_init::emit(&mut code)?;
     Ok(code.bytes)
 }
 
@@ -880,7 +883,7 @@ pub fn verify_reference(reference:&[u8])->Result<usize,String>{
 #[cfg(test)] mod tests {
     use super::*;
     #[test] fn generated_region_exact_layout(){
-        assert_eq!(END-START,0x1dbbc);
+        assert_eq!(END-START,0x1df88);
         assert_eq!(fragment().unwrap().len(),END-START);
         assert_eq!(FILE_OFFSET,0x25c78);
     }
@@ -898,11 +901,17 @@ pub fn verify_reference(reference:&[u8])->Result<usize,String>{
     #[test]
     fn frame_output_queue_boundaries(){
         let blob=fragment().unwrap();
-        assert_eq!(END,0x3f834);
-        assert_eq!(blob.len(),0x1dbbc);
+        assert!(END>=0x3f834);
+        assert_eq!(0x3f834-START,0x1dbbc);
         assert_eq!((0x3f834-0x3f34c)/4,314);
         assert_eq!(&blob[0x3f34c-START..0x3f350-START],
             &arm32::push_registers(C::Al,(4..=11).map(|n|1u16<<n).sum::<u16>()|R::LR.bit()).unwrap().to_le_bytes());
+    }
+    #[test]
+    fn controller_output_init_is_in_reserved_region(){
+        assert_eq!(END,0x3fc00);
+        assert_eq!((0x3fc00-0x3f834)/4,243);
+        assert!(END<=RESERVATION_END);
     }
     #[test]fn adc_zero_and_carry_are_checked(){
         assert_eq!(encode_adc_zero(C::Al,R::new(3).unwrap(),R::new(3).unwrap()).unwrap(),0xe2a3_3000);

@@ -713,3 +713,11 @@ Original reference: private `map220v-nabu-firmware/venus.mbn`, SHA-256 `9d4af65d
 - Added a reference-aware optional Rust unit test plus a boundary/first-instruction test. **274 Rust workspace tests** and **13 Python tests passed** on this checkout. The release build was attempted but exceeded execution time; it is **not** recorded as passed.
 - This is an old-base portable Git branch; it does **not** descend from unavailable checkpoint 50. Instruction-byte agreement does not establish high-level algorithmic source equivalence, OEM authentication or hardware execution.
 - Next unimplemented runtime function starts at `0x3f834`, below this agent's exclusive upper limit `0x40000`.
+
+## Checkpoint 102 — codec controller output matrix prefix
+
+- Typed Rust continuation `[0x3f834,0x3fc00)` = **972 ARM32 instruction bytes (243 checked encodings)** with no literal data words in the new interval; the full independent region is `[0x21c78,0x3fc00)` = **122,760 consecutive byte-identical bytes**, reference MBN `[0x25c78,0x43c00)`.
+- Source sets up controller channel and plane state, validates frame-level fields, builds MMIO packet command headers and performs guarded output bitfield assembly. The function continues beyond `0x3fc00` and no return instruction is fabricated.
+- Complete generated fragment is compared against private pinned Venus MBN inside an opt-in Rust test; zero byte mismatches. Clang/LLD separately reassembles **all 243 new instructions** with exact original bytes. Its external BLX target produces a linker interworking warning but no byte differences.
+- **275 Rust workspace library tests and 13 Python tests pass.** A full workspace test invocation timed out *after* all completed test groups reported success; optimized release build not confirmed. These are test/byte-level results, not source-level behavior proof or OEM signing.
+- This branch is a portable extension of Agent 03 history, not a descendant of checkpoint 50. Next uncovered runtime code begins at `0x3fc00`; reserved boundary `0x40000` remains exclusive.
