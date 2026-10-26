@@ -919,3 +919,16 @@ python3 -S tools/adsp-agent20-rwe-next-controller-global-layout.py \
   --llvm-mc "$HEXAGON_LLVM_MC" --reference "$NABU_ADSP_REFERENCE" \
   --output /tmp/adsp-controller-global-layout-220.bin
 ```
+
+## Checkpoint 49: controller physical address handoff `[0x11624,0x1167c)`
+
+- Source-assembled **88 new byte-identical Hexagon V66 executable bytes** at `[file 0x11624,0x1167c)` and physical `[0x8be0e624,0x8be0e67c)`; every instruction of this 22-word region is emitted by LLVM6 **without V66 patches**.
+- The source invokes external initialization/callbacks, saves the MMIO pointer for its 128KiB physical window, branches on the checked GP status field, and restores controller registers before tail-calling platform handoff. The `if(cmp.eq(R2.new,#0))` packet and following combine operations retain the exact original packet parse markers.
+- Controller-global reconstruction from checkpoints 46–49 now covers **556 continuous bytes** `[0x11450,0x1167c)`; a conditional execution path continues at `0x1167c`, so the function is **not yet complete**. This is not a signed/flashable ADSP image.
+- Cumulative independently source-rebuilt ADSP RWE executable code: **6,804 bytes in eleven disjoint intervals**, explicitly excluding all OEM diagnostic strings and structural fill. Git branch is still portable old-agent-04 ancestry, not checkpoint-50-rooted integration.
+
+```sh
+python3 -S tools/adsp-agent20-rwe-next-controller-global-handoff.py \
+  --llvm-mc "$HEXAGON_LLVM_MC" --reference "$NABU_ADSP_REFERENCE" \
+  --output /tmp/adsp-controller-global-handoff-88.bin
+```
