@@ -333,3 +333,9 @@ python3 -m unittest discover -s tests -p 'test_*.py'
 - New source snapshots P3:0, frame/FP/GP/UGP status, register-pair context, LC0:SA0/ELR, and writes frame fields with `dczeroa` cacheline clearing. Checked Y-class special-register ISA macro derives configured GPR/privileged-register operand and packet fields.
 - LLVM6 extended conditional jump relocation required a +4-byte packet-base adjustment to emit the original signed branch displacement; its named runtime target is `0xc0816c30`. After this explicit checked adjustment, independent assembly reproduces all bytes of the complete 2,216-byte fragment, zero mismatch against pinned modem.mbn.
 - This remains a **partial** interrupted-thread context routine; next source byte is file `0x389b0`. The modem image and its OEM authentication are not independently rebuilt.
+
+## Checkpoint 40 — Protected frame serialization and callback selection
+
+- The source-generated modem RWE exception continuation now spans `[0x38108,0x38a7c)` = **2,420 Hexagon V60 instruction bytes**. Its new `[0x389b0,0x38a7c)` 204-byte section records the interrupted thread's SSR, packets, loop states, general/control register pairs, SGP0 pointers, and saved frame metadata; then it invokes the selected codec frame callback.
+- ISA operand encoders for controller pair reads/writes and immediate-extension command fields preserve the exact Hexagon packets. LLVM6 requires explicit **+4-byte packet relocation offsets** for the extended callback and conditional branch on this instruction group. These adjustments are independently bounded to specified source-level destinations, not copied vendor code words. The complete 2,420-byte assembled result matches SHA-pinned `modem.mbn` with zero differences.
+- Function continues at file offset `0x38a7c`; the rest of RWE executable and all OEM authentication remains unreconstructed. This is a partial executable fragment, not an independently signed modem image.

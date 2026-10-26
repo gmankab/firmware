@@ -965,3 +965,84 @@ MODEM_SYS_READ 18,3,1              // ELR
     r17 = r0
     dczeroa(fp)
 }
+// Serialize the interrupted thread state into its active protected frame,
+// selecting one of two callback paths based on the saved codec class.
+{
+    r22 = ##-1065261420
+    r1:0 = memd(r1+#48)
+    memd(r0+#48) = r23:22
+}
+MODEM_SYS_READ 19,6,1
+{
+    memd(r17+#96) = r13:12
+    memd(r17+#104) = r11:10
+}
+{
+    r23 = extract(r19,#5,#0)
+    r12 = r19
+    memd(r17+#112) = r9:8
+    memd(r17+#120) = r7:6
+}
+MODEM_RWE_CONTROL_PAIR_READ 6,16,1  // C17:16
+{
+    r12 = clrbit(r12,#31)
+    p3 = cmp.eq(r23,#10)
+    dczeroa(fp)
+}
+MODEM_RWE_CONTROL_PAIR_READ 8,18,3 // PKTCOUNT
+{
+    memd(r17+#248) = r7:6
+    memd(r17+#304) = r9:8
+}
+{
+    r12 = insert(r17,#3,#16)
+    r0 = r23
+    memd(r17+#144) = r1:0
+    memd(r17+#152) = r21:20
+}
+MODEM_RWE_CONTROL_PAIR_READ 20,6,1  // M1:0
+{
+    r2 = #9
+    memd(r17+#128) = r5:4
+    memd(r17+#136) = r3:2
+}
+MODEM_SYS_WRITE 6,12,1
+.set modem_rwe_capture_callback, agent11_modem_exception_dispatch_entry + (0xdd20-0x38108)
+{
+    call ##modem_rwe_capture_callback
+    memd(r17+#24) = r19:18
+}
+MODEM_RWE_CONTROL_PAIR_READ 12,2,1  // LC1:SA1
+{
+    memw(r17+#236) = ##-1065089300
+    memd(r17+#176) = r29:28
+}
+MODEM_SYS_READ 29,0,1               // SP = SGP0
+{
+    r0 = r17
+    memd(r17+#200) = r25:24
+    memd(r17+#192) = r27:26
+}
+MODEM_RWE_CONTROL_PAIR_READ 12,12,1 // CS1:0
+// LLVM6 conditional jump uses a packet-base bias of +4 in this group.
+.set modem_rwe_capture_secondary_reloc, agent11_modem_exception_dispatch_entry + (0x38a6c-0x38108)
+{
+    if (!p3) jump:nt modem_rwe_capture_secondary_reloc
+    memd(r17+#160) = r13:12
+    memd(r17+#168) = r21:20
+}
+MODEM_SYS_READ 1,8,1               // HTID
+{
+    callr r22
+    memd(r17+#184) = r13:12
+}
+.set modem_rwe_capture_done, agent11_modem_exception_dispatch_entry + (0x38a7c-0x38108)
+{ jump modem_rwe_capture_done }
+modem_rwe_capture_secondary_callback:
+MODEM_SYS_READ 1,8,1
+.set modem_rwe_capture_fallback, agent11_modem_exception_dispatch_entry + (0x10354-0x38108)
+{
+    call ##modem_rwe_capture_fallback
+    memd(r17+#184) = r13:12
+}
+{ jump modem_rwe_capture_done }
