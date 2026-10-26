@@ -433,3 +433,11 @@ Original reference: private `map220v-nabu-firmware/venus.mbn`, SHA-256 `9d4af65d
 - Full generated fragment matches pinned Venus MBN reference SHA-256 `9d4af65d7ede845e900f1b29ff425b7a8e2947056e695e246e58a2091445a085` with zero byte differences; independent Clang/LLVM relocation-aware reassembly of all **1,040 new bytes** passes. Generated fragment SHA-256 `99559b545ce3e1a727be1a745e4c40b3486a0dec4cbeef942856217238811166`.
 - Whole Rust workspace **232 tests**, Python **13 tests** pass. Optimized release build was started but timed out in this execution environment and is **not claimed passed** for this checkpoint.
 - First uncovered executable routine begins at `0x32190` (within agent 20-03 exclusive reservation `[0x21c78,0x40000)`). The source is instruction-byte re-encoding, not a high-level semantic codec reimplementation and not signed/flashable firmware.
+
+## Checkpoint 66 — controller format-table copies and stream setup
+
+- Contiguous typed A32 region `[0x21c78,0x32550)` = **67,800 exact bytes**; new `[0x32190,0x32550)` = **960 bytes**, **205 instructions** and **35 named data words** in eight literal pools.
+- Reconstructed the controller startup-check loop, message emission and error callbacks, paired active/inactive controller table transfers using `LDM`/`STM` register-list copies, and initial stream setup diagnostics. The first function is a 32-byte rolling compare against a controller magic value, not blindly copied reference words.
+- Separate non-instruction data pools: `[0x32278,0x32290)`, `[0x32368,0x3238c)`, `[0x323d8,0x323ec)`, `[0x3241c,0x32424)`, `[0x32464,0x32470)`, `[0x324d0,0x324e0)`, `[0x3250c,0x32518)`, `[0x32544,0x32550)`.
+- Reference `venus.mbn` pinned SHA-256 `9d4af65d7ede845e900f1b29ff425b7a8e2947056e695e246e58a2091445a085`. Full Rust generation and independent Clang/LLVM assembler pass for all 960 new bytes with zero differences. **233 Rust and 13 Python tests** passed. Release-mode compilation is not verified for this checkpoint.
+- Next function begins at runtime `0x32550`. The implementation proves operand-level A32 byte agreement, not high-level codec semantics or OEM signing.
