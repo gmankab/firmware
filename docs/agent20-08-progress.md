@@ -741,3 +741,24 @@ without opaque byte literals. This routine is directly adjacent to the
 checkpoint-48 controller mode validator. **New: 212 source-assembled bytes;
 cumulative 7,988 independently assembled ADSP executable bytes across 97
 fragments.** The remaining ADSP image and OEM authenticity are unreconstructed.
+
+**Checkpoint 50 — allocate optional callback-enabled controller context:**
+Rebuilt a complete **148-byte** Hexagon function at ADSP reference file
+`[0x41220,0x412b4)` from semantic instructions and packet grouping. It
+validates the controller mode, allocates a context, initializes a descriptor,
+conditionally installs callbacks, publishes two state words, and handles an
+allocation-failure cleanup before restoring saved registers. The source
+contains no OEM opcode-word directives or original payload blobs. LLVM6
+Hexagon v65-compatible assembly produces SHA-256
+`a0f7026e1020fc4f7f1c44fc9cf24270b1806d7e65204f1db0fae664fbee2869`
+and **all 148 bytes match** the pinned v66 ADSP original. This routine is
+immediately adjacent to checkpoint 49's `[0x4114c,0x41220)` argument
+marshaller, giving **360 contiguous byte-identical executable bytes**
+`[0x4114c,0x412b4)` across two functions.
+
+Cumulative late ADSP coverage: **8,136 independently source-assembled code
+bytes in 98 disjoint fragments** (exact structural coverage is tracked by
+`emit-adsp-late.py` and its machine-readable manifest). External OEM
+signatures, unknown executable code and padding are not counted. The
+next function starts at `0x412b4`. This agent branch is still provisional
+and not checkpoint-50-rooted.
