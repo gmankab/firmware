@@ -840,3 +840,16 @@ python3 -S tools/adsp-agent20-rwe-next-packed-offsets.py \
   --llvm-mc "$HEXAGON_LLVM_MC" --reference "$NABU_ADSP_REFERENCE" \
   --output /tmp/adsp-packed-offsets-92.bin
 ```
+
+## Checkpoint 43: partial EVB/i-cache relocation and controller format guards `[0x11170,0x111dc)`
+
+- **108 executable bytes** at ADSP file `[0x11170,0x111dc)` (physical `[0x8be0e170,0x8be0e1dc)`) source-assemble and match the pinned revision with zero mismatches. SHA-256 `5e2fa9fe85dca6489dcfcd5a36da7520b63fbbbe0dca15663cca8465774ec2fb`.
+- The new routine begins with an EVB register read, invalidates an instruction cache entry, syncs instruction fetching, derives packed-window addresses from controller offset fields, tests capacity and branches toward fallback paths beyond the current partial function. LLVM6 assembles 26 ordinary Hexagon instruction words, with the **single EVB transfer** reconstructed through the checked typed V66 register encoder.
+- Exactly **12 zero-filled, file-backed bytes** `[0x11164,0x11170)` separate this code from the preceding 92-byte pair; these are linker layout and not executable reconstruction. This function **remains incomplete** from `0x111dc` onward; do not infer a successful return yet.
+- Total ADSP RWE source-built code is **5,728 bytes in eight disjoint intervals**, excluding the 12-byte linker fill and earlier zero/data gaps. Required integrated checkpoint-50 Git base remains unavailable; this branch descends from Agent 04's older history.
+
+```sh
+python3 -S tools/adsp-agent20-rwe-next-icache-relocation-prefix.py \
+  --llvm-mc "$HEXAGON_LLVM_MC" --reference "$NABU_ADSP_REFERENCE" \
+  --output /tmp/adsp-icache-relocation-prefix-108.bin
+```
