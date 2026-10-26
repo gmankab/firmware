@@ -645,3 +645,41 @@ python3 tools/verify-agent20-10-cdsp-controller-mask-setup.py \
   --prefix /private/controller-rwe-1924.bin \
   --reference /private/cdsp.mbn
 ```
+
+## Checkpoint 33 — secondary bitplane capacity guards through 0x567b4; 3,128 executable bytes
+
+- Added **48 source-encoded Hexagon V66 executable bytes** at CDSP file
+  `[0x56784,0x567b4)`, physical `[0x96cc8784,0x96cc87b4)` within the
+  controller function starting at file `0x56600`.
+- The 12 instructions enforce empty-stream and high-plane-count exits to
+  physical `0x96cc8810`, isolate high plane masks (`0xfff00`), initialize
+  capacity registers, calculate leading zeros, and reject insufficient
+  capacity with a `.new` unsigned branch to `0x96cc88ac`. Register fields,
+  signed offsets and packet-relative target locations are checked by the
+  narrow Rust constructors. One branch originally miscounted a packet start
+  by four bytes; the error was corrected before byte verification.
+- The 48-byte source fragment and full RWE `[0x56000,0x567b4)` prefix match
+  the pinned reference with **zero differences**. The joined prefix has
+  **1,972 file bytes = 1,928 original source-generated executable + 44
+  structural alignment bytes**. With the separate `[0x55000,0x554b0)`
+  controller region (1,200 executable), cumulative **independently generated
+  executable code = 3,128 bytes**.
+- An independently authored LLVM6 V60 fixture reconstructs the same twelve
+  operations: seven words are byte-identical; the other five differ in
+  parse-marker scheduling and one signed branch immediate encoding, while
+  Rizin V66 independently confirms the original twelve-word packet sequence,
+  all three branch destinations, and the exact reference comparison.
+- Full offline Rust, Python and release builds pass. The fragment ends within
+  the larger controller function; next instruction is file `0x567b4`,
+  physical `0x96cc87b4`. This branch still descends from Agent05's older CDSP
+  source, not an actual checkpoint-50 integrated base. No OEM signing or
+  hardware execution proof is claimed.
+
+```sh
+cargo run --offline --locked -p firmware-tools --bin cdsp-late-controller-mode-guard -- verify-prefix /private/cdsp.mbn
+python3 tools/verify-agent20-10-cdsp-controller-mode-guard.py \
+  --llvm-mc /private/llvm6/bin/llvm-mc --rz-asm /private/rz-asm \
+  --generated /private/mode-guard-48.bin \
+  --prefix /private/controller-rwe-1972.bin \
+  --reference /private/cdsp.mbn
+```
