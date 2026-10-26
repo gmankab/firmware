@@ -164,3 +164,37 @@ MODEM_SYS_READ 28,0,1
     r12 = and(r13,#255)
     if (cmp.eq(r12.new,#0)) jump:nt modem_exception_status_empty
 }
+// Decode source exception class and store a bounded tagged descriptor.
+{
+    r13 = setbit(r13,#19)
+    r15:14 = combine(r23,r22)
+    r23 = #3
+    r22 = memw(r28+#0)
+}
+MODEM_SYS_READ 23,3,1
+{
+    r28 = minu(r12,r23)
+    memd(r22+#56) = r15:14
+}
+{ r12 = extractu(r13,#7,#8) }
+MODEM_SYS_WRITE 6,13,1
+{
+    r15 = memw(r12<<#2+##3229882496)
+    r13 = memw(r22+#16)
+}
+MODEM_SYS_WRITE 3,15,1
+{
+    r13 = add(r13,#112)
+    r12 = ##-1032781824
+}
+// Read a second protected MMIO word through the same lock protocol.
+{ r14 = ##-1065090812 }
+modem_rwe_exception_secondary_lock_retry:
+{ r15 = memw_locked(r14) }
+{
+    p2 = cmp.eq(r15,#0)
+    if (!p2.new) jump:nt modem_rwe_exception_secondary_lock_retry
+    if (p2.new) r15 = #1
+}
+{ memw_locked(r14,p2) = r15 }
+{ if (!p2) jump:nt modem_rwe_exception_secondary_lock_retry }

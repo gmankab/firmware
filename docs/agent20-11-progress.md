@@ -224,3 +224,11 @@ python3 -m unittest discover -s tests -p 'test_*.py'
 - The **full 376-byte region** has SHA-256 `319137e1892800efbe5ab46dd2002d2ef90421fee18dca8400ec1e2987a4ff8b`, matching the pinned `modem.mbn` at every byte.
 - 169 offline Rust tests and 38 Python tests pass; three LLVM-sensitive Python tests are *enabled* with `AGENT11_LLVM_MC`, and the pinned OEM comparison is enabled with `AGENT11_MODEM_MBN`.
 - Further interrupt-state recovery code begins at `0x38280`; all modem content beyond this owned interval remains incomplete, and no signed modem output is produced.
+
+## Checkpoint 26 — Tagged exception descriptor and secondary locked MMIO
+
+- Source-built protected exception continuation extends from 376 to **472 byte-identical executable bytes**, modem file `[0x38108,0x382e0)`, virtual `[0xc0840108,0xc08402e0)`, physical `[0x8e040108,0x8e0402e0)`; the added `[0x38280,0x382e0)` is 96 bytes of original Hexagon V60 code.
+- Implements tagged exception metadata capture, indexed per-codec table reads, privileged S6 and S3 writes, and a second bounded protected-word acquire/store/retry sequence. A four-instruction packet at `0x38280` preserves packet-local dependencies rather than being split into standalone instructions.
+- LLVM6 swaps a semantically equivalent `.new` predicate comparison and branch at `[0x382cc,0x382d4)`; the private-reference-free fail-closed normalizer verifies the original emitted instruction classes and operands before restoring source packet order. The corresponding registered-reference byte check passes with **zero mismatches**.
+- SHA-256 of the complete newly generated exception fragment: `6c60f80c9de3858e55eb55b6da23eacb8caa7034b291a8f05e58ba6f083d77e9`. 169 Rust tests and 38 Python tests pass. Release mode remains unverified in this current execution environment due tool execution limits; previous agent releases were tested separately.
+- Next uncovered modem RWE exception instruction is file `0x382e0`. Other modem executable/data/authenticated regions remain incomplete.

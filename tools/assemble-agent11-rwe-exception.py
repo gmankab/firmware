@@ -17,7 +17,7 @@ import subprocess
 import tempfile
 
 FILE_START = 0x38108
-FILE_END = 0x38280
+FILE_END = 0x382e0
 VIRTUAL_START = 0xc0840108
 PHYSICAL_START = 0x8e040108
 PINNED_SHA256 = '6f5cb32bc10e41abb40938d185805e788f5637a41d3ebcef278e4e169fc36782'
@@ -62,6 +62,14 @@ def normalize_llvm6_locked_packets(data: bytes) -> bytes:
     write(0x38224,ext)
     write(0x38228,mov)
     write(0x3822c,branch)
+    if len(result)>=0x382e0-FILE_START:
+        # Second locked-word acquisition uses the same cmp/branch packet
+        # with r15 rather than r13. LLVM6 reverses these operations.
+        if read(0x382cc)!=0x5cff6afe or read(0x382d0)!=0x750f4002:
+            raise ValueError('unrecognized second locked interrupt predicate packet')
+        compare,branch=read(0x382d0),read(0x382cc)
+        write(0x382cc,compare)
+        write(0x382d0,branch)
     return bytes(result)
 
 
@@ -100,6 +108,8 @@ def assemble(llvm_mc: Path, source: Path) -> bytes:
             raise ValueError('Controller status mask must be sourced from checked AND-NOT operation')
         if (word(0x3827c) & (3<<14)) != (3<<14):
             raise ValueError('Status-mask conditional branch must end its packet')
+        if word(0x382d8)!=0xa0aecf02 or word(0x382dc)!=0x5cffe2f6:
+            raise ValueError('Second locked store and retry must use checked Hexagon operands')
         return data
 
 
