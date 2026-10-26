@@ -1134,3 +1134,16 @@ python3 -S tools/adsp-agent20-rwe-next-controller-slot-bitmap-publish.py \
   --llvm-mc "$HEXAGON_LLVM_MC" --reference "$NABU_ADSP_REFERENCE" \
   --output /tmp/adsp-controller-slot-bitmap-publish-72.bin
 ```
+
+## Checkpoint 65: controller slot-class bitmap mask `[0x11f18,0x11f58)`
+
+- Independently generated **64 exact executable bytes** (16 Hexagon V66 instruction words) at ADSP file `[0x11f18,0x11f58)`, physical `[0x8be0ef18,0x8be0ef58)`. SHA-256 `d679d216aa29ad36b1e521467f180cccfa339241896941580fa7680753c26cfc`.
+- Calls the controller getter, isolates the selected slot bit index, looks up the corresponding packed bitmap via a signed class mask, then returns either zero or `0x10000` depending on `p0.new`. All opcodes and packet parse markers are independently assembled from LLVM6 mnemonic source. No proprietary opcode-copy or privileged substitution is used.
+- The contiguous slot-control executable island `[0x11ae0,0x11f58)` is now **1,144 exact source-assembled bytes**; it remains disjoint from earlier program regions because diagnostic strings and linker fill are excluded.
+- Total independently generated ADSP RWE executable is now **8,764 bytes across fifteen disjoint intervals**. Next function starts at file `0x11f58`.
+
+```sh
+python3 -S tools/adsp-agent20-rwe-next-controller-slot-bitmap-mask.py \
+  --llvm-mc "$HEXAGON_LLVM_MC" --reference "$NABU_ADSP_REFERENCE" \
+  --output /tmp/adsp-slot-bitmap-mask-64.bin
+```
