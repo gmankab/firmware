@@ -695,3 +695,17 @@ python3 tools/agent20_06_a32_roundtrip.py /private/venus.mbn 0xa8ea0 0xa92c8 \
   ```
 
 - **246 Rust tests and 13 Python tests passed**. No completed new release build is claimed. Next uncovered VMA `0xc1f90` (file `0xc5f90`). Work remains byte-verified typed A32 code on the provisional older history, not high-level source reconstruction or new OEM-signed firmware.
+
+## Checkpoint 75 — codec frame-plane descriptor table writer
+
+- Contiguous typed Venus runtime `[0xa8000,0xc2874)` = **108,660 reference-identical bytes**, corresponding original file `[0xac000,0xc6874)`.
+- New `[0xc1f90,0xc2874)` = **2,276 bytes** with **564 typed ARM32 instructions (2,256 bytes)** and **five structured data words (20 bytes)** at `[0xc2860,0xc2874)`.
+- The routine programs codec controller frame table columns, derives packet flags and aligned buffer values from format metadata, and preserves the original return and five trailing diagnostic literals.
+- Original firmware whole-fragment comparison passes with zero differing bytes. Independent Clang/LLVM reconstructs all 2,256 instruction bytes and 20 classified data bytes with zero mismatches:
+
+  ```sh
+  python3 tools/agent20_06_a32_roundtrip.py /private/venus.mbn 0xc1f90 0xc2874 \
+    --data-range 0xc2860:0xc2874
+  ```
+
+- **247 Rust tests and 13 Python tests passed**; no successful new release build is claimed. Next uncovered VMA `0xc2874`, file `0xc6874`. Work remains an old-Agent-03-derived provisional source fragment, not checkpoint-50 integrated or a newly OEM-signed firmware.
