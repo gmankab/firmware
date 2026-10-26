@@ -82,3 +82,16 @@ fn magnitude_bucket_matches_optional_reference(){
         assert_eq!(&b[..],original.get(off..off+b.len()).unwrap());
     }
 }
+
+#[path="../src/devices/xiaomi_nabu/venus_agent20_05_alt_occupancy.rs"]
+mod alt_occupancy;
+#[test]
+fn alternate_occupancy_matches_optional_reference(){
+    let bytes=alt_occupancy::fragment().unwrap();
+    assert_eq!(bytes.len(),alt_occupancy::END-alt_occupancy::START);
+    if let Some(reference)=std::env::var_os("NABU_VENUS_REFERENCE") {
+        let firmware=std::fs::read(reference).unwrap();
+        let off=alt_occupancy::START+alt_occupancy::FILE_BASE;
+        assert_eq!(&bytes[..],firmware.get(off..off+bytes.len()).unwrap());
+    }
+}
