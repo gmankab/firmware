@@ -149,4 +149,3 @@ warning: constant `INSTRUCTION_COUNT` is never used
    |
 16 | pub const INSTRUCTION_COUNT:usize=FIRST_INSTRUCTION_COUNT+SECOND_INSTRUCTION_COUNT;
    |           ^^^^^^^^^^^^^^^^^
-

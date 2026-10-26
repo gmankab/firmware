@@ -17,7 +17,8 @@ fn run()->Result<(),String>{
             let sections=[lower::extension6_disjoint::first_after_unresolved(),
                           lower::extension6_disjoint::second_after_unresolved(),
                           lower::extension7_disjoint::fragment(),
-                          lower::extension8_disjoint::fragment()];
+                          lower::extension8_disjoint::fragment(),
+                          lower::extension9_disjoint::fragment()];
             let mut total=0;
             for segment in sections {
                 let built=lower::extension6_disjoint::emit(&segment)?;
@@ -31,13 +32,14 @@ fn run()->Result<(),String>{
                          segment.file_start,segment.file_end,built.len());
                 total+=built.len();
             }
-            println!("{} disjoint exact bytes; unknown source bytes 0x38bc..0x38be and 0x39f8..0x39fa are excluded; fourth range ends at 0x4984",total);
+            println!("{} disjoint exact bytes; unknown source bytes 0x38bc..0x38be and 0x39f8..0x39fa are excluded; fifth range ends at 0x52f0",total);
         },
         "emit-disjoint" if a.len()==3 && profile==lower::Profile::Postmarketos=>{
             let sections=[lower::extension6_disjoint::first_after_unresolved(),
                           lower::extension6_disjoint::second_after_unresolved(),
                           lower::extension7_disjoint::fragment(),
-                          lower::extension8_disjoint::fragment()];
+                          lower::extension8_disjoint::fragment(),
+                          lower::extension9_disjoint::fragment()];
             for section in sections {
                 let name=format!("{}-{:05x}-{:05x}.bin",a[2],section.file_start,section.file_end);
                 fs::write(&name,lower::extension6_disjoint::emit(&section)?).map_err(|e|e.to_string())?;

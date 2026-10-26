@@ -166,6 +166,8 @@ pub enum Insn {
     LessThanSignedSmallImmediate { reg: Reg, value: u8 },
     BranchTa { nonzero: bool, target: u32 },
     BitSet { dest: Reg, source: Reg, bit: u8 },
+    /// N32 ALU2 BCLR immediate bit index, distinct from N32 BITCI mask.
+    BitClearAt {dest:Reg, source:Reg, bit:u8},
     /// N32 ALU2/BTST: test source bit (immediate position) into destination.
     BitTestImmediate {dest:Reg,source:Reg,bit:u8},
     IndexedByte { store: bool, reg: Reg, base: Reg, index: Reg, shift: u8 },
@@ -190,6 +192,8 @@ pub enum Insn {
     JumpTableOffsets16 { base:u32, targets:[u32;35] },
     /// Code-adjacent 15-way halfword-offset dispatch using LE table data.
     JumpTableOffsets15 {base:u32,targets:[u32;15]},
+    JumpTableOffsets12 {base:u32,targets:[u32;12]},
+    JumpTableOffsets6 {base:u32,targets:[u32;6]},
     /// NDS32 jump-table byte offsets, not executable instructions. `base` is
     /// the register-held table pointer. Each entry is derived from a named
     /// branch destination and checked to fit an unsigned byte displacement.
@@ -219,9 +223,27 @@ fn u15(value: u16) -> Result<u32, String> {
     else { Ok(u32::from(value)) }
 }
 
+fn emit_little_endian_branch_offsets(base:u32,targets:&[u32])->Result<Vec<u8>,String>{
+    let mut bytes=Vec::with_capacity(targets.len()*2);
+    for (idx,target) in targets.iter().enumerate(){
+        let delta=target.checked_sub(base).ok_or_else(||format!("dispatch target {idx} precedes base"))?;
+        if delta>u16::MAX as u32 || delta&1!=0 {
+            return Err(format!("dispatch target {idx} is not an aligned 16-bit offset"));
+        }
+        bytes.extend_from_slice(&(delta as u16).to_le_bytes());
+    }
+    Ok(bytes)
+}
+
 impl Insn {
     pub fn encode(self, pc: u32, gp: u32) -> Result<Vec<u8>, String> {
         use Insn::*;
+        if let JumpTableOffsets12{base,targets}=self {
+            return emit_little_endian_branch_offsets(base,&targets);
+        }
+        if let JumpTableOffsets6{base,targets}=self {
+            return emit_little_endian_branch_offsets(base,&targets);
+        }
         if let JumpTableOffsets15{base,targets}=self {
             let mut bytes=Vec::with_capacity(30);
             for (idx,target) in targets.into_iter().enumerate() {
@@ -353,6 +375,10 @@ impl Insn {
             BitSet { dest,source,bit } => {
                 if bit>31{return Err("BSET bit exceeds 31".into());}
                 (0x21<<25)|(dest.number()<<20)|(source.number()<<15)|(u32::from(bit)<<10)|8
+            }
+            BitClearAt {dest,source,bit} => {
+                if bit>31{return Err("BCLR bit exceeds 31".into());}
+                (0x21<<25)|(dest.number()<<20)|(source.number()<<15)|(u32::from(bit)<<10)|9
             }
             IndexedMemory {store,width,signed,reg,base,index,shift} => {
                 if shift>3 || (store && signed) {return Err("invalid indexed memory shift/sign".into());}
@@ -652,6 +678,7 @@ impl Insn {
             AndImmediate { dest,source,value } => format!("andi {},{},{}",r(dest),r(source),value),
             BitTestImmediate{dest,source,bit} => format!("btst {},{},{}",r(dest),r(source),bit),
             BitSet { dest,source,bit } => format!("bset {},{},{}",r(dest),r(source),bit),
+            BitClearAt { dest,source,bit } => format!("bclr {},{},{}",r(dest),r(source),bit),
             IndexedMemory {store,width,signed,reg,base,index,shift} => format!("{}{}{} {},[{}+({}<<{})]",if store{"s"}else{"l"},width.letter(),if signed{"s"}else{""},r(reg),r(base),r(index),shift),
             IndexedByte { store,reg,base,index,shift } => format!("{}b {},[{}+({}<<{})]",if store{"s"}else{"l"},r(reg),r(base),r(index),shift),
             JumpShort { target } => format!("j8 .{:+}",i64::from(target)-i64::from(pc)),
@@ -666,6 +693,8 @@ impl Insn {
             JumpRegisterWide{reg} => format!("jr {}",r(reg)),
             JumpTableOffsets16{base,targets} => format!("jump.offsets16 0x{base:x} {}",targets.iter().map(|x|format!("0x{x:x}")).collect::<Vec<_>>().join(",")),
             JumpTableOffsets15{base,targets} => format!("jump.offsets15 0x{base:x} {}",targets.iter().map(|x|format!("0x{x:x}")).collect::<Vec<_>>().join(",")),
+            JumpTableOffsets12{base,targets} => format!("jump.offsets12 0x{base:x} {}",targets.iter().map(|x|format!("0x{x:x}")).collect::<Vec<_>>().join(",")),
+            JumpTableOffsets6{base,targets} => format!("jump.offsets6 0x{base:x} {}",targets.iter().map(|x|format!("0x{x:x}")).collect::<Vec<_>>().join(",")),
             DataSync => "dsb".into(),
             Stack { pop,last,extra } => format!("{} {},{}",if pop{"pop25"}else{"push25"},r(last),extra),
             MultipleWords { store,first,base,last,specials,decrement,writeback } => format!("{}mw.{}{} {},[{}],{},{}",
@@ -677,6 +706,25 @@ impl Insn {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn six_and_twelve_way_offsets_are_le_halfwords(){
+        let six=Insn::JumpTableOffsets6{base:0x4e18,targets:[0x4e24,0x4e4c,0x4e76,0x4f38,0x4f3e,0x4e7c]};
+        assert_eq!(six.encode(0,0).unwrap(),[0x0c,0x00,0x34,0x00,0x5e,0x00,0x20,0x01,0x26,0x01,0x64,0x00]);
+        let twelve=Insn::JumpTableOffsets12{base:0x4dac,targets:[0x4dc4,0x4dfe,0x4f68,0x4f80,0x4fe6,0x4ff4,0x5010,0x504e,0x504e,0x504e,0x5020,0x503c]};
+        let data=twelve.encode(0,0).unwrap();
+        assert_eq!(data.len(),24);
+        assert_eq!(&data[0..6],[0x18,0,0x52,0,0xbc,0x01]);
+        assert_eq!(&data[20..],[0x74,0x02,0x90,0x02]);
+        let mut bad=[0x4dc4;12];bad[5]=0x4dad;
+        assert!(Insn::JumpTableOffsets12{base:0x4dac,targets:bad}.encode(0,0).is_err());
+    }
+    #[test]
+    fn alu2_bclr_preserves_index_and_rejects_overflow(){
+        let b=Insn::BitClearAt{dest:R0,source:R0,bit:27};
+        assert_eq!(b.encode(0,0).unwrap(),[0x42,0x00,0x6c,0x09]);
+        assert_eq!(b.assembly(0,0),"bclr $r0,$r0,27");
+        assert!(Insn::BitClearAt{dest:R0,source:R0,bit:32}.encode(0,0).is_err());
+    }
     #[test]
     fn fifteen_way_jump_table_is_little_endian_data() {
         let t=[0x4554,0x455e,0x4568,0x45c6,0x45ec,0x45f2,0x462a,
