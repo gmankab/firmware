@@ -610,3 +610,17 @@ python3 tools/agent20_06_a32_roundtrip.py /private/venus.mbn 0xa8ea0 0xa92c8 \
   ```
 
 - **240 Rust tests and 13 Python tests passed**; successful release build not claimed. The next uncovered ARM runtime `0xc049c` (original file `0xc449c`) begins another controller helper. No OEM payload or signed metadata has been imported as opaque executable source; work is still old-base-provisional and not high-level semantic decompilation.
+
+## Checkpoint 69 — buffer projection and controller DMA-window publication
+
+- Contiguous independently typed Venus ARM32 bytes `[0xa8000,0xc09a0)` = **100,768 byte-identical bytes**, original MBN file `[0xac000,0xc49a0)`.
+- New `[0xc049c,0xc09a0)` = **1,284 bytes**, **310 ARM32 instructions (1,240 bytes)** and **11 separate diagnostic/global data words (44 bytes)**. An initial controller-message word is located at `[0xc05e0,0xc05e4)`; ten status/diagnostic words follow the second helper at `[0xc0978,0xc09a0)`.
+- Logic calculates buffer-plane strides, projects controller windows into output descriptors, uses ARM register-block memory transfers, and reports queued events. Both routines preserve original return paths and explicit data-table bounds.
+- Full emitted output equals pinned `venus.mbn` (0 differences). Independent Clang/LLVM verification also matches the 1,240 instruction bytes and 44 declared data bytes:
+
+  ```sh
+  python3 tools/agent20_06_a32_roundtrip.py /private/venus.mbn 0xc049c 0xc09a0 \
+    --data-range 0xc05e0:0xc05e4 --data-range 0xc0978:0xc09a0
+  ```
+
+- **241 Rust tests and 13 Python tests passed**; successful release build is not claimed. Next missing VMA `0xc09a0` (file `0xc49a0`). This is still the provisional older-Agent-03 branch, not a checkpoint-50-based integrated build, and source-level semantic decompilation/OEM signing remain unverified.
