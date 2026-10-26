@@ -424,3 +424,12 @@ Original reference: private `map220v-nabu-firmware/venus.mbn`, SHA-256 `9d4af65d
 - Contiguous typed A32 reconstruction `[0x21c78,0x31d80)` = **65,800 exact bytes**; new `[0x31b80,0x31d80)` = **512 bytes** containing **119 ARM32 instructions** and **9 data words**.
 - Updates per-channel byte-mode flags using ARM32 writeback addressing and optionally sends controller diagnostic callbacks. `[0x31d40,0x31d64)` is MMIO/diagnostic data.
 - Next routine begins at `0x31d80`; no reconstruction is claimed past this boundary or of OEM signature bytes.
+
+## Checkpoint 65 — controller allocation, MMIO diagnostics and initial status messages
+
+- Full contiguous typed A32 interval `[0x21c78,0x32190)` = **66,840 exact reference bytes**, MBN file `[0x25c78,0x36190)`.
+- New `[0x31d80,0x32190)` = **1,040 bytes**, **231 explicitly typed ARM32 instructions** and **29 non-instruction literal words** across seven named pools: `[0x31db0,0x31db8)`, `[0x31dc4,0x31dc8)`, `[0x31e80,0x31e94)`, `[0x31f60,0x31f74)`, `[0x31fe0,0x31ff0)`, `[0x32054,0x32064)`, `[0x32170,0x32190)`.
+- Includes a controller-status reporter, a tail-call status getter, allocation success/failure logging, controller release probes, and structured initial-state diagnostics. Data words resembling ARM instructions are explicitly emitted as data, never treated as executable A32.
+- Full generated fragment matches pinned Venus MBN reference SHA-256 `9d4af65d7ede845e900f1b29ff425b7a8e2947056e695e246e58a2091445a085` with zero byte differences; independent Clang/LLVM relocation-aware reassembly of all **1,040 new bytes** passes. Generated fragment SHA-256 `99559b545ce3e1a727be1a745e4c40b3486a0dec4cbeef942856217238811166`.
+- Whole Rust workspace **232 tests**, Python **13 tests** pass. Optimized release build was started but timed out in this execution environment and is **not claimed passed** for this checkpoint.
+- First uncovered executable routine begins at `0x32190` (within agent 20-03 exclusive reservation `[0x21c78,0x40000)`). The source is instruction-byte re-encoding, not a high-level semantic codec reimplementation and not signed/flashable firmware.
