@@ -906,3 +906,16 @@ python3 -S tools/adsp-agent20-rwe-next-controller-global-memory.py \
   --llvm-mc "$HEXAGON_LLVM_MC" --reference "$NABU_ADSP_REFERENCE" \
   --output /tmp/adsp-controller-global-memory-160.bin
 ```
+
+## Checkpoint 48: global controller SRAM and MMIO pointer-map publication `[0x11548,0x11624)`
+
+- Added **220 byte-identical ADSP executable bytes** `[0x11548,0x11624)` at physical `[0x8be0e548,0x8be0e624)`. Both fragments (76-byte pointer handoff `[0x11548,0x11594)` and 144-byte memory layout `[0x11594,0x11624)`) are assembled **entirely by LLVM6**, without privileged substitutions or imported executable bytes.
+- Reconstructs GP-relative memory-map publication, multiple 256-byte-aligned controller block offsets, a bounded initialization loop with `.new` conditional branch, and 32-/64-bit controller MMIO stores. Packet grouping preserves all explicit instruction extenders and register update semantics.
+- The total **468-byte source-built contiguous controller-global prefix** `[0x11450,0x11624)` matches the pinned `adsp.mbn` exactly; no OEM padding or data are counted. The function continues beyond file `0x11624` and remains **partial**.
+- Cumulative independently reconstructed ADSP RWE executable total: **6,716 bytes in eleven disjoint intervals**, retaining the older Agent 04 ancestry pending checkpoint-50-based integration.
+
+```sh
+python3 -S tools/adsp-agent20-rwe-next-controller-global-layout.py \
+  --llvm-mc "$HEXAGON_LLVM_MC" --reference "$NABU_ADSP_REFERENCE" \
+  --output /tmp/adsp-controller-global-layout-220.bin
+```
