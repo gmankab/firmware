@@ -319,3 +319,10 @@ python3 -m unittest discover -s tests -p 'test_*.py'
 - RWE continuation `[0x38108,0x388c0)` totals **1,976 original instruction bytes** with no differences against the pinned modem revision. The newest 108 bytes `[0x38854,0x388c0)` test SSR exception class 2 and 6, restore the thread stack/frame status, invoke protected controller callbacks, and transfer to the shared exception restore tail.
 - LLVM6's PC-relative **extended call** uses a relocation base four bytes different from the original Hexagon packet address. The named source-level call target is documented as runtime `0xc0815d1c`; requesting the assembler relocation with the checked +4 bias yields the original ISA displacement with no reference-word grafting. Three other extended packet-relative calls and one branch match directly.
 - All bytes `[0x38108,0x388c0)` match the same SHA-pinned modem image, with independent LLVM6 assembly and ISA-based checks. The following exception path begins at file `0x388c0`; RWE reconstruction remains partial and no new OEM signature is generated.
+
+## Checkpoint 38 — Alternate protected exception-owner exchange
+
+- RWE exception continuation `[0x38108,0x38950)` = **2,120 exact instruction bytes**; new region `[0x388c0,0x38950)` adds 144 bytes at physical `[0x8e0408c0,0x8e040950)`.
+- Introduced a checked SGP0 control-swap class, a predicate register read, protected lock owner acquire/store/release, interrupt-mask publication, saved P3:0 restore and compact compare-against-minus-one branch back to the common handler.
+- LLVM6 cannot recognize an SGP0 swap as producer for its `.new` compare, so the 3-word packet is authored as checked ISA operand fields. The compact compare branch's signed displacement is derived from a matrix of **synthetic** Hexagon LLVM6 assembly cases (not from copied firmware words). A guarded normalization fixes a checked alternative lock retry packet order and immediate producer marker; the entire 2,120-byte output then matches pinned `modem.mbn` exactly.
+- Next RWE instruction at file offset `0x38950`; the modem image remains incomplete and unsigned.

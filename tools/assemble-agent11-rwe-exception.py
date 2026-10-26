@@ -17,7 +17,7 @@ import subprocess
 import tempfile
 
 FILE_START = 0x38108
-FILE_END = 0x388c0
+FILE_END = 0x38950
 VIRTUAL_START = 0xc0840108
 PHYSICAL_START = 0x8e040108
 PINNED_SHA256 = '6f5cb32bc10e41abb40938d185805e788f5637a41d3ebcef278e4e169fc36782'
@@ -162,6 +162,28 @@ def normalize_llvm6_locked_packets(data: bytes) -> bytes:
         branch,predicate=read(0x38804),read(0x38808)
         write(0x38804,predicate)
         write(0x38808,branch)
+    if len(result)>=0x38950-FILE_START:
+        # LLVM6 schedules the conditional retry ahead of an independent
+        # immediate extender, and prematurely terminates the checked
+        # locked-store producer packet. Operand/class/parse values are
+        # validated before adjusting only these architecture-visible fields.
+        expected={
+            0x388e4:0x0c085004,  # extended protected-lock MMIO address
+            0x388e8:0x7800c000,  # r0 immediate, LLVM closed packet too soon
+            0x388ec:0xa0a0c100,  # architected memw_locked(r0,p0) = r1
+            0x388f0:0x5cff60f4,  # if(!p0) retry, emitted before producer
+            0x388f4:0x0c085004,  # PC-relative address extender
+            0x388f8:0x7e804080,  # conditional address reload
+            0x388fc:0x4180c001,  # conditional table-read closes packet
+        }
+        for address,encoded in expected.items():
+            if read(address)!=encoded:
+                raise ValueError(f'Unknown alternate context-lock packet at 0x{address:x}')
+        write(0x388e8,(read(0x388e8)&~(3<<14))|(1<<14))
+        branch,ext,immediate=read(0x388f0),read(0x388f4),read(0x388f8)
+        write(0x388f0,ext)
+        write(0x388f4,immediate)
+        write(0x388f8,branch)
     return bytes(result)
 
 

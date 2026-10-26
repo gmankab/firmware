@@ -840,3 +840,79 @@ MODEM_SYS_READ 1,8,1
 }
 .set modem_rwe_codec_restore_complete, agent11_modem_exception_dispatch_entry + (0x38a7c-0x38108)
 { jump ##modem_rwe_codec_restore_complete; nop }
+// Alternate protected exception-owner exchange. Swap the special controller
+// GP0 bank, capture predicate registers and record the saved frame, then
+// release the protected interrupt lock before returning to the common handler.
+.macro MODEM_RWE_SWAP_SGP0 regnum, marker=3
+    .if (\regnum < 0) || (\regnum > 31) || (\marker < 1) || (\marker > 3)
+      .error "invalid SGP0 control swap operand"
+    .endif
+    .word (0x65000000 | (\regnum << 16) | (\marker << 14))
+.endm
+.macro MODEM_RWE_PREDICATE_READ gpr, marker=1
+    .if (\gpr < 0) || (\gpr > 31) || (\marker < 1) || (\marker > 3)
+      .error "invalid predicate register read operand"
+    .endif
+    .word (0x6a000000 | (4 << 16) | (\marker << 14) | \gpr)
+.endm
+.globl agent11_modem_rwe_alternate_exception_owner
+agent11_modem_rwe_alternate_exception_owner:
+MODEM_RWE_SWAP_SGP0 31
+MODEM_RWE_PREDICATE_READ 1,1
+{ memd(lr+#48) = r1:0 }
+{ memw(lr+#44) = r1 }
+{ r0 = ##-1065090812 }
+modem_rwe_restore_alt_lock_retry:
+{ r1 = memw_locked(r0) }
+{
+    p0 = cmp.eq(r1,#0)
+    if (!p0.new) jump:nt modem_rwe_restore_alt_lock_retry
+    if (p0.new) r1 = #1
+}
+{ r0 = ##-1065090816 }
+{ memw_locked(r0,p0) = r1 }
+{
+    if (!p0) r0 = ##-1065090812
+    if (!p0) jump:nt modem_rwe_restore_alt_lock_retry
+    if (p0) r1 = memw(r0+#0)
+}
+MODEM_SYS_READ 0,8,1
+{ p0 = cmp.gt(r1,#0) }
+{ trace(r1) }
+MODEM_SYS_READ 0,63,1
+{
+    r1 = setbit(r1,r0)
+    memw(##-1065090816) = r1.new
+}
+{ r0 = setbit(r0,#16) }
+MODEM_SYS_WRITE 63,0,1
+{ r1 = #0; memw(##-1065090812) = r1.new }
+{
+    r0 = memw(lr+#0)
+    r1 = memw(lr+#44)
+}
+MODEM_RWE_CONFIG_WRITE 4,1,1    // P3:0
+{ r1 = #-6 }
+{ trace(r1) }
+// LLVM6 cannot track LR as a packet-local `.new` producer through an
+// independently checked SGP0 hardware swap macro. Encode the 3-instruction
+// producer/move/new-value branch packet with its public ISA operand fields.
+// The compact branch halfword displacement encoding is corroborated against
+// multiple *synthetic* LLVM6 packet-distance cases before reference checking.
+.macro MODEM_RWE_LR_MOVE_TO register, marker=1
+    .if (\register < 0) || (\register > 31) || (\marker != 1)
+      .error "invalid LR move packet continuation"
+    .endif
+    .word (0x70000000 | ((31 + 96) << 16) | (\marker << 14) | \register)
+.endm
+.macro MODEM_RWE_COMPACT_LR_NEG1_RETURN displacement, marker=3
+    .if ((\displacement & 1) != 0) || (\displacement < -1024) || (\displacement > 1022) || (\marker != 3)
+      .error "invalid compact compare(-1)/return branch displacement"
+    .endif
+    .word (0x2604e000 | (((\displacement >> 9) & 3) << 20) | ((\displacement >> 1) & 255))
+.endm
+modem_rwe_alternate_frame_exit_packet:
+MODEM_RWE_SWAP_SGP0 31,1
+MODEM_RWE_LR_MOVE_TO 1,1
+.set modem_rwe_alt_exception_restore, agent11_modem_exception_dispatch_entry + (0x38854-0x38108)
+MODEM_RWE_COMPACT_LR_NEG1_RETURN (0x38854 - 0x38944),3
