@@ -958,3 +958,20 @@ python3 -S tools/adsp-agent20-rwe-next-sram-zero-init.py \
   --llvm-mc "$HEXAGON_LLVM_MC" --reference "$NABU_ADSP_REFERENCE" \
   --output /tmp/adsp-sram-zero-initialization-56.bin
 ```
+
+## Checkpoint 52: SRAM/controller status and initialization `[0x116d8,0x11754)`
+
+- Added **124 independently emitted V66 executable bytes** immediately after checkpoint 51's SRAM zeroing prefix. Physical address range `[0x8be0e6d8,0x8be0e754)`; pinned `adsp.mbn` file `[0x116d8,0x11754)`; resulting SHA-256 `617023865f00ada1b88418e572f470dbae8ee4f4aee9915dafe9ce7cc8bce1ff`.
+- The source groups `call` with the subsequent GP store or immediate assignment **within the same Hexagon packet**. Without this grouping LLVM6 places different parse-marker bits in five calls despite having the same operands.
+- LLVM6 assembles **29 of 31 instruction words** from mnemonic source. Two V66-only reads (`R2 = SYSCFG`, `R10 = SGP0`) are substituted only into exactly validated LLVM6 `nop` placeholders via existing typed, register-checked encoders. The reference image is never read during output generation; it is used only by `verify` for SHA-256 and exact byte comparison.
+- Rizin independently decodes the full generated 124-byte stream; both privileged reads and all branch/call targets match. Four focused tests verify the packet grouping, typed operation locations, exact reference comparison and corruption rejection.
+- Total independently reconstructed ADSP RWE executable code now **7,012 bytes across 12 disjoint intervals** (previous 6,888 + 124). `[0x116a0,0x11754)` is one **180-byte contiguous** partial SRAM/controller routine, while the preceding eight zero bytes `[0x11698,0x116a0)` remain linker fill and are excluded from code counts.
+- The routine continues from file `0x11754`; its later branches are not complete. Entire ADSP and OEM signature reconstruction remain outstanding; this is an older Agent 04-based branch, not the unavailable checkpoint-50-integrated branch.
+
+Reproduce:
+
+```sh
+python3 -S tools/adsp-agent20-rwe-next-sram-controller-status.py \
+  --llvm-mc "$HEXAGON_LLVM_MC" --reference "$NABU_ADSP_REFERENCE" \
+  --output /tmp/adsp-sram-controller-status-124.bin
+```
