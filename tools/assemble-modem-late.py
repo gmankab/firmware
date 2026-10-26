@@ -40,6 +40,7 @@ AUX_FIND_FORMAT_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/m
 AUX_FIND_CLASS_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_aux_find_codec_class.s"
 AUX_CONTROLLER_SLOT_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_aux_controller_slot.s"
 AUX_LARGE_CONTROLLER_PREFIX_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_aux_large_controller_prefix.s"
+AUX_LARGE_CONTROLLER_MID_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_aux_large_controller_mid.s"
 AUX_DISPATCH_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_aux_dispatch_helpers.s"
 AUX_TYPE_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_aux_type_config.s"
 AUX_NOTIFY_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_aux_controller_notify.s"
@@ -145,6 +146,8 @@ AUX_CONTROLLER_SLOT_START = AUX_FIND_CLASS_END
 AUX_CONTROLLER_SLOT_END = 0x4476BC
 AUX_LARGE_CONTROLLER_PREFIX_START = AUX_CONTROLLER_SLOT_END
 AUX_LARGE_CONTROLLER_PREFIX_END = 0x447724
+AUX_LARGE_CONTROLLER_MID_START = AUX_LARGE_CONTROLLER_PREFIX_END
+AUX_LARGE_CONTROLLER_MID_END = 0x4477FC
 MARKER_MASK = 3 << 14
 CONTINUE_MARKER = 1 << 14
 END_MARKER = 3 << 14
@@ -1228,6 +1231,7 @@ def output_fragments(llvm_mc: Path) -> dict[int, bytes]:
     aux_find_class=restore_aux_find_class_new_predicate(assemble(llvm_mc,AUX_FIND_CLASS_SOURCE))
     aux_controller_slot=assemble(llvm_mc,AUX_CONTROLLER_SLOT_SOURCE)
     aux_large_controller_prefix=assemble(llvm_mc,AUX_LARGE_CONTROLLER_PREFIX_SOURCE)
+    aux_large_controller_mid=assemble(llvm_mc,AUX_LARGE_CONTROLLER_MID_SOURCE)
     aux_dispatch = assemble(llvm_mc,AUX_DISPATCH_SOURCE)
     aux_type = restore_aux_type_return_packets(assemble(llvm_mc,AUX_TYPE_SOURCE))
     aux_notify = restore_aux_controller_notify_packets(assemble(llvm_mc,AUX_NOTIFY_SOURCE))
@@ -1276,6 +1280,7 @@ def output_fragments(llvm_mc: Path) -> dict[int, bytes]:
         (aux_find_class,AUX_FIND_CLASS_START,AUX_FIND_CLASS_END,'class scanner'),
         (aux_controller_slot,AUX_CONTROLLER_SLOT_START,AUX_CONTROLLER_SLOT_END,'controller slot'),
         (aux_large_controller_prefix,AUX_LARGE_CONTROLLER_PREFIX_START,AUX_LARGE_CONTROLLER_PREFIX_END,'large controller prefix'),
+        (aux_large_controller_mid,AUX_LARGE_CONTROLLER_MID_START,AUX_LARGE_CONTROLLER_MID_END,'large controller continuation'),
     ]:
         if len(fragment)!=end-start:
             raise ValueError(f"auxiliary {label} source length mismatch")
@@ -1317,7 +1322,8 @@ def output_fragments(llvm_mc: Path) -> dict[int, bytes]:
             AUX_FACTORY_END==AUX_FIND_FORMAT_START and
             AUX_FIND_FORMAT_END==AUX_FIND_CLASS_START and
             AUX_FIND_CLASS_END==AUX_CONTROLLER_SLOT_START and
-            AUX_CONTROLLER_SLOT_END==AUX_LARGE_CONTROLLER_PREFIX_START):
+            AUX_CONTROLLER_SLOT_END==AUX_LARGE_CONTROLLER_PREFIX_START and
+            AUX_LARGE_CONTROLLER_PREFIX_END==AUX_LARGE_CONTROLLER_MID_START):
         raise ValueError("missing source after controller registry block")
     if AUX_LOOKUP_END!=AUX_REGISTRY_CORE_START or AUX_REGISTRY_CORE_END!=AUX_DISPATCH_START:
         raise ValueError("modem auxiliary registry source intervals have a gap")
@@ -1327,7 +1333,8 @@ def output_fragments(llvm_mc: Path) -> dict[int, bytes]:
         AUX_START:auxiliary+aux_dynamic+aux_init+aux_align+
                   aux_guard+aux_stage+aux_mmio+aux_heap+aux_worker+
                         aux_lookup+aux_registry_core+registry+aux_notify_scan+aux_cleanup+
-                        aux_factory+aux_find_format+aux_find_class+aux_controller_slot+aux_large_controller_prefix,
+                        aux_factory+aux_find_format+aux_find_class+aux_controller_slot+
+                        aux_large_controller_prefix+aux_large_controller_mid,
     }
 
 

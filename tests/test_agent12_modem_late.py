@@ -1001,3 +1001,18 @@ class ModemLateTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class ModemLateControllerContinuationTests(unittest.TestCase):
+    def test_initial_session_continuation_is_source_assembled_without_oem_words(self):
+        self.assertEqual(agent12.AUX_LARGE_CONTROLLER_MID_START,0x447724)
+        self.assertEqual(agent12.AUX_LARGE_CONTROLLER_MID_END,0x4477FC)
+        self.assertEqual(agent12.AUX_LARGE_CONTROLLER_MID_START,
+                         agent12.AUX_LARGE_CONTROLLER_PREFIX_END)
+        asm=agent12.AUX_LARGE_CONTROLLER_MID_SOURCE.read_text()
+        self.assertIn('if (!cmp.eq(r17.new,#0))',asm)
+        self.assertIn('r21 = r0',asm)
+        self.assertIn('call diagnostic_console',asm)
+        self.assertIn('jump early_controller_exit',asm)
+        self.assertNotIn('.word',asm)
+        self.assertNotIn('.incbin',asm)
