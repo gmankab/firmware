@@ -716,3 +716,19 @@ python3 tools/verify-agent20-10-cdsp-controller-secondary-completion.py \
   --generated /private/secondary-completion-60.bin \
   --prefix /private/controller-rwe-2120.bin --reference /private/cdsp.mbn
 ```
+
+## Checkpoint 36 — dual controller return paths through 0x56890; 3,348 executable bytes
+
+- Independently source-encoded **72 Hexagon V66 executable bytes** at CDSP file `[0x56848,0x56890)`, physical `[0x96cc8848,0x96cc8890)` to finish the common normal- and empty-plane unwind paths within the large controller function.
+- Typed checked operations restore saved `R17:16`, `R19:18`, `R21:20`, `R23:22`, `R25:24` and `R27:26` register pairs from their frame offsets, prepare the return pair `R1:0=combine(0,1)`, reload the current bitplane field, tail-call helper `0x96dc0aac` from two distinct physical call sites, and deallocate the original frame. Packet ordering is explicit and unsupported registers/frame offsets are rejected.
+- Full `[0x56000,0x56890)` prefix has **2,192 file bytes = 2,148 independently generated executable + 44 named layout NOP bytes**; plus the completely reconstructed disjoint `[0x55000,0x554b0)` controller contributes 1,200 executable bytes, for **3,348 independently generated executable bytes** total. Both standalone source-emitted output and joined prefix are exactly equal to pinned CDSP MBN (zero differing bytes).
+- Independently authored LLVM6 V60 fixture `tools/agent20-10-cdsp-controller-return-paths.s` matches the semantic sequence of all 18 words; **14/18 words are byte-identical**, four differ solely by packet parse-marker scheduling. Independent V66 Rizin decoder confirms the original packet structure, both verified shared-helper jump targets and all two saved-state paths. `tools/verify-agent20-10-cdsp-controller-return-paths.py` checks these properties without copying the original firmware into the emitter.
+- Full offline **258 Rust tests, 23 Python tests, release build** passed. The next uncovered file offset is `0x56890`, physical `0x96cc8890`, where three diagnostic/error-call paths conclude the controller. Source lineage remains **provisional from older Agent 05 CDSP history**, not checkpoint-50 integrated and not OEM-authenticated/flashable.
+
+```sh
+cargo run --offline --locked -p firmware-tools --bin cdsp-late-controller-return-paths -- verify-prefix /private/cdsp.mbn
+python3 tools/verify-agent20-10-cdsp-controller-return-paths.py \
+  --llvm-mc /private/llvm6/bin/llvm-mc --rz-asm /private/rz-asm \
+  --generated /private/return-paths-72.bin \
+  --prefix /private/controller-rwe-2192.bin --reference /private/cdsp.mbn
+```
