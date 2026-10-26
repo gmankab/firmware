@@ -441,3 +441,10 @@ Original reference: private `map220v-nabu-firmware/venus.mbn`, SHA-256 `9d4af65d
 - Separate non-instruction data pools: `[0x32278,0x32290)`, `[0x32368,0x3238c)`, `[0x323d8,0x323ec)`, `[0x3241c,0x32424)`, `[0x32464,0x32470)`, `[0x324d0,0x324e0)`, `[0x3250c,0x32518)`, `[0x32544,0x32550)`.
 - Reference `venus.mbn` pinned SHA-256 `9d4af65d7ede845e900f1b29ff425b7a8e2947056e695e246e58a2091445a085`. Full Rust generation and independent Clang/LLVM assembler pass for all 960 new bytes with zero differences. **233 Rust and 13 Python tests** passed. Release-mode compilation is not verified for this checkpoint.
 - Next function begins at runtime `0x32550`. The implementation proves operand-level A32 byte agreement, not high-level codec semantics or OEM signing.
+
+## Checkpoint 67 — codec controller resource buffers and error unwinding
+
+- Contiguous typed A32 `[0x21c78,0x329f8)` = **68,992 byte-identical bytes**, new `[0x32550,0x329f8)` = **1,192 bytes**, **284 instructions** and **14 separately identified data words** in `[0x329c0,0x329f8)`.
+- Reconstructs an allocator for four controller buffer classes, callback attachment, MMIO register fields, configuration checks and rollback on allocation failures. Controller diagnostic pointers and source offsets are held in a named data pool. No vendor instruction bytes or inferred zeros enter the generated fragment.
+- Direct whole-fragment private `venus.mbn` comparison and independent Clang/LLVM relocation-aware reconstruction of the 1,192 new bytes both pass with zero mismatches. Rust workspace **234 tests** and Python **13 tests** pass. Release-build status remains **unconfirmed**, not claimed passed.
+- Next function begins at runtime `0x329f8`. This is byte-exact typed A32 instruction re-encoding, not high-level firmware semantics, hardware execution or OEM authentication.
