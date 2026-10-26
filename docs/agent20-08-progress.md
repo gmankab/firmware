@@ -827,3 +827,19 @@ verified fragments**. The earlier V66 memory-duplex dispatcher
 `[0x412b4,0x413b8)` remains unverified, is not in the Git tree and has
 not been included in these figures. Most ADSP executable bytes remain
 unreconstructed; the OEM signing region is not regenerated.
+
+**Checkpoint 54 — paired-format controller status-tag validation:**
+Independently assembled and verified **104 executable bytes** at ADSP
+`[file 0x3e368,0x3e3d0)`. The function checks the controller's 64-bit
+status-descriptor pair, compares two supported packet tags, dispatches an
+optional source-level platform validator and returns status through a saved
+Hexagon frame. SHA-256 of the generated instructions:
+`5a5f6403eb49542abb1bbe196ae4d041a650c50a6843d7fa9e1429fc71496baf`.
+All 104 bytes match the pinned original `adsp.mbn` in the same interval;
+no opaque vendor executable words were imported. The immediately following
+function starts at `0x3e3d0`, while a 4-byte NOP precedes the previously
+rebuilt descriptor refresh at `0x3e480` and is not counted.
+
+Cumulative late ADSP: **8,784 independently source-assembled executable
+bytes across 102 disjoint fragments**. The earlier V66 memory-duplex
+case dispatcher at `[0x412b4,0x413b8)` remains unverified and excluded.
