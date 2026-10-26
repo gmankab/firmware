@@ -489,3 +489,24 @@ python3 tools/verify-agent20-10-cdsp-bounded-compare.py \
   --generated /private/bounded-48.bin --prefix /private/cdsp-rwe-1472.bin \
   --reference /private/cdsp.mbn
 ```
+
+## Checkpoint 26 — bounded copy-or-delegate hardware loop, 2,692 executable bytes
+
+- Source-derived Hexagon executable `[0x565c0,0x565fc)` = 60 bytes, and **one separate structural 32-bit NOP** `[0x565fc,0x56600)` = 4 layout bytes (not source-code reconstruction); ELF virtual addresses map to `[0xc00c85c0,0xc00c8600)`, physical code `[0x96cc85c0,0x96cc85fc)`.
+- The function saves R17:16 in an 8-byte frame, short-circuits zero copy lengths, calculates destination/source overlap, selects an inline `loop0` byte copy or the shared copy service `0x96ddb740`, and returns the number of handled bytes.
+- The combined RWE file prefix `[0x56000,0x56600)` = **1,536 byte-exact layout bytes**. Of those, **1,492** are typed source-generated executable instructions and **44** are explicitly accounted linker/align NOPs. The disjoint complete short controller adds another **1,200 executable bytes**, for **2,692** independently generated CDSP executable bytes across both regions.
+- Checked narrow constructors encode the two-word `R16.new` zero guard, unsigned-packet predicate and fall-through, `loop0`/`:endloop0`, `memub(R1++#1)`, `memb(R0++#1)=R2.new`, and the one-word direct physical call. Invalid registers or branch targets are rejected.
+- LLVM6 independently assembles **64 bytes** for the same semantic routine plus its NOP. Eleven of 15 original executable words are identical; the other four are packet-scheduled in opposite order with only parse-marker differences. Rizin independently validates all **15 source-emitted original V66 instruction words**, loop bounds and physical call target; the 16th word is the isolated NOP/fill.
+- Direct pinned-original comparison and full 1,536-byte prefix comparison both pass with zero differences. Workspace Rust/Python tests and offline release build passed. The next unimplemented function starts at file `0x56600`, physical `0x96cc8600`.
+- Provisional branch still descends from Agent 05 old CDSP base; not checkpoint-50 merged or newly authenticated hardware firmware.
+
+Independent checks:
+
+```sh
+cargo run --offline --locked -p firmware-tools --bin cdsp-late-copy-delegate -- verify /private/cdsp.mbn
+cargo run --offline --locked -p firmware-tools --bin cdsp-late-copy-delegate -- verify-prefix /private/cdsp.mbn
+python3 tools/verify-agent20-10-cdsp-copy-delegate.py \
+  --llvm-mc /private/llvm6/bin/llvm-mc --rz-asm /private/rz-asm \
+  --generated /private/copy-delegate-60.bin --prefix /private/cdsp-rwe-1536.bin \
+  --reference /private/cdsp.mbn
+```
