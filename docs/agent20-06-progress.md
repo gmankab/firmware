@@ -387,3 +387,11 @@ python3 tools/agent20_06_a32_roundtrip.py /private/venus.mbn 0xa8ea0 0xa92c8 \
 - Implements input frame-plane control, buffer subscription/allocation, codec error feedback and short status inspection. Original conditional branches and return forms preserved; no OEM instruction-array imports.
 - Rust whole-region byte comparison, independent Clang/LLVM assembler check, **216 Rust tests**, **13 Python tests** all pass with zero differences. Offline release build not claimed.
 - Next runtime `0xb87d8`, firmware offset `0xbc7d8`; provisional older-base A32 instruction encoding, not a new signed or flashable firmware image.
+
+## Checkpoint 45 — codec frame-descriptor dispatch, first portion
+
+- Cumulative independently generated Venus runtime `[0xa8000,0xb8c00)` = **68,608 byte-identical bytes**, pinned `venus.mbn` file `[0xac000,0xbcc00)`.
+- New typed span `[0xb87d8,0xb8c00)` = **1,064 bytes**: 258 ARM32 instructions (1,032 bytes) and two four-entry data/target tables (eight words, 32 bytes). The mode tables reside at `[0xb88b8,0xb88c8)` and `[0xb8ab0,0xb8ac0)` and have dedicated Rust unit checks.
+- The function begins at `0xb87d8`; the end of this checkpoint at `0xb8c00` is an **incomplete function boundary**, not an invented return. The rest of the large descriptor state machine will be reconstructed in subsequent checkpoints.
+- Full Rust fragment compares byte-for-byte with the pinned original reference. Independent ARM-mode Clang/LLVM mnemonic reassembly shows **zero mismatches**, explicitly treating the jump tables as data, not executable opcodes. **217 Rust tests and 13 Python tests pass.** Offline release build not claimed.
+- This is a provisional older-base ARM32 instruction-level reconstruction; high-level behavior and OEM authentication remain unproven. Next uncovered runtime `0xb8c00`, MBN file `0xbcc00`.
