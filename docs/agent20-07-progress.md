@@ -945,3 +945,16 @@ python3 -S tools/adsp-agent20-rwe-next-controller-global-full.py \
   --llvm-mc "$HEXAGON_LLVM_MC" --reference "$NABU_ADSP_REFERENCE" \
   --output /tmp/adsp-controller-global-complete-584.bin
 ```
+
+## Checkpoint 51: SRAM-zero initialization hardware-loop prefix `[0x116a0,0x116d8)`
+
+- Added **56 independently source-assembled Hexagon V66 executable bytes** `[file 0x116a0,0x116d8)` at physical `[0x8be0e6a0,0x8be0e6d8)`. All fourteen source instruction words are produced directly by LLVM6; no unsupported privileged operations or OEM opcode arrays were needed.
+- The code creates a controller stack frame, prepares a non-NULL SRAM destination, and clears 128 eight-byte records via original `loop0`/`:endloop0` packet structure. The original load/store packet includes `:mem_noshuf`, which is explicit in the mnemonic source and required to preserve the byte-identical packet order.
+- The **eight file-backed zeros** `[0x11698,0x116a0)` are linker fill and are strictly **excluded** from counted source code. The next conditional path begins at `0x116d8`, so this is a partial function, not a new complete ADSP firmware.
+- Total independently generated executable bytes in the ADSP RWE section: **6,888 bytes across twelve disjoint intervals**. The exact reference image was used for comparison only; the branch remains based on older Agent 04 history pending checkpoint-50 integration.
+
+```sh
+python3 -S tools/adsp-agent20-rwe-next-sram-zero-init.py \
+  --llvm-mc "$HEXAGON_LLVM_MC" --reference "$NABU_ADSP_REFERENCE" \
+  --output /tmp/adsp-sram-zero-initialization-56.bin
+```
