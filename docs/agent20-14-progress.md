@@ -1271,3 +1271,25 @@ two separately source-authored dispatch tables add 496 data bytes for
 The Agent13 leading seam and the remainder of Agent14's 2.44MB allocation
 are not yet reconstructed. Behavioral and OEM authorization checks remain
 outside these binary-equivalence tests.
+
+## Checkpoint 32 — buffered window record processing
+
+Four adjacent Hexagon V66 routines at pinned WLAN file offsets
+`[0x106e8c,0x1071e0)` (VMA `[0xb00c6e8c,0xb00c71e0)`) add **852 exact
+executable bytes**:
+
+- `[0x106e8c,0x106f8c)` (256): stream window state update and diagnostics.
+- `[0x106f8c,0x107060)` (212): session window record traversal.
+- `[0x107060,0x1071a8)` (328): window bounds and record validation.
+- `[0x1071a8,0x1071e0)` (56): window slot reset and status reporting.
+
+Two complex packet groupings require precise legal source-level instruction
+ordering, not imported OEM instruction words. LLVM22/V66 and independent
+LLVM6/V65 both produce byte-identical output. The pinned MBN comparison,
+packet decoder, and entire cumulative build report no differences.
+
+Cumulative executable `[0x1001c4,0x1071e0)` is **28,700 bytes**, plus
+496 independently constructed jump-table data bytes: **29,196 total**.
+Next new function begins at file `0x1071e0` (VMA `0xb00c71e0`). The initial
+452-byte Agent13 seam, most of the WLAN executable, hardware behavior and
+new firmware authentication remain unresolved.
