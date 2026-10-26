@@ -553,3 +553,11 @@ Original reference: private `map220v-nabu-firmware/venus.mbn`, SHA-256 `9d4af65d
 - Reconstructed descriptor pointer, queue count/index, callback synchronization, wraparound, 2D stride math, buffer deallocation/zeroing and fault-reporting helpers. The instructions are auditable public architecture encodings, not source-level proof of semantic equivalence.
 - Complete 82,540-byte emitter and standalone independent Clang/LLVM reassembly of the new 760 bytes report **zero mismatches** versus the original pinned Venus MBN. Generated-fragment SHA-256: `9e1261ae69b74219d6ba01d28d2179834b0b09ff6a91dfa2aa664a2a2304bcfa`.
 - Next runtime function begins at `0x35ee4`, below Agent 20-03's exclusive `0x40000` reservation boundary.
+
+## Checkpoint 82 — typed ring entry lookup/update and packet delivery
+
+- Contiguous generated ARM32 `[0x21c78,0x36048)` = **82,896 reference-exact bytes**, file `[0x25c78,0x3a048)`.
+- New `[0x35ee4,0x36048)` = **356 bytes**, **86 A32 instructions** and three non-executable diagnostic values `[0x35fac,0x35fb8)`. Implements descriptor search and in-place update, queue allocation retry and guarded delivery of a selected packet to its destination.
+- Full fragment was regenerated using typed ARM32 operations, byte-compared against pinned `venus.mbn` and independently reassembled with Clang/LLVM: **zero byte differences**.
+- Generated SHA-256: `1c2e88a039551e830218d09354fa773bccf31be992d24454eee81d093160d1e4`. The next input-mode controller initializer starts at `0x36048`.
+- No claim of high-level source-code or hardware-execution equivalence; this remains an unsignable, nonflashable partial firmware segment.
