@@ -726,3 +726,18 @@ source-level ordering, not pasted OEM code. The two NOPs preceding `0x410a0`
 are excluded. Newly authored, byte-exact code: **172 bytes**, cumulative
 **7,776 independently assembled executable bytes across 96 fragments**.
 Remainder of the ADSP executable segments is still not reconstructed.
+
+
+**Checkpoint 49 — bounded argument marshaller:** Reconstructed the complete
+212-byte controller callback argument-marshalling routine at ADSP file
+`[0x4114c,0x41220)` (SHA-256
+`457f56b85d12933ed6618b48c4fc2853162e343f1ecf0c3f522dcd1fe3089466`).
+The function validates a descriptor range, writes stack parameters,
+performs platform registry calls and a bounded retry loop, handles short
+completion and failure codes, then restores the original callee frame.
+LLVM6 initially packed the last instruction group differently; restoring
+source-level operation order reconstructed all original packet boundaries
+without opaque byte literals. This routine is directly adjacent to the
+checkpoint-48 controller mode validator. **New: 212 source-assembled bytes;
+cumulative 7,988 independently assembled ADSP executable bytes across 97
+fragments.** The remaining ADSP image and OEM authenticity are unreconstructed.
