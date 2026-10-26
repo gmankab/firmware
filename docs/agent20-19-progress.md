@@ -759,3 +759,15 @@ new executable bytes are added. See
   cross-version checks, provenance limitations and reproducer.
 - Agent 19 remains a portable branch from the older integration preview,
   not a descendant of the missing checkpoint-50 Git commit.
+
+## Agent 20-19 checkpoint 21 — pinned external seed SHA-256 manifest
+
+- Added a strict **60-range digest manifest** for all 27,215 externally supplied bytes needed by the conditional DLM linker. This is revision-specific to the pinned postmarketOS image (`8b8455…b70b5`) and records **only SHA-256, boundaries and provenance; no OEM payload**.
+- New `novatek-dlm seed-manifest` and `verify-seed-manifest <pinned-image>` commands; `assemble-sparse` and `verify-sparse-rebuild` validate the manifest and all seed digests *before* generating output. A synthetic-unpinned library API remains for unit tests but the user CLI fails closed.
+- Separate Python `hashlib` implementation verifies the plan and supplied image/seed-directory, and tests reject altered profiles, changed SHA, moved/reordered/missing ranges and content mutations. An actual mutated private seed was rejected before creating an output file.
+- Independently source-authored DLM **remains 9,353 bytes**, reference-dependent **12,984 bytes**, external **27,215 bytes**, 60 seed ranges. These hashes are integrity constraints and do **not** recover firmware source or prove OEM authenticity.
+- See `docs/agent20-19-dlm-pinned-seeds.md`; original firmware/seed directory and rebuilt conditional DLM remain private and are never committed.
+
+### Checkpoint 21 executed gates
+
+The workspace test run completed with **449 Rust tests passed**, **215 Python test cases discovered (58 skipped, 157 executed/passed)**; the full offline workspace release build passed under Rust 1.99.1. The release-built CLI accepted all 60 exact external seeds and emitted a 49,552-byte conditional DLM matching the original image (DLM SHA-256 `c09ed40d0f123b7680a12097fb329ff35515e5936abd7a3b4526b042fc689591`). An altered private seed failed before an output file was created. The CLI rejected the older map220v firmware revision before seed comparison. No private image, unknown seed blob or rebuilt conditional full DLM is shipped in this checkpoint.

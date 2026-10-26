@@ -18,6 +18,8 @@
 #[path = "../devices/xiaomi_nabu/novatek_dlm_envelope.rs"] mod novatek_dlm_envelope;
 #[path = "../devices/xiaomi_nabu/novatek_dlm_provenance.rs"] mod novatek_dlm_provenance;
 #[path = "../devices/xiaomi_nabu/novatek_dlm_sparse.rs"] mod novatek_dlm_sparse;
+#[path = "../devices/xiaomi_nabu/novatek_dlm_seed_manifest.rs"] mod novatek_dlm_seed_manifest;
+#[path = "../wmfw_sha256.rs"] mod wmfw_sha256;
 #[path = "../devices/xiaomi_nabu/novatek_dlm_record_suffix.rs"] mod novatek_dlm_record_suffix;
 #[path = "../devices/xiaomi_nabu/novatek_dlm_small_records.rs"] mod novatek_dlm_small_records;
 #[path = "../devices/xiaomi_nabu/novatek_dlm_small_relocations.rs"] mod novatek_dlm_small_relocations;
@@ -223,6 +225,21 @@ fn run()->Result<(),String> {
             }
             println!("  ]\n}}");
         }
+        Some("seed-manifest") if args.len()==1 => {
+            let parts=generated_fragments()?;
+            let plan=novatek_dlm_sparse::plan(&parts)?;
+            novatek_dlm_seed_manifest::pinned_manifest(&plan)?;
+            print!("{}",novatek_dlm_seed_manifest::MANIFEST);
+        }
+        Some("verify-seed-manifest") if args.len()==2 => {
+            let image=fs::read(&args[1]).map_err(|e|e.to_string())?;
+            if hex_digest(&image)!=REFERENCE_SHA256 {return Err("wrong Novatek reference revision".into());}
+            let parts=generated_fragments()?;
+            let plan=novatek_dlm_sparse::plan(&parts)?;
+            let seeds=novatek_dlm_sparse::seeds_from_private_reference(&image,&plan)?;
+            novatek_dlm_seed_manifest::verify_pinned_seeds(&plan,&seeds)?;
+            println!("Verified {} pinned DLM external seed ranges ({} bytes), SHA-256 match for each; zero added source-byte credit.",seeds.len(),plan.externally_required_bytes);
+        }
         Some("assemble-sparse") if args.len()==3 => {
             let parts=generated_fragments()?;
             let plan=novatek_dlm_sparse::plan(&parts)?;
@@ -248,6 +265,7 @@ fn run()->Result<(),String> {
                     .map_err(|e|format!("missing externally supplied DLM seed at file 0x{:x}: {e}",range.file_start))?;
                 seeds.push(novatek_dlm_sparse::ExternalSeed{file_start:range.file_start,bytes});
             }
+            novatek_dlm_seed_manifest::verify_pinned_seeds(&plan,&seeds)?;
             let rebuilt=novatek_dlm_sparse::assemble(&parts,&seeds)?;
             fs::write(&args[2],rebuilt).map_err(|e|e.to_string())?;
             println!("Wrote conditional DLM payload (49552 bytes) to {}: {} source bytes, {} dependent and {} externally supplied. Not a complete firmware image or independently source-rebuilt payload.",
@@ -259,6 +277,7 @@ fn run()->Result<(),String> {
             verify_reference(&image,&parts)?; // Pinned hash, CRC, envelope, aliases and authored bytes.
             let plan=novatek_dlm_sparse::plan(&parts)?;
             let seeds=novatek_dlm_sparse::seeds_from_private_reference(&image,&plan)?;
+            novatek_dlm_seed_manifest::verify_pinned_seeds(&plan,&seeds)?;
             let reconstructed=novatek_dlm_sparse::assemble(&parts,&seeds)?;
             let original=image.get(novatek_layout::DLM_FILE_START..novatek_layout::DLM_FILE_END)
                 .ok_or("truncated pinned Novatek DLM")?;
@@ -286,7 +305,7 @@ fn run()->Result<(),String> {
             println!("Emitted {} data fragments ({} bytes), with explicit holes retained in the provenance manifest.",
                 parts.len(),parts.iter().map(|part|part.bytes.len()).sum::<usize>());
         }
-        _=>return Err("usage: novatek-dlm ledger | sparse-plan | assemble-sparse <seed-dir> <output-DLM.bin> | verify-sparse-rebuild <pinned-image.bin> | emit <directory> | verify-reference <pinned-image.bin> | check-envelope <image.bin> | verify-bank-pairs <pinned-image.bin> | verify-calibration-alias <pinned-image.bin> | verify-bank-aliases <pinned-image.bin> | verify-record-suffixes <pinned-image.bin> | verify-small-records <pinned-image.bin> | verify-narrow-bank <pinned-image.bin> | verify-zero-bank-aliases <pinned-image.bin> | verify-descriptor-geometry <pinned-image.bin> | inspect-control-candidates <pinned-image.bin>".into()),
+        _=>return Err("usage: novatek-dlm ledger | sparse-plan | seed-manifest | verify-seed-manifest <pinned-image.bin> | assemble-sparse <seed-dir> <output-DLM.bin> | verify-sparse-rebuild <pinned-image.bin> | emit <directory> | verify-reference <pinned-image.bin> | check-envelope <image.bin> | verify-bank-pairs <pinned-image.bin> | verify-calibration-alias <pinned-image.bin> | verify-bank-aliases <pinned-image.bin> | verify-record-suffixes <pinned-image.bin> | verify-small-records <pinned-image.bin> | verify-narrow-bank <pinned-image.bin> | verify-zero-bank-aliases <pinned-image.bin> | verify-descriptor-geometry <pinned-image.bin> | inspect-control-candidates <pinned-image.bin>".into()),
     }
     Ok(())
 }
