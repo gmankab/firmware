@@ -1163,3 +1163,36 @@ MODEM_SYS_WRITE 2,24,1             // STID
 MODEM_SYS_WRITE 7,22,3             // CCR
 { r21:20 = memd(r23+#64); r23:22 = memd(r23+#56) }
 MODEM_RWE_RETURN_FROM_EXCEPTION 3
+// Protected MODECTL fast-path: compare thread ownership and controller
+// flags before entering the exception-vector slow path.
+.globl agent11_modem_rwe_dispatch_mode_ctl
+agent11_modem_rwe_dispatch_mode_ctl:
+MODEM_SYS_READ 3,8,3                // HTID
+MODEM_SYS_READ 1,17,3               // MODECTL
+{ r1 = extractu(r1,#4,#0); r2 = extractu(r1,#4,#16) }
+{
+    r1 = xor(r1,r2)
+    r2 = memw(r28+##-1065068280)
+}
+{
+    r1 = clrbit(r1,r3)
+    r3 = memw(r28+##-1065268628)
+}
+.set modem_rwe_mode_dispatch_slow, agent11_modem_exception_dispatch_entry + (0x38dc8-0x38108)
+{ r1 = and(r1,r2); if (!cmp.eq(r1.new,#0)) jump:nt modem_rwe_mode_dispatch_slow }
+.set modem_rwe_mode_cfg_done, agent11_modem_exception_dispatch_entry + (0x38c54-0x38108)
+{ p0 = !cmp.eq(r3,#0); if (p0.new) jump:nt modem_rwe_mode_cfg_done }
+// No secondary owner: update the protected monitor SYSCFG field under a
+// locked load/store, synchronize the instruction pipeline and rejoin.
+{ r1 = ##-1065084720 }
+modem_rwe_mode_slow_lock_retry:
+{ r3 = memw_locked(r1) }
+{ p0 = cmp.eq(r3,#0); if (!p0.new) jump:nt modem_rwe_mode_slow_lock_retry }
+{ memw_locked(r1,p0) = r1 }
+{ if (!p0) jump:nt modem_rwe_mode_slow_lock_retry }
+MODEM_SYS_READ 3,18,3           // SYSCFG
+{ r3 = clrbit(r3,#4) }
+MODEM_SYS_WRITE 18,3,3           // SYSCFG = r3
+{ memw(r1+#0) = #0 }
+{ isync }
+{ jump modem_rwe_mode_dispatch_slow }
