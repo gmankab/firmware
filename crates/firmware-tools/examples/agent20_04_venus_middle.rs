@@ -19,13 +19,14 @@ use firmware_tools::devices::xiaomi_nabu::venus_agent20_04_late_controller_masks
 use firmware_tools::devices::xiaomi_nabu::venus_agent20_04_codec_class_values as classes;
 use firmware_tools::devices::xiaomi_nabu::venus_agent20_04_stream_class_commands as class_commands;
 use firmware_tools::devices::xiaomi_nabu::venus_agent20_04_controller_span_4c000 as controller_span_4c000;
+use firmware_tools::devices::xiaomi_nabu::venus_agent20_04_signed_frame_records as signed_frame_records;
 use std::{env,fs,error::Error};
 fn main()->Result<(),Box<dyn Error>>{
     let args:Vec<String>=env::args().skip(1).collect();
     if args.len()!=2 || !["emit","verify"].contains(&args[0].as_str()){
         return Err("usage: cargo run --example agent20_04_venus_middle -- <emit output|verify private/venus.mbn>".into());
     }
-    let fragments=[(v::FIRST_START,v::first_fragment()?), (codec::START,codec::fragment()?), (format::START,format::fragment()?), (packets::START,packets::fragment()?), (flags::START,flags::fragment()?), (modepackets::START,modepackets::fragment()?), (serializer::START,serializer::fragment()?), (seq::START,seq::fragment()?), (ctrls::START,ctrls::fragment()?), (fields::START,fields::fragment()?), (caps::START,caps::fragment()?), (extended::START,extended::fragment()?), (masks::START,masks::fragment()?), (geometry::START,geometry::fragment()?), (stride::START,stride::fragment()?), (later::START,later::fragment()?), (classes::START,classes::fragment()?), (class_commands::START,class_commands::fragment()?), (controller_span_4c000::START,controller_span_4c000::fragment()?)];
+    let fragments=[(v::FIRST_START,v::first_fragment()?), (codec::START,codec::fragment()?), (format::START,format::fragment()?), (packets::START,packets::fragment()?), (flags::START,flags::fragment()?), (modepackets::START,modepackets::fragment()?), (serializer::START,serializer::fragment()?), (seq::START,seq::fragment()?), (ctrls::START,ctrls::fragment()?), (fields::START,fields::fragment()?), (caps::START,caps::fragment()?), (extended::START,extended::fragment()?), (masks::START,masks::fragment()?), (geometry::START,geometry::fragment()?), (stride::START,stride::fragment()?), (later::START,later::fragment()?), (classes::START,classes::fragment()?), (class_commands::START,class_commands::fragment()?), (controller_span_4c000::START,controller_span_4c000::fragment()?), (signed_frame_records::START,signed_frame_records::fragment()?)];
     if args[0]=="emit" {
         for (start,bytes) in &fragments {fs::write(format!("{}-{start:x}.bin",args[1]),bytes)?;}
     } else {

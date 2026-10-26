@@ -170,3 +170,11 @@ git diff --check
 - Independent Clang/LLVM mnemonic assembly verifies the new 1,023 instructions and one data word match both the Rust emitter and the reference: `tools/agent20_04_roundtrip.py --disasm /private/fwd.txt --start 0x4c000 --end 0x4d000 --data '0x4cb70:0x4cb74:0x000ee028' --reference /private/venus.mbn --file-offset 0x50000 --compare /private/check18-4c000.bin`.
 - Full contiguous agent-generated executable interval `[0x40a2c,0x4d000)` is **50,644 bytes** = **12,614 ARM32 instructions** and **47 non-instruction data words**. The original 0x40000–0x40a2c prefix remains uncovered. The enclosing controller routine continues beyond `0x4d000`; no return fabricated.
 - 208 Rust tests and 13 Python tests passed in this environment. Branch ancestry is provisional from the older Agent 03 repository, not checkpoint 50.
+
+## Checkpoint 19 — signed frame records, carry-aware arithmetic and controller diagnostics
+
+- Added Venus runtime `[0x4d000,0x4e000)` = **4,096 byte-identical bytes**, original MBN `[0x51000,0x52000)`. This code encodes **1,017 typed ARM32 instructions** and **seven explicit literal words**: a branch-skipped logging pointer at runtime `0x4d8fc`, and six diagnostics/capabilities at `[0x4dd54,0x4dd6c)` following an ARM return.
+- ARM32 `ADC Rt,Rn,#0`, signed `LDRSH Rt,[Rn],#imm`, and unsigned `LDRH Rt,[Rn],#imm` postindexed forms have local checked encoders with exact instruction tests. Reuses existing typed register-indexed LDRH/LDRSH shared with Agent04 controller modules. These are not copied OEM instruction bytes.
+- The linear disassembler misleadingly shows `ANDEQ LR,...,LSR #32` at `0x4d8fc`, `STRDEQ` inside the literal pool and an `<unknown>` constant; none is emitted as an executable instruction. Independent Clang/LLVM mnemonic reconstruction of all 1,017 instructions with both separately identified literal ranges reproduces the original exactly.
+- Verified cumulative Agent04 contiguous range `[0x40a2c,0x4e000)` = **54,740 bytes**: **13,631 ARM32 instructions** and **54 classified non-instruction data words**. The next routine begins at `0x4dd6c` inside this interval and continues after `0x4e000`; no invented function epilogue.
+- Offline Rust workspace 209 tests and Python 13 tests passed. Source branch is provisional older Agent03 history, not checkpoint50; prefix `[0x40000,0x40a2c)` remains uncovered.
