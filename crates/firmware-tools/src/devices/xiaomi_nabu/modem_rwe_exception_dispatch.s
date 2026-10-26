@@ -653,3 +653,91 @@ MODEM_RWE_UNLOCK_K0
     r29:28 = memd(r15+#40)
     dcfetch(r14+#0)
 }
+// Restore the saved status/return registers and pairwise controller fields.
+// A32-like single-register system class and Hexagon pair-control class are
+// different architectural encodings; validate pair numbering and packet end.
+.macro MODEM_RWE_CONTROL_PAIR_WRITE control_low, gpr_low, marker=1
+    .if (\control_low < 0) || (\control_low > 30) || ((\control_low & 1) != 0)
+      .error "invalid control pair index"
+    .endif
+    .if (\gpr_low < 0) || (\gpr_low > 30) || ((\gpr_low & 1) != 0)
+      .error "invalid general register pair"
+    .endif
+    .if (\marker < 1) || (\marker > 3)
+      .error "invalid pair packet marker"
+    .endif
+    .word (0x63000000 | ((\gpr_low + 32) << 16) | (\marker << 14) | \control_low)
+.endm
+MODEM_SYS_WRITE 6,1,3
+MODEM_SYS_WRITE 3,0,1
+{
+    r13 = memub(r15+#20)
+    r23:22 = memd(r15+#248)
+}
+{ r25:24 = memd(r15+#304) }
+MODEM_RWE_CONTROL_PAIR_WRITE 16,22,1
+{
+    r14 = add(r14,#-32)
+    r1:0 = memd(r15+#176)
+    dcfetch(r14+#0)
+}
+MODEM_RWE_CONTROL_PAIR_WRITE 18,24,1
+{ r12 = memub(r15+#226) }
+// Restore user/configuration register banks from the captured thread record.
+// Pair control writes and the user-configuration writes belong to distinct
+// public Hexagon ISA classes, with explicit checked operand/packet fields.
+.macro MODEM_RWE_CONFIG_WRITE special, gpr, marker=1
+    .if (\special < 0) || (\special > 31) || (\gpr < 0) || (\gpr > 31)
+      .error "invalid special configuration write operands"
+    .endif
+    .if (\marker < 1) || (\marker > 3)
+      .error "invalid config write packet marker"
+    .endif
+    .word (0x62000000 | ((\gpr + 32) << 16) | (\marker << 14) | \special)
+.endm
+MODEM_RWE_CONFIG_WRITE 8,1,1   // USR = r1
+{
+    r19:18 = memd(r15+#168)
+    dcfetch(r14+#0)
+}
+{
+    r23:22 = memd(r15+#160)
+    r21:20 = memd(r15+#152)
+}
+MODEM_RWE_CONTROL_PAIR_WRITE 6,18,1   // M1:0
+{
+    r19 = r15
+    r3:2 = memd(r15+#136)
+}
+{
+    r11:10 = memd(r19+#184)
+    r9 = memw(r19+#220)
+}
+MODEM_SYS_WRITE 7,9,1       // CCR = r9
+{ r12 = insert(r13,#8,#16) }
+MODEM_RWE_CONTROL_PAIR_WRITE 12,10,1 // CS1:0
+{
+    r27:26 = memd(r19+#192)
+    r25:24 = memd(r19+#200)
+}
+MODEM_SYS_WRITE 2,12,1      // STID = r12
+{
+    r7:6 = memd(r19+#120)
+    r5:4 = memd(r19+#128)
+}
+MODEM_RWE_CONFIG_WRITE 1,21,1  // LC0
+{
+    r11:10 = memd(r19+#104)
+    r9:8 = memd(r19+#112)
+}
+MODEM_RWE_CONFIG_WRITE 0,20,1  // SA0
+{
+    r15:14 = memd(r19+#88)
+    r13:12 = memd(r19+#96)
+}
+MODEM_RWE_CONFIG_WRITE 3,23,1  // LC1
+{
+    r23 = r19
+    r17:16 = memd(r19+#80)
+    r19:18 = memd(r19+#72)
+}

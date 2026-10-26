@@ -17,7 +17,7 @@ import subprocess
 import tempfile
 
 FILE_START = 0x38108
-FILE_END = 0x38724
+FILE_END = 0x387c0
 VIRTUAL_START = 0xc0840108
 PHYSICAL_START = 0x8e040108
 PINNED_SHA256 = '6f5cb32bc10e41abb40938d185805e788f5637a41d3ebcef278e4e169fc36782'
@@ -202,6 +202,24 @@ def assemble(llvm_mc: Path, source: Path) -> bytes:
             raise ValueError('R31 protected lock packet must preserve exact register operands')
         if word(0x38538)!=0x11874362 or word(0x385e4)!=0x57e0c000:
             raise ValueError('Vector bit-test branch or final return-from-exception class invalid')
+        if len(data) >= 0x387c0-FILE_START:
+            # Reconstructed Hexagon Y-class status/control-pair restores.
+            # Expected values are derived from ISA operand and packet fields,
+            # independently of the pinned vendor reference bytes.
+            status_checks={
+                0x386ec:(0x6c200080 | (3<<14)),   # K0 unlock
+                0x38738:(0x63000000 | (54<<16) | (1<<14) | 16),
+                0x38748:(0x63000000 | (56<<16) | (1<<14) | 18),
+                0x38750:(0x62000000 | (33<<16) | (1<<14) | 8),
+                0x38764:(0x63000000 | (50<<16) | (1<<14) | 6),
+                0x38780:(0x63000000 | (42<<16) | (1<<14) | 12),
+                0x38798:(0x62000000 | (53<<16) | (1<<14) | 1),
+                0x387a4:(0x62000000 | (52<<16) | (1<<14)),
+                0x387b0:(0x62000000 | (55<<16) | (1<<14) | 3),
+            }
+            for address,encoded in status_checks.items():
+                if word(address) != encoded:
+                    raise ValueError(f'Hexagon context restore operand/class mismatch at 0x{address:x}')
         return data
 
 

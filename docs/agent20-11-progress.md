@@ -298,3 +298,11 @@ python3 -m unittest discover -s tests -p 'test_*.py'
 - The new 100 bytes `[0x386c0,0x38724)` recover the prior thread controller pointer, release the kernel K0 lock, restore UGP/GP and frame/link register state, and prefetch saved context cachelines. Checked ISA macro `MODEM_RWE_UNLOCK_K0` expresses the standalone architecture-encoded K0 unlock using fixed documented class fields and a checked end marker; no vendor byte arrays are inserted.
 - LLVM 6 independently assembles source and the resulting 1,564 bytes compare exactly with SHA-256-pinned original modem.mbn; no packet normalizations were needed in this newest 100-byte continuation.
 - At this checkpoint the following unimplemented Hexagon instruction is file `0x38724`, physical `0x8e040724`; the modem RWE program is not fully source reconstructed, signed or flashable. Other disjoint modem fragments remain unchanged.
+
+## Checkpoint 35 — Restoring privileged controller and loop registers
+
+- Extended source-generated RWE exception executable `[0x38108,0x387c0)` to **1,720 exact bytes**, mapped virtual `[0xc0840108,0xc08407c0)`, physical `[0x8e040108,0x8e0407c0)`.
+- Newly reconstructed 156 bytes `[0x386c0,0x387c0)` after checkpoint 33 restore saved frame linkage, UGP/GP, program state, USR, CCR, STID, loop start/count, control register pairs (C17:16, C19:18, M1:0, CS1:0) and saved general-purpose contexts. Both register operands and distinct Hexagon class fields are checked before counting bytes; original OEM words are never read into the generator.
+- The newest 112 bytes `[0x38750,0x387c0)` independently assemble without packet correction; LLVM6 output compares exactly to the pinned modem reference, zero differing bytes.
+- Release build passes; 169 Rust tests, 39 Python tests, and reference verification pass.
+- Next unimplemented file offset `0x387c0` begins protected per-thread interrupt lock handling and hardware restore tail, within the earlier RWE `PT_LOAD`.
