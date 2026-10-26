@@ -379,3 +379,11 @@ python3 tools/agent20_06_a32_roundtrip.py /private/venus.mbn 0xa8ea0 0xa92c8 \
 - Reconstructed four codec-plane buffer-size formulas, controller record preparation, input stream parameter propagation, warnings for invalid format values and guarded channel-status updates.
 - Direct byte comparison, independent Clang/LLVM reassembly, **215 Rust tests and 13 Python tests** all passed with zero differences. Release build not claimed.
 - First uncovered runtime `0xb84fc`, file `0xbc4fc`. Provisional older-base typed A32 encoding only, not source-level semantic equivalence or new OEM authentication.
+
+## Checkpoint 44 — controller input records and fallback state
+
+- Cumulative verified Venus runtime `[0xa8000,0xb87d8)` = **67,544 exact bytes**, original MBN file `[0xac000,0xbc7d8)`.
+- New `[0xb84fc,0xb87d8)` = **732 bytes**: 173 typed ARM32 instructions (692 bytes) and ten separately modeled controller/diagnostic words (40 bytes). Pools `[0xb86b0,0xb86c8)` and `[0xb87a4,0xb87b4)`.
+- Implements input frame-plane control, buffer subscription/allocation, codec error feedback and short status inspection. Original conditional branches and return forms preserved; no OEM instruction-array imports.
+- Rust whole-region byte comparison, independent Clang/LLVM assembler check, **216 Rust tests**, **13 Python tests** all pass with zero differences. Offline release build not claimed.
+- Next runtime `0xb87d8`, firmware offset `0xbc7d8`; provisional older-base A32 instruction encoding, not a new signed or flashable firmware image.
