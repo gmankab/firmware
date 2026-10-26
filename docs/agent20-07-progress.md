@@ -1015,3 +1015,15 @@ python3 -S tools/adsp-agent20-rwe-next-sram-state-finalize.py \
   --llvm-mc "$HEXAGON_LLVM_MC" --reference "$NABU_ADSP_REFERENCE" \
   --output /tmp/adsp-sram-finalize-136.bin
 ```
+
+## Checkpoint 56: controller SRAM publication leaf `[0x11898,0x118b8)`
+
+- Added **32 independently reconstructed Hexagon V66 bytes** at file `[0x11898,0x118b8)`, physical `[0x8be0e898,0x8be0e8b8)`, SHA-256 `8cc7ecdef39bc91ffba85fbbe50bd28ffceb1cf862cc5def8b2bc79870e05804`. Seven instruction words are LLVM6 source-assembled; `R10=SGP0` uses a strict typed encoder applied at a checked `nop` placeholder.
+- The helper obtains the current controller state via platform calls, publishes the GP-sourced value and returns through original `dealloc_return`. The following **eight zero bytes** `[0x118b8,0x118c0)` are linker fill, not independently rebuilt executable instructions. The **four zero bytes** `[0x11894,0x11898)` before this helper are also linker fill.
+- Cumulative source-built RWE executable is **7,364 bytes across 13 disjoint intervals**, excluding all alignment zeros and diagnostic strings. New code begins at `0x118c0` after linker fill; the entire ADSP and OEM authentication remain unfinished.
+
+```sh
+python3 -S tools/adsp-agent20-rwe-next-sram-state-publish-leaf.py \
+  --llvm-mc "$HEXAGON_LLVM_MC" --reference "$NABU_ADSP_REFERENCE" \
+  --output /tmp/adsp-sram-publish-leaf-32.bin
+```
