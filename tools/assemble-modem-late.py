@@ -53,6 +53,7 @@ AUX_LARGE_CONTROLLER_PHASE10_SOURCE = ROOT / "crates/firmware-tools/src/devices/
 AUX_LARGE_CONTROLLER_PHASE11_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_aux_large_controller_phase11.s"
 AUX_LARGE_CONTROLLER_PHASE12_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_aux_large_controller_phase12.s"
 AUX_LARGE_CONTROLLER_PHASE13_GATE_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_aux_large_controller_phase13_gate.s"
+AUX_LARGE_CONTROLLER_PHASE13_GAP_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_aux_large_controller_phase13_gap.s"
 AUX_LARGE_CONTROLLER_PHASE13_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_aux_large_controller_phase13.s"
 AUX_LARGE_CONTROLLER_PHASE14_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_aux_large_controller_phase14.s"
 AUX_LARGE_CONTROLLER_PHASE15_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_aux_large_controller_phase15.s"
@@ -188,8 +189,9 @@ AUX_LARGE_CONTROLLER_PHASE12_START = AUX_LARGE_CONTROLLER_PHASE11_END
 AUX_LARGE_CONTROLLER_PHASE12_END = 0x447D20
 AUX_LARGE_CONTROLLER_PHASE13_GATE_START = AUX_LARGE_CONTROLLER_PHASE12_END
 AUX_LARGE_CONTROLLER_PHASE13_GATE_END = 0x447D28
-# 0x447D28–0x447D38 remains a 16-byte *unclaimed* instruction packet.
-AUX_LARGE_CONTROLLER_PHASE13_START = 0x447D38
+AUX_LARGE_CONTROLLER_PHASE13_GAP_START = AUX_LARGE_CONTROLLER_PHASE13_GATE_END
+AUX_LARGE_CONTROLLER_PHASE13_GAP_END = 0x447D38
+AUX_LARGE_CONTROLLER_PHASE13_START = AUX_LARGE_CONTROLLER_PHASE13_GAP_END
 AUX_LARGE_CONTROLLER_PHASE13_END = 0x447D90
 AUX_LARGE_CONTROLLER_PHASE14_START = AUX_LARGE_CONTROLLER_PHASE13_END
 AUX_LARGE_CONTROLLER_PHASE14_END = 0x447E1C
@@ -1494,6 +1496,46 @@ def restore_aux_large_controller_phase12_packets(assembled: bytes) -> bytes:
     return struct.pack('<43I',*words)
 
 
+def restore_aux_large_controller_phase13_gap_packet(assembled: bytes) -> bytes:
+    """Encode the original four-operation Hexagon V60 new-predicate packet.
+
+    LLVM6 and LLVM22 cannot schedule the source's two control transfers,
+    bitsclr predicate producer and `if (p0.new) r23=#0` as *one* packet.
+    Assemble all four ISA instructions in legal subgroups, then fuse the
+    producer/consumer into the original packet by modifying only parse and
+    architectural new-value fields, recomputing the branch displacement
+    from its symbolic target and original packet start. This is a checked
+    packet *encoder*, not a table or OEM opcode import.
+    """
+    n=AUX_LARGE_CONTROLLER_PHASE13_GAP_END-AUX_LARGE_CONTROLLER_PHASE13_GAP_START
+    if len(assembled)!=n:
+        raise ValueError("controller gap needs 16 source-assembled bytes")
+    branch,producer,jump,predicate=struct.unpack('<4I',assembled)
+    if ([w>>24 for w in (branch,producer,jump,predicate)]!=[0x5c,0xc7,0x58,0x7e] or
+            [w&0x3fff for w in (branch,producer,jump,predicate)]!=
+            [0x1812,0x0300,0x002a,0x0017]):
+        raise ValueError("controller gap branch/bitsclr/predicate opcode semantics changed")
+    if [w&MARKER_MASK for w in (branch,producer,jump,predicate)]!=[
+            CONTINUE_MARKER,END_MARKER,END_MARKER,END_MARKER]:
+        raise ValueError("controller gap packet markers changed")
+    # The controller's jump target is symbolic at fragment + 0x5c. LLVM6
+    # creates a separate packet beginning at +0x08; when the packet is fused
+    # at +0x00 the encoding becomes (+0x5c-0x00)/2 instead of
+    # (+0x5c-0x08)/2. The displacement's low six-bit V60 field is sufficient.
+    target_delta=0x5c
+    split_packet_start=0x08
+    if jump&0x3f!=(target_delta-split_packet_start)//2:
+        raise ValueError("controller gap original jump target changed")
+    reanchored=((target_delta//2)&0x3f)
+    jump=(jump&~0x3f)|reanchored
+    # ISA new-predicate bit 13: the fourth scalar consumes the P0 produced
+    # by bitsclr(r2,r3) in the merged packet; do not emit old-value P0.
+    predicate|=0x2000
+    return struct.pack('<4I',branch,
+                       (producer&~MARKER_MASK)|CONTINUE_MARKER,
+                       (jump&~MARKER_MASK)|CONTINUE_MARKER,predicate)
+
+
 def restore_aux_large_controller_phase13_packets(assembled: bytes) -> bytes:
     """Join the source-produced compare with the immediate/duplex packet.
 
@@ -1634,6 +1676,8 @@ def output_fragments(llvm_mc: Path) -> dict[int, bytes]:
     aux_large_controller_phase11=assemble(llvm_mc,AUX_LARGE_CONTROLLER_PHASE11_SOURCE)
     aux_large_controller_phase12=restore_aux_large_controller_phase12_packets(assemble(llvm_mc,AUX_LARGE_CONTROLLER_PHASE12_SOURCE))
     aux_large_controller_phase13_gate=assemble(llvm_mc,AUX_LARGE_CONTROLLER_PHASE13_GATE_SOURCE)
+    aux_large_controller_phase13_gap=restore_aux_large_controller_phase13_gap_packet(
+        assemble(llvm_mc,AUX_LARGE_CONTROLLER_PHASE13_GAP_SOURCE))
     aux_large_controller_phase13=restore_aux_large_controller_phase13_packets(
         assemble(llvm_mc,AUX_LARGE_CONTROLLER_PHASE13_SOURCE))
     aux_large_controller_phase14=assemble(llvm_mc,AUX_LARGE_CONTROLLER_PHASE14_SOURCE)
@@ -1702,6 +1746,7 @@ def output_fragments(llvm_mc: Path) -> dict[int, bytes]:
         (aux_large_controller_phase11,AUX_LARGE_CONTROLLER_PHASE11_START,AUX_LARGE_CONTROLLER_PHASE11_END,'large controller phase11'),
         (aux_large_controller_phase12,AUX_LARGE_CONTROLLER_PHASE12_START,AUX_LARGE_CONTROLLER_PHASE12_END,'large controller phase12'),
         (aux_large_controller_phase13_gate,AUX_LARGE_CONTROLLER_PHASE13_GATE_START,AUX_LARGE_CONTROLLER_PHASE13_GATE_END,'large controller phase13 gate'),
+        (aux_large_controller_phase13_gap,AUX_LARGE_CONTROLLER_PHASE13_GAP_START,AUX_LARGE_CONTROLLER_PHASE13_GAP_END,'large controller phase13 merged four-word V60 packet'),
         (aux_large_controller_phase13,AUX_LARGE_CONTROLLER_PHASE13_START,AUX_LARGE_CONTROLLER_PHASE13_END,'large controller phase13 disjoint'),
         (aux_large_controller_phase14,AUX_LARGE_CONTROLLER_PHASE14_START,AUX_LARGE_CONTROLLER_PHASE14_END,'large controller phase14 callback'),
         (aux_large_controller_phase15,AUX_LARGE_CONTROLLER_PHASE15_START,AUX_LARGE_CONTROLLER_PHASE15_END,'large controller phase15 descriptor'),
@@ -1762,7 +1807,8 @@ def output_fragments(llvm_mc: Path) -> dict[int, bytes]:
             AUX_LARGE_CONTROLLER_PHASE11_END==AUX_LARGE_CONTROLLER_PHASE12_START):
         raise ValueError("missing source after controller registry block")
     if not (AUX_LARGE_CONTROLLER_PHASE12_END==AUX_LARGE_CONTROLLER_PHASE13_GATE_START and
-            AUX_LARGE_CONTROLLER_PHASE13_GATE_END+16==AUX_LARGE_CONTROLLER_PHASE13_START and
+            AUX_LARGE_CONTROLLER_PHASE13_GATE_END==AUX_LARGE_CONTROLLER_PHASE13_GAP_START and
+            AUX_LARGE_CONTROLLER_PHASE13_GAP_END==AUX_LARGE_CONTROLLER_PHASE13_START and
             AUX_LARGE_CONTROLLER_PHASE13_END==AUX_LARGE_CONTROLLER_PHASE14_START and
             AUX_LARGE_CONTROLLER_PHASE14_END==AUX_LARGE_CONTROLLER_PHASE15_START and
             AUX_LARGE_CONTROLLER_PHASE15_END==AUX_LARGE_CONTROLLER_PHASE16_START):
@@ -1782,10 +1828,9 @@ def output_fragments(llvm_mc: Path) -> dict[int, bytes]:
                         aux_large_controller_phase7+aux_large_controller_phase8+
                         aux_large_controller_phase9+aux_large_controller_phase10+
                         aux_large_controller_phase11+aux_large_controller_phase12+
-                        aux_large_controller_phase13_gate,
-        AUX_LARGE_CONTROLLER_PHASE13_START:aux_large_controller_phase13+
-                aux_large_controller_phase14+aux_large_controller_phase15+
-                aux_large_controller_phase16,
+                        aux_large_controller_phase13_gate+aux_large_controller_phase13_gap+
+                        aux_large_controller_phase13+aux_large_controller_phase14+
+                        aux_large_controller_phase15+aux_large_controller_phase16,
     }
 
 

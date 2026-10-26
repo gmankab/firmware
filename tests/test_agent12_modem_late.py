@@ -15,6 +15,35 @@ spec.loader.exec_module(agent12)
 
 
 class ModemLateTests(unittest.TestCase):
+    def test_aux_controller_phase13_gap_four_word_packet(self):
+        self.assertEqual((agent12.AUX_LARGE_CONTROLLER_PHASE13_GAP_START,
+                          agent12.AUX_LARGE_CONTROLLER_PHASE13_GAP_END),
+                         (0x447d28,0x447d38))
+        src=agent12.AUX_LARGE_CONTROLLER_PHASE13_GAP_SOURCE.read_text()
+        self.assertIn('p0 = bitsclr(r2,r3)',src)
+        self.assertIn('if (!p0.new) jump:t process_remaining_resources',src)
+        self.assertIn('if (p0) r23 = #0',src)
+        self.assertIn('if (p0.new) r23 = #0',src) # documented fused ISA
+        self.assertNotIn('.word',src)
+        words=(0x5c205812,0xc782c300,0x5800c02a,0x7e00c017)
+        b=agent12.restore_aux_large_controller_phase13_gap_packet(
+            struct.pack('<4I',*words))
+        self.assertEqual(struct.unpack('<4I',b),
+                         (0x5c205812,0xc7824300,0x5800402e,0x7e00e017))
+        for idx,bad,why in [
+            (0,0x7c205812,'opcode semantics'),
+            (1,0xc782c301,'opcode semantics'),
+            (2,0x5800c02b,'opcode semantics'),
+            (3,0x7e00c016,'opcode semantics'),
+            (1,0xc7824300,'packet markers'),
+        ]:
+            other=list(words);other[idx]=bad
+            with self.assertRaisesRegex(ValueError,why):
+                agent12.restore_aux_large_controller_phase13_gap_packet(
+                    struct.pack('<4I',*other))
+        with self.assertRaisesRegex(ValueError,'16 source-assembled bytes'):
+            agent12.restore_aux_large_controller_phase13_gap_packet(bytes(12))
+
     def test_aux_controller_phase16_branch_predicate_issue_order(self):
         self.assertEqual((agent12.AUX_LARGE_CONTROLLER_PHASE16_START,
                           agent12.AUX_LARGE_CONTROLLER_PHASE16_END),
@@ -97,6 +126,8 @@ class ModemLateTests(unittest.TestCase):
                          (0x447d38,0x447d90))
         self.assertEqual(agent12.AUX_LARGE_CONTROLLER_PHASE13_START-
                          agent12.AUX_LARGE_CONTROLLER_PHASE13_GATE_END,16)
+        self.assertEqual(agent12.AUX_LARGE_CONTROLLER_PHASE13_GAP_END,
+                         agent12.AUX_LARGE_CONTROLLER_PHASE13_START)
         a=agent12.AUX_LARGE_CONTROLLER_PHASE13_SOURCE.read_text()
         b=agent12.AUX_LARGE_CONTROLLER_PHASE13_GATE_SOURCE.read_text()
         for src in [a,b]:
