@@ -391,3 +391,19 @@ reassembly; an independent Rizin decode is not run in this environment
 because the packaged Rizin build lacks compatible `libzip.so.4` and
 `libmspack.so.0` runtime dependencies. Three external-tool tests remain
 skipped rather than claimed as passed.
+
+**Checkpoint 26 — codec controller descriptor refresh:** Rebuilt the
+80-byte Hexagon routine at `[file 0x3e480,0x3e4d0)` from source-authored
+ISA operations and explicit packet grouping. The routine checks a
+controller-descriptor tag, conditionally refreshes cached state, and
+calls platform state-management helpers before tail-jumping to the
+previously verified shutdown function at original file `0x3afa0`.
+The latter cross-fragment destination is represented as a relative `.set`
+symbol `adsp_late_controller_descriptor_refresh-0x34e0`, not an OEM
+instruction literal. The independently assembled 80 bytes match the
+reference exactly, SHA-256
+`9bd8cf35a95e3e0979b840e7b31a65c2ab38b8e0b79f284ffe3d54189081ac7d`.
+**Cumulative verified source-generated executable coverage: 3,432 bytes
+across 53 disjoint fragments**. The large nearby controller functions,
+platform gaps, non-executable data and OEM authentication remain
+unreconstructed and outside the coverage totals.

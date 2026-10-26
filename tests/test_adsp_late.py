@@ -197,9 +197,9 @@ class ADSPExternalsAndCodeTests(unittest.TestCase):
     @unittest.skipUnless(LLVM_MC,'Hexagon LLVM6 assembler required')
     def test_complete_fragment_inventory_rejects_overlaps(self):
         manifest,regions=adsp.assembled_inventory(LLVM_MC,None)
-        self.assertEqual(len(manifest['fragments']),52)
-        self.assertEqual(manifest['total_independently_assembled_executable_bytes'],3352)
-        self.assertEqual(sum(map(len,regions.values())),3352)
+        self.assertEqual(len(manifest['fragments']),53)
+        self.assertEqual(manifest['total_independently_assembled_executable_bytes'],3432)
+        self.assertEqual(sum(map(len,regions.values())),3432)
         self.assertEqual(manifest['gap_bytes_included_in_generated_executables'],0)
         self.assertFalse(manifest['complete_adsp_image'])
         self.assertEqual(manifest['external_original_code_bytes_in_output'],0)
@@ -366,7 +366,7 @@ class ADSPExternalsAndCodeTests(unittest.TestCase):
     def test_inventory_every_fragment_uses_correct_original(self):
         inventory,_outputs=adsp.assembled_inventory(LLVM_MC,Path(REFERENCE).read_bytes())
         self.assertTrue(all(x['reference_byte_identical'] for x in inventory['fragments']))
-        self.assertEqual(inventory['total_independently_assembled_executable_bytes'],3352)
+        self.assertEqual(inventory['total_independently_assembled_executable_bytes'],3432)
 
     @unittest.skipUnless(LLVM_MC and REFERENCE,
                          'Hexagon LLVM6 and exact pinned ADSP reference required')
@@ -380,7 +380,7 @@ class ADSPExternalsAndCodeTests(unittest.TestCase):
                 adsp.verify_slice(built,original,off)
                 total+=len(built)
                 ranges.append((off,off+size))
-        self.assertEqual(total,3352)
+        self.assertEqual(total,3432)
         ranges.sort()
         self.assertEqual(ranges[0],(0x39000,0x39054))
         self.assertEqual(ranges[-1],(0x3640a8,0x3640f8))
@@ -772,3 +772,22 @@ class ADSPDescriptorDispatchAndInitTests(unittest.TestCase):
             self.assertEqual(hashlib.sha256(code).hexdigest(),digest)
             if REFERENCE:
                 adsp.verify_slice(code,Path(REFERENCE).read_bytes(),off)
+
+
+class ADSPControllerDescriptorRefreshTests(unittest.TestCase):
+    """Controller tag guard and tail-call to earlier validated shutdown."""
+    @unittest.skipUnless(LLVM_MC,'LLVM6 Hexagon assembler required')
+    def test_descriptor_guard_and_shutdown_tail_is_reference_identical(self):
+        p,off,n=adsp.FRAGMENTS['controller-descriptor-refresh']
+        self.assertEqual((off,n),(0x3E480,80))
+        text=p.read_text()
+        for forbidden in ('.word ','.long ','.byte ','.fill ','.incbin '):
+            self.assertNotIn(forbidden,text)
+        for term in ('p0 = cmp.eq(r2,##-1381126739)',
+                     'jump shared_shutdown_controller',
+                     '.set shared_shutdown_controller, adsp_late_controller_descriptor_refresh-0x34e0'):
+            self.assertIn(term,text)
+        code=adsp.compile_source(LLVM_MC,p,n)
+        self.assertEqual(hashlib.sha256(code).hexdigest(),
+            '9bd8cf35a95e3e0979b840e7b31a65c2ab38b8e0b79f284ffe3d54189081ac7d')
+        if REFERENCE:adsp.verify_slice(code,Path(REFERENCE).read_bytes(),off)

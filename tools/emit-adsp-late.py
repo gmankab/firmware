@@ -81,6 +81,7 @@ FRAGMENTS = {
     'controller-state-tail': (TOOLS / 'adsp-late-controller-state-tail.S', 0x3EC64, 0x10),
     'call-descriptor-dispatch': (TOOLS / 'adsp-late-call-descriptor-dispatch.S', 0x3E0A4, 0x28),
     'controller-runtime-init': (TOOLS / 'adsp-late-controller-runtime-init.S', 0x3E0D0, 0x80),
+    'controller-descriptor-refresh': (TOOLS / 'adsp-late-controller-descriptor-refresh.S', 0x3E480, 0x50),
 }
 
 class LateAdspError(ValueError):
