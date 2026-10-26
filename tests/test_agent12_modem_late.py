@@ -44,6 +44,40 @@ class ModemLateTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError,'16 source-assembled bytes'):
             agent12.restore_aux_large_controller_phase13_gap_packet(bytes(12))
 
+    def test_aux_controller_phase19_direct_symbolic_calls(self):
+        self.assertEqual((agent12.AUX_LARGE_CONTROLLER_PHASE19A_START,
+                          agent12.AUX_LARGE_CONTROLLER_PHASE19A_END),
+                         (0x447fa8,0x447fe4))
+        self.assertEqual((agent12.AUX_LARGE_CONTROLLER_PHASE19B_START,
+                          agent12.AUX_LARGE_CONTROLLER_PHASE19B_END),
+                         (0x447fe4,0x44800c))
+        a=agent12.AUX_LARGE_CONTROLLER_PHASE19A_SOURCE.read_text()
+        b=agent12.AUX_LARGE_CONTROLLER_PHASE19B_SOURCE.read_text()
+        for src in (a,b):
+            self.assertNotIn('.word',src)
+            self.assertNotIn('.byte',src)
+            self.assertNotIn('.incbin',src)
+        self.assertIn('call trace_sink',a)
+        self.assertIn('jump continued_controller_processing',a)
+        self.assertIn('p0 = r3',a)
+        self.assertIn('p0 = cmp.eq(r0,#-1)',b)
+        self.assertIn('if (!p0) jump:nt',b)
+        self.assertIn('callr r6',b)
+        self.assertIn('memw(r2+#4) = r0',b)
+        self.assertIn('memw(r29+#0) = r20',b)
+
+    @unittest.skipUnless(os.getenv('NABU_HEXAGON_LLVM_MC'), 'set Hexagon LLVM6 MC path')
+    def test_aux_controller_phase19_assembles_without_patches(self):
+        mc=Path(os.environ['NABU_HEXAGON_LLVM_MC'])
+        first=agent12.assemble(mc,agent12.AUX_LARGE_CONTROLLER_PHASE19A_SOURCE)
+        second=agent12.assemble(mc,agent12.AUX_LARGE_CONTROLLER_PHASE19B_SOURCE)
+        self.assertEqual(len(first),60)
+        self.assertEqual(len(second),40)
+        # Both source files are directly executable Hexagon V60 assembly and
+        # no assembler-produced opcode requires any post-processing.
+        self.assertEqual(len(first+second),agent12.AUX_LARGE_CONTROLLER_PHASE19B_END-
+                         agent12.AUX_LARGE_CONTROLLER_PHASE19A_START)
+
     def test_aux_controller_phase18_stores_join_descriptor_loads(self):
         self.assertEqual((agent12.AUX_LARGE_CONTROLLER_PHASE18_START,
                           agent12.AUX_LARGE_CONTROLLER_PHASE18_END),
@@ -1177,8 +1211,9 @@ class ModemLateTests(unittest.TestCase):
     def test_optional_llvm6_exact_source_lengths(self):
         a = agent12.output_fragments(Path(os.environ["NABU_HEXAGON_LLVM_MC"]))
         self.assertEqual({k: len(v) for k, v in a.items()},
-                         {0x7C000:160, 0x7C2EC:452, 0x446000:5924})
-        self.assertEqual(sum(map(len,a.values())),6536)
+                         {0x7C000:160, 0x7C2EC:452,
+                          0x446000:agent12.AUX_LARGE_CONTROLLER_PHASE19B_END-agent12.AUX_START})
+        self.assertEqual(sum(map(len,a.values())),agent12.AUX_LARGE_CONTROLLER_PHASE19B_END - agent12.AUX_START + 612)
         self.assertEqual(a[0x446000][0x0d8:0x200],agent12.emit_auxiliary_elf_symbols())
         self.assertEqual(a[0x446000][0x254:0x260],bytes(12))
         self.assertEqual(a[0x446000][0x1448:0x1460],

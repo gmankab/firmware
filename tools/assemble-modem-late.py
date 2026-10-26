@@ -60,6 +60,8 @@ AUX_LARGE_CONTROLLER_PHASE15_SOURCE = ROOT / "crates/firmware-tools/src/devices/
 AUX_LARGE_CONTROLLER_PHASE16_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_aux_large_controller_phase16.s"
 AUX_LARGE_CONTROLLER_PHASE17_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_aux_large_controller_phase17.s"
 AUX_LARGE_CONTROLLER_PHASE18_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_aux_large_controller_phase18.s"
+AUX_LARGE_CONTROLLER_PHASE19A_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_aux_large_controller_phase19a.s"
+AUX_LARGE_CONTROLLER_PHASE19B_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_aux_large_controller_phase19b.s"
 AUX_DISPATCH_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_aux_dispatch_helpers.s"
 AUX_TYPE_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_aux_type_config.s"
 AUX_NOTIFY_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_aux_controller_notify.s"
@@ -205,6 +207,10 @@ AUX_LARGE_CONTROLLER_PHASE17_START = AUX_LARGE_CONTROLLER_PHASE16_END
 AUX_LARGE_CONTROLLER_PHASE17_END = 0x447F38
 AUX_LARGE_CONTROLLER_PHASE18_START = AUX_LARGE_CONTROLLER_PHASE17_END
 AUX_LARGE_CONTROLLER_PHASE18_END = 0x447FA8
+AUX_LARGE_CONTROLLER_PHASE19A_START = AUX_LARGE_CONTROLLER_PHASE18_END
+AUX_LARGE_CONTROLLER_PHASE19A_END = 0x447FE4
+AUX_LARGE_CONTROLLER_PHASE19B_START = AUX_LARGE_CONTROLLER_PHASE19A_END
+AUX_LARGE_CONTROLLER_PHASE19B_END = 0x44800C
 MARKER_MASK = 3 << 14
 CONTINUE_MARKER = 1 << 14
 END_MARKER = 3 << 14
@@ -1774,6 +1780,8 @@ def output_fragments(llvm_mc: Path) -> dict[int, bytes]:
         assemble(llvm_mc,AUX_LARGE_CONTROLLER_PHASE17_SOURCE))
     aux_large_controller_phase18=restore_aux_large_controller_phase18_packets(
         assemble(llvm_mc,AUX_LARGE_CONTROLLER_PHASE18_SOURCE))
+    aux_large_controller_phase19a=assemble(llvm_mc,AUX_LARGE_CONTROLLER_PHASE19A_SOURCE)
+    aux_large_controller_phase19b=assemble(llvm_mc,AUX_LARGE_CONTROLLER_PHASE19B_SOURCE)
     aux_dispatch = assemble(llvm_mc,AUX_DISPATCH_SOURCE)
     aux_type = restore_aux_type_return_packets(assemble(llvm_mc,AUX_TYPE_SOURCE))
     aux_notify = restore_aux_controller_notify_packets(assemble(llvm_mc,AUX_NOTIFY_SOURCE))
@@ -1842,6 +1850,8 @@ def output_fragments(llvm_mc: Path) -> dict[int, bytes]:
         (aux_large_controller_phase16,AUX_LARGE_CONTROLLER_PHASE16_START,AUX_LARGE_CONTROLLER_PHASE16_END,'large controller phase16 mode checks'),
         (aux_large_controller_phase17,AUX_LARGE_CONTROLLER_PHASE17_START,AUX_LARGE_CONTROLLER_PHASE17_END,'large controller phase17 64-bit loop'),
         (aux_large_controller_phase18,AUX_LARGE_CONTROLLER_PHASE18_START,AUX_LARGE_CONTROLLER_PHASE18_END,'large controller phase18 64-bit sums'),
+        (aux_large_controller_phase19a,AUX_LARGE_CONTROLLER_PHASE19A_START,AUX_LARGE_CONTROLLER_PHASE19A_END,'large controller callback dispatch'),
+        (aux_large_controller_phase19b,AUX_LARGE_CONTROLLER_PHASE19B_START,AUX_LARGE_CONTROLLER_PHASE19B_END,'large controller buffer result'),
     ]:
         if len(fragment)!=end-start:
             raise ValueError(f"auxiliary {label} source length mismatch")
@@ -1904,7 +1914,9 @@ def output_fragments(llvm_mc: Path) -> dict[int, bytes]:
             AUX_LARGE_CONTROLLER_PHASE14_END==AUX_LARGE_CONTROLLER_PHASE15_START and
             AUX_LARGE_CONTROLLER_PHASE15_END==AUX_LARGE_CONTROLLER_PHASE16_START and
             AUX_LARGE_CONTROLLER_PHASE16_END==AUX_LARGE_CONTROLLER_PHASE17_START and
-            AUX_LARGE_CONTROLLER_PHASE17_END==AUX_LARGE_CONTROLLER_PHASE18_START):
+            AUX_LARGE_CONTROLLER_PHASE17_END==AUX_LARGE_CONTROLLER_PHASE18_START and
+            AUX_LARGE_CONTROLLER_PHASE18_END==AUX_LARGE_CONTROLLER_PHASE19A_START and
+            AUX_LARGE_CONTROLLER_PHASE19A_END==AUX_LARGE_CONTROLLER_PHASE19B_START):
         raise ValueError("controller phase13 gap was silently bridged")
     if AUX_LOOKUP_END!=AUX_REGISTRY_CORE_START or AUX_REGISTRY_CORE_END!=AUX_DISPATCH_START:
         raise ValueError("modem auxiliary registry source intervals have a gap")
@@ -1924,7 +1936,8 @@ def output_fragments(llvm_mc: Path) -> dict[int, bytes]:
                         aux_large_controller_phase13_gate+aux_large_controller_phase13_gap+
                         aux_large_controller_phase13+aux_large_controller_phase14+
                         aux_large_controller_phase15+aux_large_controller_phase16+
-                        aux_large_controller_phase17+aux_large_controller_phase18,
+                        aux_large_controller_phase17+aux_large_controller_phase18+
+                        aux_large_controller_phase19a+aux_large_controller_phase19b,
     }
 
 
