@@ -463,3 +463,11 @@ Original reference: private `map220v-nabu-firmware/venus.mbn`, SHA-256 `9d4af65d
 - Full typed emitter verifies byte-for-byte against pinned `venus.mbn` (`9d4af65d…a2091445a085`), and independent Clang/LLVM A32 reassembly of all **2,028** new bytes confirms **zero mismatches**.
 - **236 Rust tests** and **13 Python tests** passed. Optimized release build remains unconfirmed for the current series of checkpoints.
 - First uncovered runtime function starts at `0x33488`, safely below this agent's exclusive `0x40000` end. This establishes instruction-byte identity, not recovered high-level codec behavior or new OEM authentication.
+
+## Checkpoint 70 — controller event-classification loop
+
+- Contiguous typed ARM32 `[0x21c78,0x33abc)` = **73,284 reference-exact bytes**. New `[0x33488,0x33abc)` = **1,588 bytes**, consisting of **378 independently encoded A32 instructions** and a distinct **19-word literal/diagnostic data table** at `[0x33a70,0x33abc)`.
+- Reconstructs controller event classification, callback selection and state/format validation. Literal words are structured data, not decoded instructions or copied executable bytes.
+- Whole-fragment Rust emitter exactly matches pinned `venus.mbn` and independent Clang/LLVM assembler comparison confirms all 1,588 newly rebuilt bytes.
+- **237 Rust tests** and **13 Python tests** passed. Release build **not verified** for this checkpoint.
+- Generated fragment SHA-256 `8b709ee54c7a69ba600c9bf895a4bee92b88c8c635710a3c7a7b1b7b8f96b9d8`. Next unimplemented entry begins at `0x33abc`, below Agent 20-03's exclusive `0x40000` boundary. Instruction-byte agreement does not prove behavioral equivalence or OEM authentication.
