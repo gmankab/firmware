@@ -553,3 +553,19 @@ python3 tools/agent20_06_a32_roundtrip.py /private/venus.mbn 0xa8ea0 0xa92c8 \
 
   Clang/LLVM confirms all 908 instruction bytes and 8 literal bytes, **zero differences**. Entire Rust fragment also matches the pinned original SHA-256 `9d4af65d7ede845e900f1b29ff425b7a8e2947056e695e246e58a2091445a085` slice.
 - `cargo test --workspace --offline --locked`: **236 Rust tests passed**. `python3 -m unittest discover -s tests -p 'test_*.py'`: 13 tests passed. This is still a provisional old-Agent-03-base bundle and does not claim checkpoint-50 integration, high-level decompilation or OEM-authenticated output.
+
+## Checkpoint 65 — queued stream records, byte shuffle, and plane offsets
+
+- Contiguous typed Venus ARM32 runtime `[0xa8000,0xbeea0)` = **93,856 byte-identical bytes**, original reference file `[0xac000,0xc2ea0)`; compared directly to pinned Venus SHA-256 `9d4af65d7ede845e900f1b29ff425b7a8e2947056e695e246e58a2091445a085`.
+- New continuation `[0xbeb70,0xbeea0)` = **816 bytes** consisting of **180 A32 instructions (720 bytes)** and **24 explicitly classified non-executable words (96 bytes)**. Distinct pools at `[0xbeb70,0xbeb78)`, `[0xbec30,0xbec78)`, `[0xbed60,0xbed64)` and `[0xbee94,0xbeea0)`.
+- Includes the outgoing pending-record status update, a 64-entry indexed byte shuffle, and recalculation of input/optional output plane offsets. Two routines use original stack epilogues and do not invent new returns.
+- Full Rust emission equals original reference (zero byte mismatches). Independent Clang/LLVM ARM instruction mnemonic reconstruction confirms **720 code bytes + 96 classified data bytes**, zero differences using:
+
+  ```sh
+  python3 tools/agent20_06_a32_roundtrip.py /private/venus.mbn 0xbeb70 0xbeea0 \
+    --data-range 0xbeb70:0xbeb78 --data-range 0xbec30:0xbec78 \
+    --data-range 0xbed60:0xbed64 --data-range 0xbee94:0xbeea0
+  ```
+
+- **237 Rust tests and 13 Python tests passed**; fresh full release build exceeded the execution limit and is **not claimed to have passed**.
+- Next uncovered address is `0xbeea0`, original MBN file offset `0xc2ea0`. This is still a provisional old-Agent-03-derived branch (not checkpoint-50-integrated), not an OEM-authenticated high-level decompilation or flashable firmware image.
