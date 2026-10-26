@@ -493,3 +493,10 @@ python3 tools/agent20_06_a32_roundtrip.py /private/venus.mbn 0xa8ea0 0xa92c8 \
 - The PC-relative reference constants for this function are **outside** the emitted end boundary; no OEM data bytes were inserted to fill the future pool. This is a **partial function**, with the next missing instruction at runtime `0xbc598` (MBN offset `0xc0598`).
 - Exact full-fragment reference compare passed (0 mismatching bytes). Independent Clang/LLVM mnemonic reassembly for the entire new interval passed (0 differences). **229 Rust and 13 Python tests passed**. No completed release-build result is claimed.
 - This Git branch remains a provisional descendant of older Agent 03 history, not of the missing checkpoint-50-based integrated Git branch. Byte-identical ISA encoding is not source-level behavioral decompilation or OEM signing.
+
+## Checkpoint 58 — complete controller command queue and adjacent MMIO helpers
+
+- Continuous typed ARM32 region `[0xa8000,0xbc7dc)` = **83,932 pinned-reference-equal bytes**, original Venus file `[0xac000,0xc07dc)`.
+- Newly reconstructed `[0xbc598,0xbc7dc)` = **580 bytes**, with 138 ARM32 instructions (552 bytes) and 7 separately classified literal/data words (28 bytes) at `[0xbc78c,0xbc7a8)`. The full controller command routine ends via its original POP/PC or conditional tail at `0xbc788`. Three adjacent short helpers implement controller MMIO register writes and original BX LR returns.
+- Whole Rust-generated region compares against pinned original Venus with **zero mismatches**; independent Clang/LLVM ARM32 instruction reassembly also matches all code bytes and classified data. **230 Rust and 13 Python tests pass**; release build not claimed.
+- Next uncovered VMA is `0xbc7dc`, file offset `0xc07dc`; a separate codec controller function begins there. Still provisional older Agent-03 branch, not checkpoint-50-rooted integrated Git history, nor a high-level decompiled/OEM-signed firmware image.
