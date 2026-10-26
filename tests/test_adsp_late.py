@@ -197,9 +197,9 @@ class ADSPExternalsAndCodeTests(unittest.TestCase):
     @unittest.skipUnless(LLVM_MC,'Hexagon LLVM6 assembler required')
     def test_complete_fragment_inventory_rejects_overlaps(self):
         manifest,regions=adsp.assembled_inventory(LLVM_MC,None)
-        self.assertEqual(len(manifest['fragments']),85)
-        self.assertEqual(manifest['total_independently_assembled_executable_bytes'],6340)
-        self.assertEqual(sum(map(len,regions.values())),6340)
+        self.assertEqual(len(manifest['fragments']),87)
+        self.assertEqual(manifest['total_independently_assembled_executable_bytes'],6680)
+        self.assertEqual(sum(map(len,regions.values())),6680)
         self.assertEqual(manifest['gap_bytes_included_in_generated_executables'],0)
         self.assertFalse(manifest['complete_adsp_image'])
         self.assertEqual(manifest['external_original_code_bytes_in_output'],0)
@@ -366,7 +366,7 @@ class ADSPExternalsAndCodeTests(unittest.TestCase):
     def test_inventory_every_fragment_uses_correct_original(self):
         inventory,_outputs=adsp.assembled_inventory(LLVM_MC,Path(REFERENCE).read_bytes())
         self.assertTrue(all(x['reference_byte_identical'] for x in inventory['fragments']))
-        self.assertEqual(inventory['total_independently_assembled_executable_bytes'],6340)
+        self.assertEqual(inventory['total_independently_assembled_executable_bytes'],6680)
 
     @unittest.skipUnless(LLVM_MC and REFERENCE,
                          'Hexagon LLVM6 and exact pinned ADSP reference required')
@@ -380,7 +380,7 @@ class ADSPExternalsAndCodeTests(unittest.TestCase):
                 adsp.verify_slice(built,original,off)
                 total+=len(built)
                 ranges.append((off,off+size))
-        self.assertEqual(total,6340)
+        self.assertEqual(total,6680)
         ranges.sort()
         self.assertEqual(ranges[0],(0x39000,0x39054))
         self.assertEqual(ranges[-1],(0x3640a8,0x3640f8))
@@ -1216,3 +1216,35 @@ class ADSPControllerParameterLifecycleTests(unittest.TestCase):
         self.assertEqual((len(joined),before),(244,0x3fb10))
         if reference is not None:
             adsp.verify_slice(joined,reference,0x3fa1c)
+
+
+class ADSPControllerCleanupTests(unittest.TestCase):
+    """Two adjacent controller cleanup/release paths, minus alignment NOPs."""
+
+    EXPECTED=(
+        ('controller-cleanup-missing',0x4071c,108,'67c1b03dec00834317ff59e276a787d9b60b8e7dbb2e2f11d9238dc6d6f2df03'),
+        ('controller-unlink-resource',0x40798,232,'d253dee40ba22d4676aafd6aa5f01ba75cdd1b6e84770bdaa9d39ef4e0013570'),
+    )
+
+    @unittest.skipUnless(LLVM_MC, 'Hexagon LLVM6 assembler required')
+    def test_both_source_reassembled_paths_match_pinned_reference(self):
+        ref=Path(REFERENCE).read_bytes() if REFERENCE else None
+        collected=[]
+        for name,off,size,digest in self.EXPECTED:
+            with self.subTest(name=name):
+                src,start,n=adsp.FRAGMENTS[name]
+                self.assertEqual((start,n),(off,size))
+                asm=src.read_text()
+                for forbidden in ('.word ','.long ','.byte ','.incbin ','.fill '):
+                    self.assertNotIn(forbidden,asm)
+                built=adsp.compile_source(LLVM_MC,src,n)
+                self.assertEqual(hashlib.sha256(built).hexdigest(),digest)
+                if ref is not None: adsp.verify_slice(built,ref,off)
+                collected.append((off,built))
+        self.assertEqual(sum(len(b) for _off,b in collected),340)
+        self.assertEqual(collected[0][0]+len(collected[0][1]),0x40788)
+        self.assertEqual(collected[1][0],0x40798)
+        if ref is not None:
+            # Two intervening NOPs and a two-instruction literal pointer
+            # are preserved from the reference but not counted as code.
+            self.assertEqual(ref[0x40788:0x40790], bytes.fromhex('00c0007f00c0007f'))

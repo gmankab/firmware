@@ -626,3 +626,19 @@ are reconstructed using LLVM6 and compared against the pinned original MBN.
 **Cumulative: 6,340 independently authored executable bytes, 85 fragments.**
 All other ADSP text, non-executable alignment, and original authentication
 remain explicitly outside this generated-source inventory.
+
+
+**Checkpoint 42 — paired controller cleanup and resource unlink:**
+Independently assembled the missing-resource handling routine
+`[0x4071c,0x40788)` (108 bytes; SHA-256
+`67c1b03dec00834317ff59e276a787d9b60b8e7dbb2e2f11d9238dc6d6f2df03`)
+and the registered-resource unlink/flush routine
+`[0x40798,0x40880)` (232 bytes; SHA-256
+`d253dee40ba22d4676aafd6aa5f01ba75cdd1b6e84770bdaa9d39ef4e0013570`).
+The two intervening alignment NOPs `[0x40788,0x40790)` and following
+literal-pointer pair `[0x40790,0x40798)` are reference-observed but excluded
+from independently authored source-code byte counts. LLVM6 packet-order
+corrections retained separate register loads, memory stores and branches;
+no OEM opcode bytes were imported into the assembler source.
+**Cumulative: 6,680 independently source-assembled executable bytes in
+87 fragments.** These functions do not complete the rest of ADSP firmware.
