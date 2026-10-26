@@ -14,7 +14,7 @@ spec.loader.exec_module(module)
 
 class ModemRweException(unittest.TestCase):
     def test_exact_address_mapping(self):
-        self.assertEqual((module.FILE_START, module.FILE_END), (0x38108, 0x38c58))
+        self.assertEqual((module.FILE_START, module.FILE_END), (0x38108, 0x38ce4))
         self.assertEqual(module.VIRTUAL_START-module.FILE_START, 0xc0808000)
         self.assertEqual(module.PHYSICAL_START-module.FILE_START, 0x8e008000)
 
@@ -32,7 +32,7 @@ class ModemRweException(unittest.TestCase):
             self.skipTest('Set AGENT11_LLVM_MC to run LLVM6 Hexagon assembler test')
         source = SCRIPT.parents[1]/'crates/firmware-tools/src/devices/xiaomi_nabu/modem_rwe_exception_dispatch.s'
         data = module.assemble(Path(mc), source)
-        self.assertEqual(len(data), 2896)
+        self.assertEqual(len(data), 3036)
         self.assertEqual(data[0x381b8-module.FILE_START:0x381bc-module.FILE_START],bytes.fromhex('00c0e057'))
         self.assertEqual(data[0:4], bytes.fromhex('00c00058'))
         # First 148 bytes after the restored RTE encode vector resolution,
@@ -63,6 +63,17 @@ class ModemRweException(unittest.TestCase):
         self.assertEqual(at(0x38c40),0x6e800000|(18<<16)|(3<<14)|3)
         self.assertEqual(at(0x38c48),0x67000000|(3<<16)|(3<<14)|18)
         self.assertEqual(at(0x38c50),0x57c0c002) # standalone architecture ISYNC
+        # MODECTL/video-ID exception flow: late V60 NMI and CIAD instructions
+        # cannot be mnemonic-assembled by LLVM6, so verify architectural
+        # register and parse bits for these source-defined operands.
+        self.assertEqual(at(0x38c74),0x64000000|((0x60|29)<<16)|(3<<14)|0x40)
+        self.assertEqual(at(0x38c78),0x6e800000|(6<<16)|(1<<14)|20)
+        self.assertEqual(at(0x38c9c),0x6e800000|(21<<16)|(1<<14)|9)
+        self.assertEqual(at(0x38cb4),0x64000000|(31<<16)|(1<<14)|0x60)
+        self.assertEqual(at(0x38c94),0x58004080)  # jump continues into L2
+        self.assertEqual(at(0x38ca8),0x750940a2)  # producer-first P2 compare
+        self.assertEqual(at(0x38cac),0x5cdf6ad8)  # .new control branch
+        self.assertEqual(at(0x38ce0),0x7800c022)
         ref = os.environ.get('AGENT11_MODEM_MBN')
         if ref:
             module.verify_pinned(Path(ref).read_bytes(), data)

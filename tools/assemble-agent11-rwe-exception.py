@@ -17,7 +17,7 @@ import subprocess
 import tempfile
 
 FILE_START = 0x38108
-FILE_END = 0x38c58
+FILE_END = 0x38ce4
 VIRTUAL_START = 0xc0840108
 PHYSICAL_START = 0x8e040108
 PINNED_SHA256 = '6f5cb32bc10e41abb40938d185805e788f5637a41d3ebcef278e4e169fc36782'
@@ -233,6 +233,30 @@ def normalize_llvm6_locked_packets(data: bytes) -> bytes:
             raise ValueError('Unknown MODECTL dispatch test/branch packet')
         write(0x38c20,(pred&~(3<<14))|(1<<14))
         write(0x38c24,(branch&~(3<<14))|(3<<14))
+    if len(result)>=0x38ce4-FILE_START:
+        # Hexagon V60 GP-relative loads at 0x38c5c and 0x38cd0 have a
+        # dedicated memory opcode class. LLVM6 emits the equivalent generic
+        # extended r28+offset class. Validate the full LLVM operand, extender
+        # and packet fields before switching the architectural class.
+        for address,word,ext in (
+                (0x38c5c,0x919c4196,0x0c085063),
+                (0x38cd0,0x919cc68b,0x0c084529)):
+            if read(address)!=word or read(address-4)!=ext:
+                raise ValueError(f'unrecognized video-status GP-relative load at {address:#x}')
+            write(address,(0x4980<<16)|(word&0xffff))
+        # Original dispatch deliberately keeps an unconditional jump and an
+        # immediately following register-pair load in one legal packet. LLVM6
+        # ends the packet at the jump; only adjust its checked parse field.
+        if read(0x38c94)!=0x5800c080 or read(0x38c98)!=0x91c1c094:
+            raise ValueError('unexpected video-owner fallthrough packet')
+        write(0x38c94,(read(0x38c94)&~(3<<14))|(1<<14))
+        # Preserve original producer-first order for predicate P2 and .new
+        # taken-branch. LLVM6's packet scheduler emits jump before compare.
+        if read(0x38ca8)!=0x5cdf6ad8 or read(0x38cac)!=0x750940a2:
+            raise ValueError('unexpected video-id predicate/branch packet')
+        branch,producer=read(0x38ca8),read(0x38cac)
+        write(0x38ca8,producer)
+        write(0x38cac,branch)
     return bytes(result)
 
 

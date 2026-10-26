@@ -1196,3 +1196,56 @@ MODEM_SYS_WRITE 18,3,3           // SYSCFG = r3
 { memw(r1+#0) = #0 }
 { isync }
 { jump modem_rwe_mode_dispatch_slow }
+// MODECTL source-specific protected exception dispatch. The original
+// NMI/CIAD/VID opcodes are not expressible in LLVM6's mnemonic inventory;
+// encode only their public V60 opcode/operand fields with strict checks.
+.macro MODEM_RWE_NMI_FRAME source, marker=3
+    .if (\source != 29) || (\marker != 3)
+      .error "NMI frame must use SP and terminate the packet"
+    .endif
+    // NMI special frame instruction, V60 class 0x64, source register +
+    // privileged sub-opcode fields (0x60 encodes control source bank).
+    .word (0x64000000 | ((0x60 | \source) << 16) | (\marker << 14) | 0x40)
+.endm
+.macro MODEM_RWE_CIAD_FRAME source, marker=1
+    .if (\source != 31) || (\marker != 1)
+      .error "CIAD controller source must be LR in a nonterminal packet"
+    .endif
+    .word (0x64000000 | (\source << 16) | (\marker << 14) | 0x60)
+.endm
+.globl agent11_modem_rwe_controller_video_mode
+agent11_modem_rwe_controller_video_mode:
+.set modem_rwe_vid_mode_owner,agent11_modem_exception_dispatch_entry + (0x38c70-0x38108)
+{ r22 = memw(r28+##-1065084724); if (cmp.eq(r22.new,#2)) jump:t modem_rwe_vid_mode_owner }
+.set modem_rwe_vid_other_handler,agent11_modem_exception_dispatch_entry + (0x38dc8-0x38108)
+.set modem_rwe_vid_ciad_handler,agent11_modem_exception_dispatch_entry + (0x38cb4-0x38108)
+{
+    if (p2.new) jump:nt modem_rwe_vid_other_handler
+    if (!p2.new) jump:nt modem_rwe_vid_ciad_handler
+    p2 = cmp.eq(sp,#5)
+}
+modem_rwe_vid_mode_owner:
+{ sp = #15 }
+MODEM_RWE_NMI_FRAME 29
+MODEM_SYS_READ 20,6,1         // SSR
+{ memd(r1+#32) = r21:20 }
+{ r21 = extractu(r20,#4,#16); r20 = clrbit(r20,#31); if (cmp.eq(r21.new,#6)) jump:t modem_rwe_vid_read_video_id }
+{ r21 = r21; if (cmp.eq(r21.new,#2)) jump:t modem_rwe_vid_read_video_id }
+.set modem_rwe_vid_status_publisher,agent11_modem_exception_dispatch_entry + (0x38d94-0x38108)
+{ jump modem_rwe_vid_status_publisher }
+modem_rwe_vid_restore_pair:
+{ r21:20 = memd(r1+#32) }
+modem_rwe_vid_read_video_id:
+MODEM_SYS_READ 9,21,1         // VID
+{ r20 = insert(r1,#2,#17); lr = #4 }
+modem_rwe_vid_retry:
+.set modem_rwe_video_frame_reread,agent11_modem_exception_dispatch_entry + (0x38c58-0x38108)
+{ p2 = cmp.eq(r9,#5); if (p2.new) jump:nt modem_rwe_video_frame_reread; sp = #0 }
+modem_rwe_vid_ciad_handler:
+MODEM_RWE_CIAD_FRAME 31
+{ r10 = ##-1065279472; r17 = r0 }
+MODEM_SYS_WRITE 6,20,1        // restored SSR
+{ r0 = r9; r11 = memw(r28+##-1065268620) }
+MODEM_SYS_READ 29,0,1         // SGP0
+.set modem_rwe_vid_restore_callback,agent11_modem_exception_dispatch_entry + (0xdd20-0x38108)
+{ call ##modem_rwe_vid_restore_callback; r2 = #1 }
