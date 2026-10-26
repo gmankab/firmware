@@ -1016,3 +1016,30 @@ class ModemLateControllerContinuationTests(unittest.TestCase):
         self.assertIn('jump early_controller_exit',asm)
         self.assertNotIn('.word',asm)
         self.assertNotIn('.incbin',asm)
+
+
+class ModemLatePhase2Tests(unittest.TestCase):
+    def test_phase2_predicated_packet_reconstruction_and_negative_guards(self):
+        self.assertEqual((agent12.AUX_LARGE_CONTROLLER_PHASE2_START,
+                          agent12.AUX_LARGE_CONTROLLER_PHASE2_END),
+                         (0x4477FC,0x4478A4))
+        asm=agent12.AUX_LARGE_CONTROLLER_PHASE2_SOURCE.read_text()
+        self.assertIn('call controller_log_cb',asm)
+        self.assertIn('r2 = ##507534712',asm)
+        self.assertIn('if (!p0.new) jump:t',asm)
+        self.assertNotIn('.word',asm)
+        self.assertNotIn('.incbin',asm)
+        words=[0x7800c000]*42
+        i=0x70//4
+        words[i:i+3]=[0x5c205812,0x01e4440a,0x7e80e0c3]
+        src=struct.pack('<42I',*words)
+        rebuilt=struct.unpack('<42I',agent12.restore_aux_large_controller_phase2_packet(src))
+        self.assertEqual(rebuilt[i:i+3],(0x01e4440a,0x7e8060c3,0x5c20d812))
+        for index,modified,pattern in [(i,0x78004012,'classes'),
+                                       (i+1,0x01e4c40a,'markers'),
+                                       (i+2,0x7e80e0c4,'target or register')]:
+            bad=words.copy();bad[index]=modified
+            with self.assertRaisesRegex(ValueError,pattern):
+                agent12.restore_aux_large_controller_phase2_packet(struct.pack('<42I',*bad))
+        with self.assertRaisesRegex(ValueError,'168 bytes'):
+            agent12.restore_aux_large_controller_phase2_packet(src[:-4])
