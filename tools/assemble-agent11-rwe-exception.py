@@ -17,7 +17,7 @@ import subprocess
 import tempfile
 
 FILE_START = 0x38108
-FILE_END = 0x38484
+FILE_END = 0x38504
 VIRTUAL_START = 0xc0840108
 PHYSICAL_START = 0x8e040108
 PINNED_SHA256 = '6f5cb32bc10e41abb40938d185805e788f5637a41d3ebcef278e4e169fc36782'
@@ -97,6 +97,31 @@ def normalize_llvm6_locked_packets(data: bytes) -> bytes:
                 raise ValueError(f'unrecognized per-thread locked predicate at 0x{addr:x}')
             write(addr,predicate_word)
             write(addr+4,branch_word)
+    if len(result)>=0x384b4-FILE_START:
+        if read(0x384a8)!=0x5c0048a2 or read(0x384ac)!=0x75874210:
+            raise ValueError('unrecognized vector-lane conditional branch packet')
+        branch,pred=read(0x384a8),read(0x384ac)
+        write(0x384a8,pred)
+        write(0x384ac,branch)
+    if len(result)>=0x38504-FILE_START:
+        # r31 lock predicate is the p0 version of the earlier p2 packet.
+        expected={0x384dc:0x5cff68fe,0x384e0:0x751f4000,
+                  0x384ec:0x7800c09e,0x384f0:0xa0bedf00,
+                  0x384f4:0x5cff60f2,0x384f8:0x0c085004,
+                  0x384fc:0x7e80409e,0x38500:0x419ec01f}
+        for address,word in expected.items():
+            if read(address)!=word:
+                raise ValueError(f'unrecognized R31 protected controller packet at 0x{address:x}')
+        branch,pred=read(0x384dc),read(0x384e0)
+        write(0x384dc,pred)
+        write(0x384e0,branch)
+        # Relocate the r30 immediate producer into the explicit locked-store
+        # packet and use the checked register-operand encoding for that slot.
+        write(0x384ec,0x78000000|(1<<14)|30)
+        branch,ext,immediate=read(0x384f4),read(0x384f8),read(0x384fc)
+        write(0x384f4,ext)
+        write(0x384f8,immediate)
+        write(0x384fc,branch)
     return bytes(result)
 
 
@@ -143,6 +168,8 @@ def assemble(llvm_mc: Path, source: Path) -> bytes:
             raise ValueError('Per-thread controller mask release has incorrect S63/MMIO operands')
         if word(0x383d0)!=0x57e04000 or word(0x38480)!=0x5800c040:
             raise ValueError('Exception-frame return and diagnostic branch have incorrect ISA fields')
+        if word(0x384f0)!=0xa0bedf00 or word(0x38500)!=0x419ec01f:
+            raise ValueError('R31 protected lock packet must preserve exact register operands')
         return data
 
 

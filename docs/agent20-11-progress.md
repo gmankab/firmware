@@ -259,3 +259,11 @@ python3 -m unittest discover -s tests -p 'test_*.py'
 - Source-level macro helpers validate system/controller register fields and packet parse markers before architecture encoding. The independent LLVM6 assembler + checked normalizer generated a **perfect 892-byte comparison** against pinned OEM `modem.mbn`, SHA-256 `0f23680fb358b80e0f488d45d570f2f2ac8990a7df6d015eac022cec780097b3`. No copied OEM payload is present in Git.
 - 169 Rust tests and 38 Python tests pass. The release build is still not confirmed in this current execution environment; do not claim it passed. This code remains disjoint from prior modem executable fragments and is not a newly signed modem image.
 - Next uncovered RWE routine begins at modem file `0x38484`.
+
+## Checkpoint 30 — Vector-table resolution and R31 locked status
+
+- The source-generated exception continuation now covers **1,020 independently assembled, byte-identical Hexagon instruction bytes**, original modem file `[0x38108,0x38504)`, virtual `[0xc0840108,0xc0840504)` and physical `[0x8e040108,0x8e040504)`.
+- New `[0x38484,0x38504)` = **128 instruction bytes**. This stage computes lane-specific exception indices using a pairwise unsigned-min and per-format extract, looks up hardware vector entries, and acquires the R31/R30 protected lock before determining the next controller-state route.
+- The LLVM6 Hexagon scheduler emits the source `.new` branch first and emits an immediate producer in a separate packet. The verifier checks independently authored packet and operand classes before strictly limited packet-order/field normalization. Full OEM-reference comparison then matches with **zero byte differences**; no reference instructions are inserted into emitted source.
+- Emitted 1,020-byte SHA-256: `8c58e4f952bdba3d70df548da0e4b2ebe668c894acfc7dc5d10d2f57fe51422f`. 169 Rust and 38 Python tests pass; release profile has not yet been confirmed in this session.
+- Following original instruction at file `0x38504` remains to be reconstructed. This is not a signed, complete or device-executed modem image.

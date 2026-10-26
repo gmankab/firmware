@@ -355,3 +355,50 @@ MODEM_CTRL_WRITE 0,9,3
 MODEM_CTRL_WRITE 0,9,1
 { r0 |= asl(r1,#8) }
 { jump ##modem_rwe_exception_publisher }
+// Next exception ingress classifies the active thread and vector lanes.
+MODEM_SYS_READ 15,6,1
+{
+    r9:8 = combine(#127,#2)
+    r14.l = #6360
+    p0 = cmp.eq(r28,#0)
+}
+MODEM_SYS_READ 10,0,1
+{
+    r7:6 = vminub(r15:14,r9:8)
+    if (p0) r8 = #0
+    r14.h = #49284
+}
+.set modem_rwe_handler_no_words, agent11_modem_exception_dispatch_entry + (0x385e8-0x38108)
+{
+    r13 = extractu(r15,#4,#16)
+    p0 = !cmp.gtu(r7,#16)
+    if (p0.new) jump:nt modem_rwe_handler_no_words
+    r6 = memw(r10+#0)
+}
+// Resolve a vector-table entry, then atomically acquire the associated
+// protected frame lock before dispatching to the next controller stage.
+{
+    r13 = ##458752
+    r14 = memw(r14+r13<<#2)
+}
+MODEM_SYS_READ 14,3,1
+{
+    r13 = and(r15,~r13)
+    r7 = memw(r14+r7<<#2)
+    memd(r6+#32) = r31:30
+}
+{ r30 = ##-1065090812 }
+modem_rwe_exception_priority_lock_retry:
+{ r31 = memw_locked(r30) }
+{
+    p0 = cmp.eq(r31,#0)
+    if (!p0.new) jump:nt modem_rwe_exception_priority_lock_retry
+    if (p0.new) r31 = #1
+}
+{ r30 = ##-1065090812 }
+MODEM_RWE_LOCKED_WORD_STORE 30,31,0,3
+{
+    if (!p0) r30 = ##-1065090812
+    if (!p0) jump:nt modem_rwe_exception_priority_lock_retry
+    if (p0) r31 = memw(r30+#0)
+}
