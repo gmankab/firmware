@@ -411,3 +411,11 @@ python3 tools/agent20_06_a32_roundtrip.py /private/venus.mbn 0xa8ea0 0xa92c8 \
 - Finishes the large frame-descriptor state machine that begins at `0xb87d8`, including its original `pop {...,pc}` return at `0xb9768`, optional recovery and error tails, resource metadata and input format control. The next function begins at `0xb9904` with a PUSH frame prologue.
 - Direct whole-fragment Rust byte verification and independent Clang/LLVM mnemonic reconstruction report **zero differences**. **219 Rust tests and 13 Python tests passed.** No release build claimed.
 - Still an older-base, provisional ARM32 instruction-level re-encoding, not a signed/flashable OEM firmware image or evidence of high-level source semantics equivalence.
+
+## Checkpoint 48 — frame-controller status and optional input sources
+
+- Entire Venus tail `[0xa8000,0xb9c64)` = **72,804 consecutive byte-identical bytes**, MBN file `[0xac000,0xbdc64)`.
+- New `[0xb9904,0xb9c64)` = **864 bytes**, comprising 209 typed ARM32 instructions (836 bytes) and seven literal diagnostic words (28 bytes), two non-instruction data pools `[0xb9b6c,0xb9b78)` and `[0xb9c54,0xb9c64)`.
+- Rebuilds the controller-status and optional-source cleanup functions, preserving their original `pop {...,pc}` returns, conditional `BLNE` subroutine call, error reporting, and buffer-slot pointer resets. Both functions are complete at this boundary.
+- Entire generated Rust fragment matches pinned original Venus reference, **zero byte differences**. An independent Clang/LLVM round-trip also matches all 836 instruction bytes and 28 data bytes. The verifier was corrected to distinguish conditional `BLNE` from a nonrelocated absolute target. **220 Rust tests and 13 Python tests passed**; no release build claimed.
+- Next uncovered runtime `0xb9c64` (file `0xbdc64`) begins a new codec-register setup routine. Reconstruction is provisional older-base instruction-level encoding, not OEM signing or high-level semantic equivalence.

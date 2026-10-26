@@ -15,6 +15,10 @@ from pathlib import Path
 
 LINE=re.compile(r'^\s*([0-9a-f]+):\s+[0-9a-f]{8}\s+(\S+)\s*(.*)$',re.I)
 BRANCH={'b','bl','blx','beq','bne','bhi','bcc','bcs','bls','blt','bgt','bge','ble','bpl','bmi','blo','bhs'}
+# The original image uses conditional subroutine branches (for example BLNE).
+# Rebase them just like unconditional BL, or GNU-as will relocate the printed
+# absolute target relative to our section's .org and generate wrong offsets.
+BRANCH |= {'bl'+cond for cond in ('eq','ne','hi','cc','cs','ls','lt','gt','ge','le','pl','mi','lo','hs')}
 def integer(x:str)->int:return int(x,0)
 def validate_ranges(start:int,end:int,data:list[tuple[int,int]])->None:
     if start%4 or end%4 or not(0xa8000<=start<end<=0x1029f4):raise ValueError('invalid owned ARM32 range')
