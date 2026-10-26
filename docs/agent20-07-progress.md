@@ -666,3 +666,27 @@ Run with `HEXAGON_LLVM_MC=/path/to/llvm6/bin/llvm-mc` and original
 `NABU_ADSP_REFERENCE=/private/adsp.mbn`. Full tests: **160 Rust and 173 Python
 passed**, release build passed, zero byte differences. Next nonzero material
 starts at file `0x10c30`, physical `0x8be0dc30`.
+
+## Checkpoint 35: controller record initialization prefix `[0x10c40,0x10cb4)`
+
+Following the instruction-cache snapshot at `0x1084c`, the original firmware
+contains **996 file-backed zero-fill bytes** `[0x1084c,0x10c30)` and a
+**16-byte unclassified record** `[0x10c30,0x10c40)`. They are **not** interpreted
+as executable source. The next function starts at ADSP file `0x10c40`.
+
+The first **116 byte-identical bytes** of this function initialize the
+controller record array, save ABI registers, allocate a stack frame, read
+base-address metadata, and initialize a counted group of record entries.
+All **29 Hexagon packet words** are assembled solely from independently
+written LLVM6 mnemonic source. A guarded branch, three calls into the
+preexisting record-creation helper, instruction extenders, and memory field
+initializers are preserved exactly. No V66 privileged workaround or
+reference-derived instruction words are needed for this prefix. SHA-256:
+`bec8b2bb23a1a1ae89a1be0a6e2f8217246d166deb570b3e8b5ca0c9f5cc1386`.
+
+This **partial function** ends at `0x10cb4`; it does not yet contain the
+remaining record processing, exception handling or return path. Source-built
+ADSP RWE instruction coverage rises from **4,324 to 4,440 bytes across four
+separate regions** (3,132 + 836 + 356 + 116), with all intervening fill and
+unclassified data deliberately excluded. LLVM6 and strict reference comparison
+pass. The final MBN image and OEM signatures remain unimplemented.
