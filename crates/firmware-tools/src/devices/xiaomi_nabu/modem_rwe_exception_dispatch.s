@@ -304,3 +304,54 @@ modem_rwe_thread_status_done:
     r12 = #0
     memw(##-1065090812) = r12.new
 }
+// Save the complete general-register bank to the controller exception frame.
+// The inline protected-return form participates in the packet terminating
+// with the first 64-bit register store; remaining saves are one-word packets.
+MODEM_RWE_EXT_CONTROL_WRITE 46,10,1
+MODEM_RWE_INLINE_RTE 1
+{ memd(r28+#48) = r7:6 }
+{ memd(r28+#32) = r31:30 }
+{ memd(r28+#40) = r29:28 }
+{ memd(r28+#192) = r27:26 }
+{ memd(r28+#200) = r25:24 }
+{ memd(r28+#56) = r23:22 }
+{ memd(r28+#64) = r21:20 }
+{ memd(r28+#72) = r19:18 }
+{ memd(r28+#80) = r17:16 }
+{ memd(r28+#88) = r15:14 }
+{ memd(r28+#96) = r13:12 }
+{ memd(r28+#104) = r11:10 }
+{ memd(r28+#112) = r9:8 }
+{ memd(r28+#120) = r7:6 }
+{ memd(r28+#128) = r5:4 }
+{ memd(r28+#136) = r3:2 }
+{ memd(r28+#144) = r1:0 }
+{ r12 = r9 }
+{ r11 = usr }
+{ r10 = p3:0 }
+{ r9:8 = c1:0 }
+{ r15:14 = c3:2 }
+{ r5:4 = c7:6 }
+{ r3:2 = c13:12 }
+{ memd(r28+#48) = r7:6 }
+{ memd(r28+#152) = r9:8 }
+{ memd(r28+#24) = r13:12 }
+{ memw(r28+#236) = ##-1065089300 }
+{ memd(r28+#176) = r11:10 }
+{ memd(r28+#160) = r15:14 }
+{ memd(r28+#168) = r5:4 }
+{ memd(r28+#184) = r3:2 }
+MODEM_SYS_READ 29,0,3
+{ r0 = r28 }
+.set modem_rwe_handler_stage2, agent11_modem_exception_dispatch_entry + (0x6cc04-0x38108)
+{ jump modem_rwe_handler_stage2 }
+// Exception-class 15: publish one more typed controller diagnostic packet.
+MODEM_CTRL_WRITE 0,9,3
+{
+    r0 = #15
+    r1 = #0
+    memd(r9+#56) = r1:0
+}
+MODEM_CTRL_WRITE 0,9,1
+{ r0 |= asl(r1,#8) }
+{ jump ##modem_rwe_exception_publisher }

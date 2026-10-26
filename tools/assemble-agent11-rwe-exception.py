@@ -17,7 +17,7 @@ import subprocess
 import tempfile
 
 FILE_START = 0x38108
-FILE_END = 0x383cc
+FILE_END = 0x38484
 VIRTUAL_START = 0xc0840108
 PHYSICAL_START = 0x8e040108
 PINNED_SHA256 = '6f5cb32bc10e41abb40938d185805e788f5637a41d3ebcef278e4e169fc36782'
@@ -141,6 +141,8 @@ def assemble(llvm_mc: Path, source: Path) -> bytes:
             raise ValueError('Protected controller-flag reset has incorrect register operands')
         if word(0x383b8)!=0x6709c03f or word(0x383c8)!=0x48a0d204:
             raise ValueError('Per-thread controller mask release has incorrect S63/MMIO operands')
+        if word(0x383d0)!=0x57e04000 or word(0x38480)!=0x5800c040:
+            raise ValueError('Exception-frame return and diagnostic branch have incorrect ISA fields')
         return data
 
 
