@@ -473,3 +473,14 @@ embedded. Direct reference SHA-256:
 Cumulative independent executable coverage is now **4,172 bytes in 67
 verified fragments**, zero byte mismatches; the following controller
 writer starts at `0x3e5a8` and remains incomplete.
+
+
+**Checkpoint 32 — release-safe controller status reset:** The 72-byte
+Hexagon source routine at `[file 0x3e750,0x3e798)` handles a null controller,
+publishes registry state, calls platform diagnostics and returns through the
+saved-register frame. Source assembly uses symbolic call targets and named
+packet groups, never extracted opcode words. Digest
+`3568d1d71fbbb7ab4e72697c61a8d8aa0a629e1f7951ee27f5eac59117ff82b9`.
+The two alignment NOPs at `[0x3e798,0x3e7a0)` are excluded from code totals.
+Total independently recompiled code: **4,244 bytes in 68 verified functions
+or fragments**, with all other large firmware areas still unfinished.

@@ -197,9 +197,9 @@ class ADSPExternalsAndCodeTests(unittest.TestCase):
     @unittest.skipUnless(LLVM_MC,'Hexagon LLVM6 assembler required')
     def test_complete_fragment_inventory_rejects_overlaps(self):
         manifest,regions=adsp.assembled_inventory(LLVM_MC,None)
-        self.assertEqual(len(manifest['fragments']),67)
-        self.assertEqual(manifest['total_independently_assembled_executable_bytes'],4172)
-        self.assertEqual(sum(map(len,regions.values())),4172)
+        self.assertEqual(len(manifest['fragments']),68)
+        self.assertEqual(manifest['total_independently_assembled_executable_bytes'],4244)
+        self.assertEqual(sum(map(len,regions.values())),4244)
         self.assertEqual(manifest['gap_bytes_included_in_generated_executables'],0)
         self.assertFalse(manifest['complete_adsp_image'])
         self.assertEqual(manifest['external_original_code_bytes_in_output'],0)
@@ -366,7 +366,7 @@ class ADSPExternalsAndCodeTests(unittest.TestCase):
     def test_inventory_every_fragment_uses_correct_original(self):
         inventory,_outputs=adsp.assembled_inventory(LLVM_MC,Path(REFERENCE).read_bytes())
         self.assertTrue(all(x['reference_byte_identical'] for x in inventory['fragments']))
-        self.assertEqual(inventory['total_independently_assembled_executable_bytes'],4172)
+        self.assertEqual(inventory['total_independently_assembled_executable_bytes'],4244)
 
     @unittest.skipUnless(LLVM_MC and REFERENCE,
                          'Hexagon LLVM6 and exact pinned ADSP reference required')
@@ -380,7 +380,7 @@ class ADSPExternalsAndCodeTests(unittest.TestCase):
                 adsp.verify_slice(built,original,off)
                 total+=len(built)
                 ranges.append((off,off+size))
-        self.assertEqual(total,4172)
+        self.assertEqual(total,4244)
         ranges.sort()
         self.assertEqual(ranges[0],(0x39000,0x39054))
         self.assertEqual(ranges[-1],(0x3640a8,0x3640f8))
@@ -925,3 +925,25 @@ class ADSPControllerReleaseCheckTests(unittest.TestCase):
         # Following controller frame writer begins immediately; it is NOT
         # implicitly emitted with this disjoint, fully covered function.
         self.assertEqual(off+n,0x3e5a8)
+
+
+class ADSPControllerResetStatusTests(unittest.TestCase):
+    """Controller null-check, platform publication and saved-frame restoration."""
+
+    @unittest.skipUnless(LLVM_MC,'Hexagon LLVM6 assembler required')
+    def test_reset_status_source_rebuilds_exact_reference(self):
+        src,off,n=adsp.FRAGMENTS['controller-reset-status']
+        self.assertEqual((off,n),(0x3e750,72))
+        text=src.read_text()
+        for forbidden in ('.word ','.long ','.byte ','.incbin ','.fill '):
+            self.assertNotIn(forbidden,text)
+        for term in ('if (cmp.eq(r16.new,#0)) jump:nt null_context',
+                     'memd(r16+#0) = r1:0',
+                     'r0 = r17; r17:16 = memd(r29+#0); dealloc_return'):
+            self.assertIn(term,text)
+        code=adsp.compile_source(LLVM_MC,src,n)
+        self.assertEqual(hashlib.sha256(code).hexdigest(),
+            '3568d1d71fbbb7ab4e72697c61a8d8aa0a629e1f7951ee27f5eac59117ff82b9')
+        if REFERENCE:adsp.verify_slice(code,Path(REFERENCE).read_bytes(),off)
+        # Two actual alignment NOPs follow this function at 0x3e798–0x3e7a0.
+        self.assertEqual(adsp.FRAGMENTS['controller-reset-status'][1]+n,0x3e798)
