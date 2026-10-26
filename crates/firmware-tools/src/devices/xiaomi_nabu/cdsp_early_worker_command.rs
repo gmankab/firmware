@@ -23,7 +23,7 @@ fn relay_word(src_base:Gpr,src_offset:u8,dst_base:Gpr,dst_offset:u8,tmp:Gpr)->Re
        (u32::from(src_base.number()-8)<<20) | (u32::from(tmp.number())<<16)|
        (u32::from(dst_offset/4)<<8) | (u32::from(dst_base.number())<<4)|u32::from(tmp.number()))
 }
-fn direct_call(start:u32,target:u32)->Result<u32,String>{
+pub(super) fn direct_call(start:u32,target:u32)->Result<u32,String>{
     if start%4!=0||target%4!=0{return Err("Hexagon short CALL address must align".into());}
     let delta=i64::from(target)-i64::from(start);
     if delta%2!=0 || !(-0x100000..=0xffffc).contains(&delta) {
@@ -33,7 +33,7 @@ fn direct_call(start:u32,target:u32)->Result<u32,String>{
     Ok(0x5a00_c000|((half>>14&0xff)<<16)|(half&0x3fff))
 }
 /// Observed coupled producer/consumer: `memw(Rbase=##address)=R0.new`.
-fn publish_new_state(base:Gpr,producer:Gpr,address:u32)->Result<[u32;2],String>{
+pub(super) fn publish_new_state(base:Gpr,producer:Gpr,address:u32)->Result<[u32;2],String>{
     if base.number()>7||producer.number()!=0||address%4!=0{
         return Err("V66 coupled state write requires compact base, R0 producer and aligned address".into());
     }
@@ -41,7 +41,7 @@ fn publish_new_state(base:Gpr,producer:Gpr,address:u32)->Result<[u32;2],String>{
     let consumer=0xaba0_d280|(u32::from(base.number())<<16)|(address&0x3f);
     Ok([hi,consumer])
 }
-fn cache_clean(addr:Gpr)->u32{0xa000_c000|(u32::from(addr.number())<<16)}
+pub(super) fn cache_clean(addr:Gpr)->u32{0xa000_c000|(u32::from(addr.number())<<16)}
 
 pub fn build_worker_command()->Result<Vec<u8>,String>{
     let r=|n|Gpr::new(n);
