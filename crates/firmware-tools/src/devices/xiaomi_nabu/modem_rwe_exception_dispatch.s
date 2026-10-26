@@ -198,3 +198,35 @@ modem_rwe_exception_secondary_lock_retry:
 }
 { memw_locked(r14,p2) = r15 }
 { if (!p2) jump:nt modem_rwe_exception_secondary_lock_retry }
+// Synchronize both the controller's status-register flag and its shared
+// exception tracking word before resuming the saved exception context.
+MODEM_SYS_READ 14,6,1
+{ r15 = ##65536 }
+.set modem_rwe_status_done, agent11_modem_exception_dispatch_entry + (0x3832c-0x38108)
+{
+    p2 = bitsclr(r14,r15)
+    if (p2.new) jump:nt modem_rwe_status_done
+}
+MODEM_SYS_READ 14,8,1
+{ r15 = memw(##-1065090816) }
+{
+    trace(r15)
+    r15 = clrbit(r15,r14)
+}
+{
+    p2 = !cmp.eq(r15,#0)
+    if (p2.new) jump:t modem_rwe_status_done
+    memw(##-1065090816) = r15
+}
+MODEM_SYS_READ 14,63
+{
+    trace(r14)
+    r14 = clrbit(r14,#16)
+}
+MODEM_SYS_WRITE 63,14
+{ trace(r14) }
+modem_rwe_status_done:
+{
+    r15 = #0
+    memw(##-1065090812) = r15.new
+}

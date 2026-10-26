@@ -17,7 +17,7 @@ import subprocess
 import tempfile
 
 FILE_START = 0x38108
-FILE_END = 0x382e0
+FILE_END = 0x38338
 VIRTUAL_START = 0xc0840108
 PHYSICAL_START = 0x8e040108
 PINNED_SHA256 = '6f5cb32bc10e41abb40938d185805e788f5637a41d3ebcef278e4e169fc36782'
@@ -70,6 +70,14 @@ def normalize_llvm6_locked_packets(data: bytes) -> bytes:
         compare,branch=read(0x382d0),read(0x382cc)
         write(0x382cc,compare)
         write(0x382d0,branch)
+    if len(result)>=0x38338-FILE_START:
+        # LLVM6 places the conditional jump before its producing P2 compare
+        # in this 4-instruction packet; preserve the original legal order.
+        if read(0x38308)!=0x5c005a12 or read(0x3830c)!=0x750f4012:
+            raise ValueError('unrecognized controller status compare/branch packet')
+        branch,pred=read(0x38308),read(0x3830c)
+        write(0x38308,pred)
+        write(0x3830c,branch)
     return bytes(result)
 
 
@@ -110,6 +118,8 @@ def assemble(llvm_mc: Path, source: Path) -> bytes:
             raise ValueError('Status-mask conditional branch must end its packet')
         if word(0x382d8)!=0xa0aecf02 or word(0x382dc)!=0x5cffe2f6:
             raise ValueError('Second locked store and retry must use checked Hexagon operands')
+        if word(0x38324)!=0x670ec03f or word(0x38334)!=0x48a0d204:
+            raise ValueError('Protected controller-flag reset has incorrect register operands')
         return data
 
 

@@ -232,3 +232,12 @@ python3 -m unittest discover -s tests -p 'test_*.py'
 - LLVM6 swaps a semantically equivalent `.new` predicate comparison and branch at `[0x382cc,0x382d4)`; the private-reference-free fail-closed normalizer verifies the original emitted instruction classes and operands before restoring source packet order. The corresponding registered-reference byte check passes with **zero mismatches**.
 - SHA-256 of the complete newly generated exception fragment: `6c60f80c9de3858e55eb55b6da23eacb8caa7034b291a8f05e58ba6f083d77e9`. 169 Rust tests and 38 Python tests pass. Release mode remains unverified in this current execution environment due tool execution limits; previous agent releases were tested separately.
 - Next uncovered modem RWE exception instruction is file `0x382e0`. Other modem executable/data/authenticated regions remain incomplete.
+
+## Checkpoint 27 — Interrupt status-mask cleanup
+
+- Extended the independent RWE exception continuation to **560 exact bytes** at modem file `[0x38108,0x38338)`, physical `[0x8e040108,0x8e040338)`; added `[0x382e0,0x38338)` = **88 Hexagon instruction bytes**.
+- Checks the protected S6 status mask, conditionally removes a tracked handler bit using S8, and clears both S63 controller flags and a protected MMIO status word. Branches to the shared exception-recovery continuation at `0x3832c` remain code-generated, not copied from reference bytes.
+- LLVM6 reorders the valid `.new` predicate and conditional branch at `0x38308`; the verifier checks both generated instruction classes and registers before restoring their source packet order. The pinned modem image matches all 560 bytes exactly.
+- SHA-256 of emitted executable fragment: `790fbcde1f258d76e78c62f2c336e0993fa90f8c70fcb38aca7f5cca5f88aeaa`.
+- Tests: 169 Rust, 38 Python; reference verification and independent LLVM6 assembly pass. Release compilation has not yet completed in this session and is not claimed as passed.
+- First unimplemented file offset now `0x38338`. The larger modem image remains incomplete and unsigned.
