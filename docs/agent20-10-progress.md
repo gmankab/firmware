@@ -683,3 +683,20 @@ python3 tools/verify-agent20-10-cdsp-controller-mode-guard.py \
   --prefix /private/controller-rwe-1972.bin \
   --reference /private/cdsp.mbn
 ```
+
+## Checkpoint 34 — second controller bit-plane iteration through 0x5680c; 3,216 executable bytes
+
+- Independently encoded **88 Hexagon V66 executable bytes** at CDSP file `[0x567b4,0x5680c)`, physical `[0x96cc87b4,0x96cc880c)`, the second bit-plane scanner inside the controller function begun at `0x56600`.
+- `cdsp_late_controller_secondary_bitloop.rs` reconstructs `R2=or(R19,R24)`, checked set-bit/count-trailing-zero/minimum operations, signed shift accumulators, extended protocol flags `0x77000000` and `0xc0000000`, direct helper call at physical `0x96dc0aac`, and the packet-relative guarded backedge to `0x96cc87a8`. All register pairs, immediate values and destinations are checked by the typed narrow constructors.
+- Standalone 88-byte source-built output and full `[0x56000,0x5680c)` prefix match pinned original `cdsp.mbn` with **zero differences**. The joined prefix is **2,060 file bytes = 2,016 independent executable + 44 structural NOP/layout bytes**; short completed controller `[0x55000,0x554b0)` contributes a further 1,200 independent executable bytes, totaling **3,216 independently reconstructed executable bytes**.
+- Independently authored LLVM6 V60 assembly fixture produces all **22 semantically identical instructions**; 11 original instruction words remain identical, the other eleven differ by architecture packet marker scheduling. `tools/verify-agent20-10-cdsp-controller-secondary-bitloop.py` uses Rizin V66 to verify the entire 22-word original packet structure, target `0x96dc0aac`, loop target `0x96cc87a8` and two full-width immext constants. Unavailable hardware semantics are not claimed by this instruction-level byte match.
+- Full offline Rust test suite **254 tests passed**, Python **23 tests passed**, release build succeeded. The next byte `0x5680c` remains inside the same controller function.
+- This checkpoint is still **provisional**, rooted in Agent 05's older CDSP branch; the checkpoint-50 integration base is not available here. An exact OEM reference comparison does not supply signing keys and the output is not a complete newly authenticated CDSP MBN.
+
+```sh
+cargo run --offline --locked -p firmware-tools --bin cdsp-late-controller-secondary-bitloop -- verify-prefix /private/cdsp.mbn
+python3 tools/verify-agent20-10-cdsp-controller-secondary-bitloop.py \
+  --llvm-mc /private/llvm6/bin/llvm-mc --rz-asm /private/rz-asm \
+  --generated /private/secondary-bitloop-88.bin \
+  --prefix /private/controller-rwe-2060.bin --reference /private/cdsp.mbn
+```
