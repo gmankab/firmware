@@ -17,7 +17,7 @@ import subprocess
 import tempfile
 
 FILE_START = 0x38108
-FILE_END = 0x38afc
+FILE_END = 0x38bf0
 VIRTUAL_START = 0xc0840108
 PHYSICAL_START = 0x8e040108
 PINNED_SHA256 = '6f5cb32bc10e41abb40938d185805e788f5637a41d3ebcef278e4e169fc36782'
@@ -184,6 +184,34 @@ def normalize_llvm6_locked_packets(data: bytes) -> bytes:
         write(0x388f0,ext)
         write(0x388f4,immediate)
         write(0x388f8,branch)
+    if len(result)>=0x38b70-FILE_START:
+        # LLVM6 encodes r28 (GP) register+extended-offset loads/stores in the
+        # generic 0x91/0xa1 register-memory classes. Original Hexagon V60
+        # GP-relative forms use classes 0x4980/0x4880/0x48a0, while keeping
+        # precisely the same operand/parse-marker halfword. Preserve LLVM's
+        # independently generated constant extender and transform only the
+        # checked architectural high 16 bits. This does not source any OEM
+        # machine-word bytes from the reference image.
+        from_classes={
+            0x38b34:(0x919c,0x4980), # r21 = memw(gp+##-1065090816)
+            0x38b4c:(0xa19c,0x4880), # memw(gp+##-1065090816) = r21
+            0x38b6c:(0xa1bc,0x48a0), # memw(gp+##-1065090812) = r21.new
+        }
+        for address,(source_class,dest_class) in from_classes.items():
+            old=read(address)
+            if (old >> 16)!=source_class:
+                raise ValueError(f'Unexpected Hexagon r28 GP-relative opcode at {address:#x}')
+            extender=read(address-4)
+            if extender!=0x0c085004:
+                raise ValueError(f'Expected source-assembled GP offset extender at {address:#x}')
+            write(address,(dest_class<<16)|(old&0xffff))
+        # The packet has a .new predicate and branch; LLVM6 emits the branch
+        # before its same-packet producer. Swap only after operand and marker
+        # validation; the two legally scheduled variants have identical size.
+        if read(0x38b40)!=0x5c005812 or read(0x38b44)!=0x75154010:
+            raise ValueError('Unknown suspended restore status predicate packet')
+        jump,pred=read(0x38b40),read(0x38b44)
+        write(0x38b40,pred);write(0x38b44,jump)
     return bytes(result)
 
 

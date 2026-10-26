@@ -346,3 +346,10 @@ python3 -m unittest discover -s tests -p 'test_*.py'
 - The new code restores SGP0, special GP/UGP, SSR, ELR, general and paired registers and issues `dcfetch` prefetches on the saved frame. Hexagon V60 typed class encoders express the nonstandard special transfers.
 - An LLVM6 PC-relative extended call at file `0x38a8c` needs the source target `0xdd1c` (rather than the +4 compensation appropriate to the earlier packet). Its relocation was checked by comparing all generated words; exactly one relocation target adjustment was required. No reference opcode bytes are imported by the generator.
 - Generated image matches the pinned modem reference with **zero differing bytes**. The function continues from file `0x38afc`; no new OEM auth/signature or complete modem firmware is produced.
+
+## Checkpoint 42 — Full suspended-thread restore and RTE
+
+- The entire source-generated RWE exception interval `[0x38108,0x38bf0)` now comprises **2,792 byte-identical Hexagon V60 executable bytes**. The 244 new bytes `[0x38afc,0x38bf0)` implement protected `memw_locked` retry, SSR status-bit synchronization, saved controller register/loop/predicate pair restoration and the architectural RTE at `0x38bec`.
+- LLVM 6 creates three GP-register extended memory operations using r28 register-address opcode classes rather than Hexagon V60's dedicated GP-relative forms. An ISA field-based, fail-closed normalization checks the independent LLVM6 extender, source class, register/parse operand halfword and converts only the operation-class field. It also normalizes one independently assembled `.new` compare/branch packet's legal alternate order. This is **not** a copy of OEM instruction bytes.
+- Independent source assembly and full 2,792-byte pinned reference comparison report zero mismatches, verified by focused tests on P3:0, PKTCOUNT, CS1:0, STID, CCR and final RTE. This completes this particular suspended-thread return path, not the entire modem exception handler or firmware.
+- First uncovered RWE executable file offset: `0x38bf0`, where another controller dispatch routine begins. Original OEM authentication remains external.

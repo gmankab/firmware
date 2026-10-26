@@ -14,7 +14,7 @@ spec.loader.exec_module(module)
 
 class ModemRweException(unittest.TestCase):
     def test_exact_address_mapping(self):
-        self.assertEqual((module.FILE_START, module.FILE_END), (0x38108, 0x38afc))
+        self.assertEqual((module.FILE_START, module.FILE_END), (0x38108, 0x38bf0))
         self.assertEqual(module.VIRTUAL_START-module.FILE_START, 0xc0808000)
         self.assertEqual(module.PHYSICAL_START-module.FILE_START, 0x8e008000)
 
@@ -32,7 +32,7 @@ class ModemRweException(unittest.TestCase):
             self.skipTest('Set AGENT11_LLVM_MC to run LLVM6 Hexagon assembler test')
         source = SCRIPT.parents[1]/'crates/firmware-tools/src/devices/xiaomi_nabu/modem_rwe_exception_dispatch.s'
         data = module.assemble(Path(mc), source)
-        self.assertEqual(len(data), 2548)
+        self.assertEqual(len(data), 2792)
         self.assertEqual(data[0x381b8-module.FILE_START:0x381bc-module.FILE_START],bytes.fromhex('00c0e057'))
         self.assertEqual(data[0:4], bytes.fromhex('00c00058'))
         # First 148 bytes after the restored RTE encode vector resolution,
@@ -50,6 +50,14 @@ class ModemRweException(unittest.TestCase):
         self.assertEqual(int.from_bytes(data[0x386bc-module.FILE_START:0x386c0-module.FILE_START], 'little'),0x961ec01e) # framekey dealloc_return
         self.assertEqual(int.from_bytes(data[0x38848-module.FILE_START:0x3884c-module.FILE_START], 'little'),0x57e04000)
         self.assertEqual(int.from_bytes(data[0x38850-module.FILE_START:0x38854-module.FILE_START], 'little'),0x57e0c000)
+        # Verify final original RTE and source-defined controller class fields.
+        self.assertEqual(data[-4:],(0x57e00000 | (3<<14)).to_bytes(4,'little'))
+        at=lambda file_offset: int.from_bytes(data[file_offset-module.FILE_START:file_offset-module.FILE_START+4],'little')
+        self.assertEqual(at(0x38b70), 0x62000000 | (32<<16) | (1<<14) | 4) # P3:0 = R0
+        self.assertEqual(at(0x38b8c), 0x63000000 | (38<<16) | (3<<14) | 18) # PKTCOUNT = R7:6
+        self.assertEqual(at(0x38bc4), 0x63000000 | (52<<16) | (1<<14) | 12) # CS1:0 = R21:20
+        self.assertEqual(at(0x38bd4), 0x67000000 | (24<<16) | (1<<14) | 2) # STID = R24
+        self.assertEqual(at(0x38be0), 0x67000000 | (22<<16) | (3<<14) | 7) # CCR = R22
         ref = os.environ.get('AGENT11_MODEM_MBN')
         if ref:
             module.verify_pinned(Path(ref).read_bytes(), data)

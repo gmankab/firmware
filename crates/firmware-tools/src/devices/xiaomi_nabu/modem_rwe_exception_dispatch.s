@@ -1098,3 +1098,68 @@ MODEM_RWE_CONFIG_WRITE 8,1,1       // USR = r1
     r19:18 = memd(r15+#168)
     dcfetch(r14+#0)
 }
+// Acquire the protected per-core restore lock, then test the interrupted
+// frame's SSR bit before deciding whether to republish controller state.
+{ r20 = ##-1065090812 }
+modem_rwe_suspended_restore_lock_retry:
+{ r21 = memw_locked(r20) }
+{
+    p0 = cmp.eq(r21,#0)
+    if (!p0.new) jump:nt modem_rwe_suspended_restore_lock_retry
+    if (p0.new) r21 = #1
+}
+MODEM_RWE_LOCKED_WORD_STORE 20,21,0,3
+{ if (!p0) jump:nt modem_rwe_suspended_restore_lock_retry }
+MODEM_SYS_READ 20,6,1            // SSR = controller state of saved task
+{ r21 = ##65536 }
+.set modem_rwe_suspended_status_done, agent11_modem_exception_dispatch_entry + (0x38b64-0x38108)
+{ p0 = bitsclr(r20,r21); if (p0.new) jump:nt modem_rwe_suspended_status_done }
+MODEM_SYS_READ 20,8,1              // Current hardware thread identifier.
+{ r21 = memw(r28+##-1065090816) }
+{ trace(r21); r21 = clrbit(r21,r20) }
+.set modem_rwe_suspended_mask_done, agent11_modem_exception_dispatch_entry + (0x38b64-0x38108)
+{
+    p0 = !cmp.eq(r21,#0)
+    if (p0.new) jump:t modem_rwe_suspended_mask_done
+    memw(r28+##-1065090816) = r21
+}
+MODEM_SYS_READ 20,63,3             // S63 = interrupt status.
+{ trace(r20); r20 = clrbit(r20,#16) }
+MODEM_SYS_WRITE 63,20,3
+{ trace(r20) }
+modem_rwe_suspended_mask_done:
+{ r21 = #0; memw(r28+##-1065090812) = r21.new }
+// Complete the interrupted task's protected register-bank restoration.
+// Restore predicate/loop/pktcount and paired controller registers before RTE.
+MODEM_RWE_CONFIG_WRITE 4,0,1       // P3:0
+{
+    r23:22 = memd(r15+#160)
+    r21:20 = memd(r15+#152)
+}
+MODEM_RWE_CONTROL_PAIR_WRITE 6,18,1 // M1:0
+{
+    r19 = r15
+    r3:2 = memd(r15+#136)
+    r1:0 = memd(r15+#144)
+}
+MODEM_RWE_CONTROL_PAIR_WRITE 18,6,3  // PKTCOUNT
+MODEM_RWE_CONTROL_PAIR_WRITE 16,4,1 // C17:16
+{ r7:6 = memd(r19+#120); r5:4 = memd(r19+#128) }
+MODEM_RWE_CONFIG_WRITE 1,21,1    // LC0
+{ r11:10 = memd(r19+#104); r9:8 = memd(r19+#112) }
+MODEM_RWE_CONFIG_WRITE 0,20,1    // SA0
+{ r15:14 = memd(r19+#88); r13:12 = memd(r19+#96) }
+MODEM_RWE_CONFIG_WRITE 2,22,3    // SA1
+MODEM_RWE_CONFIG_WRITE 3,23,1    // LC1
+{ r21:20 = memd(r19+#184); r22 = memw(r19+#220) }
+MODEM_RWE_CONTROL_PAIR_WRITE 12,20,1 // CS1:0
+{
+    r23 = r19
+    r17:16 = memd(r19+#80)
+    r19:18 = memd(r19+#72)
+}
+MODEM_SYS_WRITE 2,24,1             // STID
+{ r25:24 = memd(r23+#200); r27:26 = memd(r23+#192) }
+MODEM_SYS_WRITE 7,22,3             // CCR
+{ r21:20 = memd(r23+#64); r23:22 = memd(r23+#56) }
+MODEM_RWE_RETURN_FROM_EXCEPTION 3
