@@ -178,3 +178,11 @@ git diff --check
 - The linear disassembler misleadingly shows `ANDEQ LR,...,LSR #32` at `0x4d8fc`, `STRDEQ` inside the literal pool and an `<unknown>` constant; none is emitted as an executable instruction. Independent Clang/LLVM mnemonic reconstruction of all 1,017 instructions with both separately identified literal ranges reproduces the original exactly.
 - Verified cumulative Agent04 contiguous range `[0x40a2c,0x4e000)` = **54,740 bytes**: **13,631 ARM32 instructions** and **54 classified non-instruction data words**. The next routine begins at `0x4dd6c` inside this interval and continues after `0x4e000`; no invented function epilogue.
 - Offline Rust workspace 209 tests and Python 13 tests passed. Source branch is provisional older Agent03 history, not checkpoint50; prefix `[0x40000,0x40a2c)` remains uncovered.
+
+## Checkpoint 20 — controller command list, mode buffers and next function prologue
+
+- Added exact runtime `[0x4e000,0x4f000)` = **4,096 bytes**, MBN file `[0x52000,0x53000)`, re-encoded as **1,021 A32 instructions** and **3 separately identified non-instruction words** `[0x4eb54,0x4eb60)`: width mask `0xffc03f0f`, signed mask `0x7fff8000`, coefficient `0x0548eba0`, after a real POP-PC at `0x4eb50`.
+- New module `venus_agent20_04_controller_span_4e000.rs` partitions controller packet construction and follow-up descriptor serialization into four instruction-checked functions, with explicit `Code::check` boundaries and tests. It does not import raw OEM executable bytes.
+- `tools/agent20_04_roundtrip.py` with the original reference and `--data 0x4eb54:0x4eb60:0xffc03f0f,0x7fff8000,0x0548eba0` independently reassembled all 1,021 instructions with Clang/LLVM, matching the generated Rust bytes and original Venus MBN with zero differences.
+- Contiguous Agent04 coverage now `[0x40a2c,0x4f000)` = **58,836 bytes**, comprising **14,652 instructions**, **57 distinct non-instruction words**; first missing runtime address `0x4f000`. The earlier `[0x40000,0x40a2c)` gap remains outside measured coverage, and the whole branch is **provisional old Agent03 history**, not checkpoint 50.
+- Offline Rust workspace: 210 tests; Python: 13 passed; `CARGO_PROFILE_RELEASE_OPT_LEVEL=0 cargo build --workspace --release --offline --locked` passed. Default optimized release not claimed tested for this checkpoint.
