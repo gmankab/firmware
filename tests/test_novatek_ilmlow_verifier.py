@@ -369,3 +369,35 @@ class TestCliFailurePolicy(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+class TestSemanticJumpOffsetTables(unittest.TestCase):
+    """Data-table offsets are derived from named code targets, never raw bytes."""
+
+    def test_named_ten_way_jump_table_is_typed_data(self):
+        base = verifier.FILE_START - verifier.ILM_FILE_BASE
+        targets = [base + i * 2 for i in range(1, 11)]
+        asm = "jump.offsets10 " + ",".join(f"0x{v:x}" for v in [base, *targets])
+        rows = parsed((10, asm))
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(rows[0]["kind"], "data")
+        self.assertEqual(rows[0]["derived_offsets"], list(range(2, 21, 2)))
+        with tempfile.TemporaryDirectory() as directory:
+            source, _ = verifier.write_assembly(Path(directory), {"file_start": verifier.FILE_START}, rows)
+            self.assertIn(".byte 2,4,6,8,10,12,14,16,18,20", source.read_text())
+            self.assertNotIn(".byte 0x", source.read_text())
+
+    def test_jump_table_out_of_range_odd_and_false_base_rejected(self):
+        base = verifier.FILE_START - verifier.ILM_FILE_BASE
+        for bad_base, bad_target in ((base + 2, base + 2), (base, base + 1), (base, base + 256), (base, base - 2)):
+            targets = [base + 2 * i for i in range(1, 11)]
+            targets[1] = bad_target
+            asm = "jump.offsets10 " + ",".join(f"0x{v:x}" for v in [bad_base, *targets])
+            with self.subTest(base=bad_base, target=bad_target), self.assertRaises(verifier.VerificationFailure):
+                parsed((10, asm))
+
+    def test_reject_fabricated_or_nonsemantic_data(self):
+        base = verifier.FILE_START - verifier.ILM_FILE_BASE
+        for asm in (".byte 0x0a,0x12", "jump.offsets10 0x46a,0x46c",
+                    "jump.offsets10 0x46a,0x46e,0x46c,0x470,0x472,0x474,0x476,0x478,0x47a,0x47c,0x47e; .word 0"):
+            with self.subTest(assembly=asm), self.assertRaises(verifier.VerificationFailure):
+                parsed((10, asm))

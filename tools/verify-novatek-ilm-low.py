@@ -137,7 +137,8 @@ PROFILES = {
 # EX9 dependencies added by Agent 17 checkpoint 08, externally owned by Agent 18.
 # These are semantic operand expectations only, not OEM instruction bytes.
 # Derived via opcode-field inspection, and verified against pinned reference.
-ADDITIONAL_POSTMARKETOS_EX9 = {7: {'operation': 'jal', 'target_low25': 38128},
+ADDITIONAL_POSTMARKETOS_EX9 = {421: {'operation': 'sbi.gp', 'source_register': 0, 'address': 0x2c72e},
+  7: {'operation': 'jal', 'target_low25': 38128},
  8: {'operation': 'jal', 'target_low25': 96996},
  11: {'destination_register': 0, 'immediate': 232768, 'operation': 'movi'},
  12: {'address': 181492, 'destination_register': 0, 'operation': 'lwi.gp'},
@@ -288,18 +289,19 @@ CHECKPOINT_COUNTS["postmarketos"][0xE34] = (758, 239, 519, 132, 63)
 CHECKPOINT_COUNTS["postmarketos"][0x1C1A] = (2074,702,1372,401,131)
 CHECKPOINT_COUNTS["postmarketos"][0x23D0] = (2776,987,1789,477,151)
 CHECKPOINT_COUNTS["postmarketos"][0x2724] = (3109,1080,2029,512,164)
+CHECKPOINT_COUNTS["postmarketos"][0x275c] = (3128,1084,2044,513,165)
 SUPPORTED_MNEMONICS = {
     2: frozenset({
         "addi45", "beqs38", "bnes38", "beqz38", "bnez38", "beqzs8", "bnezs8",
         "add45", "bmski33", "fexti33", "slt45", "ex9.it", "ifcall9", "ifret16", "j8", "jr5", "jral5",
-        "lbi333", "lhi333", "lwi333", "lwi37", "lwi37.sp", "lwi450", "lwi45.fe", "swi333", "mov55", "movi55", "movpi45", "or33", "addi10.sp", "addri36.sp", "add333", "sub333", "sub45", "swi37.sp", "seh33", "slts45", "sltsi45", "neg33", "not33", "mul33", "xor33", "and33", "or33",
+        "lwi333.bi", "swi333.bi", "lbi333", "lhi333", "lwi333", "lwi37", "lwi37.sp", "lwi450", "lwi45.fe", "swi333", "mov55", "movi55", "movpi45", "or33", "addi10.sp", "addri36.sp", "add333", "sub333", "sub45", "swi37.sp", "seh33", "slts45", "sltsi45", "neg33", "not33", "mul33", "xor33", "and33", "or33",
         "pop25", "push25", "ret5", "sbi333", "seb33", "shi333", "slti45", "srli45", "subi333", "subi45",
         "swi450", "xlsb33", "zeb33", "zeh33", "slli333", "addi333",
     }),
     4: frozenset({
         "add_slli", "addi", "andi", "beq", "bne", "beqc", "beqz", "bitci", "bnec", "bset", "dsb",
         "bnez", "ifcall", "lhi.gp", "lhsi.gp", "shi.gp", "lbi", "slti", "sltsi", "bgez", "bltz", "bgtz", "blez", "bgezal", "bltzal", "lhi", "lwi", "shi", "swi", "lbs", "lhs", "lw", "sw", "srai", "divsr", "divr", "sub_slli", "and_slli", "xor_slli", "nor_slli", "slt_slli", "slts_slli", "lbi.gp", "lmw.bi", "smw.bi", "j", "jal", "jr", "jral", "lb", "lbi.gp", "lmw.bim", "lwi", "lwi.gp", "mfsr", "movi",
-        "mtsr", "or_slli", "ori", "sb", "sbi", "sbi.gp", "sethi", "sll", "smw.adm", "smw.bim", "srli", "swi.gp",
+        "mtsr", "or_slli", "ori", "xori", "lbi.bi", "lhi.bi", "lwi.bi", "sbi.bi", "shi.bi", "swi.bi", "ldi", "sdi", "ldi.bi", "sdi.bi", "sb", "sbi", "sbi.gp", "sethi", "sll", "smw.adm", "smw.bim", "srli", "swi.gp",
         "maddr32", "mul", "mulr64", "mulsr64", "max", "or_srli", "zeh", "subri", "slli", "lbsi", "lhsi",
     }),
 }
@@ -374,6 +376,21 @@ def register_number(text):
     return {"ta": 15, "fp": 28, "gp": 29, "lp": 30, "sp": 31}.get(name)
 
 
+def parse_jump_table_assembly(assembly, address, size):
+    """Decode only a *named-target* table, never a source of raw OEM bytes."""
+    require(size == 10, "jump.offsets10 must occupy exactly 10 bytes")
+    m = re.fullmatch(r"jump\.offsets10 (0x[0-9a-f]+(?:,0x[0-9a-f]+){10})", assembly)
+    require(m is not None, "jump table must contain base plus exactly ten named target addresses")
+    ints = [int(x, 16) for x in m.group(1).split(",")]
+    require(ints[0] == address, "jump table base must equal its runtime address")
+    require(all(0 <= target - ints[0] <= 255 and (target - ints[0]) % 2 == 0 for target in ints[1:]),
+            "jump table target must be an even unsigned byte displacement")
+    return {"runtime_address": address, "file_offset": address + ILM_FILE_BASE,
+            "length": size, "kind": "data", "mnemonic": "jump.offsets10",
+            "operands": m.group(1), "assembly": assembly, "base": ints[0],
+            "targets": ints[1:], "derived_offsets": [target - ints[0] for target in ints[1:]]}
+
+
 def validate_assembly(assembly, size, address):
     tokens = assembly.split(None, 1)
     require(bool(tokens), f"empty assembly at 0x{address:x}")
@@ -438,11 +455,14 @@ def parse_listing(text, profile):
                 f"malformed runtime address in instruction row {line_number}")
         address, size, assembly = int(parts[0], 16), int(parts[1]), parts[2].strip()
         require(address == pc, f"listing gap/overlap at runtime 0x{pc:x}")
-        require(size in (2, 4), f"invalid instruction width {size} at 0x{address:x}")
-        mnemonic, operands = validate_assembly(assembly, size, address)
-        instructions.append({"runtime_address": address, "file_offset": address + ILM_FILE_BASE,
-                             "length": size, "mnemonic": mnemonic,
-                             "operands": operands, "assembly": assembly})
+        if size == 10 and assembly.startswith("jump.offsets10 "):
+            instructions.append(parse_jump_table_assembly(assembly, address, size))
+        else:
+            require(size in (2, 4), f"invalid instruction width {size} at 0x{address:x}")
+            mnemonic, operands = validate_assembly(assembly, size, address)
+            instructions.append({"runtime_address": address, "file_offset": address + ILM_FILE_BASE,
+                                 "length": size, "kind": "instruction", "mnemonic": mnemonic,
+                                 "operands": operands, "assembly": assembly})
         pc += size
     require(pc + ILM_FILE_BASE == metadata["file_end"], "listing end does not match its claimed interval")
     return metadata, instructions
@@ -718,7 +738,11 @@ def write_assembly(directory, metadata, instructions):
              '.section .text.agent17,"ax",@progbits', ".balign 2", ".global agent17_start", "agent17_start:"]
     for instruction in instructions:
         lines.append(f"# runtime 0x{instruction['runtime_address']:x}; file 0x{instruction['file_offset']:x}")
-        lines.append("  " + instruction["assembly"])
+        if instruction.get("kind") == "data":
+            # Known dispatch targets are source semantic data; no copied OEM bytes.
+            lines.append("  .byte " + ",".join(str(x) for x in instruction["derived_offsets"]))
+        else:
+            lines.append("  " + instruction["assembly"])
     lines.extend([".global agent17_end", "agent17_end:", ""])
     source.write_text("\n".join(lines))
     linker_script = directory / "independent.ld"
@@ -759,9 +783,13 @@ def independent_check(args, directory, metadata, instructions, emitted, report):
     disassembly = run([paths["objdump"], "-d", "-z", elf], report)
     (directory / "independent-disassembly.txt").write_text(disassembly)
     decoded = parse_disassembly(disassembly)
-    require(len(decoded) == len(instructions),
+    data_spans = [(row["runtime_address"],row["runtime_address"]+row["length"])
+                  for row in instructions if row.get("kind")=="data"]
+    decoded = [row for row in decoded if not any(start<=row["runtime_address"]<end for start,end in data_spans)]
+    code_only = [row for row in instructions if row.get("kind")!="data"]
+    require(len(decoded) == len(code_only),
             f"independent decoder found {len(decoded)} instructions, source lists {len(instructions)}")
-    for actual, expected in zip(decoded, instructions):
+    for actual, expected in zip(decoded, code_only):
         require((actual["runtime_address"], actual["length"]) == (expected["runtime_address"], expected["length"]),
                 f"independent instruction boundary mismatch at runtime 0x{expected['runtime_address']:x}")
         require("unknown" not in actual["assembly"].lower(),
@@ -770,7 +798,7 @@ def independent_check(args, directory, metadata, instructions, emitted, report):
                 f"independent mnemonic differs at runtime 0x{expected['runtime_address']:x}: "
                 f"{actual['mnemonic']} != {expected['mnemonic']}")
     return {"status": "passed", "tool_versions": versions, "comparison_with_rust": comparison,
-            "assembled_instructions": len(instructions), "decoded_instructions": len(decoded),
+            "assembled_instructions": len(code_only), "decoded_instructions": len(decoded),
             "source": str(source), "elf": str(elf), "binary": str(binary),
             "binary_data_fallback_used": False, "decoded": decoded}
 
@@ -802,16 +830,29 @@ def verify(args, report):
                           "runtime_start": metadata["file_start"] - ILM_FILE_BASE,
                           "runtime_end": metadata["file_end"] - ILM_FILE_BASE}
     report["source_reference_comparison"] = compare_bytes(emitted, reference_span, metadata["file_start"], "source reconstruction")
-    widths = Counter(instruction["length"] for instruction in instructions)
-    report["counts"] = {"instruction_count": len(instructions), "instructions_16_bit": widths[2],
-                        "instructions_32_bit": widths[4], "executable_bytes": len(emitted),
-                        "metadata_bytes": 0, "layout_fill_bytes": 0, "external_bytes_in_generated_span": 0}
-    report["instructions"] = instructions
-    report["ex9_dependencies"] = inspect_ex9(data, args.profile, metadata, instructions)
+    code = [entry for entry in instructions if entry.get("kind")!="data"]
+    data_tables = [entry for entry in instructions if entry.get("kind")=="data"]
+    for table in data_tables:
+        require(table["base"] == table["runtime_address"], "jump table base mismatches its address")
+        start = table["file_offset"] - metadata["file_start"]
+        expected_bytes = bytes(table["derived_offsets"])
+        require(emitted[start:start+table["length"]] == expected_bytes,
+                "source-built jump table bytes differ from named target offsets")
+    instruction_pcs = {row["runtime_address"] for row in code}
+    for table in data_tables:
+        require(all(target in instruction_pcs for target in table["targets"]),
+                "named jump-table case target does not align to an authored instruction")
+    widths = Counter(instruction["length"] for instruction in code)
+    report["counts"] = {"instruction_count": len(code), "instructions_16_bit": widths[2],
+                        "instructions_32_bit": widths[4], "executable_bytes": len(emitted)-sum(t["length"] for t in data_tables),
+                        "metadata_bytes": sum(t["length"] for t in data_tables), "layout_fill_bytes": 0, "external_bytes_in_generated_span": 0}
+    report["instructions"] = code
+    report["data_tables"] = data_tables
+    report["ex9_dependencies"] = inspect_ex9(data, args.profile, metadata, code)
     verify_checkpoint_counts(args.profile, metadata["file_end"],
-                             (len(instructions), widths[4], widths[2], report["ex9_dependencies"]["uses"],
+                             (len(code), widths[4], widths[2], report["ex9_dependencies"]["uses"],
                               report["ex9_dependencies"]["distinct_entries"]))
-    report["control_flow"] = control_flow(instructions, report["interval"]["runtime_start"],
+    report["control_flow"] = control_flow(code, report["interval"]["runtime_start"],
                                           report["interval"]["runtime_end"], report["ex9_dependencies"])
     report["independent_assembly"] = independent_check(args, directory, metadata, instructions, emitted, report)
     report["limitations"] = [

@@ -102,7 +102,13 @@ pub enum Insn {
     LoadWordGp { dest: Reg, address: u32 },
     HalfGp { store: bool, signed: bool, reg: Reg, address: u32 },
     ShortMemory { store: bool, width: Width, reg: Reg, base: Reg, offset: u8 },
+    /// N16 LWI333.BI/SWI333.BI: word transfer at Ra then write back Ra+offset.
+    ShortPostIndexedWord {store:bool,reg:Reg,base:Reg,offset:u8},
     ImmediateMemory { store: bool, width: Width, reg: Reg, base: Reg, offset: i32 },
+    /// N32 .BI: access address at Ra, then apply signed scaled post-index to Ra.
+    PostIndexedMemory {store:bool,width:Width,reg:Reg,base:Reg,offset:i32},
+    /// N32 LDI/SDI .BI use signed 15-bit doubleword units and update Ra.
+    DoubleWordMemory {store:bool,postindexed:bool,first:Reg,base:Reg,offset:i32},
     SignedMemoryImmediate {width:Width,dest:Reg,base:Reg,offset:i32},
     /// LWI45.FE: load a word from the implicit $r8 frame/end register at
     /// a four-byte aligned negative offset, [-128,-4]. V3MUP extension.
@@ -127,6 +133,7 @@ pub enum Insn {
     CompactOr { dest: Reg, source: Reg },
     CompactMiscOp { dest: Reg, source: Reg, op: CompactMisc },
     OrImmediate { dest: Reg, source: Reg, value: u16 },
+    XorImmediate { dest:Reg,source:Reg,value:u16 },
     AndImmediate { dest: Reg, source: Reg, value: u16 },
     SubtractSmall3 { dest: Reg, source: Reg, value: u8 },
     AddSmall3 { dest:Reg,source:Reg,value:u8 },
@@ -163,6 +170,10 @@ pub enum Insn {
     JumpRegisterLink { reg: Reg },
     /// N16 JR5: jump to address in compact register, without setting LP.
     JumpRegister { reg:Reg },
+    /// NDS32 jump-table byte offsets, not executable instructions. `base` is
+    /// the register-held table pointer. Each entry is derived from a named
+    /// branch destination and checked to fit an unsigned byte displacement.
+    JumpTableOffsets10 {base:u32,targets:[u32;10]},
     DataSync,
     StackAdjust { bytes: i16 },
     AddressFromStack { dest: Reg, offset: u16 },
@@ -191,6 +202,16 @@ fn u15(value: u16) -> Result<u32, String> {
 impl Insn {
     pub fn encode(self, pc: u32, gp: u32) -> Result<Vec<u8>, String> {
         use Insn::*;
+        if let JumpTableOffsets10{base,targets}=self {
+            let mut offsets=Vec::with_capacity(targets.len());
+            for (i,target) in targets.into_iter().enumerate() {
+                if target<base || target-base>255 || (target-base)&1!=0 {
+                    return Err(format!("jump table entry {i} target 0x{target:x} invalid for base 0x{base:x}"));
+                }
+                offsets.push((target-base) as u8);
+            }
+            return Ok(offsets);
+        }
         let word = match self {
             StoreByteGp { source, address } => (0x1f << 25) | (source.number() << 20)
                 | signed(i64::from(address)-i64::from(gp),19)?,
@@ -231,6 +252,27 @@ impl Insn {
                 (op<<25)|(dest.number()<<20)|(base.number()<<15)
                  |signed(i64::from(offset/align),15)?
             },
+            DoubleWordMemory {store,postindexed,first,base,offset} => {
+                if offset%8!=0{return Err("unaligned doubleword displacement".into());}
+                if first.number()>30{return Err("NDS32 doubleword transfer requires a register pair".into());}
+                if !store && (first==base || first.number()+1==base.number()) {
+                    return Err("doubleword load writeback aliases data registers".into());
+                }
+                let major=match (store,postindexed) {(false,false)=>3,(false,true)=>7,
+                    (true,false)=>11,(true,true)=>15};
+                (major<<25)|(first.number()<<20)|(base.number()<<15)
+                    |signed(i64::from(offset/8),15)?
+            },
+            PostIndexedMemory {store,width,reg,base,offset} => {
+                let scale=i32::from(width.scale());
+                if offset%scale!=0{return Err("unaligned post-indexed memory offset".into());}
+                if !store && reg==base {
+                    return Err("NDS32 post-indexed load cannot write back into destination register".into());
+                }
+                let operation=match width {Width::Byte=>4,Width::Half=>5,Width::Word=>6};
+                ((operation+u32::from(store)*8)<<25)|(reg.number()<<20)|(base.number()<<15)
+                    |signed(i64::from(offset/scale),15)?
+            },
             ImmediateMemory { store,width,reg,base,offset } => {
                 let scale=i32::from(width.scale());
                 if offset%scale!=0{return Err("unaligned immediate memory offset".into());}
@@ -258,6 +300,7 @@ impl Insn {
             BranchZeroWide { reg,nonzero,target } => (0x27<<25)|(reg.number()<<20)
                 |((2+u32::from(nonzero))<<16)|displacement(pc,target,16)?,
             OrImmediate { dest,source,value } => (0x2c<<25)|(dest.number()<<20)|(source.number()<<15)|u15(value)?,
+            XorImmediate { dest,source,value } => (0x2b<<25)|(dest.number()<<20)|(source.number()<<15)|u15(value)?,
             AndImmediate { dest,source,value } => (0x2a<<25)|(dest.number()<<20)|(source.number()<<15)|u15(value)?,
             BitSet { dest,source,bit } => {
                 if bit>31{return Err("BSET bit exceeds 31".into());}
@@ -367,6 +410,12 @@ impl Insn {
                 if !(16..=47).contains(&value){return Err("MOVPI45 value must be 16..47".into());}
                 0xfa00|dest.compact()?<<5|u16::from(value-16)
             }
+            ShortPostIndexedWord{store,reg,base,offset} => {
+                if offset%4!=0 || offset>28{return Err("N16 word post-index must be 0..28 and 4-byte aligned".into());}
+                if !store && reg==base{return Err("unpredictable N16 load/writeback register alias".into());}
+                let top=if store{0xaa00u16}else{0xa200u16};
+                top|(reg.small()?<<6)|(base.small()?<<3)|u16::from(offset/4)
+            },
             ShortMemory { store,width,reg,base,offset } => {
                 if offset%width.scale()!=0 || offset/width.scale()>7{return Err("invalid compact memory offset".into());}
                 let operation=match width{Width::Word=>0xa000,Width::Half=>0xa400,Width::Byte=>0xa600};
@@ -470,6 +519,9 @@ impl Insn {
             LoadByteGp { dest,address } => format!("lbi.gp {},[{}]",r(dest),i64::from(address)-i64::from(gp)),
             ReadSystem { dest,csr } => format!("mfsr {},{}",r(dest),if let Csr::Number(index)=csr {format!("0x{index:x}")} else if csr==Csr::IntMask3 {"0xc2".into()} else {format!("${}",csr.name())}),
             WriteSystem { source,csr } => format!("mtsr {},{}",r(source),if let Csr::Number(index)=csr {format!("0x{index:x}")} else if csr==Csr::IntMask3 {"0xc2".into()} else {format!("${}",csr.name())}),
+            JumpTableOffsets10{base,targets} => format!("jump.offsets10 {}",std::iter::once(format!("0x{base:x}"))
+                .chain(targets.iter().map(|target|format!("0x{target:x}")))
+                .collect::<Vec<_>>().join(",")),
             StackAdjust { bytes } => format!("addi10.sp {bytes}"),
             AddressFromStack {dest,offset} => format!("addri36.sp {},{}",r(dest),offset),
             ReverseSubtractImmediate{dest,source,value} => format!("subri {},{},{}",r(dest),r(source),value),
@@ -501,8 +553,14 @@ impl Insn {
             LoadWordGp { dest,address } => format!("lwi.gp {},[{}]",r(dest),i64::from(address)-i64::from(gp)),
             HalfGp { store,signed,reg,address } => format!("{} {},[{}]",if store{"shi.gp"}else if signed{"lhsi.gp"}else{"lhi.gp"},r(reg),i64::from(address)-i64::from(gp)),
             ShortMemory { store,width,reg,base,offset } => format!("{}{}i333 {},[{}+{}]",if store{"s"}else{"l"},width.letter(),r(reg),r(base),offset),
+            ShortPostIndexedWord{store,reg,base,offset} => format!("{}wi333.bi {},[{}],{}",if store{"s"}else{"l"},r(reg),r(base),offset),
             SignedMemoryImmediate{width,dest,base,offset} => format!("l{}si {},[{}{:+}]",width.letter(),r(dest),r(base),offset),
             ImmediateMemory { store,width,reg,base,offset } => format!("{}{}i {},[{}{:+}]",if store{"s"}else{"l"},width.letter(),r(reg),r(base),offset),
+            PostIndexedMemory{store,width,reg,base,offset} => format!("{}{}i.bi {},[{}],{}",if store{"s"}else{"l"},width.letter(),r(reg),r(base),offset),
+            DoubleWordMemory{store,postindexed,first,base,offset} => {
+                if postindexed {format!("{}di.bi {},[{}],{}",if store{"s"}else{"l"},r(first),r(base),offset)}
+                else {format!("{}di {},[{}{:+}]",if store{"s"}else{"l"},r(first),r(base),offset)}
+            },
             WordAtFrameEnd {dest,offset} => format!("lwi45.fe {},{}",r(dest),offset),
             WordAtRegister { store,reg,base } => format!("{}wi450 {},[{}]",if store{"s"}else{"l"},r(reg),r(base)),
             WordAtStack {store,reg,offset} => format!("{}wi37.sp {},[$sp+{}]",if store{"s"}else{"l"},r(reg),offset),
@@ -532,6 +590,7 @@ impl Insn {
             CompactOr { dest,source } => format!("or33 {},{}",r(dest),r(source)),
             CompactMiscOp { dest,source,op } => format!("{} {},{}",op.mnemonic(),r(dest),r(source)),
             OrImmediate { dest,source,value } => format!("ori {},{},{}",r(dest),r(source),value),
+            XorImmediate{dest,source,value} => format!("xori {},{},{}",r(dest),r(source),value),
             AndImmediate { dest,source,value } => format!("andi {},{},{}",r(dest),r(source),value),
             BitSet { dest,source,bit } => format!("bset {},{},{}",r(dest),r(source),bit),
             IndexedMemory {store,width,signed,reg,base,index,shift} => format!("{}{}{} {},[{}+({}<<{})]",if store{"s"}else{"l"},width.letter(),if signed{"s"}else{""},r(reg),r(base),r(index),shift),
@@ -571,6 +630,62 @@ mod tests {
             nonzero:false,target:0x1004}.encode(0x1000,0).unwrap(),[0x4c,0x10,0,2]);
         assert!(Insn::CompareRegistersBranch {left:R1,right:R2,
             nonzero:false,target:0x1003}.encode(0x1000,0).is_err());
+    }
+
+    #[test]
+    fn semantic_jumptable_offsets_from_targets() {
+        let targets=[0x252e,0x2536,0x253a,0x253e,0x2542,0x2554,0x2554,0x2546,0x254a,0x2550];
+        assert_eq!(Insn::JumpTableOffsets10{base:0x2524,targets}.encode(0,0).unwrap(),
+            [10,18,22,26,30,48,48,34,38,44]);
+        let mut bad=targets;bad[0]=0x2626;
+        assert!(Insn::JumpTableOffsets10{base:0x2524,targets:bad}.encode(0,0).is_err());
+        bad=targets;bad[1]=0x2537;
+        assert!(Insn::JumpTableOffsets10{base:0x2524,targets:bad}.encode(0,0).is_err());
+    }
+
+    #[test]
+    fn checked_n16_word_postindex_matches_architecture() {
+        assert_eq!(Insn::ShortPostIndexedWord{store:false,reg:R3,base:Reg::new(5),offset:4}.encode(0,0).unwrap(),[0xa2,0xe9]);
+        assert_eq!(Insn::ShortPostIndexedWord{store:true,reg:R1,base:R4,offset:12}.encode(0,0).unwrap(),[0xaa,0x63]);
+        assert!(Insn::ShortPostIndexedWord{store:false,reg:R0,base:R0,offset:0}.encode(0,0).is_err());
+        assert!(Insn::ShortPostIndexedWord{store:true,reg:R0,base:R1,offset:30}.encode(0,0).is_err());
+    }
+
+    #[test]
+    fn xor_immediate_encoding_and_operand_limits() {
+        assert_eq!(Insn::XorImmediate{dest:R0,source:R0,value:1}.encode(0,0).unwrap(),
+            [0x56,0x00,0x00,0x01]);
+        assert!(Insn::XorImmediate{dest:R1,source:R2,value:32768}.encode(0,0).is_err());
+    }
+
+    #[test]
+    fn checked_postindexed_doubleword_offsets_and_pairs() {
+        assert_eq!(Insn::DoubleWordMemory{store:true,postindexed:true,first:Reg::new(3),
+            base:R0,offset:98576}.encode(0,0).unwrap(),[0x1e,0x30,0x30,0x22]);
+        assert_eq!(Insn::DoubleWordMemory{store:false,postindexed:false,first:R2,
+            base:R4,offset:-8}.encode(0,0).unwrap(),
+            ((3u32<<25)|(2<<20)|(4<<15)|0x7fff).to_be_bytes());
+        assert!(Insn::DoubleWordMemory{store:true,postindexed:true,first:R3,
+            base:R4,offset:3}.encode(0,0).is_err());
+        assert!(Insn::DoubleWordMemory{store:false,postindexed:true,first:Reg::new(31),
+            base:R1,offset:0}.encode(0,0).is_err());
+        assert!(Insn::DoubleWordMemory{store:false,postindexed:true,first:R1,
+            base:R2,offset:0}.encode(0,0).is_err());
+    }
+
+    #[test]
+    fn checked_post_indexed_memory_matches_nds32_isa() {
+        assert_eq!(Insn::PostIndexedMemory{store:false,width:Width::Half,reg:R1,
+            base:R4,offset:11316}.encode(0,0).unwrap(), [0x0a,0x12,0x16,0x1a]);
+        assert_eq!(Insn::PostIndexedMemory{store:true,width:Width::Word,reg:R2,
+            base:R3,offset:-16}.encode(0,0).unwrap(),
+            ((0xeu32<<25)|(2<<20)|(3<<15)|0x7ffc).to_be_bytes());
+        assert!(Insn::PostIndexedMemory{store:true,width:Width::Half,reg:R1,
+            base:R2,offset:3}.encode(0,0).is_err());
+        assert!(Insn::PostIndexedMemory{store:false,width:Width::Word,reg:R1,
+            base:R2,offset:65536}.encode(0,0).is_err());
+        assert!(Insn::PostIndexedMemory{store:false,width:Width::Word,reg:R1,
+            base:R1,offset:4}.encode(0,0).is_err());
     }
 
     #[test]
