@@ -14,6 +14,7 @@
 #[path = "../devices/xiaomi_nabu/novatek_dlm_control_candidates.rs"] mod novatek_dlm_control_candidates;
 #[path = "../devices/xiaomi_nabu/novatek_dlm_calibration_alias.rs"] mod novatek_dlm_calibration_alias;
 #[path = "../devices/xiaomi_nabu/novatek_dlm_bank_aliases.rs"] mod novatek_dlm_bank_aliases;
+#[path = "../devices/xiaomi_nabu/novatek_dlm_descriptor_geometry.rs"] mod novatek_dlm_descriptor_geometry;
 #[path = "../devices/xiaomi_nabu/novatek_dlm_envelope.rs"] mod novatek_dlm_envelope;
 #[path = "../devices/xiaomi_nabu/novatek_dlm_provenance.rs"] mod novatek_dlm_provenance;
 
@@ -113,6 +114,9 @@ fn verify_reference(image:&[u8],parts:&[DataFragment])->Result<(),String> {
     novatek_dlm_calibration_alias::verify_reference_assisted_copy(image)?;
     novatek_dlm_bank_aliases::verify_reference_assisted_aliases(image)?;
     novatek_dlm_bank_aliases::assert_uncredited_on_ledger(&ledger(parts)?)?;
+    novatek_dlm_descriptor_geometry::verify_record_first_indices(image)?;
+    novatek_dlm_descriptor_geometry::verify_distant_signature_alias(image)?;
+    novatek_dlm_descriptor_geometry::assert_geometry_remains_uncredited(&ledger(parts)?)?;
     for part in parts {
         let reference=image.get(part.file_start..part.file_end()).ok_or("DLM fragment outside reference")?;
         if let Some(index)=part.bytes.iter().zip(reference).position(|(a,b)|a!=b) {
@@ -162,6 +166,14 @@ fn run()->Result<(),String> {
             novatek_dlm_bank_aliases::assert_uncredited_on_ledger(&ledger(&generated_fragments()?)?)?;
             println!("Verified {bytes} dependent DLM bank-copy bytes using externally supplied source; independent source credit remains ZERO");
         }
+        Some("verify-descriptor-geometry") if args.len()==2 => {
+            let image=fs::read(&args[1]).map_err(|e|e.to_string())?;
+            if hex_digest(&image)!=REFERENCE_SHA256 {return Err("reference SHA-256 mismatch".into());}
+            let descriptors=novatek_dlm_descriptor_geometry::verify_record_first_indices(&image)?;
+            let alias=novatek_dlm_descriptor_geometry::verify_distant_signature_alias(&image)?;
+            novatek_dlm_descriptor_geometry::assert_geometry_remains_uncredited(&ledger(&generated_fragments()?)?)?;
+            println!("Verified {descriptors} DLM descriptor first-pointer geometry relations and {alias} repeated signature bytes; ZERO independent source bytes added");
+        }
         Some("check-envelope") if args.len()==2 => {
             let image=fs::read(&args[1]).map_err(|e|e.to_string())?;
             let a=novatek_dlm_envelope::verify_envelope(&image)?;
@@ -179,7 +191,7 @@ fn run()->Result<(),String> {
             println!("Emitted {} data fragments ({} bytes), with explicit holes retained in the provenance manifest.",
                 parts.len(),parts.iter().map(|part|part.bytes.len()).sum::<usize>());
         }
-        _=>return Err("usage: novatek-dlm ledger | emit <directory> | verify-reference <pinned-image.bin> | check-envelope <image.bin> | verify-bank-pairs <pinned-image.bin> | verify-calibration-alias <pinned-image.bin> | verify-bank-aliases <pinned-image.bin> | inspect-control-candidates <pinned-image.bin>".into()),
+        _=>return Err("usage: novatek-dlm ledger | emit <directory> | verify-reference <pinned-image.bin> | check-envelope <image.bin> | verify-bank-pairs <pinned-image.bin> | verify-calibration-alias <pinned-image.bin> | verify-bank-aliases <pinned-image.bin> | verify-descriptor-geometry <pinned-image.bin> | inspect-control-candidates <pinned-image.bin>".into()),
     }
     Ok(())
 }

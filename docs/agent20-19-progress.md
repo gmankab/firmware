@@ -594,3 +594,21 @@ invalidate any artificial ownership claim. Independent authoring stays
 **9,353 DLM data bytes** and **40,199 unknown DLM bytes**, with **zero new
 executable bytes**. The checkpoint was built on old-preview ancestry; its
 portable mbox should be applied by Agent 01 to a proven integrated base.
+
+## Checkpoint 13 — indexed descriptor geometry, 42 pointers, and 12-byte dependent signature
+
+Independent Rust and Python verifiers now check the first 15-bit index at
+relative `+0x48` within **42** table records across two groups and two
+banks. For each group the index, multiplied by four and added to file
+`0x22000`, reaches the end of the 140-byte record array. The unproved high
+selector bit is masked and never credited. In addition, the 12-byte profile
+signature at `[0x22710,0x2271c)` matches `[0x2df8c,0x2df98)`. These
+are reference-assisted observations—not independently recovered controller
+values—and all 96 descriptor pointer bytes plus both signature copies remain
+`unknown_dlm`. The prior seven copy aliases, 2,940-byte relocated descriptor
+banks and 428-byte calibration alias keep their existing separate claims;
+none are promoted to source. The current 9,353 generated DLM bytes and
+40,199 unresolved DLM bytes are unchanged. The pinned reference, strict
+metadata/envelope, all 12 CRC fields, mirror, Rust/Python tests and release
+build are rechecked at each checkpoint. See
+`docs/agent20-19-dlm-descriptor-geometry.md` for formulas and method limits.
