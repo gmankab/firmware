@@ -1185,3 +1185,16 @@ python3 -S tools/adsp-agent20-rwe-next-controller-slot-deactivate.py \
  --llvm-mc "$HEXAGON_LLVM_MC" --reference "$NABU_ADSP_REFERENCE" \
  --output /tmp/adsp-controller-slot-deactivate-124.bin
 ```
+
+## Checkpoint 69: four controller slot helper leaves `[0x12118,0x121bc)`
+
+- Rebuilt **164 byte-identical executable bytes** (41 Hexagon V66 words), file `[0x12118,0x121bc)`, physical `[0x8be0f118,0x8be0f1bc)`, SHA-256 `e227be877be8b4ea68a6b1b66c217042f77af8297001d565ff59cbc3f20d32c7`.
+- Four complete functions, each independently source-assembled: range-check slot table `[0x12118,0x12140)` (40 bytes), publish class flag17 `[0x12140,0x12168)` (40 bytes), publish selected slot bitmap `[0x12168,0x121a0)` (56 bytes), and publish class flag16 `[0x121a0,0x121bc)` (28 bytes).
+- LLVM6 assembles 40 instruction words directly. One `R3=SGP0` uses checked V66 register fields. `:mem_noshuf` retains controller-memory store/load order in the second helper. The four-byte linker fill `[0x12114,0x12118)` is not counted as executable code. No OEM opcode-array substitutions are used.
+- **9,372 independently reconstructed RWE executable bytes across 16 disjoint intervals**, with the newest separate island `[0x12118,0x121bc)`. Next nonzero program material follows `[0x121bc,0x121c0)` zero fill.
+
+```sh
+python3 -S tools/adsp-agent20-rwe-next-controller-slot-leaves.py \
+ --llvm-mc "$HEXAGON_LLVM_MC" --reference "$NABU_ADSP_REFERENCE" \
+ --output /tmp/adsp-slot-leaves-164.bin
+```
