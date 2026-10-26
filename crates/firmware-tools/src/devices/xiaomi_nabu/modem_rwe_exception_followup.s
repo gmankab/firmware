@@ -238,3 +238,29 @@ MODEM_FU_SYS_READ 1,17,3 // MODECTL
 { r4 = #0; memw(r5+#0) = r4.new }
 agent11_modem_rwe_sync_controller_done:
 { jumpr lr }
+// Unmask privileged K0 lock and conditionally reset the frame descriptor
+// fields when all controller-status words are ready. Each GP-relative read
+// retains its original extender; V60 class conversion is guarded in Python.
+.macro MODEM_FU_K0_UNLOCK marker=3
+    .if (\marker != 3)
+      .error "K0 unlock is a standalone privileged instruction"
+    .endif
+    .word (0x6c200080 | (\marker<<14))
+.endm
+.globl agent11_modem_rwe_unlock_controller
+agent11_modem_rwe_unlock_controller:
+MODEM_FU_K0_UNLOCK 3
+.set agent11_fu_skip_frame_reset,agent11_modem_rwe_unlock_controller + (0x39c18-0x39bc0)
+.set agent11_fu_resume_other_frame,agent11_modem_rwe_unlock_controller + (0x39d04-0x39bc0)
+{ r0 = memw(r28+##-1065268620); if (!cmp.eq(r0.new,#0)) jump:t agent11_fu_skip_frame_reset }
+{ r0 = memw(r28+##-1065076432); if (cmp.eq(r0.new,#0)) jump:t agent11_fu_skip_frame_reset }
+{ r0 = memw(r28+##-1065067868); if (cmp.eq(r0.new,#0)) jump:t agent11_fu_skip_frame_reset }
+{ r0 = memw(r28+##-1065265136); if (cmp.eq(r0.new,#0)) jump:nt agent11_fu_skip_frame_reset }
+{ memw(r0+#36) = #0; memw(r0+#32) = #0 }
+{ memw(r0+#16) = #0; memw(r0+#20) = #0 }
+{ memw(r0+#64) = #0; memw(r0+#60) = #0 }
+{ memw(r0+#92) = #0; memw(r0+#88) = #0 }
+{ memw(r0+#120) = #0; memw(r0+#116) = #0 }
+{ memw(r0+#4) = clrbit(#21) }
+agent11_fu_skip_frame_reset:
+{ r0 = memw(r28+##-1065077680); if (cmp.eq(r0.new,#0)) jump:t agent11_fu_resume_other_frame }

@@ -15,7 +15,7 @@ import tempfile
 from pathlib import Path
 
 FILE_START=0x39920
-FILE_END=0x39bc0
+FILE_END=0x39c24
 PINNED_SHA256='6f5cb32bc10e41abb40938d185805e788f5637a41d3ebcef278e4e169fc36782'
 
 
@@ -33,7 +33,13 @@ def normalize_hexagon_gp_relative(data: bytes) -> bytes:
     # Each mapping is guarded by the generic assembler's register/marker word.
     forms=((0x39aec,0x919cc101,0x0c085164),  # R1 = memw(GP+##offset)
            (0x39b20,0x919cc105,0x0c085164), # R5 = memw(GP+##offset)
-           (0x39ba0,0x919cc104,0x0c085164)) # R4 = memw(GP+##offset)
+           (0x39ba0,0x919cc104,0x0c085164), # R4 = memw(GP+##offset)
+           # K0-unlock exception-path hardware frame pointers.
+           (0x39bc8,0x919c4680,0x0c084529),
+           (0x39bd4,0x919c4600,0x0c0850e4),
+           (0x39be0,0x919c4480,0x0c08516a),
+           (0x39bec,0x919c4200,0x0c084560),
+           (0x39c1c,0x919c4200,0x0c0850d1))
     repaired=bytearray(data)
     V60_GP_RELATIVE_WORD_LOAD_CLASS=0x4980
     for address,expected,extword in forms:

@@ -13,8 +13,8 @@ spec.loader.exec_module(mod)
 
 class ExceptionFollowup(unittest.TestCase):
     def test_disjoint_bounds_and_no_implicit_vendor_fill(self):
-        self.assertEqual((mod.FILE_START,mod.FILE_END),(0x39920,0x39bc0))
-        self.assertEqual(mod.FILE_END-mod.FILE_START,672)
+        self.assertEqual((mod.FILE_START,mod.FILE_END),(0x39920,0x39c24))
+        self.assertEqual(mod.FILE_END-mod.FILE_START,772)
         self.assertGreater(mod.FILE_START,0x390dc)
         self.assertEqual(mod.FILE_START-0x390dc,0x844)
 
@@ -34,7 +34,7 @@ class ExceptionFollowup(unittest.TestCase):
         if not mc:self.skipTest('Set AGENT11_LLVM_MC for Hexagon source assembly test')
         source=SCRIPT.parents[1]/'crates/firmware-tools/src/devices/xiaomi_nabu/modem_rwe_exception_followup.s'
         data=mod.assemble(Path(mc),source)
-        self.assertEqual(len(data),672)
+        self.assertEqual(len(data),772)
         word=lambda off:int.from_bytes(data[off-mod.FILE_START:off-mod.FILE_START+4],'little')
         self.assertEqual(word(0x39920),0x9200c012) # memw_locked(r0)
         self.assertEqual(word(0x39930),0xa0a0d200) # checked memw_locked(r0,p0)=r18
@@ -78,6 +78,10 @@ class ExceptionFollowup(unittest.TestCase):
         self.assertEqual(word(0x39b84),0x1044c008)
         self.assertEqual(word(0x39ba0)>>16,0x4980)
         self.assertEqual(word(0x39bbc),0x529fc000)
+        self.assertEqual(word(0x39bc0),0x6c200080|(3<<14)) # K0 unlock
+        for address in [0x39bc8,0x39bd4,0x39be0,0x39bec,0x39c1c]:
+            self.assertEqual(word(address)>>16,0x4980) # independent V60 GP class
+        self.assertEqual(word(0x39c14),0x3f40c0d5) # frame status clrbit(21)
         ref=os.environ.get('AGENT11_MODEM_MBN')
         if ref:mod.verify(Path(ref).read_bytes(),data)
 
