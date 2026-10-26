@@ -938,3 +938,39 @@ Checkpoint 19 passes **160 Rust tests** and **125 Python-discovered tests**
 (**103 passed, 22 skipped** for optional external tools), workspace release
 build, Git whitespace checks, original-reference binary comparison,
 independent LLVM assembler output, and strict packet-structure validation.
+
+## Checkpoint 20 — status serialization and interface attribute helpers
+
+Four adjacent complete functions in `[0x104398,0x1045e8)` add **592 byte-exact
+executable bytes**, reconstructed from Hexagon V66 mnemonics and original
+packet boundaries rather than raw OEM instruction words:
+
+- `[0x104398,0x104488)` (240 bytes): normalize little-endian command fields,
+  construct a status reply and tail-call the existing output helper.
+- `[0x104488,0x1044f0)` (104 bytes): briefly clear two record-tag bytes,
+  query a status helper, restore the original values, and issue diagnostics
+  if the returned 16-bit value differs.
+- `[0x1044f0,0x104524)` (52 bytes): bounded skip through variable-length
+  tagged input records and tail call for matching type-2 descriptors.
+- `[0x104524,0x1045e8)` (196 bytes): validate, inspect and conditionally
+  update an interface status field through a shared external handler.
+
+LLVM 18/V66 and LLVM 6/V65 independently assemble all four functions with
+zero byte differences against the pinned firmware. At offset `0x88` in the
+fourth function, expressing the predicate operation before the two register
+writes forces LLVM to retain the required original duplex encoding.
+No reference byte slices, linker fill, private certificate material or
+embedded opcodes are emitted.
+
+Total independently reconstructed code `[0x1001c4,0x1045e8)` = **17,444
+contiguous executable bytes**. Dispatch tables remain **496 noncontiguous
+authored data bytes**, total **17,940 source-derived bytes**. The next complete
+routine begins at file `0x1045e8` (runtime `0xb00c45e8`); Agent 13's leading
+452-byte crossing-function seam remains unimplemented. Firmware signing and
+on-target behavior are not claimed.
+
+Validation: **160 Rust tests**, **128 Python-discovered cases** (**106 passed,
+22 optional checks skipped**), release build, independent LLVM6/LLVM18
+assembly and strict reference comparison passed. The checkpoint-19 test was
+updated to select the original checkpoint explicitly, so later registry
+growth does not change its negative-boundary assertion.

@@ -30,7 +30,7 @@ class CommandPipelineTests(unittest.TestCase):
         for directive in ('.word','.long','.byte','.incbin','.fill','.org'):
             self.assertNotIn(directive,text)
     def test_no_region_claim_beyond_complete_function(self):
-        current=late.select_regions(late.load_registry())
+        current=late.select_regions(late.load_registry(),through_checkpoint=19)
         self.assertEqual(current[-1].file_end,0x104398)
         self.assertLess(current[-1].file_end,late.OWNED_FILE_END)
         self.assertEqual(late.TEXT_VADDR+current[-1].file_end-late.TEXT_FILE_START,0xb00c4398)
