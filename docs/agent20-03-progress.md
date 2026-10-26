@@ -689,3 +689,11 @@ Original reference: private `map220v-nabu-firmware/venus.mbn`, SHA-256 `9d4af65d
 - Reconstructs codec register-size matrix, signed/unsigned long multiplies, plane allocation and stride calculations; the routine returns through its actual POP/PC at `0x3eaa4`.
 - Full-fragment direct comparison and independent mnemonic Clang/LLVM round-trip match with zero byte differences.
 - Next original runtime entry `0x3ead8`, strictly before exclusive upper bound `0x40000`. Portable branch not descended from checkpoint-50.
+
+## Checkpoint 99 — bounded queue transfer and controller bus-mode helpers
+
+- Full typed Venus `[0x21c78,0x3ee98)` = **119,328 byte-identical bytes**, MBN offsets `[0x25c78,0x42e98)`.
+- New `[0x3ead8,0x3ee98)` = **960 bytes**: **237 ARM32 instructions** in five callable routines, plus **three independently classified diagnostic data words**.
+- Byte and word queue emitters align payloads, verify size, and preserve the original saved-register returns (including an early conditional `POPEQ`). A separate function computes a power-of-two geometry; another selects controller bus mode.
+- Direct complete-fragment equality and independent mnemonic Clang/LLVM code+literal reassembly pass with zero differences. Python and Rust test outputs recorded separately.
+- Next original runtime begins `0x3ee98`; exclusive upper bound `0x40000`. Branch is portable/old-base, not checkpoint-50 integrated.
