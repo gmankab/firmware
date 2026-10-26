@@ -1244,3 +1244,30 @@ Cumulative contiguous executable `[0x1001c4,0x106ab4)` contains
 function begins at file `0x106ab4`. The initial 452-byte Agent13 seam and
 remaining WLAN code are still unimplemented. No on-device validation or
 new OEM authentication has been performed.
+
+## Checkpoint 31 — controller commands and buffered window
+
+Seven exact, contiguous Hexagon V66 routines at WLAN file offsets
+`[0x106ab4,0x106e8c)` (runtime `[0xb00c6ab4,0xb00c6e8c)`) add
+**984 executable bytes**, including session command checks/updates,
+window-capacity validation, slot indexing, and guarded session-window reads:
+
+- `0x106ab4–0x106b74` 192 bytes: command-mode verification.
+- `0x106b74–0x106bc8` 84 bytes: descriptor event update.
+- `0x106bc8–0x106cfc` 308 bytes: command validation and window accounting.
+- `0x106cfc–0x106d48` 76 bytes: slot indexing and lookup.
+- `0x106d48–0x106d50` 8 bytes: entry thunk sharing the lookup body.
+- `0x106d50–0x106d84` 52 bytes: short session-report tail callback.
+- `0x106d84–0x106e8c` 264 bytes: buffered window, overflow checks, diagnostics.
+
+For two multi-operation packets, independent mnemonics were reordered to
+preserve the exact original Hexagon duplex pairing; a store/load packet uses
+`:mem_noshuf`. LLVM22/V66 and LLVM6/V65 independently match the pinned
+reference with **zero byte differences** and no OEM opcode arrays in source.
+
+Cumulative executable `[0x1001c4,0x106e8c)` contains **27,848 bytes**;
+two separately source-authored dispatch tables add 496 data bytes for
+**28,344 source-derived bytes**. The next function begins at `0x106e8c`.
+The Agent13 leading seam and the remainder of Agent14's 2.44MB allocation
+are not yet reconstructed. Behavioral and OEM authorization checks remain
+outside these binary-equivalence tests.
