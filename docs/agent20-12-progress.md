@@ -644,3 +644,44 @@ session insertion gap `[0x447100,0x447234)` is 308 bytes, with an LLVM6
 unsupported compact duplex at file `0x447218`. The other session gap
 `[0x446ee8,0x447028)` remains 320 bytes including `r3=framekey`.
 No complete OEM firmware or signing credentials are present.
+
+## Checkpoint 25 — Complete 308-byte session registry insertion function
+
+The previously unclaimed Hexagon V60 registry-insertion function `[file
+0x447100,0x447234)` is **source assembled and byte identical** (308 bytes),
+VMA `[0x1e401100,0x1e401234)`, physical `[0x90001100,0x90001234)`.
+It validates controller pointers, finds or allocates a session registry object,
+sets the linked callback information and iterates a bounded controller table
+before returning through the original register-save frame.
+
+LLVM6 expands the `r21=add(r13,#16); r20=add(r20,#1)` A/A duplex into two
+full-width add instructions. The new checked helper
+`encode_v60_duplex_addi_inc()` encodes the **public Hexagon duplex class 3**,
+compact register fields and immediate fields without copying the vendor
+instruction word. A second helper confirms the two source-assembled scalar
+instructions, condition-code producer/consumer classes and packet markers,
+then corrects five symbolic branch offsets when the extra word is removed.
+Both the 308-byte new routine and the joined 840-byte registry block compare
+**exactly** against the SHA-256-pinned original `modem.mbn` (zero byte mismatches).
+
+The existing `[0x447028,0x447100)` registry scanners meet this new routine,
+and it joins directly into previously source-built `[0x447234,0x447448)`.
+Thus `[0x447028,0x447448)` is now **1,056 contiguous verified bytes**.
+Total independently generated later-modem bytes: **4,720**, across eight
+verified disjoint ELF executable ranges.
+
+The separate **320-byte session gap `[0x446ee8,0x447028)`** remains
+unclaimed, beginning with the LLVM6-unsupported instruction `r3=framekey`.
+No original OEM opcode word, cryptographic signing key, authentication
+chain, or whole-modem executable is reproduced by this checkpoint.
+
+Independent verification:
+
+```sh
+python3 tools/assemble-modem-late.py \
+  --llvm-mc /path/to/llvm6/bin/llvm-mc \
+  --reference /private/modem.mbn
+NABU_HEXAGON_LLVM_MC=/path/to/llvm6/bin/llvm-mc \
+NABU_MODEM_REFERENCE=/private/modem.mbn \
+  python3 -m unittest discover -s tests -p 'test_*.py'
+```

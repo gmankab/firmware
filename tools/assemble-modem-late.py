@@ -44,6 +44,7 @@ AUX_DIAGNOSTIC_HELPERS_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi
 AUX_SESSION_PREFIX_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_aux_session_prefix.s"
 AUX_FIND_FREE_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_aux_find_free_entry.s"
 AUX_RESOLVE_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_aux_resolve_handle.s"
+AUX_SESSION_REGISTRY_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_aux_session_registry_insert.s"
 AUX_INSERT_CONTROLLER_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_aux_insert_controller.s"
 AUX_REMOVE_CONTROLLER_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_aux_remove_controller.s"
 AUX_CALLBACK_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_aux_register_callback.s"
@@ -101,6 +102,8 @@ AUX_FIND_FREE_START = 0x447028
 AUX_FIND_FREE_END = 0x447078
 AUX_RESOLVE_START = 0x447078
 AUX_RESOLVE_END = 0x447100
+AUX_SESSION_REGISTRY_START = 0x447100
+AUX_SESSION_REGISTRY_END = 0x447234
 AUX_INSERT_CONTROLLER_START = 0x447234
 AUX_INSERT_CONTROLLER_END = 0x4472D0
 AUX_REMOVE_CONTROLLER_START = 0x4472D0
@@ -588,6 +591,98 @@ def restore_aux_registration_new_value_packet(assembled: bytes) -> bytes:
     return struct.pack('<'+'I'*len(words),*words)
 
 
+def compact_register_index(register: int) -> int:
+    """Hexagon duplex Rx encoding (architectural R0–R7 or R16–R23)."""
+    if 0 <= register <= 7:
+        return register
+    if 16 <= register <= 23:
+        return register - 8
+    raise ValueError(f"not a compact Hexagon duplex register: R{register}")
+
+
+def encode_v60_duplex_addi_inc(*, add_dest: int, add_src: int,
+                                add_imm: int, inc_dest: int,
+                                inc_src: int) -> int:
+    """Pack a two-A1-instruction Hexagon V60 duplex (manual §§10.2–10.3).
+
+    Slot 1 is A1 add-immediate; its compact destination Rx identifies the
+    source (R0–R15), with upper mapped destination registers R16–R23. Slot 0
+    is the A1 increment subinstruction: opcode SA1_inc, Rd, Rs.  For this
+    pair the source is R13, destination R21, and the increment is R20 += 1.
+
+    No OEM instruction word is read: the result is built solely from named
+    instruction classes, signed immediate and compressed register fields.
+    """
+    rx = compact_register_index(add_dest)
+    if add_src != rx or not 0 <= add_imm <= 31:
+        raise ValueError("duplex addi requires mapped Rx and unsigned 5-bit immediate")
+    rd = compact_register_index(inc_dest)
+    rs = compact_register_index(inc_src)
+    add_subinstruction = ((add_imm & 0x1f) << 4) | rx
+    inc_subinstruction = 0x1100 | (rs << 4) | rd  # SA1_inc: add(Rs,#1)
+    iclass = 3  # A/A duplex, table 10-5 of Hexagon programmer manual.
+    return (((iclass >> 1) << 29) | ((iclass & 1) << 13) |
+            (add_subinstruction << 16) | inc_subinstruction)
+
+
+def restore_aux_session_registry_packets(assembled: bytes) -> bytes:
+    """Restore source packet order and compact an architected A/A duplex.
+
+    LLVM6 emits two legal full-width scalar ADDs instead of the controller's
+    single V60 duplex at file 0x447218.  The short encoding is built from the
+    A1 opcode and register fields.  With one word removed, the source labels
+    after it shift back four bytes; four forward and one backward branch
+    immediates are corrected by the documented two-byte branch units.
+    Fail closed if ISA opcode classes, packet markers or target fields change.
+    """
+    original_size = AUX_SESSION_REGISTRY_END - AUX_SESSION_REGISTRY_START
+    if len(assembled) != original_size + 4:
+        raise ValueError("controller registry insertion requires 312 independently assembled bytes")
+    words=list(struct.unpack('<'+'I'*(len(assembled)//4),assembled))
+    i=0x18//4
+    predbranch,write=words[i:i+2]
+    if (predbranch>>24,write>>24)!=(0x10,0x74):
+        raise ValueError("registry conditional branch/predicated move opcode classes changed")
+    if [x&MARKER_MASK for x in (predbranch,write)]!=[CONTINUE_MARKER,END_MARKER]:
+        raise ValueError("registry conditional branch/predicated move packet markers changed")
+    words[i:i+2]=[(write & ~MARKER_MASK)|CONTINUE_MARKER,
+                  (predbranch & ~MARKER_MASK)|END_MARKER]
+
+    k=0x118//4
+    scalar_add,scalar_inc=words[k:k+2]
+    if [x>>24 for x in (scalar_add,scalar_inc)]!=[0xb0,0xb0]:
+        raise ValueError("duplex source must be two scalar A2 add instructions")
+    if [x&MARKER_MASK for x in (scalar_add,scalar_inc)]!=[CONTINUE_MARKER,END_MARKER]:
+        raise ValueError("duplex source packet parse markers changed")
+    # The source assembly specifies `r21=add(r13,#16)` followed by
+    # `r20=add(r20,#1)`. The ordinary 32-bit A2 destination register
+    # index occupies bits 0..4; verify these instead of trusting ordering.
+    if scalar_add & 0x1f != 21 or scalar_inc & 0x1f != 20:
+        raise ValueError("registry duplex operand destination register mismatch")
+    duplex=encode_v60_duplex_addi_inc(add_dest=21,add_src=13,add_imm=16,
+                                      inc_dest=20,inc_src=20)
+    words[k:k+2]=[duplex]
+    if len(words) != original_size//4:
+        raise ValueError("registry duplex did not shorten by one word")
+
+    # The assembler originally targeted a label four bytes later than the
+    # compacted code. These corrections update only branch immediate fields.
+    for offset, opcode_class, delta in [
+        (0x50,0x58,-2), (0x90,0x58,-2),
+        (0xb4,0x24,-2), (0x114,0x25,-2),
+        (0x120,0x21,+2),
+    ]:
+        idx=offset//4
+        branch=words[idx]
+        if (branch>>24)!=opcode_class or branch&MARKER_MASK!=END_MARKER:
+            raise ValueError(f"registry branch ISA class/marker changed at {offset:#x}")
+        oldimm=branch&0x3f
+        if not 0 <= oldimm + delta < 64:
+            raise ValueError("registry branch displacement overflow")
+        words[idx]=(branch&~0x3f)|(oldimm+delta)
+    return struct.pack('<'+'I'*len(words),*words)
+
+
 def restore_aux_insert_controller_packets(assembled: bytes) -> bytes:
     """Correct LLVM6 packet order for original source-encoded list insertion.
 
@@ -737,7 +832,10 @@ def output_fragments(llvm_mc: Path) -> dict[int, bytes]:
     aux_session_prefix=assemble(llvm_mc,AUX_SESSION_PREFIX_SOURCE)
     aux_find_free=assemble(llvm_mc,AUX_FIND_FREE_SOURCE)
     aux_resolve=assemble(llvm_mc,AUX_RESOLVE_SOURCE)
+    aux_session_registry=restore_aux_session_registry_packets(assemble(llvm_mc,AUX_SESSION_REGISTRY_SOURCE))
     aux_insert_controller=restore_aux_insert_controller_packets(assemble(llvm_mc,AUX_INSERT_CONTROLLER_SOURCE))
+    if len(aux_session_registry)!=AUX_SESSION_REGISTRY_END-AUX_SESSION_REGISTRY_START:
+        raise ValueError("aux registry insertion fragment length mismatch")
     if len(aux_insert_controller)!=AUX_INSERT_CONTROLLER_END-AUX_INSERT_CONTROLLER_START:
         raise ValueError("aux insert-controller length mismatch")
     aux_remove_controller=restore_aux_remove_controller_packets(assemble(llvm_mc,AUX_REMOVE_CONTROLLER_SOURCE))
@@ -780,7 +878,7 @@ def output_fragments(llvm_mc: Path) -> dict[int, bytes]:
             AUX_GUARD_START: aux_guard+aux_stage+aux_mmio+aux_heap+aux_worker+aux_lookup,
             AUX_DISPATCH_START:aux_dispatch+aux_type+aux_notify+aux_entry+aux_validator+aux_runtime_init+aux_veneers+aux_registration+aux_diagnostic_helpers+aux_session_prefix,
             AUX_FIND_FREE_START:aux_find_free+aux_resolve,
-            AUX_INSERT_CONTROLLER_START:aux_insert_controller+aux_remove_controller+aux_callback+aux_find_controller+aux_release_registry}
+            AUX_SESSION_REGISTRY_START:aux_session_registry+aux_insert_controller+aux_remove_controller+aux_callback+aux_find_controller+aux_release_registry}
 
 
 def executable_segments(reference: bytes) -> dict[int, tuple[int, int, int, int]]:

@@ -226,6 +226,59 @@ class ModemLateTests(unittest.TestCase):
         self.assertNotIn(".word",source)
         self.assertEqual(agent12.AUX_ENTRY_END-agent12.AUX_ENTRY_START,20)
 
+    def test_session_registry_duplex_encodes_architectural_fields(self):
+        # Hexagon A/A duplex: slot1 add-immediate, slot0 increment.
+        expected = agent12.encode_v60_duplex_addi_inc(
+            add_dest=21, add_src=13, add_imm=16, inc_dest=20, inc_src=20)
+        self.assertEqual(expected, 0x210d31cc)
+        self.assertEqual((expected >> 29) << 1 | ((expected >> 13) & 1),3)
+        self.assertEqual((expected >> 16) & 0x1fff,0x10d)
+        self.assertEqual(expected & 0x1fff,0x11cc)
+        self.assertEqual((expected>>14)&3,0)  # Duplex ends packet.
+        for args in (
+            dict(add_dest=21,add_src=20,add_imm=16,inc_dest=20,inc_src=20),
+            dict(add_dest=21,add_src=13,add_imm=32,inc_dest=20,inc_src=20),
+            dict(add_dest=21,add_src=13,add_imm=16,inc_dest=13,inc_src=20),
+            dict(add_dest=21,add_src=13,add_imm=16,inc_dest=20,inc_src=13),
+        ):
+            with self.assertRaises(ValueError):
+                agent12.encode_v60_duplex_addi_inc(**args)
+
+    def test_registry_insert_compaction_fails_closed(self):
+        # Build a synthetic LLVM6 word stream with the exactly expected
+        # instruction *classes* and parser state at affected offsets.
+        words=[0x7800c000]*78
+        words[0x18//4:0x20//4]=[0x1049601e,0x7490e000]
+        words[0x118//4:0x120//4]=[0xb00d4215,0xb014c034]
+        for off,raw in [(0x50,0x5800c06c),(0x90,0x5800c04c),
+                        (0xb4,0x2402c03c),(0x114,0x2502cf0c),
+                        (0x124,0x2132f4d2)]:
+            words[off//4]=raw
+        binary=struct.pack('<78I',*words)
+        packed=agent12.restore_aux_session_registry_packets(binary)
+        self.assertEqual(len(packed),agent12.AUX_SESSION_REGISTRY_END-agent12.AUX_SESSION_REGISTRY_START)
+        result=struct.unpack('<77I',packed)
+        self.assertEqual(result[0x118//4],0x210d31cc)
+        self.assertEqual(result[0x18//4]&agent12.MARKER_MASK,agent12.CONTINUE_MARKER)
+        self.assertEqual(result[0x1c//4]&agent12.MARKER_MASK,agent12.END_MARKER)
+        self.assertEqual(result[0x50//4]&0x3f,0x2a)
+        self.assertEqual(result[0x90//4]&0x3f,0x0a)
+        self.assertEqual(result[0xb4//4]&0x3f,0x3a)
+        self.assertEqual(result[0x114//4]&0x3f,0x0a)
+        self.assertEqual(result[0x120//4]&0x3f,0x14)
+        for idx,word,why in [
+            (0x18//4,0x78004000,'opcode classes'),
+            (0x1c//4,0x74906000,'packet markers'),
+            (0x118//4,0xa00d4215,'scalar A2 add'),
+            (0x11c//4,0xb0144034,'parse markers'),
+            (0x50//4,0x7a00c06c,'branch ISA class'),
+        ]:
+            damaged=words.copy();damaged[idx]=word
+            with self.assertRaisesRegex(ValueError,why):
+                agent12.restore_aux_session_registry_packets(struct.pack('<78I',*damaged))
+        with self.assertRaisesRegex(ValueError,'312 independently assembled bytes'):
+            agent12.restore_aux_session_registry_packets(binary[:-4])
+
     def test_regions_are_disjoint_and_bounded_by_executable_segments(self):
         self.assertEqual((agent12.ATOMIC_START, agent12.ATOMIC_END), (0x7C000, 0x7C040))
         self.assertEqual((agent12.CONTROL_START, agent12.CONTROL_END), (0x7C040, 0x7C0A0))
@@ -637,7 +690,14 @@ class ModemLateTests(unittest.TestCase):
     def test_optional_llvm6_exact_source_lengths(self):
         a = agent12.output_fragments(Path(os.environ["NABU_HEXAGON_LLVM_MC"]))
         self.assertEqual({k: len(v) for k, v in a.items()},
-                         {0x7C000:160,0x7C2EC:452,0x446000:216,0x446200:84,0x446260:552,0x446650:416})
+                         {0x7C000:160, 0x7C2EC:452, 0x446000:216,
+                          0x446200:84, 0x446260:552, 0x446650:2200,
+                          0x447028:216, 0x447100:840})
+        self.assertEqual(sum(map(len,a.values())),4720)
+        self.assertNotIn(agent12.AUX_INSERT_CONTROLLER_START,a)
+        self.assertEqual(a[agent12.AUX_SESSION_REGISTRY_START][:4],
+                         agent12.assemble(Path(os.environ["NABU_HEXAGON_LLVM_MC"]),
+                                          agent12.AUX_SESSION_REGISTRY_SOURCE)[:4])
         if os.getenv("NABU_MODEM_REFERENCE"):
             agent12.verify_reference(Path(os.environ["NABU_MODEM_REFERENCE"]).read_bytes(), a)
 
