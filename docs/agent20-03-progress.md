@@ -637,3 +637,10 @@ Original reference: private `map220v-nabu-firmware/venus.mbn`, SHA-256 `9d4af65d
 - Direct source-generated Rust comparison and independently linked Clang/LLVM reconstruction of the entire 892 bytes agree **with zero differences** against the pinned `venus.mbn` SHA-256 `9d4af65d7ede845e900f1b29ff425b7a8e2947056e695e246e58a2091445a085`.
 - **262 Rust and 13 Python tests pass**. The optimized release build is not confirmed for this checkpoint. This work is A32 opcode re-encoding, not recovered high-level source semantics, independently signed firmware or functional hardware validation.
 - Next original executable instruction begins at runtime `0x3a2e4` (original MBN file `0x3e2e4`), still within Agent 20-03's exclusive `[0x21c78,0x40000)` scope.
+
+## Checkpoint 92 — stack-backed codec stream configuration matrix, first block
+
+- Contiguous typed A32 `[0x21c78,0x3aa00)` = **101,768 byte-identical bytes**, MBN file `[0x25c78,0x3ea00)`.
+- New `[0x3a2e4,0x3aa00)` = **1,820 typed executable bytes, 455 ARM instructions**, zero new data words. The code constructs a large descriptor matrix on the stack, using backward PC-relative references into the preceding 147-word diagnostic table; that table remains data and its previous byte identity is rechecked in the complete output.
+- Full Rust emitter matches the pinned reference (zero byte differences); independent Clang/LLVM ARM assembler reproduces all 1,820 bytes. **263 Rust and 13 Python tests passed**. Release build not confirmed.
+- Current function continues after `0x3aa00`: this is a verified partial-function checkpoint without an invented return. The source remains on the earlier portable branch, not checkout of checkpoint 50; no signing/hardware test is claimed.
