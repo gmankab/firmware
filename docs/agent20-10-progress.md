@@ -585,3 +585,20 @@ python3 tools/verify-agent20-10-cdsp-large-prologue.py \
   ```
 
 - Next unimplemented byte: CDSP file `0x566d8` (physical `0x96cc86d8`); it continues into the first bitplane-iterator loop. As before this is a **provisional branch descended from Agent05 CDSP checkpoint17**, not the unavailable checkpoint-50 integrated base, and no newly signed CDSP firmware is implied.
+
+## Checkpoint 31 — controller bitplane loop through 0x56734; 3,000 executable bytes
+
+- Completed the **92-byte** iterator body at CDSP file `[0x566d8,0x56734)`, physical `[0x96cc86d8,0x96cc8734)`, continuing the six-instruction entry from checkpoint 30. The combined bitloop entry and body are **116 independently source-encoded bytes** in `cdsp_late_controller_bitloop.rs`; the enclosing controller function is still incomplete.
+- Code uses typed checked Hexagon V66 encodings for bit-mask scanning, `ct0`, `minu`, conditional shifts, signed bitplane accumulation, extended masks `0x3ffffe`, `0x70000000` and `0xc0000000`, a call to physical `0x96dc0aac`, and a packet-relative retry branch to `0x96cc86cc`. Invalid operand pairs, constants and branch targets are rejected by tests.
+- Independent LLVM6 source `tools/agent20-10-cdsp-rwe-controller-bitloop-body.s` assembles the same operations. **12 of 23 instruction words match unchanged**; remaining LLVM6 differences arise from packet marker/scheduler decisions, not byte matches, and are explicitly identified. `tools/verify-agent20-10-cdsp-rwe-controller-bitloop-body.py` uses Rizin V66 to decode **all 23 original packet words**, call target and retry edge. Exact source-generated Rust body/prefix comparison against the original pinned `cdsp.mbn` passes with **zero differing bytes**.
+- RWE prefix `[file 0x56000,0x56734)` is **1,844 file bytes**, containing **1,800 independently generated executable bytes** plus **44 separately counted alignment/fill bytes**. The short complete controller `[file 0x55000,0x554b0)` contributes another 1,200 independent executable bytes, so the agent's cumulative executable coverage is **3,000 bytes**, disjoint between the two segments.
+- In this session full offline workspace **248 Rust tests**, **23 Python tests**, focused source tests, reference comparison and release build passed. Reference CDSP SHA-256 `febeae7b8e47bad4eeabc159a3c24b74cda26dfa12b384c31de5de30817e06ea` is outside Git.
+- **Next missing byte:** `0x56734`, physical `0x96cc8734`, still within the controller function begun at `0x56600`. Output is not a signed or boot-validated firmware; the branch still originates from Agent 05 older CDSP history, not unavailable checkpoint 50.
+
+```sh
+cargo run --offline --locked -p firmware-tools --bin cdsp-late-controller-bitloop -- verify-prefix /private/cdsp.mbn
+python3 tools/verify-agent20-10-cdsp-rwe-controller-bitloop-body.py \
+ --llvm-mc /private/llvm6/bin/llvm-mc --rz-asm /private/rz-asm \
+ --generated /private/controller-bitloop-body-92.bin \
+ --prefix /private/controller-rwe-1844.bin --reference /private/cdsp.mbn
+```

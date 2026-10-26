@@ -3,10 +3,17 @@ use firmware_tools::devices::xiaomi_nabu::cdsp_late_controller_bitloop as c;
 use std::{env,fs,error::Error};
 fn main()->Result<(),Box<dyn Error>>{
     let a:Vec<_>=env::args().skip(1).collect();
-    if a.len()!=2{return Err("usage: cdsp-late-controller-bitloop <emit|verify|emit-prefix|verify-prefix> FILE".into());}
+    if a.len()!=2{return Err("usage: cdsp-late-controller-bitloop <emit|verify|emit-body|verify-body|emit-prefix|verify-prefix> FILE".into());}
     match a[0].as_str(){
-        "emit"=>fs::write(&a[1],c::build_bitloop_prefix()?)?,
+        "emit"=>fs::write(&a[1],c::build_bitloop_full()?)?,
         "verify"=>c::verify(&fs::read(&a[1])?)?,
+        "emit-body"=>fs::write(&a[1],c::build_bitloop_body()?)?,
+        "verify-body"=>{
+            let firmware=fs::read(&a[1])?;
+            if firmware.get(0x566d8..0x56734)!=Some(c::build_bitloop_body()?.as_slice()){
+                return Err("CDSP 92-byte controller bitloop differs from original".into());
+            }
+        },
         "emit-prefix"=>fs::write(&a[1],c::build_prefix()?)?,
         "verify-prefix"=>c::verify_prefix(&fs::read(&a[1])?)?,
         _=>return Err("unsupported command".into()),
