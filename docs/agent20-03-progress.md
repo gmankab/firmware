@@ -612,3 +612,11 @@ Original reference: private `map220v-nabu-firmware/venus.mbn`, SHA-256 `9d4af65d
 - Full generated fragment and independent Clang/LLVM A32 assembly of the 1,312 new bytes both match pinned `venus.mbn` exactly, zero mismatches. Eight harmless external BLX relocation type warnings from `ld.lld` did not affect emitted bytes. **257 Rust tests** and **13 Python tests** pass. Release build unconfirmed.
 - Whole generated fragment SHA-256: `76426b0adcba36d6fb2a4bbc11411961391d1d638f14b7f5bc7741074c216258`. Next ARM32 routine begins `0x39490`, file offset `0x3d490`; reserved Agent 20-03 upper bound `0x40000` is not approached/overlapped.
 - Byte-identical instruction re-encoding is not an independently verified high-level implementation, device boot validation or OEM authentication.
+
+## Checkpoint 89 — codec capture state and descriptor accessors
+
+- Complete typed source-encoded Venus A32 `[0x21c78,0x39bd0)` = **98,136 contiguous reference-identical bytes**, original firmware `[0x25c78,0x3dbd0)`; new `[0x39490,0x39bd0)` = **1,856 bytes**, **462 typed instructions** and two diagnostic pointers, one at each `[0x3996c,0x39970)` and `[0x39ac0,0x39ac4)`.
+- The reconstructed code calculates codec stream/capture constraints and shifts packed signed plane dimensions, initializes controller geometry/status fields and accesses indexed descriptor slots under lock-protected callbacks. The original function returns at `0x39968`, subsequent accessor routines terminate at original return sites, and the last function tail-calls the runtime callback at `0x39bcc` immediately before the next initializer at `0x39bd0`.
+- The register-offset signed halfword load is generated from checked public A32 bitfields. Both literal words are kept distinct from the executable stream. Direct full-region byte comparison and independent LLVM/Clang instruction assembly pass for all **1,856 added bytes** (one harmless external branch/interworking warning).
+- `cargo test --workspace --offline --locked` passes **258 Rust tests**; **13 Python tests** pass. Release build remains unconfirmed. Generated fragment SHA-256 `9651f5255f65fa87381073ce546d0282f4d8b7522a8e5aa4f7dc24ac31a29e4e`.
+- Next routine begins at runtime `0x39bd0` (MBN `0x3dbd0`). This is opcode-byte agreement, not semantic/hardware equivalence or OEM signing.
