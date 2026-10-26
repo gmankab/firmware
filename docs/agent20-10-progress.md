@@ -530,3 +530,22 @@ python3 tools/verify-agent20-10-cdsp-large-prologue.py \
   --generated /private/controller-80.bin --prefix /private/cdsp-rwe-1616.bin \
   --reference /private/cdsp.mbn
 ```
+
+## Checkpoint 28 — unsigned controller bank bounds and guarded early exits, 2,844 executable bytes
+
+- Reconstructed **72 independently source-generated Hexagon V66 executable bytes** at file `[0x56650,0x56698)` (VMA `[0xc00c8650,0xc00c8698)`, physical `[0x96cc8650,0x96cc8698)`), extending the same **incomplete larger controller routine** beyond checkpoint 27. The first 9 words independently LLVM6-assemble byte-exactly; the latter 9 words are equivalent but LLVM6 reorders predicate/new-value packets and chooses different packet markers. No claim of an unchanged LLVM6 binary for those latter words.
+- The sequence calls shared copy service `0x96cd0480`, initializes a handle, checks `R16.new` against zero with original branch to physical `0x96cc88bc`, reads the active stream bank, computes the upper bank `R25=R24+0x4000`, and checks unsigned bounds `P0=cmp.gtu(R23,R24)`, `P0=!cmp.gtu(R24,R2)`, `P0=cmp.gtu(R23,R25)`, `P0=!cmp.gtu(R25,R2)`. `P0.new` exits target `0x96cc8688`, `0x96cc8698`, `0x96cc86c0` using original explicit packet boundaries.
+- **Corrected typed encode fields** for the unsigned comparison and `P0.new` taken branch after strict byte comparison; added five exact-word regression assertions plus invalid operand/branch tests. `tools/agent20-10-cdsp-rwe-controller-validate.s` is **independently authored** Hexagon LLVM6 semantic assembly with physically correct target spacing, and `tools/verify-agent20-10-cdsp-rwe-controller-validate.py` cross-checks the complete 18-word original Rizin V66 packet order, the LLVM6 semantic instruction multiset and the pinned original firmware bytes.
+- The new typed emitter plus previously rebuilt prefix compare **byte-identically** with pinned private `cdsp.mbn`, zero mismatches. Contiguous file layout `[0x56000,0x56698)` = **1,688 bytes**, accounting for **1,644 independently generated executable bytes** and **44 structural NOP/fill bytes**. Combined with disjoint first controller `[0x55000,0x554b0)` = 1,200 executable bytes, cumulative source-derived CDSP executable count is **2,844 bytes**. Unknown CDSP executable segments, OEM authentication bytes, and hardware execution behavior remain unresolved.
+- Reproduce independently (original reference must remain outside Git):
+
+  ```sh
+  cargo run --offline --locked -p firmware-tools --bin cdsp-late-controller-validate -- verify /private/cdsp.mbn
+  cargo run --offline --locked -p firmware-tools --bin cdsp-late-controller-validate -- verify-prefix /private/cdsp.mbn
+  python3 tools/verify-agent20-10-cdsp-rwe-controller-validate.py \
+    --llvm-mc /private/llvm6/bin/llvm-mc --rz-asm /private/rz-asm \
+    --generated /private/controller-validate-72.bin \
+    --prefix /private/cdsp-rwe-1688.bin --reference /private/cdsp.mbn
+  ```
+
+- **Next missing executable byte:** file offset `0x56698`, physical `0x96cc8698`. This is still within the same larger controller function. Git lineage remains a **provisional Agent05 branch**, not checkpoint-50 integration.
