@@ -241,3 +241,12 @@ python3 -m unittest discover -s tests -p 'test_*.py'
 - SHA-256 of emitted executable fragment: `790fbcde1f258d76e78c62f2c336e0993fa90f8c70fcb38aca7f5cca5f88aeaa`.
 - Tests: 169 Rust, 38 Python; reference verification and independent LLVM6 assembly pass. Release compilation has not yet completed in this session and is not claimed as passed.
 - First unimplemented file offset now `0x38338`. The larger modem image remains incomplete and unsigned.
+
+## Checkpoint 28 — Exception-state shadow and per-thread lock release
+
+- Extended this independently generated RWE continuation to **708 executable bytes**, modem file `[0x38108,0x383cc)`, virtual `[0xc0840108,0xc08403cc)`, physical `[0x8e040108,0x8e0403cc)`; added 148 bytes `[0x38338,0x383cc)`.
+- Captures a controller register pair, tagged exception stack pointers and an original four-word exception-restore packet (privileged-register write and inline RTE form), then traverses the second per-thread interrupt lock and clears its S63 and MMIO mask bits.
+- LLVM6 puts the two valid predicate-triggered branches at `0x38374` and `0x3839c` before their producers. The agent verifier checks exact independently generated opcode classes and packet markers before moving only those two instructions; no reference words are imported into the generator. The extended control-class `0x63` transfer is encoded from checked field values and remains a low-level instruction-level reconstruction rather than a demonstrated high-level state semantics proof.
+- Exact pinned reference verification: **0 byte mismatches**. Emitted region SHA-256 `c54ed754778e99b8ac357941482f016eb50ed464b383357824f849c73f57c7c6`.
+- Tests: 169 Rust and 38 Python passed, including external LLVM6/regression and pinned-reference gate. Release build not yet confirmed within this session; do not treat previous checkpoints' release status as a current check.
+- Next unimplemented Hexagon instruction begins at file `0x383cc`; the continuation remains disjoint from the full first executable load and other RWE islands.

@@ -230,3 +230,77 @@ modem_rwe_status_done:
     r15 = #0
     memw(##-1065090812) = r15.new
 }
+// Begin restoring a saved controller register bank. The older Hexagon MC
+// lacks the late privileged pair-write mnemonic; encode its public operand
+// fields through a checked architecture helper (not reference opcode bytes).
+.macro MODEM_RWE_EXT_CONTROL_WRITE control_field, gpr, marker=1
+    .if (\control_field < 0) || (\control_field > 63) || (\gpr < 0) || (\gpr > 31)
+      .error "invalid extended control-register transfer operands"
+    .endif
+    .if (\marker != 1)
+      .error "this extended control write must continue a 4-word packet"
+    .endif
+    .word (0x63000000 | (\control_field << 16) | (\marker << 14) | \gpr)
+.endm
+.macro MODEM_RWE_INLINE_RTE marker=1
+    .if (\marker != 1)
+      .error "this RTE is embedded in a four-word exception-return packet"
+    .endif
+    .word (0x57e00000 | (\marker << 14))
+.endm
+{
+    r15:14 = c11:10
+    r13:12 = combine(r12,r13)
+    memd(r22+#48) = r13:12
+}
+MODEM_RWE_EXT_CONTROL_WRITE 44,10,1
+MODEM_RWE_INLINE_RTE 1
+{
+    r13 = r23
+    r23:22 = memd(r22+#56)
+}
+MODEM_SYS_WRITE 6,13,1
+.set modem_rwe_exception_state_save, agent11_modem_exception_dispatch_entry + (0x383dc-0x38108)
+{
+    r7:6 = combine(r14,r15)
+    if (!p0) jump:nt modem_rwe_exception_state_save
+    r28 = memw(r28+#0)
+}
+// Save the second exception-controller shadow register and release its
+// protected status lock. This mirrors the first lock protocol but uses
+// controller thread register r9 and the previous r12 exception mask.
+MODEM_SYS_WRITE 3,9
+{ r9 = ##-1065090812 }
+modem_rwe_exception_thread_lock_retry:
+{ r12 = memw_locked(r9) }
+{
+    p2 = cmp.eq(r12,#0)
+    if (!p2.new) jump:nt modem_rwe_exception_thread_lock_retry
+    if (p2.new) r12 = #1
+}
+{ memw_locked(r9,p2) = r12 }
+{ if (!p2) jump:nt modem_rwe_exception_thread_lock_retry }
+MODEM_SYS_READ 9,8,1
+{ r12 = memw(##-1065090816) }
+{
+    trace(r12)
+    r12 = clrbit(r12,r9)
+}
+.set modem_rwe_thread_status_done, agent11_modem_exception_dispatch_entry + (0x383c0-0x38108)
+{
+    p2 = !cmp.eq(r12,#0)
+    if (p2.new) jump:t modem_rwe_thread_status_done
+    memw(##-1065090816) = r12
+}
+MODEM_SYS_READ 9,63
+{
+    trace(r9)
+    r9 = clrbit(r9,#16)
+}
+MODEM_SYS_WRITE 63,9
+{ trace(r9) }
+modem_rwe_thread_status_done:
+{
+    r12 = #0
+    memw(##-1065090812) = r12.new
+}

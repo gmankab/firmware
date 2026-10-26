@@ -17,7 +17,7 @@ import subprocess
 import tempfile
 
 FILE_START = 0x38108
-FILE_END = 0x38338
+FILE_END = 0x383cc
 VIRTUAL_START = 0xc0840108
 PHYSICAL_START = 0x8e040108
 PINNED_SHA256 = '6f5cb32bc10e41abb40938d185805e788f5637a41d3ebcef278e4e169fc36782'
@@ -78,6 +78,25 @@ def normalize_llvm6_locked_packets(data: bytes) -> bytes:
         branch,pred=read(0x38308),read(0x3830c)
         write(0x38308,pred)
         write(0x3830c,branch)
+    if len(result)>=0x38364-FILE_START:
+        # The packet containing combine(r14,r15), conditional p0 jump and
+        # saved-frame load is also valid with producer first. LLVM6 puts
+        # the branch in slot zero; preserve operand/parse fields strictly.
+        if read(0x38358)!=0x5c204042 or read(0x3835c)!=0xf50e4f06:
+            raise ValueError('unrecognized exception context combine/branch packet')
+        branch,combined=read(0x38358),read(0x3835c)
+        write(0x38358,combined)
+        write(0x3835c,branch)
+    if len(result)>=0x383cc-FILE_START:
+        # The paired per-thread lock operations have r12 predicate operands,
+        # but the identical tested LLVM6 branch-first scheduling behavior.
+        for addr,branch_word,predicate_word in (
+                (0x38374,0x5cff6afe,0x750c4002),
+                (0x3839c,0x5c005a12,0x750c4012)):
+            if read(addr)!=branch_word or read(addr+4)!=predicate_word:
+                raise ValueError(f'unrecognized per-thread locked predicate at 0x{addr:x}')
+            write(addr,predicate_word)
+            write(addr+4,branch_word)
     return bytes(result)
 
 
@@ -120,6 +139,8 @@ def assemble(llvm_mc: Path, source: Path) -> bytes:
             raise ValueError('Second locked store and retry must use checked Hexagon operands')
         if word(0x38324)!=0x670ec03f or word(0x38334)!=0x48a0d204:
             raise ValueError('Protected controller-flag reset has incorrect register operands')
+        if word(0x383b8)!=0x6709c03f or word(0x383c8)!=0x48a0d204:
+            raise ValueError('Per-thread controller mask release has incorrect S63/MMIO operands')
         return data
 
 
