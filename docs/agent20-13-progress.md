@@ -353,3 +353,23 @@ python3 tools/build-wlanmdsp-agent13.py /tmp/wlan-prefix-through-27a0.bin \
 - Full new disjoint continuation `[0x4568c,0x46a08)` totals **4,988 actual Hexagon instruction bytes**, no structural layout padding and no externally supplied code; SHA-256 `e0b26407966ce02eb735b7806d000dccfa17b87a8ba662ac45f301ab57487aea`. LLVM6 assembly compared against SHA-256 pinned `wlanmdsp.mbn`: **zero differing bytes**.
 - All 160 Rust tests passed; 37 Python tests executed and passed with two optional skips; offline release build passed; `git diff --check` clean.
 - First missing code now begins at file `0x46a08` (VMA `0xb0006a08`), in the continuing WLAN controller routine. This branch still descends from checkpoint16 rather than unavailable checkpoint25; provenance and whole-firmware warnings remain unchanged.
+
+## Checkpoint 37 (disjoint) — finish session hardware loop and controller reporting
+
+- Reconstructed **404 source-assembled Hexagon instruction bytes** at WLAN
+  file offsets `[0x46a08,0x46b9c)` (VMA `[0xb0006a08,0xb0006b9c)`).
+  This completes the prior session-buffer traversal hardware loop and its
+  controller diagnostic/reporting path, including `:endloop0`, conditional
+  callbacks and a `dealloc_return` epilogue at `0x46b98`.
+- Six dependent load/store packets use `:mem_noshuf` to preserve the original
+  packet slot order; the branch targets are symbolic local labels or explicit
+  packet-relative displacements. LLVM6 assembles every word exactly without
+  OEM instruction arrays or `.word` directives in committed source.
+- Cumulative independently generated **disjoint** continuation
+  `[file 0x4568c,0x46b9c)` totals **5,392 instruction bytes**,
+  with no structural fill or externally supplied code. Reference SHA-256 is
+  `87c2c7bb1fe97eaf007a947832feba0898644b4d6626ac8ef49d8b94dd82604b`.
+- The checkpoint 25 ancestry hole remains: this branch descends from Agent 13
+  checkpoint 16 and does not establish a continuous prefix from `0x40000`.
+- The next source function begins with a call packet at `0x46b9c`. Its
+  complete boundary and packet semantics must be checked before extension.
