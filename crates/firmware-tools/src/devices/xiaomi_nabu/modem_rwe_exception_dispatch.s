@@ -568,3 +568,39 @@ MODEM_RWE_CONTROL_PAIR_READ 8,18,3
     jumpr r31
     memw(r6+#24) = r28
 }
+// Check protected frame key against per-thread stack metadata, then
+// conditionally restore the saved words and deallocate the temporary frame.
+// Privileged Y4 frame-key read unavailable in LLVM6 mnemonic tables.
+// The low register field and packet marker use the architected Y4 encoding.
+.macro MODEM_RWE_READ_FRAMEKEY dest, marker=1
+    .if (\dest < 0) || (\dest > 31) || (\marker != 1)
+      .error "invalid framekey transfer register/packet marker"
+    .endif
+    .word (0x6a100000 | (1 << 16) | (\marker << 14) | \dest)
+.endm
+.globl agent11_modem_rwe_framekey_guard
+agent11_modem_rwe_framekey_guard:
+MODEM_SYS_READ 6,0,1
+{ r9 = ##-1065089708 }
+{ allocframe(#0) }
+MODEM_RWE_READ_FRAMEKEY 8,1
+{
+    r4 = ##-1065089344
+    r7 = memw(r6+#-20)
+}
+{
+    r7 = xor(r7,r8)
+    r4 = xor(r4,r8)
+    r8 = add(r6,#-20)
+}
+{
+    r7 = sub(r7,r9)
+    if (cmp.gtu(r7.new,#4)) jump:nt agent11_modem_rwe_framekey_complete
+}
+{ memw(r8+#0) = r4 }
+{
+    memd(r6+#-16) = r1:0
+    memw(r6+#-8) = r2
+}
+agent11_modem_rwe_framekey_complete:
+{ dealloc_return }

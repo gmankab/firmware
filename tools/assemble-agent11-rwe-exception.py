@@ -17,7 +17,7 @@ import subprocess
 import tempfile
 
 FILE_START = 0x38108
-FILE_END = 0x3867c
+FILE_END = 0x386c0
 VIRTUAL_START = 0xc0840108
 PHYSICAL_START = 0x8e040108
 PINNED_SHA256 = '6f5cb32bc10e41abb40938d185805e788f5637a41d3ebcef278e4e169fc36782'
@@ -145,6 +145,13 @@ def normalize_llvm6_locked_packets(data: bytes) -> bytes:
                 raise ValueError(f'Unexpected final R8 mask packet at 0x{address:x}')
             write(address,predicate_word)
             write(address+4,branch_word)
+    if len(result)>=0x386c0-FILE_START:
+        # LLVM6 prematurely ends the extended GP-style immediate packet
+        # before its allocframe. Original legal parse sequence is
+        # extender -> immediate low -> allocframe, markers 1,1,3.
+        if read(0x38684)!=0x7800c289:
+            raise ValueError('unrecognized Hexagon protected framekey packet')
+        write(0x38684, (read(0x38684)&~(3<<14)) | (1<<14))
     return bytes(result)
 
 
