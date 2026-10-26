@@ -378,6 +378,43 @@ class ModemLateTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError,'312 independently assembled bytes'):
             agent12.restore_aux_session_registry_packets(binary[:-4])
 
+    def test_auxiliary_elf32_symbols_and_generated_sysv_hash(self):
+        generated=agent12.emit_auxiliary_elf_symbols()
+        self.assertEqual(len(generated),296)
+        self.assertEqual((agent12.AUX_DYNAMIC_START,agent12.AUX_DYNAMIC_END),
+                         (0x4460d8,0x446200))
+        self.assertEqual(generated[:19],b"/usr/lib/libc.so.1\0")
+        self.assertEqual(generated[19:36],bytes(17))
+        symbol_table=generated[0x24:0x24+7*16]
+        strings=generated[0x24+7*16:0x24+7*16+56]
+        self.assertEqual(strings,b"\0dlsym\0dladdr\0dlerror\0dlopen\0dlclose\0dlinfo\0_rtld_debug\0")
+        for index,(name,address,size,kind,shndx) in enumerate(agent12.AUX_EXPORTS):
+            item=symbol_table[index*16:(index+1)*16]
+            name_off,decoded_addr,decoded_size,binding,other,section=struct.unpack('<IIIBBH',item)
+            self.assertEqual(strings[name_off:].split(b"\0",1)[0].decode(),name)
+            self.assertEqual((decoded_addr,decoded_size,binding,other,section),
+                             (address,size,0x10|kind,0,shndx))
+        self.assertEqual(generated[0x24+7*16+56:0x24+7*16+56+4],bytes(4))
+        h=generated[0xd0:0x118]
+        nbucket,nchain=struct.unpack_from('<II',h)
+        self.assertEqual((nbucket,nchain),(8,8))
+        self.assertEqual(struct.unpack_from('<8I',h,8),(0,0,3,0,0,5,4,7))
+        self.assertEqual(struct.unpack_from('<8I',h,8+32),(0,0,0,2,0,1,0,6))
+        self.assertEqual(h,agent12.make_elf32_sysv_hash(tuple(x[0] for x in agent12.AUX_EXPORTS)))
+        self.assertEqual(generated[-16:],bytes(16))
+        self.assertEqual(agent12.emit_auxiliary_code_alignment(),bytes(12))
+
+    def test_auxiliary_elf_hash_uses_name_based_collision_chains(self):
+        self.assertEqual(agent12.elf32_sysv_hash('dlsym') % 8,5)
+        self.assertEqual(agent12.elf32_sysv_hash('dlerror') % 8,2)
+        self.assertEqual(agent12.elf32_sysv_hash('_rtld_debug') % 8,7)
+        with self.assertRaisesRegex(ValueError,'distinct symbols'):
+            agent12.make_elf32_sysv_hash(('hello','hello'))
+        with self.assertRaisesRegex(ValueError,'bucket count'):
+            agent12.make_elf32_sysv_hash(('x',),0)
+        with self.assertRaisesRegex(ValueError,'bucket count'):
+            agent12.make_elf32_sysv_hash(('x',),65536)
+
     def test_regions_are_disjoint_and_bounded_by_executable_segments(self):
         self.assertEqual((agent12.ATOMIC_START, agent12.ATOMIC_END), (0x7C000, 0x7C040))
         self.assertEqual((agent12.CONTROL_START, agent12.CONTROL_END), (0x7C040, 0x7C0A0))
@@ -404,8 +441,10 @@ class ModemLateTests(unittest.TestCase):
         self.assertEqual(agent12.AUX_GUARD_START,0x446260)
         self.assertEqual(agent12.AUX_GUARD_END,0x446278)
         self.assertEqual(agent12.AUX_END,0x4460D8)
-        self.assertLess(agent12.AUX_END,agent12.AUX_INIT_START)
-        self.assertLess(agent12.AUX_INIT_END,agent12.AUX_GUARD_START)
+        self.assertEqual(agent12.AUX_END,agent12.AUX_DYNAMIC_START)
+        self.assertEqual(agent12.AUX_DYNAMIC_END,agent12.AUX_INIT_START)
+        self.assertEqual(agent12.AUX_INIT_END,agent12.AUX_INIT_ALIGN_START)
+        self.assertEqual(agent12.AUX_INIT_ALIGN_END,agent12.AUX_GUARD_START)
         self.assertEqual((agent12.AUX_STAGE_START,agent12.AUX_STAGE_END), (0x446278,0x4462E0))
         self.assertEqual((agent12.AUX_MMIO_START,agent12.AUX_MMIO_END), (0x4462E0,0x4462F8))
         self.assertEqual(agent12.AUX_GUARD_END,agent12.AUX_STAGE_START)
@@ -789,15 +828,16 @@ class ModemLateTests(unittest.TestCase):
     def test_optional_llvm6_exact_source_lengths(self):
         a = agent12.output_fragments(Path(os.environ["NABU_HEXAGON_LLVM_MC"]))
         self.assertEqual({k: len(v) for k, v in a.items()},
-                         {0x7C000:160, 0x7C2EC:452, 0x446000:216,
-                          0x446200:84, 0x446260:4584})
-        self.assertEqual(sum(map(len,a.values())),5496)
+                         {0x7C000:160, 0x7C2EC:452, 0x446000:5192})
+        self.assertEqual(sum(map(len,a.values())),5804)
+        self.assertEqual(a[0x446000][0x0d8:0x200],agent12.emit_auxiliary_elf_symbols())
+        self.assertEqual(a[0x446000][0x254:0x260],bytes(12))
         self.assertNotIn(agent12.AUX_DISPATCH_START,a)
         self.assertNotIn(agent12.AUX_SESSION_VALIDATION_START,a)
         self.assertNotIn(agent12.AUX_SESSION_REGISTRY_START,a)
         self.assertNotIn(agent12.AUX_INSERT_CONTROLLER_START,a)
-        k=agent12.AUX_SESSION_REGISTRY_START-agent12.AUX_GUARD_START
-        self.assertEqual(a[agent12.AUX_GUARD_START][k:k+4],
+        k=agent12.AUX_SESSION_REGISTRY_START-agent12.AUX_START
+        self.assertEqual(a[agent12.AUX_START][k:k+4],
                          agent12.assemble(Path(os.environ["NABU_HEXAGON_LLVM_MC"]),
                                           agent12.AUX_SESSION_REGISTRY_SOURCE)[:4])
         if os.getenv("NABU_MODEM_REFERENCE"):

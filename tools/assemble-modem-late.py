@@ -66,8 +66,12 @@ CONTROL_START = 0x7C040
 CONTROL_END = 0x7C0A0
 AUX_START = 0x446000
 AUX_END = 0x4460D8
+AUX_DYNAMIC_START = AUX_END  # source-derived ELF interpreter/dynsym/dynstr/SysV hash
+AUX_DYNAMIC_END = 0x446200
 AUX_INIT_START = 0x446200
 AUX_INIT_END = 0x446254
+AUX_INIT_ALIGN_START = AUX_INIT_END  # checked file alignment, not executable instructions
+AUX_INIT_ALIGN_END = 0x446260
 AUX_GUARD_START = 0x446260
 AUX_GUARD_END = 0x446278
 AUX_STAGE_START = 0x446278
@@ -144,6 +148,88 @@ def extract_text(obj: bytes) -> bytes:
     if start + length > len(obj):
         raise ValueError("assembler .text section exceeds object file")
     return obj[start : start + length]
+
+
+# Auxiliary ELF32 symbol metadata is emitted from *its meaning*, not by
+# pasting a reference slice. Hexagon executable code is assembled separately.
+# ELF32_SYM fields: symbol, virtual address, size, type/binding, shndx.
+AUX_EXPORTS = (
+    ("dlsym",       0x1E400E90, 0x198, 2, 7),
+    ("dladdr",      0x1E401100, 0x134, 2, 7),
+    ("dlerror",     0x1E400650, 0x00C, 2, 7),
+    ("dlopen",      0x1E400C18, 0x204, 2, 7),
+    ("dlclose",     0x1E4003B4, 0x06C, 2, 7),
+    ("dlinfo",      0x1E400694, 0x100, 2, 7),
+    ("_rtld_debug", 0x1E419F1C, 0x010, 1, 15),
+)
+
+
+def elf32_sysv_hash(name: str) -> int:
+    """ELF SysV .hash algorithm (ELF ABI), using ASCII symbol names."""
+    result = 0
+    for c in name.encode("ascii"):
+        result = (result << 4) + c
+        high = result & 0xF0000000
+        if high:
+            result ^= high >> 24
+        result &= ~high
+    return result & 0xFFFFFFFF
+
+
+def make_elf32_sysv_hash(export_names: tuple[str, ...], buckets: int = 8) -> bytes:
+    """ELF32 SysV hash: two sizes, buckets, then collision-linked chains."""
+    if not export_names or len(set(export_names)) != len(export_names):
+        raise ValueError("ELF hash requires distinct symbols")
+    if not (1 <= buckets <= 65535):
+        raise ValueError("ELF hash bucket count must be in 1..65535")
+    chain = [0] * (len(export_names) + 1)  # zero ELF symbol is STN_UNDEF
+    heads = [0] * buckets
+    for index, name in enumerate(export_names, 1):
+        bucket = elf32_sysv_hash(name) % buckets
+        chain[index] = heads[bucket]
+        heads[bucket] = index
+    return struct.pack("<" + "I" * (2 + buckets + len(chain)),
+                       buckets, len(chain), *heads, *chain)
+
+
+def emit_auxiliary_elf_symbols() -> bytes:
+    """Produce 296 source-authored ELF metadata bytes for auxiliary library.
+
+    Layout: 36-byte interpreter string/padding; seven ELF32 Sym entries,
+    56-byte NUL-prefixed name table, 8-byte hash alignment, 72-byte ELF SysV
+    hash table, and 16-byte ending alignment. No executable code is copied.
+    """
+    interp = b"/usr/lib/libc.so.1\0"
+    if len(interp) > 0x24:
+        raise ValueError("auxiliary ELF interpreter name overflows reserved field")
+    out = bytearray(interp.ljust(0x24, b"\0"))
+    names = bytearray(b"\0")
+    records=[]
+    for name, address, size, kind, shndx in AUX_EXPORTS:
+        string_offset = len(names)
+        names.extend(name.encode("ascii") + b"\0")
+        if not (0 < string_offset < 0x10000 and 0 <= address <= 0xFFFFFFFF
+                and 0 < size <= 0xFFFFFFFF and kind in (1, 2)
+                and shndx in (7, 15)):
+            raise ValueError("invalid auxiliary ELF32 symbol value")
+        records.append(struct.pack("<IIIBBH", string_offset, address, size,
+                                   (1 << 4) | kind, 0, shndx))
+    out.extend(b"".join(records))
+    out.extend(names)
+    while len(out) % 8:
+        out.append(0)  # ELF hash table 8-byte alignment, not an instruction
+    out.extend(make_elf32_sysv_hash(tuple(x[0] for x in AUX_EXPORTS)))
+    out.extend(b"\0" * 16)  # file-backed linker section alignment
+    if len(out) != AUX_DYNAMIC_END - AUX_DYNAMIC_START:
+        raise ValueError(f"auxiliary ELF32 metadata must be {AUX_DYNAMIC_END - AUX_DYNAMIC_START} bytes, got {len(out)}")
+    return bytes(out)
+
+
+def emit_auxiliary_code_alignment() -> bytes:
+    """Twelve file-backed zero bytes after init; not Hexagon opcodes."""
+    if AUX_INIT_ALIGN_START != AUX_INIT_END or AUX_INIT_ALIGN_END-AUX_INIT_END != 12:
+        raise ValueError("auxiliary init linker alignment changed")
+    return bytes(AUX_INIT_ALIGN_END-AUX_INIT_END)
 
 
 def restore_atomic_packet_order(assembled: bytes) -> bytes:
@@ -978,6 +1064,8 @@ def output_fragments(llvm_mc: Path) -> dict[int, bytes]:
     if len(auxiliary) != AUX_END - AUX_START:
         raise ValueError(f"auxiliary boot source emitted {len(auxiliary)} instead of {AUX_END-AUX_START} bytes")
     aux_init = restore_aux_init_packet(assemble(llvm_mc,AUX_INIT_SOURCE))
+    aux_dynamic = emit_auxiliary_elf_symbols()
+    aux_align = emit_auxiliary_code_alignment()
     aux_guard = assemble(llvm_mc, AUX_GUARD_SOURCE)
     if len(aux_guard) != AUX_GUARD_END - AUX_GUARD_START:
         raise ValueError("auxiliary guard instruction block has invalid length")
@@ -1036,6 +1124,8 @@ def output_fragments(llvm_mc: Path) -> dict[int, bytes]:
     assert AUX_DISPATCH_END == AUX_TYPE_START and AUX_TYPE_END == AUX_NOTIFY_START
     if len(aux_mmio) != AUX_MMIO_END-AUX_MMIO_START:
         raise ValueError("auxiliary MMIO initialization source has invalid length")
+    assert AUX_END == AUX_DYNAMIC_START and AUX_DYNAMIC_END == AUX_INIT_START
+    assert AUX_INIT_ALIGN_START == AUX_INIT_END and AUX_INIT_ALIGN_END == AUX_GUARD_START
     assert AUX_GUARD_END == AUX_STAGE_START and AUX_STAGE_END == AUX_MMIO_START
     assert AUX_MMIO_END == AUX_HEAP_START and AUX_HEAP_END == AUX_WORKER_START
     assert AUX_WORKER_END == AUX_LOOKUP_START
@@ -1060,9 +1150,8 @@ def output_fragments(llvm_mc: Path) -> dict[int, bytes]:
     return {
         ATOMIC_START:atomic+controller,
         SERVICE_START:service+service_mmio+service_flags+service_alloc,
-        AUX_START:auxiliary,
-        AUX_INIT_START:aux_init,
-        AUX_GUARD_START:aux_guard+aux_stage+aux_mmio+aux_heap+aux_worker+
+        AUX_START:auxiliary+aux_dynamic+aux_init+aux_align+
+                  aux_guard+aux_stage+aux_mmio+aux_heap+aux_worker+
                         aux_lookup+aux_registry_core+registry,
     }
 
@@ -1133,8 +1222,13 @@ def main() -> int:
     for start, blob in fragments.items():
         print(f"Hexagon V60 independent source: file [{start:#x},{start+len(blob):#x}) "
               f"= {len(blob)} bytes, SHA256={hashlib.sha256(blob).hexdigest()}")
+    metadata=AUX_DYNAMIC_END-AUX_DYNAMIC_START
+    structural=AUX_INIT_ALIGN_END-AUX_INIT_ALIGN_START
+    code_bytes=sum(len(x) for x in fragments.values())-metadata-structural
     print(f"Total generated {sum(len(x) for x in fragments.values())} PARTIAL modem bytes in "
-          f"{len(fragments)} verified fragments; "
+          f"{len(fragments)} verified fragments, of which {code_bytes} are "
+          f"source-encoded Hexagon executable code, {metadata} independently "
+          f"derived ELF32 metadata and {structural} linker-alignment zeros; "
           f"original reference {'matched' if args.reference else 'not supplied'}; "
           "NOT complete, not new OEM authentication")
     return 0
