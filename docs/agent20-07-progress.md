@@ -989,3 +989,16 @@ python3 -S tools/adsp-agent20-rwe-next-sram-state-cases.py \
   --llvm-mc "$HEXAGON_LLVM_MC" --reference "$NABU_ADSP_REFERENCE" \
   --output /tmp/adsp-sram-state-cases-68.bin
 ```
+
+## Checkpoint 54: controller SRAM publication `[0x11798,0x1180c)`
+
+- Added **116 byte-identical source-assembled executable bytes** (`29 Hexagon V66 instruction words`), file `[0x11798,0x1180c)`, physical `[0x8be0e798,0x8be0e80c)`, SHA-256 `462e536ec818f510421ef4b23df1e95ae35ad90e44583a60f6a01b57bb6d50d1`.
+- The controller calls platform initialization routines, loads/stores GP-relative MMIO pointers, publishes an event state and writes source-defined command IDs 26/1. Two external `call` packets must include their subsequent `immext` and GP write/argument update; treating them as separate packets changes the parse bits even if their scalar operands match.
+- All 29 words are independently LLVM6-assembled with **no privileged placeholder substitutions**, and verified byte-for-byte against the pinned ADSP reference. Focused tests reject changed bytes and a wrong firmware revision.
+- The contiguous `[0x116a0,0x1180c)` SRAM/controller routine currently contains **364 independently rebuilt bytes**; cumulative ADSP RWE executable source is **7,196 bytes over 12 disjoint intervals**. The routine continues at file `0x1180c`; original ADSP, signing and other segments are not complete.
+
+```sh
+python3 -S tools/adsp-agent20-rwe-next-controller-publish.py \
+  --llvm-mc "$HEXAGON_LLVM_MC" --reference "$NABU_ADSP_REFERENCE" \
+  --output /tmp/adsp-controller-publish-116.bin
+```
