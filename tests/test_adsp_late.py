@@ -197,9 +197,9 @@ class ADSPExternalsAndCodeTests(unittest.TestCase):
     @unittest.skipUnless(LLVM_MC,'Hexagon LLVM6 assembler required')
     def test_complete_fragment_inventory_rejects_overlaps(self):
         manifest,regions=adsp.assembled_inventory(LLVM_MC,None)
-        self.assertEqual(len(manifest['fragments']),89)
-        self.assertEqual(manifest['total_independently_assembled_executable_bytes'],6796)
-        self.assertEqual(sum(map(len,regions.values())),6796)
+        self.assertEqual(len(manifest['fragments']),91)
+        self.assertEqual(manifest['total_independently_assembled_executable_bytes'],7040)
+        self.assertEqual(sum(map(len,regions.values())),7040)
         self.assertEqual(manifest['gap_bytes_included_in_generated_executables'],0)
         self.assertFalse(manifest['complete_adsp_image'])
         self.assertEqual(manifest['external_original_code_bytes_in_output'],0)
@@ -366,7 +366,7 @@ class ADSPExternalsAndCodeTests(unittest.TestCase):
     def test_inventory_every_fragment_uses_correct_original(self):
         inventory,_outputs=adsp.assembled_inventory(LLVM_MC,Path(REFERENCE).read_bytes())
         self.assertTrue(all(x['reference_byte_identical'] for x in inventory['fragments']))
-        self.assertEqual(inventory['total_independently_assembled_executable_bytes'],6796)
+        self.assertEqual(inventory['total_independently_assembled_executable_bytes'],7040)
 
     @unittest.skipUnless(LLVM_MC and REFERENCE,
                          'Hexagon LLVM6 and exact pinned ADSP reference required')
@@ -380,7 +380,7 @@ class ADSPExternalsAndCodeTests(unittest.TestCase):
                 adsp.verify_slice(built,original,off)
                 total+=len(built)
                 ranges.append((off,off+size))
-        self.assertEqual(total,6796)
+        self.assertEqual(total,7040)
         ranges.sort()
         self.assertEqual(ranges[0],(0x39000,0x39054))
         self.assertEqual(ranges[-1],(0x3640a8,0x3640f8))
@@ -1274,3 +1274,29 @@ class ADSPControllerScanTests(unittest.TestCase):
                 total+=len(built)
         self.assertEqual(total,116)
         self.assertIn('registry_loop:',adsp.FRAGMENTS['controller-configured-scan'][0].read_text())
+
+
+class ADSPControllerParameterAllocatorTests(unittest.TestCase):
+    """Two adjacent parameter-bitfield helper/allocator source fragments."""
+
+    @unittest.skipUnless(LLVM_MC,'Hexagon LLVM6 assembler required')
+    def test_encoded_bitfields_and_registered_parameter_are_exact(self):
+        cases=(
+            ('controller-bitfield-normalize',0x40ce8,56,'e5898674e8cdfe11fe32b1da7b98f2decfb28baec843537a39774ef8519c6507'),
+            ('controller-allocate-parameter',0x40d20,188,'50b487336af4ee026a1ccb2e8e364bbcf8bc4848d86dac7419a7a1cf17eb8f00'),
+        )
+        ref=Path(REFERENCE).read_bytes() if REFERENCE else None
+        parts=[]
+        for name,off,n,digest in cases:
+            with self.subTest(name=name):
+                src,start,length=adsp.FRAGMENTS[name]
+                self.assertEqual((start,length),(off,n))
+                for forbidden in ('.word ','.long ','.byte ','.incbin ','.fill '):
+                    self.assertNotIn(forbidden,src.read_text())
+                b=adsp.compile_source(LLVM_MC,src,n)
+                self.assertEqual(hashlib.sha256(b).hexdigest(),digest)
+                if ref is not None:adsp.verify_slice(b,ref,off)
+                parts.append(b)
+        self.assertEqual(sum(map(len,parts)),244)
+        self.assertEqual(cases[0][1]+cases[0][2],cases[1][1])
+        if ref is not None:adsp.verify_slice(b''.join(parts),ref,cases[0][1])
