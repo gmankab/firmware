@@ -1079,6 +1079,56 @@
       "sha256": "08a76284d9b1410d3467a4e1cbc876f7bd8ec88fd913a60abece8b7829b91119",
       "checkpoint": 32,
       "classification": "executable"
+    },
+    {
+      "name": "window-record-resolve",
+      "file_start": 1077728,
+      "file_end": 1077996,
+      "source": "sources/xiaomi-nabu/wlanmdsp/agent14-late-window-record-resolve.S",
+      "symbol": "agent14_late_window_record_resolve",
+      "sha256": "882fa43f52834ea1cb2c704f8882dd4925e112a1f0cc74620a146b7d0f71ea31",
+      "checkpoint": 33,
+      "classification": "executable"
+    },
+    {
+      "name": "window-record-commit",
+      "file_start": 1077996,
+      "file_end": 1078176,
+      "source": "sources/xiaomi-nabu/wlanmdsp/agent14-late-window-record-commit.S",
+      "symbol": "agent14_late_window_record_commit",
+      "sha256": "8ac6990ecee5501f26928b9a0c89fd41dd3c8ad51ae11404b1501728abca6f1a",
+      "checkpoint": 33,
+      "classification": "executable"
+    },
+    {
+      "name": "window-record-validate-mode",
+      "file_start": 1078176,
+      "file_end": 1078260,
+      "source": "sources/xiaomi-nabu/wlanmdsp/agent14-late-window-record-validate-mode.S",
+      "symbol": "agent14_late_window_record_validate_mode",
+      "sha256": "fc0e73e93c6904f5fb651c4411678df1f0a9ed0d7fe375973fd63b405273246c",
+      "checkpoint": 33,
+      "classification": "executable"
+    },
+    {
+      "name": "window-descriptor-prepare",
+      "file_start": 1078260,
+      "file_end": 1078328,
+      "source": "sources/xiaomi-nabu/wlanmdsp/agent14-late-window-descriptor-prepare.S",
+      "symbol": "agent14_late_window_descriptor_prepare",
+      "sha256": "ef78c2eed07fdecd78e787dec3cc090bd77046256d0c05f2d81d133a186f2cbf",
+      "checkpoint": 33,
+      "classification": "executable"
+    },
+    {
+      "name": "window-data-lookup",
+      "file_start": 1078328,
+      "file_end": 1078632,
+      "source": "sources/xiaomi-nabu/wlanmdsp/agent14-late-window-data-lookup.S",
+      "symbol": "agent14_late_window_data_lookup",
+      "sha256": "cdc2f9fbfa45091aeceae867fe93c43b1180691ee4adc09d0ff8605cbaf6057c",
+      "checkpoint": 33,
+      "classification": "executable"
     }
   ]
 }

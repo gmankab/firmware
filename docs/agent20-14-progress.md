@@ -1293,3 +1293,28 @@ Cumulative executable `[0x1001c4,0x1071e0)` is **28,700 bytes**, plus
 Next new function begins at file `0x1071e0` (VMA `0xb00c71e0`). The initial
 452-byte Agent13 seam, most of the WLAN executable, hardware behavior and
 new firmware authentication remain unresolved.
+
+## Checkpoint 33 — buffered record resolution and descriptor submission
+
+Five adjacent V66 functions at WLAN file `[0x1071e0,0x107568)` (runtime
+`[0xb00c71e0,0xb00c7568)`) add **904 source-authored executable bytes**:
+
+- `0x1071e0–0x1072ec` (268 bytes): validate record capacities and ranges;
+- `0x1072ec–0x1073a0` (180): publish buffer/slot state with callbacks;
+- `0x1073a0–0x1073f4` (84): mode validation and diagnostic packet;
+- `0x1073f4–0x107438` (68): prepare the descriptor pointer;
+- `0x107438–0x107568` (304): locate window data and trigger record callbacks.
+
+The register-state and buffer-update paths are reconstructed as explicit
+Hexagon V66 packets. Four memory packets use `:mem_noshuf` to retain
+original ordering, one four-operation packet uses a legal reordering,
+and the final record-lookup packet uses another legal instruction ordering.
+No OEM opcode words or opaque binary blobs are embedded in `.S` files.
+Both LLVM22/V66 and LLVM6/V65 independently reassemble each function
+byte-identically to the pinned WLAN reference.
+
+Contiguous executable `[0x1001c4,0x107568)` now contains **29,604 bytes**;
+previously source-authored jump tables add **496 separate data bytes**, for
+**30,100 total source-derived bytes**. The next function starts at file
+`0x107568`. The initial Agent13 seam `[0x100000,0x1001c4)`, most of the
+agent's large owned executable range, and hardware behavior remain unresolved.
