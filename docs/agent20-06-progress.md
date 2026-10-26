@@ -355,3 +355,11 @@ python3 tools/agent20_06_a32_roundtrip.py /private/venus.mbn 0xa8ea0 0xa92c8 \
 - Covers channel close/reset state transitions, draining remaining codec slots, freeing individually owned controller buffers, and optional callback notifications; original return/tail branches retained.
 - Direct whole-fragment verification, independent Clang/LLVM reassembly, 212 Rust and 13 Python tests all pass. No release build claimed for this checkpoint (the earlier attempt exceeded the execution limit).
 - Next uncovered ARM runtime `0xb76f4`, original MBN file `0xbb6f4`. Provisional older-base instruction re-encoding; no high-level semantic equivalence or new OEM authentication established.
+
+## Checkpoint 41 — codec lifecycle state and buffer record maintenance
+
+- Contiguous Venus runtime `[0xa8000,0xb7bd8)` = **64,472 reference-identical bytes**, MBN file `[0xac000,0xbbbd8)`.
+- New `[0xb76f4,0xb7bd8)` = **1,252 bytes**: 305 A32 instructions (1,220 bytes) and eight named literal event/diagnostic words (32 bytes). Data pools: `[0xb7938,0xb794c)` (five), `[0xb79e4,0xb79e8)` (one), `[0xb7b0c,0xb7b10)` (one), `[0xb7b94,0xb7b98)` (one).
+- Implements codec context activation, repeated frame packet publication, initial stream record setup, stop/suspend state and callbacks across five original function entrypoints. Separate unit test verifies data words explicitly.
+- Full fragment and independent Clang/LLVM assembler check match the pinned reference with **zero differing bytes**. **213 Rust tests and 13 Python tests pass**. Full release build is **not** claimed here.
+- Next uncovered runtime `0xb7bd8`, original MBN file `0xbbbd8`. This is a provisional older-base instruction-level A32 representation rather than high-level firmware semantics or newly OEM-authenticated code.
