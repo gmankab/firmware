@@ -14,9 +14,13 @@ spec.loader.exec_module(module)
 
 class ModemRweException(unittest.TestCase):
     def test_exact_address_mapping(self):
-        self.assertEqual((module.FILE_START, module.FILE_END), (0x38108, 0x38504))
+        self.assertEqual((module.FILE_START, module.FILE_END), (0x38108, 0x385e8))
         self.assertEqual(module.VIRTUAL_START-module.FILE_START, 0xc0808000)
         self.assertEqual(module.PHYSICAL_START-module.FILE_START, 0x8e008000)
+
+    def test_packet_normalizer_fails_closed_on_unknown_opcode(self):
+        with self.assertRaisesRegex(ValueError,'unrecognized Hexagon LLVM6'):
+            module.normalize_llvm6_locked_packets(bytes(module.FILE_END-module.FILE_START))
 
     def test_wrong_source_revision_is_rejected(self):
         with self.assertRaisesRegex(ValueError, 'Wrong modem firmware revision'):
@@ -28,10 +32,10 @@ class ModemRweException(unittest.TestCase):
             self.skipTest('Set AGENT11_LLVM_MC to run LLVM6 Hexagon assembler test')
         source = SCRIPT.parents[1]/'crates/firmware-tools/src/devices/xiaomi_nabu/modem_rwe_exception_dispatch.s'
         data = module.assemble(Path(mc), source)
-        self.assertEqual(len(data), 1020)
+        self.assertEqual(len(data), 1248)
         self.assertEqual(data[0x381b8-module.FILE_START:0x381bc-module.FILE_START],bytes.fromhex('00c0e057'))
         self.assertEqual(data[0:4], bytes.fromhex('00c00058'))
-        self.assertEqual(data[-4:], bytes.fromhex('1fc09e41'))
+        self.assertEqual(data[-4:], bytes.fromhex('00c0e057'))
         ref = os.environ.get('AGENT11_MODEM_MBN')
         if ref:
             module.verify_pinned(Path(ref).read_bytes(), data)

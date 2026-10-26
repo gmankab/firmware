@@ -402,3 +402,95 @@ MODEM_RWE_LOCKED_WORD_STORE 30,31,0,3
     if (!p0) jump:nt modem_rwe_exception_priority_lock_retry
     if (p0) r31 = memw(r30+#0)
 }
+// Release the vector-table lock and report the per-thread dispatch mask.
+MODEM_SYS_READ 30,8,1
+{ p0 = cmp.gt(r31,#0) }
+{ trace(r31) }
+MODEM_SYS_READ 30,63,1
+{
+    r31 = setbit(r31,r30)
+    memw(##-1065090816) = r31.new
+}
+{ r30 = setbit(r30,#16) }
+MODEM_SYS_WRITE 63,30,1
+{
+    r31 = #0
+    memw(##-1065090812) = r31.new
+}
+// A compact source-level Hexagon bit-test branch is exactly one 32-bit
+// opcode, unlike the two-op expanded form used by the old LLVM6 MC.
+// Class 0x118 is the architected test-bit+branch instruction family.
+.macro MODEM_RWE_COMPACT_TSTBIT_JUMP general, bit, dest_delta, marker=1
+    .if (\general < 0) || (\general > 31) || (\bit != 0)
+      .error "unsupported Hexagon compact bit test register/bit"
+    .endif
+    .if (\dest_delta <= 0) || ((\dest_delta & 1) != 0) || (\dest_delta > 510)
+      .error "invalid compact bit-test jump displacement"
+    .endif
+    .if (\marker != 1)
+      .error "compact bit branch must continue 4-slot exception packet"
+    .endif
+    .word (0x11800302 | (\general << 16) | (\marker << 14) | (\dest_delta / 2))
+.endm
+{ p3 = !bitsclr(r7,r8) }
+MODEM_RWE_COMPACT_TSTBIT_JUMP 7,0,(0x385f8-0x38538),1
+{
+    memd(r6+#40) = r29:28
+    memd(r6+#24) = r15:14
+}
+MODEM_SYS_WRITE 6,13,1
+{
+    callr r7
+    r30 = add(r6,#32)
+    r29 = add(r10,#-16)
+}
+{
+    nop
+    r9:8 = memd(r30+#-8)
+    r29:28 = memd(r30+#8)
+}
+MODEM_SYS_WRITE 6,9,1
+{ r31:30 = memd(r30+#0) }
+MODEM_SYS_WRITE 3,8,3
+// Release callback state through the same checked per-thread lock primitive.
+{ r7 = ##-1065090812 }
+modem_rwe_exception_callback_lock_retry:
+{ r8 = memw_locked(r7) }
+{
+    p0 = cmp.eq(r8,#0)
+    if (!p0.new) jump:nt modem_rwe_exception_callback_lock_retry
+    if (p0.new) r8 = #1
+}
+{ memw_locked(r7,p0) = r8 }
+{ if (!p0) jump:nt modem_rwe_exception_callback_lock_retry }
+MODEM_SYS_READ 7,6,1
+{ r8 = ##65536 }
+.set modem_rwe_callback_clear_done, agent11_modem_exception_dispatch_entry + (0x385d8-0x38108)
+{
+    p0 = bitsclr(r7,r8)
+    if (p0.new) jump:nt modem_rwe_callback_clear_done
+}
+MODEM_SYS_READ 7,8,1
+{ r8 = memw(##-1065090816) }
+{
+    trace(r8)
+    r8 = clrbit(r8,r7)
+}
+{
+    p0 = !cmp.eq(r8,#0)
+    if (p0.new) jump:t modem_rwe_callback_clear_done
+    memw(##-1065090816) = r8
+}
+MODEM_SYS_READ 7,63
+{
+    trace(r7)
+    r7 = clrbit(r7,#16)
+}
+MODEM_SYS_WRITE 63,7
+{ trace(r7) }
+modem_rwe_callback_clear_done:
+{
+    r8 = #0
+    memw(##-1065090812) = r8.new
+}
+MODEM_RWE_RETURN_FROM_EXCEPTION 3

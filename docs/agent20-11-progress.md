@@ -267,3 +267,12 @@ python3 -m unittest discover -s tests -p 'test_*.py'
 - The LLVM6 Hexagon scheduler emits the source `.new` branch first and emits an immediate producer in a separate packet. The verifier checks independently authored packet and operand classes before strictly limited packet-order/field normalization. Full OEM-reference comparison then matches with **zero byte differences**; no reference instructions are inserted into emitted source.
 - Emitted 1,020-byte SHA-256: `8c58e4f952bdba3d70df548da0e4b2ebe668c894acfc7dc5d10d2f57fe51422f`. 169 Rust and 38 Python tests pass; release profile has not yet been confirmed in this session.
 - Following original instruction at file `0x38504` remains to be reconstructed. This is not a signed, complete or device-executed modem image.
+
+## Checkpoint 31 — Protected callback/exception vector dispatch complete
+
+- Reconstructed a **contiguous 1,248-byte Hexagon V60 exception continuation** at modem file `[0x38108,0x385e8)` (virtual `[0xc0840108,0xc08405e8)`, physical `[0x8e040108,0x8e0405e8)`); this adds **228 bytes** over checkpoint 30.
+- The new stage computes the selected exception vector, emits a checked one-word compact bit-test-and-branch instruction, restores the exception frame and general register pairs, acquires/releases an R8 controller lock, clears the per-thread MMIO flag and ends with an explicitly authored architectural RTE at file `0x385e4`.
+- New restricted ISA-class opcode forms are generated from named operand/displacement fields; all additions are checked by LLVM6, strict packet-class normalization and a subsequent byte comparison with the SHA-256-pinned private original. No OEM executable bytes were imported or pasted into source. A wrong ISA packet is rejected before output is written.
+- Complete generated 1,248-byte SHA-256 `0d6c09025636197a11579ba5f7ede563183c62e52e64a2edfa56efb79c07dd86` and **zero** reference differences.
+- Tests: 169 Rust tests, 39 Python tests, including a fail-closed negative test for the packet normalizer. Release profile remains unverified in this current session.
+- The next protected exception handler begins at file `0x385e8` and remains outside this checkpoint. The original modem is not independently source-complete or authenticated for new use.

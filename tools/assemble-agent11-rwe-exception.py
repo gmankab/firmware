@@ -17,7 +17,7 @@ import subprocess
 import tempfile
 
 FILE_START = 0x38108
-FILE_END = 0x38504
+FILE_END = 0x385e8
 VIRTUAL_START = 0xc0840108
 PHYSICAL_START = 0x8e040108
 PINNED_SHA256 = '6f5cb32bc10e41abb40938d185805e788f5637a41d3ebcef278e4e169fc36782'
@@ -122,6 +122,29 @@ def normalize_llvm6_locked_packets(data: bytes) -> bytes:
         write(0x384f4,ext)
         write(0x384f8,immediate)
         write(0x384fc,branch)
+    if len(result)>=0x3856c-FILE_START:
+        # The compact bit-test branch and separate p3 source share one
+        # architectural packet; LLVM6 isolates the producer as standalone.
+        if read(0x38534)!=0xc7a7c803 or read(0x38538)!=0x11874362:
+            raise ValueError('unexpected compound bit-test/branch operands')
+        write(0x38534,0xc7a70000 | (1<<14) | 0x0803)
+        # LLVM6 moves the callr behind an independent arithmetic operation.
+        # Both operands and packet markers are validated before swapping.
+        if read(0x38548)!=0xb006441e or read(0x3854c)!=0x50a74000:
+            raise ValueError('unexpected exception callback/register packet')
+        add,callback=read(0x38548),read(0x3854c)
+        write(0x38548,callback)
+        write(0x3854c,add)
+    if len(result)>=0x385e8-FILE_START:
+        # R8 lock acquire and mask-release .new branches: LLVM6 places
+        # branch before the predicate, but source requires compare first.
+        for address,branch_word,predicate_word in (
+                (0x38578,0x5cff68fe,0x75084000),
+                (0x385b4,0x5c005812,0x75084010)):
+            if read(address)!=branch_word or read(address+4)!=predicate_word:
+                raise ValueError(f'Unexpected final R8 mask packet at 0x{address:x}')
+            write(address,predicate_word)
+            write(address+4,branch_word)
     return bytes(result)
 
 
@@ -170,6 +193,8 @@ def assemble(llvm_mc: Path, source: Path) -> bytes:
             raise ValueError('Exception-frame return and diagnostic branch have incorrect ISA fields')
         if word(0x384f0)!=0xa0bedf00 or word(0x38500)!=0x419ec01f:
             raise ValueError('R31 protected lock packet must preserve exact register operands')
+        if word(0x38538)!=0x11874362 or word(0x385e4)!=0x57e0c000:
+            raise ValueError('Vector bit-test branch or final return-from-exception class invalid')
         return data
 
 
