@@ -427,3 +427,11 @@ python3 tools/agent20_06_a32_roundtrip.py /private/venus.mbn 0xa8ea0 0xa92c8 \
 - Three complete original functions: frame-register configuration and sizing, attachment of optional input sources with guarded callbacks, and cloning controller buffer/session records with original return and cleanup branches.
 - Full typed Rust fragment has **zero differing bytes** against pinned `venus.mbn`. Independent Clang/LLVM reassembly matches all 1,412 ARM32 instruction bytes and 40 explicitly classified data bytes. **221 Rust tests and 13 Python tests pass.** Release build not claimed.
 - First uncovered runtime `0xba210` (file `0xbe210`) begins another codec resource helper. This is provisional older-base instruction-level encoding, not signed or hardware-tested firmware or high-level semantic decompilation.
+
+## Checkpoint 50 — codec DMA cleanup and controller reset
+
+- Cumulative reconstructed Venus runtime `[0xa8000,0xba40c)` = **74,764 byte-identical bytes**, pinned MBN file `[0xac000,0xbe40c)`.
+- New `[0xba210,0xba40c)` = **508 bytes**, comprising **120 typed ARM32 instructions (480 bytes)** and **7 independently classified data words (28 bytes)** in the literal pools `[0xba294,0xba2a0)` and `[0xba3fc,0xba40c)`.
+- Three original functions: select/finish codec stream end state, settle pending DMA resource statuses, and reset controller session/command slots. Original ARM return sequences and controller callbacks are retained; the pools contain device-global and diagnostic pointers, not executable code.
+- Full Rust-emitted region and independent mnemonic-only Clang/LLVM reassembly show **zero byte mismatches** with the pinned reference. **222 Rust tests, 13 Python tests** pass. The attempted offline release build **exceeded the execution limit and is not claimed as passed**.
+- Next uncovered ARM runtime `0xba40c`, reference file offset `0xbe40c`. The branch remains provisional on older Agent 03 ancestry, **not** checkpoint-50-based integrated Git history; this is ISA-level re-encoding, not a source-level behavioral rebuild or an OEM-authenticated image.
