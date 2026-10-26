@@ -448,3 +448,10 @@ Original reference: private `map220v-nabu-firmware/venus.mbn`, SHA-256 `9d4af65d
 - Reconstructs an allocator for four controller buffer classes, callback attachment, MMIO register fields, configuration checks and rollback on allocation failures. Controller diagnostic pointers and source offsets are held in a named data pool. No vendor instruction bytes or inferred zeros enter the generated fragment.
 - Direct whole-fragment private `venus.mbn` comparison and independent Clang/LLVM relocation-aware reconstruction of the 1,192 new bytes both pass with zero mismatches. Rust workspace **234 tests** and Python **13 tests** pass. Release-build status remains **unconfirmed**, not claimed passed.
 - Next function begins at runtime `0x329f8`. This is byte-exact typed A32 instruction re-encoding, not high-level firmware semantics, hardware execution or OEM authentication.
+
+## Checkpoint 68 — codec-mode classification and three bounded jump tables
+
+- Typed A32 contiguous `[0x21c78,0x32c9c)` = **69,668 byte-identical bytes**. New partial controller-mode function prefix `[0x329f8,0x32c9c)` = **676 bytes**, **150 instructions** and **19 jump-address data words**.
+- Distinct jump tables `[0x32b74,0x32b8c)` (six targets), `[0x32ba8,0x32bc4)` (seven targets), `[0x32c84,0x32c9c)` (six targets) are kept out of the executable instruction region and modeled as named data. Builds initial controller data-plane and codec-class selection with indexed PC dispatch; the function itself continues after the verified boundary.
+- Direct full-fragment comparison to pinned reference `venus.mbn` reports **zero byte differences**; independent Clang/LLVM reassembly of all 676 new bytes passes. Rust workspace **235** tests and Python **13** tests pass. Release build was not confirmed for this checkpoint.
+- First missing code begins at runtime `0x32c9c`. This remains typed ARM32 instruction encoding, not high-level functional decompilation or OEM-authenticated firmware.
