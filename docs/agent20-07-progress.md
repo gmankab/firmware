@@ -1160,3 +1160,16 @@ python3 -S tools/adsp-agent20-rwe-next-controller-slot-bitmap-toggle.py \
   --llvm-mc "$HEXAGON_LLVM_MC" --reference "$NABU_ADSP_REFERENCE" \
   --output /tmp/adsp-slot-class-bitmap-toggle-128.bin
 ```
+
+## Checkpoint 67: atomic slot reservation and publication `[0x11fd8,0x12098)`
+
+- Added **192 exact source-reconstructed Hexagon bytes** (48 instruction words) at ADSP file `[0x11fd8,0x12098)`, physical `[0x8be0efd8,0x8be0f098)`. SHA-256 `6e1c383765039699f41ba6e1efecfd8dc49b41496f43bfe311031d2f0ecdba87`.
+- The controller slot-reservation path uses an atomic `memw_locked` compare/store retry loop, packs metadata in a per-slot structure, sets the active-class bitmap and emits runtime notification and optional callback. LLVM6 generates **47 ordinary words**. The one V66-only `R2=SGP0` is reconstructed with a checked register-field encoder. The assembler closes the `r3:2=combine(#1,#0)` packet one instruction early: the exact two Hexagon parse bits are adjusted with a checked `packet_continuation` transformation, not an OEM opcode literal.
+- Continuous controller executable island from `[0x11ae0,0x12098)` is now **1,464 bytes**; other disjoint islands retain their original untouched boundaries. The overall independently reconstructed RWE executable totals **9,084 bytes across fifteen disjoint intervals**.
+- **Next function:** file `0x12098`. Partial code, unrelated read-only strings, linker fill and signed OEM fields are not claimed as rebuilt.
+
+```sh
+python3 -S tools/adsp-agent20-rwe-next-controller-slot-reserve.py \
+  --llvm-mc "$HEXAGON_LLVM_MC" --reference "$NABU_ADSP_REFERENCE" \
+  --output /tmp/adsp-slot-reserve-192.bin
+```
