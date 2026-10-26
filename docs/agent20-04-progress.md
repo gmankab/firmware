@@ -274,3 +274,11 @@ git diff --check
 - First routine validates the selected codec class, builds and stores compact mode flags; second clears three codec boolean status fields without inventing any epilogue.
 - Opt-in private reference Rust test passes and independent Clang/LLVM mnemonic reassembly matches all 224 bytes exactly (`--start 0x54c1c --end 0x54cfc --data '0x54cbc:0x54ccc:0x000ee470,0x000f16e0,0x000f16a0,0x000f1660'`).
 - Verified contiguous Agent 04 source-built interval is `[0x40a2c,0x54cfc)` = **82,640 bytes**. The excluded prefix `[0x40000,0x40a2c)` and all runtime `>=0x68000` remain outside this agent's coverage. Next function starts at `0x54cfc`.
+
+## Checkpoint 32 — controller resource policy and indexed halfword parameters
+
+- New exact typed executable span runtime `[0x54cfc,0x55400)` = **1,796 ARM32 bytes** (449 instructions, **no inline data words**), MBN `[0x58cfc,0x59400)`.
+- Emits controller resource and codec mode selection, indexed byte reads and writes and two distinct register-indexed halfword transfer forms. The latter have their own checked architectural encoder for both LDRH pre-index writeback and STRH ordinary indexed addressing, with independently tested instruction-word examples.
+- The platform-resource function continues beyond `0x55400`, so the emitted range is explicitly **partial-function** code, not a standalone callable routine. A later `LDR [PC]` is allowed to reference a literal after this span without copying those future bytes.
+- Optional private-reference byte verifier reports zero mismatches. Independent Clang/LLVM reassembly confirms all 449 instructions, using the original file interval and the emitted Rust `frag32.bin`.
+- Consecutive Agent 04 coverage `[0x40a2c,0x55400)` is now **84,436 exact bytes**; the original `[0x40000,0x40a2c)` remains uncovered. Next missing runtime `0x55400`.
