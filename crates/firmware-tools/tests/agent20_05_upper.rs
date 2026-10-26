@@ -119,3 +119,42 @@ mod record_append;
         assert_eq!(&bytes[..],fw.get(off..off+bytes.len()).unwrap());
     }
 }
+
+#[path="../src/devices/xiaomi_nabu/venus_agent20_05_record_select.rs"]
+mod record_select;
+#[test]fn controller_record_selection_matches_optional_reference(){
+    let b=record_select::fragment().unwrap();assert_eq!(b.len(),record_select::END-record_select::START);
+    if let Some(ref_name)=std::env::var_os("NABU_VENUS_REFERENCE"){
+        let ref_image=std::fs::read(ref_name).unwrap();let off=record_select::START+record_select::FILE_BASE;
+        assert_eq!(&b[..],ref_image.get(off..off+b.len()).unwrap());
+    }
+}
+
+#[test]
+fn merged_controller_interval_is_strictly_gapless(){
+    let pieces: [(usize,usize,fn()->Result<Vec<u8>,String>);8] = [
+        (quality::START,quality::END,quality::fragment),
+        (record_metrics::START,record_metrics::END,record_metrics::fragment),
+        (magnitude::START,magnitude::END,magnitude::fragment),
+        (alt_occupancy::START,alt_occupancy::END,alt_occupancy::fragment),
+        (occupancy_commit::START,occupancy_commit::END,occupancy_commit::fragment),
+        (record_append::START,record_append::END,record_append::fragment),
+        (record_select::START,record_select::END,record_select::fragment),
+        (color_unpack::START,color_unpack::END,color_unpack::fragment),
+    ];
+    let mut combined=Vec::new();
+    let mut cursor=0x710c0;
+    for (start,end,emit) in pieces {
+        assert_eq!(start,cursor,"noncontiguous controller function");
+        let bytes=emit().unwrap();
+        assert_eq!(bytes.len(),end-start,"incorrect emitted function size");
+        combined.extend_from_slice(&bytes);cursor=end;
+    }
+    assert_eq!(cursor,0x71ed0);
+    assert_eq!(combined.len(),3600);
+    if let Some(reference)=std::env::var_os("NABU_VENUS_REFERENCE"){
+        let fw=std::fs::read(reference).unwrap();
+        let file_offset=0x710c0+0x4000;
+        assert_eq!(&combined[..],fw.get(file_offset..file_offset+combined.len()).unwrap());
+    }
+}
