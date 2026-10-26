@@ -604,3 +604,52 @@ MODEM_RWE_READ_FRAMEKEY 8,1
 }
 agent11_modem_rwe_framekey_complete:
 { dealloc_return }
+// Recover the interrupted thread's control block, releasing the kernel
+// lock, restoring GP/UGP and frame registers, then prefetched descriptor
+// cachelines for subsequent lazy hardware restore. This is a continuation
+// of the source-generated handler, not a disassembly-copied byte array.
+.globl agent11_modem_rwe_exception_restore_begin
+agent11_modem_rwe_exception_restore_begin:
+MODEM_SYS_READ 13,6,1
+{ r7 = ##0xc08715b0; r6 = memw(r29+#16) }
+{
+    r8 = #0
+    r10 = add(sp,#16)
+    r0 = memub(r6+#224)
+}
+.set modem_exception_previous_callback, agent11_modem_exception_dispatch_entry + (0x385f8-0x38108)
+{
+    p3 = tstbit(r0,#4)
+    if (!p3.new) jump:t modem_exception_previous_callback
+    r0 = r6
+}
+.set modem_exception_previous_return, agent11_modem_exception_dispatch_entry + (0x38554-0x38108)
+{ jump modem_exception_previous_return; r0 = memw(sp+#0) }
+// Hexagon's K0 unlock uses a fixed architectural register-bank subopcode;
+// only the ISA class and packet end marker are encoded here.
+.macro MODEM_RWE_UNLOCK_K0 marker=3
+    .if (\marker != 3)
+      .error "K0 unlock is a standalone packet"
+    .endif
+    .word (0x6c200080 | (\marker << 14))
+.endm
+MODEM_RWE_UNLOCK_K0
+{ fp = r0 }
+{
+    r15 = add(fp,#0)
+    r14 = add(fp,#176)
+    r1:0 = memd(fp+#24)
+    r3:2 = memd(fp+#48)
+}
+{
+    ugp = r3
+    r14 = add(r14,#-32)
+    lr:fp = memd(r15+#32)
+    dcfetch(r14+#0)
+}
+{
+    gp = r2
+    r14 = add(r14,#-32)
+    r29:28 = memd(r15+#40)
+    dcfetch(r14+#0)
+}
