@@ -336,3 +336,22 @@ with individual SHA-256s recorded in the emitted coverage manifest.
 verified fragments** (2,828 preexisting + 128 new). The rest of ADSP
 executable is still largely unknown; no structural padding or OEM
 payload is counted as rebuilt source.
+
+**Checkpoint 23 — five controller parameter accessors:** Reconstructed five
+independent 28-byte Hexagon routines, each of which supplies a different
+parameter selector (`28`, `52`, `56`, `48`, `112`) to the same external
+platform function, saves/restores the original callee-saved frame, and
+returns the queried field. Their original file intervals are contiguous:
+`[0x3ee58,0x3ee74)`, `[0x3ee74,0x3ee90)`, `[0x3ee90,0x3eeac)`,
+`[0x3eeac,0x3eec8)`, `[0x3eec8,0x3eee4)`. LLVM6 emits the exact original
+five 28-byte functions from five independent semantic Hexagon source files.
+The combined **140 byte-identical executable bytes** have SHA-256
+`24a23bc0d2103ca689d9420c8402b5d6d0ce7a608302895a64cbc04a1faae3ab`.
+The total independently source-generated contribution is **3,096 bytes in
+47 verified fragments** (previously 2,956 bytes in 42 fragments). No NOPs,
+padding, copied private OEM code, or external signed material are counted.
+The preceding `[0x3d0c8,0x3d0d0)` contains two alignment NOPs; the nearby
+buffer trimmer and the large adjacent routine remain unreconstructed. The
+firmware is not independently rebuilt as a complete executable or signed
+image. Full reference revision SHA-256 remains pinned to
+`4b579e5dc1333d634e5bdc93f3314e357e0e30dab7140833f6cc7aef086b1c1e`.

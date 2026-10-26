@@ -197,9 +197,9 @@ class ADSPExternalsAndCodeTests(unittest.TestCase):
     @unittest.skipUnless(LLVM_MC,'Hexagon LLVM6 assembler required')
     def test_complete_fragment_inventory_rejects_overlaps(self):
         manifest,regions=adsp.assembled_inventory(LLVM_MC,None)
-        self.assertEqual(len(manifest['fragments']),42)
-        self.assertEqual(manifest['total_independently_assembled_executable_bytes'],2956)
-        self.assertEqual(sum(map(len,regions.values())),2956)
+        self.assertEqual(len(manifest['fragments']),47)
+        self.assertEqual(manifest['total_independently_assembled_executable_bytes'],3096)
+        self.assertEqual(sum(map(len,regions.values())),3096)
         self.assertEqual(manifest['gap_bytes_included_in_generated_executables'],0)
         self.assertFalse(manifest['complete_adsp_image'])
         self.assertEqual(manifest['external_original_code_bytes_in_output'],0)
@@ -366,11 +366,11 @@ class ADSPExternalsAndCodeTests(unittest.TestCase):
     def test_inventory_every_fragment_uses_correct_original(self):
         inventory,_outputs=adsp.assembled_inventory(LLVM_MC,Path(REFERENCE).read_bytes())
         self.assertTrue(all(x['reference_byte_identical'] for x in inventory['fragments']))
-        self.assertEqual(inventory['total_independently_assembled_executable_bytes'],2956)
+        self.assertEqual(inventory['total_independently_assembled_executable_bytes'],3096)
 
     @unittest.skipUnless(LLVM_MC and REFERENCE,
                          'Hexagon LLVM6 and exact pinned ADSP reference required')
-    def test_all_twenty_three_disjoint_fragments_are_source_identical(self):
+    def test_all_registered_disjoint_fragments_are_source_identical(self):
         original=Path(REFERENCE).read_bytes()
         total=0
         ranges=[]
@@ -380,7 +380,7 @@ class ADSPExternalsAndCodeTests(unittest.TestCase):
                 adsp.verify_slice(built,original,off)
                 total+=len(built)
                 ranges.append((off,off+size))
-        self.assertEqual(total,2956)
+        self.assertEqual(total,3096)
         ranges.sort()
         self.assertEqual(ranges[0],(0x39000,0x39054))
         self.assertEqual(ranges[-1],(0x3640a8,0x3640f8))
@@ -677,3 +677,36 @@ class FormatConstraintTests(unittest.TestCase):
         assembled=b''.join(adsp.compile_source(LLVM_MC,adsp.FRAGMENTS[name][0],adsp.FRAGMENTS[name][2]) for name in names)
         self.assertEqual(len(assembled),200)
         adsp.verify_slice(assembled,Path(REFERENCE).read_bytes(),0x3bdd4)
+
+class ADSPControllerParameterAccessorTests(unittest.TestCase):
+    """Five new 28-byte source-built consecutive controller field getters."""
+
+    ORDER = (28, 52, 56, 48, 112)
+    FIRST = 0x3EE58
+    JOINED_SHA256 = '24a23bc0d2103ca689d9420c8402b5d6d0ce7a608302895a64cbc04a1faae3ab'
+
+    def test_source_registry_ranges_are_disjoint_and_explicit(self):
+        for index, selector in enumerate(self.ORDER):
+            name = f'controller-param-{selector}'
+            source, offset, length = adsp.FRAGMENTS[name]
+            self.assertEqual((offset, length), (self.FIRST + index * 28, 28))
+            asm = source.read_text()
+            self.assertIn(f'r2 = #{selector}', asm)
+            self.assertIn('call platform_fetch_parameter', asm)
+            self.assertIn('dealloc_return', asm)
+            for forbidden in ('.word ', '.long ', '.byte ', '.incbin ', '.fill '):
+                self.assertNotIn(forbidden, asm)
+        self.assertEqual(self.FIRST + len(self.ORDER) * 28, 0x3EEE4)
+
+    @unittest.skipUnless(LLVM_MC, 'LLVM6 Hexagon assembler required')
+    def test_each_callback_selector_and_entire_140_byte_span(self):
+        fragments = [adsp.compile_source(LLVM_MC, adsp.FRAGMENTS[f'controller-param-{selector}'][0], 28)
+                     for selector in self.ORDER]
+        combined = b''.join(fragments)
+        self.assertEqual(len(combined), 140)
+        self.assertEqual(hashlib.sha256(combined).hexdigest(), self.JOINED_SHA256)
+        if REFERENCE:
+            original = Path(REFERENCE).read_bytes()
+            adsp.verify_slice(combined, original, self.FIRST)
+            for index, fragment in enumerate(fragments):
+                adsp.verify_slice(fragment, original, self.FIRST + 28 * index)

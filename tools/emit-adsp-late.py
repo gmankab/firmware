@@ -71,6 +71,11 @@ FRAGMENTS = {
     'packet-type-check': (TOOLS / 'adsp-late-packet-type-check.S', 0x3D048, 0x14),
     'stack-marshaller': (TOOLS / 'adsp-late-stack-marshaller.S', 0x3D05C, 0x3C),
     'controller-shutdown-adapter': (TOOLS / 'adsp-late-controller-shutdown-adapter.S', 0x3D098, 0x30),
+    'controller-param-28': (TOOLS / 'adsp-late-controller-param-28.S', 0x3ee58, 0x1C),
+    'controller-param-52': (TOOLS / 'adsp-late-controller-param-52.S', 0x3ee74, 0x1C),
+    'controller-param-56': (TOOLS / 'adsp-late-controller-param-56.S', 0x3ee90, 0x1C),
+    'controller-param-48': (TOOLS / 'adsp-late-controller-param-48.S', 0x3eeac, 0x1C),
+    'controller-param-112': (TOOLS / 'adsp-late-controller-param-112.S', 0x3eec8, 0x1C),
 }
 
 class LateAdspError(ValueError):
