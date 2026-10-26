@@ -18,6 +18,7 @@
 #[path = "../devices/xiaomi_nabu/novatek_dlm_envelope.rs"] mod novatek_dlm_envelope;
 #[path = "../devices/xiaomi_nabu/novatek_dlm_provenance.rs"] mod novatek_dlm_provenance;
 #[path = "../devices/xiaomi_nabu/novatek_dlm_sparse.rs"] mod novatek_dlm_sparse;
+#[path = "../devices/xiaomi_nabu/novatek_dlm_record_suffix.rs"] mod novatek_dlm_record_suffix;
 
 use firmware_tools::wmfw_sha256::hex_digest;
 use novatek_dlm::DataFragment;
@@ -114,6 +115,7 @@ fn verify_reference(image:&[u8],parts:&[DataFragment])->Result<(),String> {
     novatek_dlm_bank_transform::verify_against_supplied_reference(image)?;
     novatek_dlm_calibration_alias::verify_reference_assisted_copy(image)?;
     novatek_dlm_bank_aliases::verify_reference_assisted_aliases(image)?;
+    novatek_dlm_record_suffix::verify_reference_dependent(image)?;
     novatek_dlm_bank_aliases::assert_uncredited_on_ledger(&ledger(parts)?)?;
     novatek_dlm_descriptor_geometry::verify_record_first_indices(image)?;
     novatek_dlm_descriptor_geometry::verify_distant_signature_alias(image)?;
@@ -160,6 +162,12 @@ fn run()->Result<(),String> {
             println!("Verified {bytes} dependent calibration bytes at 0x{:x}–0x{:x}; profile headers {:?}. Source credit remains ZERO until original values are independently reconstructed.",
                 novatek_dlm_calibration_alias::MIRROR_FILE_START,
                 novatek_dlm_calibration_alias::MIRROR_FILE_END,headers);
+        }
+        Some("verify-record-suffixes") if args.len()==2 => {
+            let image=fs::read(&args[1]).map_err(|e|e.to_string())?;
+            if hex_digest(&image)!=REFERENCE_SHA256 {return Err("reference SHA-256 mismatch".into());}
+            let checked=novatek_dlm_record_suffix::verify_reference_dependent(&image)?;
+            println!("Verified {checked} DLM record-suffix dependent bytes (23 × 87 bytes), with unchanged primary 96-byte record heads; ZERO additional independent source credit");
         }
         Some("verify-bank-aliases") if args.len()==2 => {
             let image=fs::read(&args[1]).map_err(|e|e.to_string())?;
@@ -247,7 +255,7 @@ fn run()->Result<(),String> {
             println!("Emitted {} data fragments ({} bytes), with explicit holes retained in the provenance manifest.",
                 parts.len(),parts.iter().map(|part|part.bytes.len()).sum::<usize>());
         }
-        _=>return Err("usage: novatek-dlm ledger | sparse-plan | assemble-sparse <seed-dir> <output-DLM.bin> | verify-sparse-rebuild <pinned-image.bin> | emit <directory> | verify-reference <pinned-image.bin> | check-envelope <image.bin> | verify-bank-pairs <pinned-image.bin> | verify-calibration-alias <pinned-image.bin> | verify-bank-aliases <pinned-image.bin> | verify-descriptor-geometry <pinned-image.bin> | inspect-control-candidates <pinned-image.bin>".into()),
+        _=>return Err("usage: novatek-dlm ledger | sparse-plan | assemble-sparse <seed-dir> <output-DLM.bin> | verify-sparse-rebuild <pinned-image.bin> | emit <directory> | verify-reference <pinned-image.bin> | check-envelope <image.bin> | verify-bank-pairs <pinned-image.bin> | verify-calibration-alias <pinned-image.bin> | verify-bank-aliases <pinned-image.bin> | verify-record-suffixes <pinned-image.bin> | verify-descriptor-geometry <pinned-image.bin> | inspect-control-candidates <pinned-image.bin>".into()),
     }
     Ok(())
 }

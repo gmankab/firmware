@@ -652,3 +652,24 @@ new executable bytes are added. See
   data remain 40,199 (6,476 strictly dependent + 33,723 externally needed).**
   Firmware source-level implementation remains incomplete; avoid representing
   this exact conditional DLM output as a reference-free build.
+
+
+## Checkpoint 16 — Reference-dependent 96-byte record suffix copies
+
+- The previous spare DLM assembler is extended by 23 exact-copy relationships
+  over 96-byte controller records, copying only suffix `[+9,+96)` of each.
+  Two additional early records fall inside preexisting bank aliases and
+  are excluded. Byte 0–8 of all remaining records still require external
+  values: no controller opcode or configuration bits are guessed.
+- This re-derives **2,001 additional dependent bytes** from externally supplied
+  earlier records and decreases the minimal unknown seed requirement from
+  33,723 to **31,722 bytes**, across **60 explicit seed ranges**.
+- Category accounting is now **9,353 independent DLM source bytes**,
+  **8,477 uniquely derived dependent DLM bytes**, **31,722 external unknown
+  DLM bytes** = exactly **49,552**. The original unresolved/source-unknown
+  DLM count remains **40,199**, since every dependent copy also has unknown
+  source provenance. **New independently generated source credit is zero**.
+- Rust and a separately written Python model produce byte-exact conditional
+  DLM output against SHA-256 pinned postmarketOS firmware and reject changed
+  copies, malformed seed counts and overlapping aliases; no vendor payload
+  is packaged in Git or deliverables.

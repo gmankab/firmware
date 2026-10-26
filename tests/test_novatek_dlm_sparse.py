@@ -21,7 +21,7 @@ class SparseDlmTests(unittest.TestCase):
         # Exactly 9 indices * 21 records receive a nonzero high byte.
         self.assertEqual(sum(x!=0 for x in out),9*21)
         self.assertEqual(int.from_bytes(out[0x26a64+0x48-m.DLM_START:0x26a64+0x4a-m.DLM_START],"little"),0x1000)
-        self.assertEqual(kinds[2],6516)
+        self.assertEqual(kinds[2],8517)
         self.assertEqual(checks,0)
     def test_reject_missing_extra_duplicate_and_wrong_range(self):
         for seeds in (self.seeds[:-1],self.seeds+self.seeds[-1:],
@@ -44,6 +44,17 @@ class SparseDlmTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError,'disagreeing'):m.rebuild(author,seeds)
         with self.assertRaisesRegex(ValueError,'overlapping authored'):
             m.plan(author+author)
+    def test_record_suffixes_really_copy_only_the_87_byte_tail(self):
+        earlier,n=m.RECORD_SUFFIXES[0]
+        dest=earlier+m.RECORD_BANK_DELTA
+        out,holes,kinds,checks=m.rebuild(self.parts,self.seeds)
+        self.assertEqual(out[earlier-m.DLM_START:earlier-m.DLM_START+n],
+                         out[dest-m.DLM_START:dest-m.DLM_START+n])
+        self.assertEqual(n,87)
+        # The nine-byte prefix of this 96-byte record is deliberately
+        # NOT derived by the suffix-copy relationship.
+        self.assertEqual(dest-9+m.DLM_START-m.DLM_START,dest-9)
+
     def test_range_bounds_and_derived_table_no_source_credit(self):
         with self.assertRaisesRegex(ValueError,'out-of-bounds'):m.plan([(m.DLM_START-1,b'\0')])
         self.assertEqual(m.DLM_SIZE,49552)
@@ -51,5 +62,7 @@ class SparseDlmTests(unittest.TestCase):
         self.assertEqual(sum(n for _,_,n in m.PAIRS),21)
         self.assertEqual(m.PROFILE[1]-m.PROFILE[0],428)
         self.assertEqual(m.SIGNATURE[2],12)
+        self.assertEqual(len(m.RECORD_SUFFIXES),23)
+        self.assertEqual(sum(n for _,n in m.RECORD_SUFFIXES),2001)
 
 if __name__=='__main__':unittest.main()

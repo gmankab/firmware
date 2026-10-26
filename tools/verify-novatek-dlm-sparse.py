@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: GPL-3.0-only
 """Independently validate conditional DLM reassembly with externally supplied data.
 
-Not a source recovery tool: 33,723 unknown bytes remain externally provided.
+Not a source recovery tool: 31,722 unknown bytes remain externally provided.
 The goal is deterministic, checked linker behavior and accurate provenance.
 Never ship reference-derived seeds or the complete result in a Git bundle.
 """
@@ -22,6 +22,17 @@ ALIASES=((0x2387c,406),(0x23df8,228),(0x24186,182),
          (0x245a6,862),(0x24fc4,604),(0x2574c,616),(0x25c5e,238))
 PROFILE=(0x22224,0x223d0,0x2d648)
 SIGNATURE=(0x22710,0x2df8c,12)
+RECORD_BYTES=0x60
+RECORD_SUFFIX_OFFSET=9
+RECORD_SUFFIX_LEN=RECORD_BYTES-RECORD_SUFFIX_OFFSET
+RECORD_BANK_DELTA=0x4000
+RECORD_SUFFIXES=tuple(
+    (first+i*RECORD_BYTES+RECORD_SUFFIX_OFFSET,RECORD_SUFFIX_LEN)
+    for first,count in ((0x23edc,18),(0x259b4,7))
+    for i in range(count)
+    if not (first==0x23edc and i in (7,8))
+)
+assert len(RECORD_SUFFIXES)==23
 
 
 def span(start,length):
@@ -35,6 +46,8 @@ def destinations():
         yield dest,count*DESCRIPTOR_BYTES
     for start,n in ALIASES:
         yield start+0x4000,n
+    for start,n in RECORD_SUFFIXES:
+        yield start+RECORD_BANK_DELTA,n
     yield PROFILE[2],PROFILE[1]-PROFILE[0]
     yield SIGNATURE[1],SIGNATURE[2]
 
@@ -98,6 +111,7 @@ def rebuild(fragments,seeds):
                 buf[i:i+2]=(high|(low+0x1000)).to_bytes(2,'little')
         place(target,buf,2)
     for start,n in ALIASES:place(start+0x4000,read(start,start+n),2)
+    for start,n in RECORD_SUFFIXES:place(start+RECORD_BANK_DELTA,read(start,start+n),2)
     first,last,target=PROFILE
     place(target,read(first,last),2)
     first,target,n=SIGNATURE
