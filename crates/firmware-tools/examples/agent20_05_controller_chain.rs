@@ -11,9 +11,10 @@
 #[path="../src/devices/xiaomi_nabu/venus_agent20_05_color_unpack.rs"]mod color_unpack;
 #[path="../src/devices/xiaomi_nabu/venus_agent20_05_controller_limits.rs"]mod controller_limits;
 #[path="../src/devices/xiaomi_nabu/venus_agent20_05_controller_limits_tail.rs"]mod controller_limits_tail;
+#[path="../src/devices/xiaomi_nabu/venus_agent20_05_throughput_tiers.rs"]mod throughput_tiers;
 fn main()->Result<(),Box<dyn std::error::Error>>{
     let out=std::env::args().nth(1).ok_or("usage: agent20_05_controller_chain OUTPUT [PRIVATE_VENUS_MBN]")?;
-    let pieces: [(usize,usize,fn()->Result<Vec<u8>,String>);10] = [
+    let pieces: [(usize,usize,fn()->Result<Vec<u8>,String>);11] = [
         (quality::START,quality::END,quality::fragment),
         (record_metrics::START,record_metrics::END,record_metrics::fragment),
         (magnitude::START,magnitude::END,magnitude::fragment),
@@ -24,22 +25,23 @@ fn main()->Result<(),Box<dyn std::error::Error>>{
         (color_unpack::START,color_unpack::END,color_unpack::fragment),
         (controller_limits::START,controller_limits::END,controller_limits::fragment),
         (controller_limits_tail::START,controller_limits_tail::END,controller_limits_tail::fragment),
+        (throughput_tiers::START,throughput_tiers::END,throughput_tiers::fragment),
     ];
     for base in [quality::FILE_BASE,record_metrics::FILE_BASE,magnitude::FILE_BASE,
                  alt_occupancy::FILE_BASE,occupancy_commit::FILE_BASE,
                  record_append::FILE_BASE,record_select::FILE_BASE,
                  color_unpack::FILE_BASE,controller_limits::FILE_BASE,
-                 controller_limits_tail::FILE_BASE] {
+                 controller_limits_tail::FILE_BASE,throughput_tiers::FILE_BASE] {
         if base != 0x4000 {return Err("unexpected Venus file-to-runtime offset".into());}
     }
-    let mut bytes=Vec::with_capacity(6156);let mut position=0x710c0;
+    let mut bytes=Vec::with_capacity(6920);let mut position=0x710c0;
     for (start,end,emit) in pieces {
         if start!=position{return Err(format!("gap or overlap at 0x{position:x}").into());}
         let next=emit()?;
         if next.len()!=end-start{return Err(format!("unexpected fragment length at 0x{start:x}").into());}
         bytes.extend_from_slice(&next);position=end;
     }
-    if position!=0x728cc || bytes.len()!=6156{return Err("unexpected controller-chain coverage".into());}
+    if position!=0x72bc8 || bytes.len()!=6920{return Err("unexpected controller-chain coverage".into());}
     if let Some(reference)=std::env::args().nth(2){
         let firmware=std::fs::read(reference)?;
         let file_offset=0x710c0+0x4000;
