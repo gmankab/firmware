@@ -82,6 +82,8 @@ pub enum Insn {
     StoreByteGp { source: Reg, address: u32 },
     StoreWordGp { source: Reg, address: u32 },
     LoadByteGp { dest: Reg, address: u32 },
+    /// LBGP bit19 selects signed-byte LBSI.GP instead of zero-extended LBI.GP.
+    LoadSignedByteGp {dest:Reg,address:u32},
     ReadSystem { dest: Reg, csr: Csr },
     WriteSystem { source: Reg, csr: Csr },
     /// Execute a separately supplied instruction-table entry; not a SWI.
@@ -120,6 +122,8 @@ pub enum Insn {
     ShiftRight { dest: Reg, source: Reg, amount: u8 },
     AluShiftLeft { op: AluOp, dest: Reg, left: Reg, right: Reg, shift: u8 },
     VariableShiftLeft { dest: Reg, source: Reg, amount: Reg },
+    /// N32 ALU1 SRL (subopcode 0x0d): shift Ra by low five bits of Rb.
+    VariableShiftRight { dest: Reg, source: Reg, amount: Reg },
     BranchImmediate { reg: Reg, value: i16, nonzero: bool, target: u32 },
     BranchA5 { reg: Reg, nonzero: bool, target: u32 },
     AddSmall { reg: Reg, value: u8, subtract: bool },
@@ -170,6 +174,11 @@ pub enum Insn {
     JumpRegisterLink { reg: Reg },
     /// N16 JR5: jump to address in compact register, without setting LP.
     JumpRegister { reg:Reg },
+    /// N32 JREG/JR: nonlinking indirect jump via a general register.
+    JumpRegisterWide { reg: Reg },
+    /// Little-endian 35-entry halfword branch-target displacement table.
+    /// NDS32 code fetch is big-endian, but data loads here use little endian.
+    JumpTableOffsets16 { base:u32, targets:[u32;35] },
     /// NDS32 jump-table byte offsets, not executable instructions. `base` is
     /// the register-held table pointer. Each entry is derived from a named
     /// branch destination and checked to fit an unsigned byte displacement.
@@ -202,6 +211,16 @@ fn u15(value: u16) -> Result<u32, String> {
 impl Insn {
     pub fn encode(self, pc: u32, gp: u32) -> Result<Vec<u8>, String> {
         use Insn::*;
+        if let JumpTableOffsets16{base,targets}=self {
+            let mut bytes=Vec::with_capacity(70);
+            for (idx,target) in targets.into_iter().enumerate() {
+                if target<base || (target-base)>u16::MAX as u32 || (target-base)&1!=0 {
+                    return Err(format!("halfword jump-table entry {idx} outside aligned 16-bit offset"));
+                }
+                bytes.extend_from_slice(&((target-base) as u16).to_le_bytes());
+            }
+            return Ok(bytes);
+        }
         if let JumpTableOffsets10{base,targets}=self {
             let mut offsets=Vec::with_capacity(targets.len());
             for (i,target) in targets.into_iter().enumerate() {
@@ -222,6 +241,8 @@ impl Insn {
             }
             LoadByteGp { dest,address } => (0x17<<25)|(dest.number()<<20)
                 |signed(i64::from(address)-i64::from(gp),19)?,
+            LoadSignedByteGp { dest,address } => (0x17<<25)|(dest.number()<<20)
+                |(1<<19)|signed(i64::from(address)-i64::from(gp),19)?,
             ReadSystem { dest, csr } if csr.index()<1024 => (0x32 << 25) | (dest.number() << 20) | (csr.index() << 10) | 2,
             WriteSystem { source, csr } if csr.index()<1024 => (0x32 << 25) | (source.number() << 20) | (csr.index() << 10) | 3,
             BitClearImmediate { dest, source, mask } => (0x33 << 25) | (dest.number()<<20)
@@ -290,6 +311,7 @@ impl Insn {
                     |(u32::from(shift)<<5)|match op{AluOp::Add=>0,AluOp::Or=>4}
             }
             VariableShiftLeft { dest,source,amount } => (0x20<<25)|(dest.number()<<20)|(source.number()<<15)|(amount.number()<<10)|12,
+            VariableShiftRight { dest,source,amount } => (0x20<<25)|(dest.number()<<20)|(source.number()<<15)|(amount.number()<<10)|13,
             BranchImmediate { reg,value,nonzero,target } => (0x2d<<25)|(reg.number()<<20)
                 |(u32::from(nonzero)<<19)|(signed(i64::from(value),11)?<<8)|displacement(pc,target,8)?,
             BranchSignWide { reg,comparison,target } => (0x27<<25)|(reg.number()<<20)
@@ -322,6 +344,7 @@ impl Insn {
                     |(u32::from(shift)<<8)|(u32::from(store)<<3)
             }
             JumpRelative { target,link } => (0x24<<25)|(u32::from(link)<<24)|displacement(pc,target,24)?,
+            JumpRegisterWide{reg} => (0x25<<25)|(reg.number()<<10),
             MultipleWords { store,first,base,last,specials,decrement,writeback } => {
                 if first.number()>last.number() || specials>15 {
                     return Err("invalid multiple-word register range or special-register mask".into());
@@ -517,6 +540,7 @@ impl Insn {
             StoreByteGp { source,address } => format!("sbi.gp {},[{}]",r(source),i64::from(address)-i64::from(gp)),
             StoreWordGp { source,address } => format!("swi.gp {},[{}]",r(source),i64::from(address)-i64::from(gp)),
             LoadByteGp { dest,address } => format!("lbi.gp {},[{}]",r(dest),i64::from(address)-i64::from(gp)),
+            LoadSignedByteGp { dest,address } => format!("lbsi.gp {},[{}]",r(dest),i64::from(address)-i64::from(gp)),
             ReadSystem { dest,csr } => format!("mfsr {},{}",r(dest),if let Csr::Number(index)=csr {format!("0x{index:x}")} else if csr==Csr::IntMask3 {"0xc2".into()} else {format!("${}",csr.name())}),
             WriteSystem { source,csr } => format!("mtsr {},{}",r(source),if let Csr::Number(index)=csr {format!("0x{index:x}")} else if csr==Csr::IntMask3 {"0xc2".into()} else {format!("${}",csr.name())}),
             JumpTableOffsets10{base,targets} => format!("jump.offsets10 {}",std::iter::once(format!("0x{base:x}"))
@@ -569,6 +593,7 @@ impl Insn {
             ShiftRight { dest,source,amount } => format!("srli {},{},{}",r(dest),r(source),amount),
             AluShiftLeft { op,dest,left,right,shift } => format!("{}_slli {},{},{},{}",match op{AluOp::Add=>"add",AluOp::Or=>"or"},r(dest),r(left),r(right),shift),
             VariableShiftLeft { dest,source,amount } => format!("sll {},{},{}",r(dest),r(source),r(amount)),
+            VariableShiftRight { dest,source,amount } => format!("srl {},{},{}",r(dest),r(source),r(amount)),
             BranchImmediate { reg,value,nonzero,target } => format!("{} {},{},.{:+}",if nonzero{"bnec"}else{"beqc"},r(reg),value,i64::from(target)-i64::from(pc)),
             BranchA5 { reg,nonzero,target } => format!("{} {},.{:+}",if nonzero{"bnes38"}else{"beqs38"},r(reg),i64::from(target)-i64::from(pc)),
             AddSmall { reg,value,subtract } => format!("{} {},{}",if subtract{"subi45"}else{"addi45"},r(reg),value),
@@ -603,6 +628,8 @@ impl Insn {
             Return { reg } => format!("ret5 {}",r(reg)),
             JumpRegisterLink { reg } => format!("jral5 {}",r(reg)),
             JumpRegister { reg } => format!("jr5 {}",r(reg)),
+            JumpRegisterWide{reg} => format!("jr {}",r(reg)),
+            JumpTableOffsets16{base,targets} => format!("jump.offsets16 0x{base:x} {}",targets.iter().map(|x|format!("0x{x:x}")).collect::<Vec<_>>().join(",")),
             DataSync => "dsb".into(),
             Stack { pop,last,extra } => format!("{} {},{}",if pop{"pop25"}else{"push25"},r(last),extra),
             MultipleWords { store,first,base,last,specials,decrement,writeback } => format!("{}mw.{}{} {},[{}],{},{}",
@@ -614,6 +641,42 @@ impl Insn {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn gprel_signed_byte_uses_distinct_lbsi_opcode_bit() {
+        let addr=0x2c6b9;
+        let gp=0x2d9e0;
+        assert_eq!(Insn::LoadSignedByteGp{dest:R0,address:addr}.encode(0,gp).unwrap(),[0x2e,0x0f,0xec,0xd9]);
+        assert_eq!(Insn::LoadByteGp{dest:R0,address:addr}.encode(0,gp).unwrap(),[0x2e,0x07,0xec,0xd9]);
+        assert_eq!(Insn::LoadSignedByteGp{dest:R0,address:addr}.assembly(0,gp),"lbsi.gp $r0,[-4903]");
+        assert!(Insn::LoadSignedByteGp{dest:R0,address:0x1000000}.encode(0,gp).is_err());
+    }
+
+    #[test]
+    fn variable_shift_right_matches_nds32_alu1_srl() {
+        let r=Reg::new;
+        assert_eq!(Insn::VariableShiftRight{dest:r(4),source:r(5),amount:r(4)}
+            .encode(0x3792,0).unwrap(),[0x40,0x42,0x90,0x0d]);
+        assert_eq!(Insn::VariableShiftRight{dest:r(4),source:r(5),amount:r(4)}
+            .assembly(0x3792,0),"srl $r4,$r5,$r4");
+        assert_ne!(Insn::VariableShiftRight{dest:r(4),source:r(5),amount:r(4)}
+            .encode(0,0).unwrap(), Insn::VariableShiftLeft{dest:r(4),source:r(5),amount:r(4)}
+            .encode(0,0).unwrap());
+    }
+
+    #[test]
+    fn indexed_halfword_case_jump_and_little_endian_data_table() {
+        let r15=Reg::new(15);
+        assert_eq!(Insn::JumpRegisterWide{reg:r15}.encode(0x3828,0).unwrap(),[0x4a,0x00,0x3c,0x00]);
+        let targets=std::array::from_fn(|i|0x382c+2*i as u32);
+        let bytes=Insn::JumpTableOffsets16{base:0x382c,targets}.encode(0x382c,0).unwrap();
+        assert_eq!(bytes.len(),70);
+        assert_eq!(&bytes[..6], &[0,0,2,0,4,0]);
+        let mut bad=targets;bad[1]=0x382f;
+        assert!(Insn::JumpTableOffsets16{base:0x382c,targets:bad}.encode(0,0).is_err());
+        bad=targets;bad[3]=0x1382c;
+        assert!(Insn::JumpTableOffsets16{base:0x382c,targets:bad}.encode(0,0).is_err());
+    }
+
     #[test]
     fn jr5_preserves_nonlinking_semantics(){
         assert_eq!(Insn::JumpRegister {reg:Reg::new(15)}.encode(0,0).unwrap(),[0xdd,0x0f]);
