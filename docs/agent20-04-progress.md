@@ -282,3 +282,11 @@ git diff --check
 - The platform-resource function continues beyond `0x55400`, so the emitted range is explicitly **partial-function** code, not a standalone callable routine. A later `LDR [PC]` is allowed to reference a literal after this span without copying those future bytes.
 - Optional private-reference byte verifier reports zero mismatches. Independent Clang/LLVM reassembly confirms all 449 instructions, using the original file interval and the emitted Rust `frag32.bin`.
 - Consecutive Agent 04 coverage `[0x40a2c,0x55400)` is now **84,436 exact bytes**; the original `[0x40000,0x40a2c)` remains uncovered. Next missing runtime `0x55400`.
+
+## Checkpoint 33 — recovered controller property continuation
+
+- Checkpoint 33's original bundle was not present in this execution session; reconstructed its claimed interval independently starting from the verified checkpoint-32 Git bundle at commit `2aa732c`. This is a new, replacement checkpoint commit, not the missing earlier checkpoint-33 SHA.
+- Source-generated `[0x55400,0x55800)` = **1,024 exact bytes** from 256 typed ARM32 instructions; no inline data words. Reference MBN `[0x59400,0x59800)`.
+- The added instructions normalize codec input field limits, copy control fields into the active frame descriptor, set per-channel status flags and validate controller feature bits. The function from `0x54cfc` still continues beyond `0x55800`; no fabricated return is added.
+- Direct private-reference comparison passed with zero differing bytes; independent Clang/LLVM mnemonic reassembly also passed. Agent 04 contiguous coverage `[0x40a2c,0x55800)` is **85,460 bytes**. Uncovered prefix `[0x40000,0x40a2c)` remains excluded.
+- This branch is still derived from earlier Agent03 Git history, not checkpoint 50. Restrict all further Agent 04 bytes to ARM32 addresses strictly below `0x68000`.

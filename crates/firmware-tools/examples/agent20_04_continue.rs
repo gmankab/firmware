@@ -1,0 +1,34 @@
+// SPDX-License-Identifier: GPL-3.0-only
+//! Lightweight verifier for only the Agent 20-04 controller continuation.
+//! Reference firmware is a private input, never bundled with this code.
+use firmware_tools::devices::xiaomi_nabu::venus_agent20_04_controller_span_55400 as initial;
+use std::{env,fs,error::Error};
+fn main()->Result<(),Box<dyn Error>> {
+    let args:Vec<String>=env::args().skip(1).collect();
+    if args.len()!=2 || !["emit","verify"].contains(&args[0].as_str()) {
+      return Err("usage: agent20_04_continue <emit output.bin|verify /private/venus.mbn>".into());
+    }
+    let intervals=[(initial::START,initial::fragment()?)];
+    let mut next=initial::START;
+    for (start,bytes) in &intervals {
+       if *start!=next {return Err(format!("continuation gap at 0x{next:x}").into());}
+       next+=bytes.len();
+    }
+    if next>0x68000 {return Err("Agent 20-04 reservation exceeded".into());}
+    let mut all=Vec::new();
+    for (_,bytes) in &intervals { all.extend_from_slice(bytes); }
+    match args[0].as_str() {
+      "emit"=>fs::write(&args[1],&all)?,
+      "verify"=>{
+        let reference=fs::read(&args[1])?;
+        let start=initial::FILE_OFFSET;
+        let expected=reference.get(start..start+all.len()).ok_or("reference too short")?;
+        if let Some(idx)=all.iter().zip(expected).position(|(a,b)|a!=b) {
+            return Err(format!("byte mismatch at ARM32 0x{:x}",initial::START+idx).into());
+        }
+      },
+      _=>unreachable!(),
+    }
+    println!("Agent 04 {}: {} byte-identical source bytes at ARM32 0x{:x}..0x{:x}",args[0],all.len(),initial::START,next);
+    Ok(())
+}
