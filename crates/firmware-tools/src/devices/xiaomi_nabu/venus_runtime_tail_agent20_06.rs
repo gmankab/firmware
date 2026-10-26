@@ -13,7 +13,7 @@ use arm32::{Condition as C, DataOp as Op, Register as R, Shift};
 
 pub const FILE_BASE: usize=0x4000;
 pub const START: usize=0xa8000;
-pub const END: usize=0xc1b78;
+pub const END: usize=0xc1f90;
 pub const MAX_OWNED_END: usize=0x1029f4;
 pub const FILE_OFFSET: usize=FILE_BASE+START;
 
@@ -52959,6 +52959,536 @@ fn program_codec_profile_controller_registers(c:&mut Code)->Result<(),String>{
        0x000faf54,0x000faf8c,0x000e2788,0x000fafbc,0x000fb001,0x0010408c,
     ];
     for pointer in CODEC_REGISTER_CONTROL_POINTERS {c.emit(pointer)?;}
+    c.check(0xc1b78)
+}
+
+/// Drop resources from the selected codec output descriptor, release the
+/// reference-counted controller slot, and restore its original caller frame.
+fn finalize_codec_output_descriptor_resources(c:&mut Code)->Result<(),String>{
+    c.check(0xc1b78)?;
+    // VMA 0xc1b78: push {r4, r5, r6, r7, r8, r9, r10, r11, lr}
+    c.emit(arm32::transfer_multiple(C::Al,false,R::SP,R::new(4)?.bit()|R::new(5)?.bit()|R::new(6)?.bit()|R::new(7)?.bit()|R::new(8)?.bit()|R::new(9)?.bit()|R::new(10)?.bit()|R::R11.bit()|R::LR.bit(),arm32::BlockMode::DecrementBefore,true)?)?;
+    // VMA 0xc1b7c: add r11, sp, #28
+    c.emit(arm32::data_immediate(C::Al,Op::Add,R::R11,R::SP,28)?)?;
+    // VMA 0xc1b80: sub sp, sp, #4
+    c.emit(arm32::data_immediate(C::Al,Op::Sub,R::SP,R::SP,4)?)?;
+    // VMA 0xc1b84: mov r5, r0
+    c.emit(arm32::mov_register(C::Al,R::new(5)?,R::R0))?;
+    // VMA 0xc1b88: mov r6, r1
+    c.emit(arm32::mov_register(C::Al,R::new(6)?,R::R1))?;
+    // VMA 0xc1b8c: ldr r2, [pc, #0x170]        @ 0x3194 <entry+0x3194>
+    c.literal(R::R2,0xc1d04)?;
+    // VMA 0xc1b90: ldr r0, [r5]
+    c.emit(arm32::transfer_word(C::Al,true,R::R0,R::new(5)?,0)?)?;
+    // VMA 0xc1b94: ldr r1, [r5, #0x1b0]
+    c.emit(arm32::transfer_word(C::Al,true,R::R1,R::new(5)?,432)?)?;
+    // VMA 0xc1b98: ldr r7, [r5, #0x198]
+    c.emit(arm32::transfer_word(C::Al,true,R::new(7)?,R::new(5)?,408)?)?;
+    // VMA 0xc1b9c: ldr r8, [r5, #0x1bc]
+    c.emit(arm32::transfer_word(C::Al,true,R::new(8)?,R::new(5)?,444)?)?;
+    // VMA 0xc1ba0: ldr r4, [r0, #0x8]
+    c.emit(arm32::transfer_word(C::Al,true,R::new(4)?,R::R0,8)?)?;
+    // VMA 0xc1ba4: ldr r9, [r0, #0x1d0]
+    c.emit(arm32::transfer_word(C::Al,true,R::new(9)?,R::R0,464)?)?;
+    // VMA 0xc1ba8: bic r10, r1, #255
+    c.emit(arm32::data_immediate(C::Al,Op::Bic,R::new(10)?,R::R1,255)?)?;
+    // VMA 0xc1bac: mov r1, #156
+    c.emit(arm32::data_immediate(C::Al,Op::Mov,R::R1,R::R0,156)?)?;
+    // VMA 0xc1bb0: mov r0, r10
+    c.emit(arm32::mov_register(C::Al,R::R0,R::new(10)?))?;
+    // VMA 0xc1bb4: bl 0x17b0 <entry+0xfffffffffff42c40> @ imm = #-0xc040c
+    c.b(C::Al,0x17b0,true)?;
+    // VMA 0xc1bb8: ldrb r1, [r5, #0x1b0]
+    c.emit(arm32::transfer_byte(C::Al,true,R::R1,R::new(5)?,432)?)?;
+    // VMA 0xc1bbc: mov r0, #4
+    c.emit(arm32::data_immediate(C::Al,Op::Mov,R::R0,R::R0,4)?)?;
+    // VMA 0xc1bc0: mov r2, #-536870912
+    c.emit(arm32::data_immediate(C::Al,Op::Mov,R::R2,R::R0,3758096384)?)?;
+    // VMA 0xc1bc4: mvn r3, #2
+    c.emit(arm32::data_immediate(C::Al,Op::Mvn,R::new(3)?,R::R0,2)?)?;
+    // VMA 0xc1bc8: orr r0, r0, #1024
+    c.emit(arm32::data_immediate(C::Al,Op::Orr,R::R0,R::R0,1024)?)?;
+    // VMA 0xc1bcc: orr r0, r0, r4, lsl #15
+    c.emit(arm32::data_register(C::Al,Op::Orr,R::R0,R::R0,R::new(4)?,Shift::Lsl,15,false)?)?;
+    // VMA 0xc1bd0: str r3, [r0, r2]
+    c.emit(arm32::transfer_word_register(C::Al,false,R::new(3)?,R::R0,R::R2,Shift::Lsl,0)?)?;
+    // VMA 0xc1bd4: lsl r0, r4, #15
+    c.emit(arm32::mov_shifted_register(C::Al,R::R0,R::new(4)?,Shift::Lsl,15)?)?;
+    // VMA 0xc1bd8: add r3, r1, r6
+    c.emit(arm32::data_register(C::Al,Op::Add,R::new(3)?,R::R1,R::new(6)?,Shift::Lsl,0,false)?)?;
+    // VMA 0xc1bdc: add r1, r7, #255
+    c.emit(arm32::data_immediate(C::Al,Op::Add,R::R1,R::new(7)?,255)?)?;
+    // VMA 0xc1be0: bic r6, r1, #255
+    c.emit(arm32::data_immediate(C::Al,Op::Bic,R::new(6)?,R::R1,255)?)?;
+    // VMA 0xc1be4: ldr r1, [r5]
+    c.emit(arm32::transfer_word(C::Al,true,R::R1,R::new(5)?,0)?)?;
+    // VMA 0xc1be8: ldr r7, [r1, #0x10]
+    c.emit(arm32::transfer_word(C::Al,true,R::new(7)?,R::R1,16)?)?;
+    // VMA 0xc1bec: cmp r7, #16384
+    c.emit(arm32::data_immediate(C::Al,Op::Cmp,R::R0,R::new(7)?,16384)?)?;
+    // VMA 0xc1bf0: bne 0xc1c34 <entry+0x30c4>  @ imm = #0x3c
+    c.b(C::Ne,0xc1c34,false)?;
+    // VMA 0xc1bf4: orr r7, r0, #868
+    c.emit(arm32::data_immediate(C::Al,Op::Orr,R::new(7)?,R::R0,868)?)?;
+    // VMA 0xc1bf8: mov r4, #0
+    c.emit(arm32::data_immediate(C::Al,Op::Mov,R::new(4)?,R::R0,0)?)?;
+    // VMA 0xc1bfc: orr r7, r7, #14336
+    c.emit(arm32::data_immediate(C::Al,Op::Orr,R::new(7)?,R::new(7)?,14336)?)?;
+    // VMA 0xc1c00: str r4, [r7, r2]
+    c.emit(arm32::transfer_word_register(C::Al,false,R::new(4)?,R::new(7)?,R::R2,Shift::Lsl,0)?)?;
+    // VMA 0xc1c04: orr r7, r0, #2912
+    c.emit(arm32::data_immediate(C::Al,Op::Orr,R::new(7)?,R::R0,2912)?)?;
+    // VMA 0xc1c08: ldr r5, [r5, #0x104]
+    c.emit(arm32::transfer_word(C::Al,true,R::new(5)?,R::new(5)?,260)?)?;
+    // VMA 0xc1c0c: orr r7, r7, #12288
+    c.emit(arm32::data_immediate(C::Al,Op::Orr,R::new(7)?,R::new(7)?,12288)?)?;
+    // VMA 0xc1c10: str r5, [r7, r2]
+    c.emit(arm32::transfer_word_register(C::Al,false,R::new(5)?,R::new(7)?,R::R2,Shift::Lsl,0)?)?;
+    // VMA 0xc1c14: orr r7, r0, #3040
+    c.emit(arm32::data_immediate(C::Al,Op::Orr,R::new(7)?,R::R0,3040)?)?;
+    // VMA 0xc1c18: orr r7, r7, #12288
+    c.emit(arm32::data_immediate(C::Al,Op::Orr,R::new(7)?,R::new(7)?,12288)?)?;
+    // VMA 0xc1c1c: str r4, [r7, r2]
+    c.emit(arm32::transfer_word_register(C::Al,false,R::new(4)?,R::new(7)?,R::R2,Shift::Lsl,0)?)?;
+    // VMA 0xc1c20: orr r7, r0, #988
+    c.emit(arm32::data_immediate(C::Al,Op::Orr,R::new(7)?,R::R0,988)?)?;
+    // VMA 0xc1c24: ldr r5, [r1, #0xa20]
+    c.emit(arm32::transfer_word(C::Al,true,R::new(5)?,R::R1,2592)?)?;
+    // VMA 0xc1c28: orr r7, r7, #14336
+    c.emit(arm32::data_immediate(C::Al,Op::Orr,R::new(7)?,R::new(7)?,14336)?)?;
+    // VMA 0xc1c2c: bic r5, r5, #255
+    c.emit(arm32::data_immediate(C::Al,Op::Bic,R::new(5)?,R::new(5)?,255)?)?;
+    // VMA 0xc1c30: str r5, [r7, r2]
+    c.emit(arm32::transfer_word_register(C::Al,false,R::new(5)?,R::new(7)?,R::R2,Shift::Lsl,0)?)?;
+    // VMA 0xc1c34: orr r7, r0, #2176
+    c.emit(arm32::data_immediate(C::Al,Op::Orr,R::new(7)?,R::R0,2176)?)?;
+    // VMA 0xc1c38: mvn r5, #0
+    c.emit(arm32::data_immediate(C::Al,Op::Mvn,R::new(5)?,R::R0,0)?)?;
+    // VMA 0xc1c3c: mov r4, #48
+    c.emit(arm32::data_immediate(C::Al,Op::Mov,R::new(4)?,R::R0,48)?)?;
+    // VMA 0xc1c40: cmp r9, #1
+    c.emit(arm32::data_immediate(C::Al,Op::Cmp,R::R0,R::new(9)?,1)?)?;
+    // VMA 0xc1c44: str r5, [r7, r2]
+    c.emit(arm32::transfer_word_register(C::Al,false,R::new(5)?,R::new(7)?,R::R2,Shift::Lsl,0)?)?;
+    // VMA 0xc1c48: orr r7, r0, #20
+    c.emit(arm32::data_immediate(C::Al,Op::Orr,R::new(7)?,R::R0,20)?)?;
+    // VMA 0xc1c4c: mov r5, #0
+    c.emit(arm32::data_immediate(C::Al,Op::Mov,R::new(5)?,R::R0,0)?)?;
+    // VMA 0xc1c50: orr r4, r4, #4096
+    c.emit(arm32::data_immediate(C::Al,Op::Orr,R::new(4)?,R::new(4)?,4096)?)?;
+    // VMA 0xc1c54: orr r7, r7, #2048
+    c.emit(arm32::data_immediate(C::Al,Op::Orr,R::new(7)?,R::new(7)?,2048)?)?;
+    // VMA 0xc1c58: moveq r4, #4224
+    c.emit(arm32::data_immediate(C::Eq,Op::Mov,R::new(4)?,R::R0,4224)?)?;
+    // VMA 0xc1c5c: cmp r9, #1
+    c.emit(arm32::data_immediate(C::Al,Op::Cmp,R::R0,R::new(9)?,1)?)?;
+    // VMA 0xc1c60: str r5, [r7, r2]
+    c.emit(arm32::transfer_word_register(C::Al,false,R::new(5)?,R::new(7)?,R::R2,Shift::Lsl,0)?)?;
+    // VMA 0xc1c64: orr r7, r0, #868
+    c.emit(arm32::data_immediate(C::Al,Op::Orr,R::new(7)?,R::R0,868)?)?;
+    // VMA 0xc1c68: orr r7, r7, #14336
+    c.emit(arm32::data_immediate(C::Al,Op::Orr,R::new(7)?,R::new(7)?,14336)?)?;
+    // VMA 0xc1c6c: str r4, [r7, r2]
+    c.emit(arm32::transfer_word_register(C::Al,false,R::new(4)?,R::new(7)?,R::R2,Shift::Lsl,0)?)?;
+    // VMA 0xc1c70: orr r7, r0, #2912
+    c.emit(arm32::data_immediate(C::Al,Op::Orr,R::new(7)?,R::R0,2912)?)?;
+    // VMA 0xc1c74: orr r7, r7, #12288
+    c.emit(arm32::data_immediate(C::Al,Op::Orr,R::new(7)?,R::new(7)?,12288)?)?;
+    // VMA 0xc1c78: str r10, [r7, r2]
+    c.emit(arm32::transfer_word_register(C::Al,false,R::new(10)?,R::new(7)?,R::R2,Shift::Lsl,0)?)?;
+    // VMA 0xc1c7c: orr r7, r0, #3040
+    c.emit(arm32::data_immediate(C::Al,Op::Orr,R::new(7)?,R::R0,3040)?)?;
+    // VMA 0xc1c80: orr r7, r7, #12288
+    c.emit(arm32::data_immediate(C::Al,Op::Orr,R::new(7)?,R::new(7)?,12288)?)?;
+    // VMA 0xc1c84: str r4, [r7, r2]
+    c.emit(arm32::transfer_word_register(C::Al,false,R::new(4)?,R::new(7)?,R::R2,Shift::Lsl,0)?)?;
+    // VMA 0xc1c88: orr r7, r0, #988
+    c.emit(arm32::data_immediate(C::Al,Op::Orr,R::new(7)?,R::R0,988)?)?;
+    // VMA 0xc1c8c: orr r7, r7, #14336
+    c.emit(arm32::data_immediate(C::Al,Op::Orr,R::new(7)?,R::new(7)?,14336)?)?;
+    // VMA 0xc1c90: str r6, [r7, r2]
+    c.emit(arm32::transfer_word_register(C::Al,false,R::new(6)?,R::new(7)?,R::R2,Shift::Lsl,0)?)?;
+    // VMA 0xc1c94: orr r7, r0, #28
+    c.emit(arm32::data_immediate(C::Al,Op::Orr,R::new(7)?,R::R0,28)?)?;
+    // VMA 0xc1c98: orr r7, r7, #2048
+    c.emit(arm32::data_immediate(C::Al,Op::Orr,R::new(7)?,R::new(7)?,2048)?)?;
+    // VMA 0xc1c9c: str r8, [r7, r2]
+    c.emit(arm32::transfer_word_register(C::Al,false,R::new(8)?,R::new(7)?,R::R2,Shift::Lsl,0)?)?;
+    // VMA 0xc1ca0: orr r7, r0, #24
+    c.emit(arm32::data_immediate(C::Al,Op::Orr,R::new(7)?,R::R0,24)?)?;
+    // VMA 0xc1ca4: orr r7, r7, #2048
+    c.emit(arm32::data_immediate(C::Al,Op::Orr,R::new(7)?,R::new(7)?,2048)?)?;
+    // VMA 0xc1ca8: str r3, [r7, r2]
+    c.emit(arm32::transfer_word_register(C::Al,false,R::new(3)?,R::new(7)?,R::R2,Shift::Lsl,0)?)?;
+    // VMA 0xc1cac: orr r3, r0, #124
+    c.emit(arm32::data_immediate(C::Al,Op::Orr,R::new(3)?,R::R0,124)?)?;
+    // VMA 0xc1cb0: mvn r7, #-1946157056
+    c.emit(arm32::data_immediate(C::Al,Op::Mvn,R::new(7)?,R::R0,2348810240)?)?;
+    // VMA 0xc1cb4: orr r3, r3, #2048
+    c.emit(arm32::data_immediate(C::Al,Op::Orr,R::new(3)?,R::new(3)?,2048)?)?;
+    // VMA 0xc1cb8: str r7, [r3, r2]
+    c.emit(arm32::transfer_word_register(C::Al,false,R::new(7)?,R::new(3)?,R::R2,Shift::Lsl,0)?)?;
+    // VMA 0xc1cbc: mov r2, #0
+    c.emit(arm32::data_immediate(C::Al,Op::Mov,R::R2,R::R0,0)?)?;
+    // VMA 0xc1cc0: moveq r2, #2
+    c.emit(arm32::data_immediate(C::Eq,Op::Mov,R::R2,R::R0,2)?)?;
+    // VMA 0xc1cc4: bne 0xc1cd8 <entry+0x3168>  @ imm = #0xc
+    c.b(C::Ne,0xc1cd8,false)?;
+    // VMA 0xc1cc8: ldr r1, [r1, #0x10]
+    c.emit(arm32::transfer_word(C::Al,true,R::R1,R::R1,16)?)?;
+    // VMA 0xc1ccc: mov r5, #8
+    c.emit(arm32::data_immediate(C::Al,Op::Mov,R::new(5)?,R::R0,8)?)?;
+    // VMA 0xc1cd0: cmp r1, #4096
+    c.emit(arm32::data_immediate(C::Al,Op::Cmp,R::R0,R::R1,4096)?)?;
+    // VMA 0xc1cd4: moveq r5, #7
+    c.emit(arm32::data_immediate(C::Eq,Op::Mov,R::new(5)?,R::R0,7)?)?;
+    // VMA 0xc1cd8: orr r1, r0, #2144
+    c.emit(arm32::data_immediate(C::Al,Op::Orr,R::R1,R::R0,2144)?)?;
+    // VMA 0xc1cdc: orr r0, r0, #36
+    c.emit(arm32::data_immediate(C::Al,Op::Orr,R::R0,R::R0,36)?)?;
+    // VMA 0xc1ce0: mov r3, #-536870912
+    c.emit(arm32::data_immediate(C::Al,Op::Mov,R::new(3)?,R::R0,3758096384)?)?;
+    // VMA 0xc1ce4: str r5, [r1, r3]
+    c.emit(arm32::transfer_word_register(C::Al,false,R::new(5)?,R::R1,R::new(3)?,Shift::Lsl,0)?)?;
+    // VMA 0xc1ce8: orr r0, r0, #2048
+    c.emit(arm32::data_immediate(C::Al,Op::Orr,R::R0,R::R0,2048)?)?;
+    // VMA 0xc1cec: orr r1, r2, #1
+    c.emit(arm32::data_immediate(C::Al,Op::Orr,R::R1,R::R2,1)?)?;
+    // VMA 0xc1cf0: str r1, [r0, r3]!
+    c.emit(arm32::transfer_word_register_preindexed_writeback(C::Al,false,R::R1,R::R0,R::new(3)?,Shift::Lsl,0)?)?;
+    // VMA 0xc1cf4: str r2, [r0]
+    c.emit(arm32::transfer_word(C::Al,false,R::R2,R::R0,0)?)?;
+    // VMA 0xc1cf8: mov r0, #0
+    c.emit(arm32::data_immediate(C::Al,Op::Mov,R::R0,R::R0,0)?)?;
+    // VMA 0xc1cfc: sub sp, r11, #28
+    c.emit(arm32::data_immediate(C::Al,Op::Sub,R::SP,R::R11,28)?)?;
+    // VMA 0xc1d00: pop {r4, r5, r6, r7, r8, r9, r10, r11, pc}
+    c.emit(arm32::transfer_multiple(C::Al,true,R::SP,R::new(4)?.bit()|R::new(5)?.bit()|R::new(6)?.bit()|R::new(7)?.bit()|R::new(8)?.bit()|R::new(9)?.bit()|R::new(10)?.bit()|R::R11.bit()|R::PC.bit(),arm32::BlockMode::IncrementAfter,true)?)?;
+    c.check(0xc1d04)?;
+    const CODEC_DESCRIPTOR_RELEASE_ADDRESS:u32=0x000faf54;
+    c.emit(CODEC_DESCRIPTOR_RELEASE_ADDRESS)?;
+    c.check(0xc1d08)
+}
+
+/// Reset a short MMIO control handle and invoke the existing hardware
+/// notify callback. Two trailing constants remain explicitly non-executable.
+fn pulse_codec_controller_status(c:&mut Code)->Result<(),String>{
+    c.check(0xc1d08)?;
+    // VMA 0xc1d08: push {r11, lr}
+    c.emit(arm32::transfer_multiple(C::Al,false,R::SP,R::R11.bit()|R::LR.bit(),arm32::BlockMode::DecrementBefore,true)?)?;
+    // VMA 0xc1d0c: mov r11, sp
+    c.emit(arm32::mov_register(C::Al,R::R11,R::SP))?;
+    // VMA 0xc1d10: ldr r1, [r0, #0x4]
+    c.emit(arm32::transfer_word(C::Al,true,R::R1,R::R0,4)?)?;
+    // VMA 0xc1d14: mov r2, #3120
+    c.emit(arm32::data_immediate(C::Al,Op::Mov,R::R2,R::R0,3120)?)?;
+    // VMA 0xc1d18: ldr r12, [r0, #0x20]
+    c.emit(arm32::transfer_word(C::Al,true,R::R12,R::R0,32)?)?;
+    // VMA 0xc1d1c: ldr r3, [r0, #0x24]
+    c.emit(arm32::transfer_word(C::Al,true,R::new(3)?,R::R0,36)?)?;
+    // VMA 0xc1d20: orr r1, r2, r1, lsl #15
+    c.emit(arm32::data_register(C::Al,Op::Orr,R::R1,R::R2,R::R1,Shift::Lsl,15,false)?)?;
+    // VMA 0xc1d24: ldr r2, [r0, #0x810]
+    c.emit(arm32::transfer_word(C::Al,true,R::R2,R::R0,2064)?)?;
+    // VMA 0xc1d28: add r3, r12, r3
+    c.emit(arm32::data_register(C::Al,Op::Add,R::new(3)?,R::R12,R::new(3)?,Shift::Lsl,0,false)?)?;
+    // VMA 0xc1d2c: add r2, r3, r2
+    c.emit(arm32::data_register(C::Al,Op::Add,R::R2,R::new(3)?,R::R2,Shift::Lsl,0,false)?)?;
+    // VMA 0xc1d30: mov r3, #-536870912
+    c.emit(arm32::data_immediate(C::Al,Op::Mov,R::new(3)?,R::R0,3758096384)?)?;
+    // VMA 0xc1d34: str r2, [r1, r3]
+    c.emit(arm32::transfer_word_register(C::Al,false,R::R2,R::R1,R::new(3)?,Shift::Lsl,0)?)?;
+    // VMA 0xc1d38: ldr r1, [pc, #0x20]         @ 0x31f0 <entry+0x31f0>
+    c.literal(R::R1,0xc1d60)?;
+    // VMA 0xc1d3c: ldr r3, [r0, #0x810]
+    c.emit(arm32::transfer_word(C::Al,true,R::new(3)?,R::R0,2064)?)?;
+    // VMA 0xc1d40: ldr r2, [r0, #0x20]
+    c.emit(arm32::transfer_word(C::Al,true,R::R2,R::R0,32)?)?;
+    // VMA 0xc1d44: mov r0, #1
+    c.emit(arm32::data_immediate(C::Al,Op::Mov,R::R0,R::R0,1)?)?;
+    // VMA 0xc1d48: bl 0x2ec94 <entry+0xfffffffffff70124> @ imm = #-0x930bc
+    c.b(C::Al,0x2ec94,true)?;
+    // VMA 0xc1d4c: ldr r1, [pc, #0x10]         @ 0x31f4 <entry+0x31f4>
+    c.literal(R::R1,0xc1d64)?;
+    // VMA 0xc1d50: mov r0, #1
+    c.emit(arm32::data_immediate(C::Al,Op::Mov,R::R0,R::R0,1)?)?;
+    // VMA 0xc1d54: bl 0x2ec94 <entry+0xfffffffffff70124> @ imm = #-0x930c8
+    c.b(C::Al,0x2ec94,true)?;
+    // VMA 0xc1d58: mov r0, #1
+    c.emit(arm32::data_immediate(C::Al,Op::Mov,R::R0,R::R0,1)?)?;
+    // VMA 0xc1d5c: pop {r11, pc}
+    c.emit(arm32::transfer_multiple(C::Al,true,R::SP,R::R11.bit()|R::PC.bit(),arm32::BlockMode::IncrementAfter,true)?)?;
+    c.check(0xc1d60)?;
+    const CODEC_MMIO_SIGNAL_POINTERS:[u32;2]=[
+        0x000fb01c,0x000e2788,
+    ];
+    for addr in CODEC_MMIO_SIGNAL_POINTERS {c.emit(addr)?;}
+    c.check(0xc1d68)
+}
+
+/// Apply source/destination plane mode parameters and report the
+/// original per-plane mismatch diagnostics, preserving the original return.
+fn set_codec_plane_mode_parameters(c:&mut Code)->Result<(),String>{
+    c.check(0xc1d68)?;
+    // VMA 0xc1d68: push {r4, r5, r6, r7, r8, r9, r10, r11, lr}
+    c.emit(arm32::transfer_multiple(C::Al,false,R::SP,R::new(4)?.bit()|R::new(5)?.bit()|R::new(6)?.bit()|R::new(7)?.bit()|R::new(8)?.bit()|R::new(9)?.bit()|R::new(10)?.bit()|R::R11.bit()|R::LR.bit(),arm32::BlockMode::DecrementBefore,true)?)?;
+    // VMA 0xc1d6c: add r11, sp, #28
+    c.emit(arm32::data_immediate(C::Al,Op::Add,R::R11,R::SP,28)?)?;
+    // VMA 0xc1d70: sub sp, sp, #20
+    c.emit(arm32::data_immediate(C::Al,Op::Sub,R::SP,R::SP,20)?)?;
+    // VMA 0xc1d74: str r0, [sp, #0x10]
+    c.emit(arm32::transfer_word(C::Al,false,R::R0,R::SP,16)?)?;
+    // VMA 0xc1d78: mov r0, #1020
+    c.emit(arm32::data_immediate(C::Al,Op::Mov,R::R0,R::R0,1020)?)?;
+    // VMA 0xc1d7c: mov r4, r1
+    c.emit(arm32::mov_register(C::Al,R::new(4)?,R::R1))?;
+    // VMA 0xc1d80: ldr r1, [pc, #0x1d8]        @ 0x33f0 <entry+0x33f0>
+    c.literal(R::R1,0xc1f60)?;
+    // VMA 0xc1d84: orr r0, r0, #1024
+    c.emit(arm32::data_immediate(C::Al,Op::Orr,R::R0,R::R0,1024)?)?;
+    // VMA 0xc1d88: ldr r2, [r4, #0x188]
+    c.emit(arm32::transfer_word(C::Al,true,R::R2,R::new(4)?,392)?)?;
+    // VMA 0xc1d8c: ldrb r5, [r4, #0x7fa]
+    c.emit(arm32::transfer_byte(C::Al,true,R::new(5)?,R::new(4)?,2042)?)?;
+    // VMA 0xc1d90: ldrb r7, [r4, #0x7f9]
+    c.emit(arm32::transfer_byte(C::Al,true,R::new(7)?,R::new(4)?,2041)?)?;
+    // VMA 0xc1d94: ldrb r10, [r4, #0x7f8]
+    c.emit(arm32::transfer_byte(C::Al,true,R::new(10)?,R::new(4)?,2040)?)?;
+    // VMA 0xc1d98: ldrsb r9, [r4, r0]
+    c.emit(arm32::load_signed_byte_register(C::Al,R::new(9)?,R::new(4)?,R::R0)?)?;
+    // VMA 0xc1d9c: mov r0, #251
+    c.emit(arm32::data_immediate(C::Al,Op::Mov,R::R0,R::R0,251)?)?;
+    // VMA 0xc1da0: orr r0, r0, #1792
+    c.emit(arm32::data_immediate(C::Al,Op::Orr,R::R0,R::R0,1792)?)?;
+    // VMA 0xc1da4: ldrsb r8, [r4, r0]
+    c.emit(arm32::load_signed_byte_register(C::Al,R::new(8)?,R::new(4)?,R::R0)?)?;
+    // VMA 0xc1da8: mov r0, #1
+    c.emit(arm32::data_immediate(C::Al,Op::Mov,R::R0,R::R0,1)?)?;
+    // VMA 0xc1dac: bl 0x2ec94 <entry+0xfffffffffff70124> @ imm = #-0x93120
+    c.b(C::Al,0x2ec94,true)?;
+    // VMA 0xc1db0: ldr r6, [pc, #0x1ac]        @ 0x33f4 <entry+0x33f4>
+    c.literal(R::new(6)?,0xc1f64)?;
+    // VMA 0xc1db4: mov r0, #1
+    c.emit(arm32::data_immediate(C::Al,Op::Mov,R::R0,R::R0,1)?)?;
+    // VMA 0xc1db8: mov r1, r6
+    c.emit(arm32::mov_register(C::Al,R::R1,R::new(6)?))?;
+    // VMA 0xc1dbc: bl 0x2ec94 <entry+0xfffffffffff70124> @ imm = #-0x93130
+    c.b(C::Al,0x2ec94,true)?;
+    // VMA 0xc1dc0: ldr r1, [pc, #0x1a0]        @ 0x33f8 <entry+0x33f8>
+    c.literal(R::R1,0xc1f68)?;
+    // VMA 0xc1dc4: mov r0, #1
+    c.emit(arm32::data_immediate(C::Al,Op::Mov,R::R0,R::R0,1)?)?;
+    // VMA 0xc1dc8: mov r2, r10
+    c.emit(arm32::mov_register(C::Al,R::R2,R::new(10)?))?;
+    // VMA 0xc1dcc: bl 0x2ec94 <entry+0xfffffffffff70124> @ imm = #-0x93140
+    c.b(C::Al,0x2ec94,true)?;
+    // VMA 0xc1dd0: mov r0, #1
+    c.emit(arm32::data_immediate(C::Al,Op::Mov,R::R0,R::R0,1)?)?;
+    // VMA 0xc1dd4: mov r1, r6
+    c.emit(arm32::mov_register(C::Al,R::R1,R::new(6)?))?;
+    // VMA 0xc1dd8: bl 0x2ec94 <entry+0xfffffffffff70124> @ imm = #-0x9314c
+    c.b(C::Al,0x2ec94,true)?;
+    // VMA 0xc1ddc: ldr r1, [pc, #0x188]        @ 0x33fc <entry+0x33fc>
+    c.literal(R::R1,0xc1f6c)?;
+    // VMA 0xc1de0: mov r0, #1
+    c.emit(arm32::data_immediate(C::Al,Op::Mov,R::R0,R::R0,1)?)?;
+    // VMA 0xc1de4: mov r2, r7
+    c.emit(arm32::mov_register(C::Al,R::R2,R::new(7)?))?;
+    // VMA 0xc1de8: str r7, [sp, #0x8]
+    c.emit(arm32::transfer_word(C::Al,false,R::new(7)?,R::SP,8)?)?;
+    // VMA 0xc1dec: bl 0x2ec94 <entry+0xfffffffffff70124> @ imm = #-0x93160
+    c.b(C::Al,0x2ec94,true)?;
+    // VMA 0xc1df0: mov r0, #1
+    c.emit(arm32::data_immediate(C::Al,Op::Mov,R::R0,R::R0,1)?)?;
+    // VMA 0xc1df4: mov r1, r6
+    c.emit(arm32::mov_register(C::Al,R::R1,R::new(6)?))?;
+    // VMA 0xc1df8: bl 0x2ec94 <entry+0xfffffffffff70124> @ imm = #-0x9316c
+    c.b(C::Al,0x2ec94,true)?;
+    // VMA 0xc1dfc: ldr r1, [pc, #0x16c]        @ 0x3400 <entry+0x3400>
+    c.literal(R::R1,0xc1f70)?;
+    // VMA 0xc1e00: mov r0, #1
+    c.emit(arm32::data_immediate(C::Al,Op::Mov,R::R0,R::R0,1)?)?;
+    // VMA 0xc1e04: mov r2, r5
+    c.emit(arm32::mov_register(C::Al,R::R2,R::new(5)?))?;
+    // VMA 0xc1e08: str r5, [sp, #0xc]
+    c.emit(arm32::transfer_word(C::Al,false,R::new(5)?,R::SP,12)?)?;
+    // VMA 0xc1e0c: bl 0x2ec94 <entry+0xfffffffffff70124> @ imm = #-0x93180
+    c.b(C::Al,0x2ec94,true)?;
+    // VMA 0xc1e10: mov r0, #1
+    c.emit(arm32::data_immediate(C::Al,Op::Mov,R::R0,R::R0,1)?)?;
+    // VMA 0xc1e14: mov r1, r6
+    c.emit(arm32::mov_register(C::Al,R::R1,R::new(6)?))?;
+    // VMA 0xc1e18: bl 0x2ec94 <entry+0xfffffffffff70124> @ imm = #-0x9318c
+    c.b(C::Al,0x2ec94,true)?;
+    // VMA 0xc1e1c: ldr r1, [pc, #0x150]        @ 0x3404 <entry+0x3404>
+    c.literal(R::R1,0xc1f74)?;
+    // VMA 0xc1e20: mov r0, r8
+    c.emit(arm32::mov_register(C::Al,R::R0,R::new(8)?))?;
+    // VMA 0xc1e24: and r8, r8, #255
+    c.emit(arm32::data_immediate(C::Al,Op::And,R::new(8)?,R::new(8)?,255)?)?;
+    // VMA 0xc1e28: str r0, [sp]
+    c.emit(arm32::transfer_word(C::Al,false,R::R0,R::SP,0)?)?;
+    // VMA 0xc1e2c: mov r0, #1
+    c.emit(arm32::data_immediate(C::Al,Op::Mov,R::R0,R::R0,1)?)?;
+    // VMA 0xc1e30: mov r2, r8
+    c.emit(arm32::mov_register(C::Al,R::R2,R::new(8)?))?;
+    // VMA 0xc1e34: bl 0x2ec94 <entry+0xfffffffffff70124> @ imm = #-0x931a8
+    c.b(C::Al,0x2ec94,true)?;
+    // VMA 0xc1e38: mov r0, #1
+    c.emit(arm32::data_immediate(C::Al,Op::Mov,R::R0,R::R0,1)?)?;
+    // VMA 0xc1e3c: mov r1, r6
+    c.emit(arm32::mov_register(C::Al,R::R1,R::new(6)?))?;
+    // VMA 0xc1e40: bl 0x2ec94 <entry+0xfffffffffff70124> @ imm = #-0x931b4
+    c.b(C::Al,0x2ec94,true)?;
+    // VMA 0xc1e44: ldr r1, [pc, #0x12c]        @ 0x3408 <entry+0x3408>
+    c.literal(R::R1,0xc1f78)?;
+    // VMA 0xc1e48: mov r0, r9
+    c.emit(arm32::mov_register(C::Al,R::R0,R::new(9)?))?;
+    // VMA 0xc1e4c: and r5, r9, #255
+    c.emit(arm32::data_immediate(C::Al,Op::And,R::new(5)?,R::new(9)?,255)?)?;
+    // VMA 0xc1e50: str r0, [sp, #0x4]
+    c.emit(arm32::transfer_word(C::Al,false,R::R0,R::SP,4)?)?;
+    // VMA 0xc1e54: mov r0, #1
+    c.emit(arm32::data_immediate(C::Al,Op::Mov,R::R0,R::R0,1)?)?;
+    // VMA 0xc1e58: mov r2, r5
+    c.emit(arm32::mov_register(C::Al,R::R2,R::new(5)?))?;
+    // VMA 0xc1e5c: bl 0x2ec94 <entry+0xfffffffffff70124> @ imm = #-0x931d0
+    c.b(C::Al,0x2ec94,true)?;
+    // VMA 0xc1e60: mov r0, #1
+    c.emit(arm32::data_immediate(C::Al,Op::Mov,R::R0,R::R0,1)?)?;
+    // VMA 0xc1e64: mov r1, r6
+    c.emit(arm32::mov_register(C::Al,R::R1,R::new(6)?))?;
+    // VMA 0xc1e68: bl 0x2ec94 <entry+0xfffffffffff70124> @ imm = #-0x931dc
+    c.b(C::Al,0x2ec94,true)?;
+    // VMA 0xc1e6c: ldr r0, [sp, #0x10]
+    c.emit(arm32::transfer_word(C::Al,true,R::R0,R::SP,16)?)?;
+    // VMA 0xc1e70: ldr r0, [r0]
+    c.emit(arm32::transfer_word(C::Al,true,R::R0,R::R0,0)?)?;
+    // VMA 0xc1e74: ldr r0, [r0, #0x10]
+    c.emit(arm32::transfer_word(C::Al,true,R::R0,R::R0,16)?)?;
+    // VMA 0xc1e78: cmp r0, #4096
+    c.emit(arm32::data_immediate(C::Al,Op::Cmp,R::R0,R::R0,4096)?)?;
+    // VMA 0xc1e7c: bne 0xc1f54 <entry+0x33e4>  @ imm = #0xd0
+    c.b(C::Ne,0xc1f54,false)?;
+    // VMA 0xc1e80: cmp r10, #0
+    c.emit(arm32::data_immediate(C::Al,Op::Cmp,R::R0,R::new(10)?,0)?)?;
+    // VMA 0xc1e84: mov r0, #3
+    c.emit(arm32::data_immediate(C::Al,Op::Mov,R::R0,R::R0,3)?)?;
+    // VMA 0xc1e88: movne r10, #3
+    c.emit(arm32::data_immediate(C::Ne,Op::Mov,R::new(10)?,R::R0,3)?)?;
+    // VMA 0xc1e8c: str r10, [r4, #0x800]
+    c.emit(arm32::transfer_word(C::Al,false,R::new(10)?,R::new(4)?,2048)?)?;
+    // VMA 0xc1e90: str r0, [r4, #0x804]
+    c.emit(arm32::transfer_word(C::Al,false,R::R0,R::new(4)?,2052)?)?;
+    // VMA 0xc1e94: str r0, [r4, #0x808]
+    c.emit(arm32::transfer_word(C::Al,false,R::R0,R::new(4)?,2056)?)?;
+    // VMA 0xc1e98: ldr r0, [r4, #0x510]
+    c.emit(arm32::transfer_word(C::Al,true,R::R0,R::new(4)?,1296)?)?;
+    // VMA 0xc1e9c: cmp r0, #0
+    c.emit(arm32::data_immediate(C::Al,Op::Cmp,R::R0,R::R0,0)?)?;
+    // VMA 0xc1ea0: beq 0xc1f54 <entry+0x33e4>  @ imm = #0xac
+    c.b(C::Eq,0xc1f54,false)?;
+    // VMA 0xc1ea4: ldr r1, [sp, #0x8]
+    c.emit(arm32::transfer_word(C::Al,true,R::R1,R::SP,8)?)?;
+    // VMA 0xc1ea8: cmp r1, #0
+    c.emit(arm32::data_immediate(C::Al,Op::Cmp,R::R0,R::R1,0)?)?;
+    // VMA 0xc1eac: movne r0, #3
+    c.emit(arm32::data_immediate(C::Ne,Op::Mov,R::R0,R::R0,3)?)?;
+    // VMA 0xc1eb0: strne r0, [r4, #0x804]
+    c.emit(arm32::transfer_word(C::Ne,false,R::R0,R::new(4)?,2052)?)?;
+    // VMA 0xc1eb4: ldr r6, [sp, #0xc]
+    c.emit(arm32::transfer_word(C::Al,true,R::new(6)?,R::SP,12)?)?;
+    // VMA 0xc1eb8: cmp r6, #0
+    c.emit(arm32::data_immediate(C::Al,Op::Cmp,R::R0,R::new(6)?,0)?)?;
+    // VMA 0xc1ebc: movne r0, #3
+    c.emit(arm32::data_immediate(C::Ne,Op::Mov,R::R0,R::R0,3)?)?;
+    // VMA 0xc1ec0: strne r0, [r4, #0x808]
+    c.emit(arm32::transfer_word(C::Ne,false,R::R0,R::new(4)?,2056)?)?;
+    // VMA 0xc1ec4: cmp r1, #0
+    c.emit(arm32::data_immediate(C::Al,Op::Cmp,R::R0,R::R1,0)?)?;
+    // VMA 0xc1ec8: bne 0xc1f0c <entry+0x339c>  @ imm = #0x3c
+    c.b(C::Ne,0xc1f0c,false)?;
+    // VMA 0xc1ecc: cmp r8, #3
+    c.emit(arm32::data_immediate(C::Al,Op::Cmp,R::R0,R::new(8)?,3)?)?;
+    // VMA 0xc1ed0: bhs 0xc1ee4 <entry+0x3374>  @ imm = #0xc
+    c.b(C::Cs,0xc1ee4,false)?;
+    // VMA 0xc1ed4: ldr r0, [pc, #0xa8]         @ 0x3414 <entry+0x3414>
+    c.literal(R::R0,0xc1f84)?;
+    // VMA 0xc1ed8: ldr r1, [sp]
+    c.emit(arm32::transfer_word(C::Al,true,R::R1,R::SP,0)?)?;
+    // VMA 0xc1edc: ldr r0, [r0, r1, lsl #2]
+    c.emit(arm32::transfer_word_register(C::Al,true,R::R0,R::R0,R::R1,Shift::Lsl,2)?)?;
+    // VMA 0xc1ee0: b 0xc1f08 <entry+0x3398>  @ imm = #0x20
+    c.b(C::Al,0xc1f08,false)?;
+    // VMA 0xc1ee4: ldr r1, [pc, #0x90]         @ 0x340c <entry+0x340c>
+    c.literal(R::R1,0xc1f7c)?;
+    // VMA 0xc1ee8: ldr r2, [pc, #0x90]         @ 0x3410 <entry+0x3410>
+    c.literal(R::R2,0xc1f80)?;
+    // VMA 0xc1eec: mov r0, #8
+    c.emit(arm32::data_immediate(C::Al,Op::Mov,R::R0,R::R0,8)?)?;
+    // VMA 0xc1ef0: mov r3, #245
+    c.emit(arm32::data_immediate(C::Al,Op::Mov,R::new(3)?,R::R0,245)?)?;
+    // VMA 0xc1ef4: bl 0x2ec94 <entry+0xfffffffffff70124> @ imm = #-0x93268
+    c.b(C::Al,0x2ec94,true)?;
+    // VMA 0xc1ef8: ldr r1, [pc, #0x64]         @ 0x33f4 <entry+0x33f4>
+    c.literal(R::R1,0xc1f64)?;
+    // VMA 0xc1efc: mov r0, #8
+    c.emit(arm32::data_immediate(C::Al,Op::Mov,R::R0,R::R0,8)?)?;
+    // VMA 0xc1f00: bl 0x2ec94 <entry+0xfffffffffff70124> @ imm = #-0x93274
+    c.b(C::Al,0x2ec94,true)?;
+    // VMA 0xc1f04: mov r0, #1
+    c.emit(arm32::data_immediate(C::Al,Op::Mov,R::R0,R::R0,1)?)?;
+    // VMA 0xc1f08: str r0, [r4, #0x804]
+    c.emit(arm32::transfer_word(C::Al,false,R::R0,R::new(4)?,2052)?)?;
+    // VMA 0xc1f0c: cmp r6, #0
+    c.emit(arm32::data_immediate(C::Al,Op::Cmp,R::R0,R::new(6)?,0)?)?;
+    // VMA 0xc1f10: bne 0xc1f54 <entry+0x33e4>  @ imm = #0x3c
+    c.b(C::Ne,0xc1f54,false)?;
+    // VMA 0xc1f14: cmp r5, #3
+    c.emit(arm32::data_immediate(C::Al,Op::Cmp,R::R0,R::new(5)?,3)?)?;
+    // VMA 0xc1f18: bhs 0xc1f2c <entry+0x33bc>  @ imm = #0xc
+    c.b(C::Cs,0xc1f2c,false)?;
+    // VMA 0xc1f1c: ldr r0, [pc, #0x68]         @ 0x341c <entry+0x341c>
+    c.literal(R::R0,0xc1f8c)?;
+    // VMA 0xc1f20: ldr r1, [sp, #0x4]
+    c.emit(arm32::transfer_word(C::Al,true,R::R1,R::SP,4)?)?;
+    // VMA 0xc1f24: ldr r0, [r0, r1, lsl #2]
+    c.emit(arm32::transfer_word_register(C::Al,true,R::R0,R::R0,R::R1,Shift::Lsl,2)?)?;
+    // VMA 0xc1f28: b 0xc1f50 <entry+0x33e0>  @ imm = #0x20
+    c.b(C::Al,0xc1f50,false)?;
+    // VMA 0xc1f2c: ldr r1, [pc, #0x54]         @ 0x3418 <entry+0x3418>
+    c.literal(R::R1,0xc1f88)?;
+    // VMA 0xc1f30: ldr r2, [pc, #0x48]         @ 0x3410 <entry+0x3410>
+    c.literal(R::R2,0xc1f80)?;
+    // VMA 0xc1f34: mov r0, #8
+    c.emit(arm32::data_immediate(C::Al,Op::Mov,R::R0,R::R0,8)?)?;
+    // VMA 0xc1f38: mov r3, #272
+    c.emit(arm32::data_immediate(C::Al,Op::Mov,R::new(3)?,R::R0,272)?)?;
+    // VMA 0xc1f3c: bl 0x2ec94 <entry+0xfffffffffff70124> @ imm = #-0x932b0
+    c.b(C::Al,0x2ec94,true)?;
+    // VMA 0xc1f40: ldr r1, [pc, #0x1c]         @ 0x33f4 <entry+0x33f4>
+    c.literal(R::R1,0xc1f64)?;
+    // VMA 0xc1f44: mov r0, #8
+    c.emit(arm32::data_immediate(C::Al,Op::Mov,R::R0,R::R0,8)?)?;
+    // VMA 0xc1f48: bl 0x2ec94 <entry+0xfffffffffff70124> @ imm = #-0x932bc
+    c.b(C::Al,0x2ec94,true)?;
+    // VMA 0xc1f4c: mov r0, #2
+    c.emit(arm32::data_immediate(C::Al,Op::Mov,R::R0,R::R0,2)?)?;
+    // VMA 0xc1f50: str r0, [r4, #0x808]
+    c.emit(arm32::transfer_word(C::Al,false,R::R0,R::new(4)?,2056)?)?;
+    // VMA 0xc1f54: mov r0, #1
+    c.emit(arm32::data_immediate(C::Al,Op::Mov,R::R0,R::R0,1)?)?;
+    // VMA 0xc1f58: sub sp, r11, #28
+    c.emit(arm32::data_immediate(C::Al,Op::Sub,R::SP,R::R11,28)?)?;
+    // VMA 0xc1f5c: pop {r4, r5, r6, r7, r8, r9, r10, r11, pc}
+    c.emit(arm32::transfer_multiple(C::Al,true,R::SP,R::new(4)?.bit()|R::new(5)?.bit()|R::new(6)?.bit()|R::new(7)?.bit()|R::new(8)?.bit()|R::new(9)?.bit()|R::new(10)?.bit()|R::R11.bit()|R::PC.bit(),arm32::BlockMode::IncrementAfter,true)?)?;
+    c.check(0xc1f60)?;
+    const CODEC_PLANE_MODE_GLOBALS:[u32;12]=[
+       0x000fb05d,0x000e2788,0x000fb071,0x000fb089,
+       0x000fb0a3,0x000fb0be,0x000fb0d5,0x000fb0ed,
+       0x000fb131,0x000fb2b8,0x000fb14c,0x000fb2c4,
+    ];
+    for word in CODEC_PLANE_MODE_GLOBALS {c.emit(word)?;}
     c.check(END)
 }
 
@@ -53147,12 +53677,25 @@ pub fn fragment() -> Result<Vec<u8>,String> {
     release_controller_profile_buffer_handles(&mut c)?;
     initialize_codec_control_channel_object(&mut c)?;
     program_codec_profile_controller_registers(&mut c)?;
+    finalize_codec_output_descriptor_resources(&mut c)?;
+    pulse_codec_controller_status(&mut c)?;
+    set_codec_plane_mode_parameters(&mut c)?;
     c.check(END)?;
     Ok(c.bytes)
 }
 
 #[cfg(test)] mod tests {
     use super::*;
+    #[test]
+    fn controller_cleanup_and_plane_literals_are_noncode_words(){
+        let b=fragment().unwrap();let w=|a:usize|{let i=a-START;u32::from_le_bytes(b[i..i+4].try_into().unwrap())};
+        assert_eq!(w(0xc1d04),0x000faf54);
+        assert_eq!(w(0xc1d60),0x000fb01c);
+        assert_eq!(w(0xc1d64),0x000e2788);
+        assert_eq!(w(0xc1f60),0x000fb05d);
+        assert_eq!(w(0xc1f8c),0x000fb2c4);
+    }
+
     #[test]
     fn output_controller_register_pointer_pool_is_noncode_data(){
         let bytes=fragment().unwrap();let w=|a:usize|{let i=a-START;u32::from_le_bytes(bytes[i..i+4].try_into().unwrap())};
@@ -53194,7 +53737,8 @@ pub fn fragment() -> Result<Vec<u8>,String> {
         assert_eq!(word(0xc05e0),0x000fa71c);
         assert_eq!(word(0xc0978),0x000fa71c);
         assert_eq!(word(0xc099c),0x000faeae);
-        assert_eq!(END,0xc1b78);
+        assert_eq!(END,0xc1f90);
+        assert_eq!(0xc1f90-0xc1b78,1048);
         assert_eq!(0xc1b78-0xc18e4,660);
         assert_eq!(0xc18e4-0xc1514,976);
         assert_eq!(0xc1514-0xc11bc,856);
@@ -53241,7 +53785,8 @@ pub fn fragment() -> Result<Vec<u8>,String> {
         assert_eq!(0xbfe54-0xbfdf8,23*4);
         assert_eq!(word(0xbfdf8),0x000fa754);
         assert_eq!(word(0xbfe50),0x000fa6f2);
-        assert_eq!(END,0xc1b78);
+        assert_eq!(END,0xc1f90);
+        assert_eq!(0xc1f90-0xc1b78,1048);
         assert_eq!(0xc1b78-0xc18e4,660);
         assert_eq!(0xc18e4-0xc1514,976);
         assert_eq!(0xc1514-0xc11bc,856);
@@ -53502,7 +54047,8 @@ pub fn fragment() -> Result<Vec<u8>,String> {
 
     #[test] fn checkpoint64_frame_queue_carries_two_pointer_words() {
         let bytes=fragment().unwrap();
-        assert_eq!(END,0xc1b78);
+        assert_eq!(END,0xc1f90);
+        assert_eq!(0xc1f90-0xc1b78,1048);
         assert_eq!(0xc1b78-0xc18e4,660);
         assert_eq!(0xc18e4-0xc1514,976);
         assert_eq!(0xc1514-0xc11bc,856);

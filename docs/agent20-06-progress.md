@@ -680,3 +680,18 @@ python3 tools/agent20_06_a32_roundtrip.py /private/venus.mbn 0xa8ea0 0xa92c8 \
   ```
 
 - **245 Rust tests and 13 Python tests passed**. No completed new release build is claimed. Next uncovered ARM address `0xc1b78`, original MBN offset `0xc5b78`. The branch is provisional from old Agent 03 rather than checkpoint 50; the source is an auditable typed A32 encoding of reference instruction semantics, not high-level independently rebuilt codec algorithms or OEM signing.
+
+## Checkpoint 74 — descriptor cleanup, MMIO signal and controller plane modes
+
+- Continuous ARM32 Venus runtime `[0xa8000,0xc1f90)` = **106,384 reference-identical bytes**, original MBN file `[0xac000,0xc5f90)`.
+- Added three adjacent helper routines in `[0xc1b78,0xc1f90)` = **1,048 bytes**: **247 typed ARM32 instructions (988 bytes)** and **15 separately represented noncode words (60 bytes)**. Data pools: `[0xc1d04,0xc1d08)` (1), `[0xc1d60,0xc1d68)` (2), `[0xc1f60,0xc1f90)` (12).
+- The helpers release codec output descriptor references, signal a short MMIO handle, set plane-mode parameters and preserve the original conditional return paths. Diagnostic/codec global constants remain separate from executable source.
+- Whole generator matches the pinned reference with zero mismatches; independent Clang/LLVM round-trip confirms all 988 instruction bytes plus 60 explicit data bytes:
+
+  ```sh
+  python3 tools/agent20_06_a32_roundtrip.py /private/venus.mbn 0xc1b78 0xc1f90 \
+    --data-range 0xc1d04:0xc1d08 --data-range 0xc1d60:0xc1d68 \
+    --data-range 0xc1f60:0xc1f90
+  ```
+
+- **246 Rust tests and 13 Python tests passed**. No completed new release build is claimed. Next uncovered VMA `0xc1f90` (file `0xc5f90`). Work remains byte-verified typed A32 code on the provisional older history, not high-level source reconstruction or new OEM-signed firmware.
