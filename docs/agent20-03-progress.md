@@ -561,3 +561,12 @@ Original reference: private `map220v-nabu-firmware/venus.mbn`, SHA-256 `9d4af65d
 - Full fragment was regenerated using typed ARM32 operations, byte-compared against pinned `venus.mbn` and independently reassembled with Clang/LLVM: **zero byte differences**.
 - Generated SHA-256: `1c2e88a039551e830218d09354fa773bccf31be992d24454eee81d093160d1e4`. The next input-mode controller initializer starts at `0x36048`.
 - No claim of high-level source-code or hardware-execution equivalence; this remains an unsignable, nonflashable partial firmware segment.
+
+## Checkpoint 83 — full controller input-mode defaults and format register tables
+
+- Full contiguous typed A32 fragment `[0x21c78,0x3701c)` = **86,948 reference-identical bytes**, MBN file `[0x25c78,0x3b01c)`.
+- New controller initialization routine `[0x36048,0x3701c)` adds **4,052 bytes**: **996 typed ARM32 instructions** and a separately modeled **17-word** controller data table `[0x36fd8,0x3701c)`.
+- Reconstructed the complete initialization path that configures stream mode, channel masks, format identifiers, default frame dimensions, multiple plane byte/halfword fields, callback pointers, hardware register sets, and large zero/enable-controlled state arrays. It ends at the actual saved-register return (`pop ... pc`) at `0x36fd4`, not an invented return instruction.
+- Two checked local A32 ISA encoders cover register-indexed halfword transfer and signed byte pre-indexed writeback; focused tests match those publicly specified architecture fields. No OEM executable opcode arrays are copied into the source.
+- Direct private Venus reference comparison reports zero mismatches for the complete fragment. Independent Clang/LLVM mnemonic reassembly confirms **all 4,052 new bytes**. Generated SHA-256: `cc9ea751ca1da0bdcf0fcee200649543b876339ba96b2d466e9ec7207a218446`.
+- The next source function begins at runtime address `0x3701c`, within Agent 20-03's exclusive reservation ending at `0x40000`.
