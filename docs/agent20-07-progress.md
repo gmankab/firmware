@@ -1591,3 +1591,17 @@ python3 -S tools/adsp-agent20-rwe-next-controller-mode-prefix.py \
   --llvm-mc "$HEXAGON_LLVM_MC" --reference "$NABU_ADSP_REFERENCE" \
   --output /tmp/adsp-controller-mode-prefix-76.bin
 ```
+
+## Checkpoint 97: controller-mode cycle snapshot and startup trap `[0x13a2c,0x13a7c)`
+
+- Added **80 byte-identical Hexagon V66 executable bytes** (20 instruction words) at ADSP file `[0x13a2c,0x13a7c)`, physical `[0x8be10a2c,0x8be10a7c)`, source SHA-256 checked against pinned reference.
+- A checked paired `R1:0=PCYCLE` V66 encoder replaces one validated LLVM NOP. LLVM6 source generates the remaining 19 words with **original packet grouping**, including the `R1:0` timestamp stores and linked failure calls; no operand or packet-marker patches were needed.
+- Error trap and controller-snapshot paths branch to the original source-authored physical targets; function is still partial after `0x13a7c`.
+- With checkpoint 96, `[0x139e0,0x13a7c)` now includes **156 contiguous, source-built executable bytes**. Total ADSP RWE executable code: **14,484 bytes across 27 disjoint regions**, plus 148 separately authored codec-handler pointer data bytes; OEM signing and remaining ADSP executable are not reconstructed.
+- Wrong reference revision and changed output are rejected. Pinned SHA-256 and full exact-byte verification, offline Rust and Python tests, release build and Git bundle verification pass.
+
+```sh
+python3 -S tools/adsp-agent20-rwe-next-controller-mode-clock.py \
+  --llvm-mc "$HEXAGON_LLVM_MC" --reference "$NABU_ADSP_REFERENCE" \
+  --output /tmp/adsp-mode-clock-80.bin
+```
