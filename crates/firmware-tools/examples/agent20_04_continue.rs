@@ -4,13 +4,14 @@
 use firmware_tools::devices::xiaomi_nabu::venus_agent20_04_controller_span_55400 as initial;
 use firmware_tools::devices::xiaomi_nabu::venus_agent20_04_controller_span_55800 as continuation_55800;
 use firmware_tools::devices::xiaomi_nabu::venus_agent20_04_controller_span_56000 as continuation_56000;
+use firmware_tools::devices::xiaomi_nabu::venus_agent20_04_controller_span_56800 as continuation_56800;
 use std::{env,fs,error::Error};
 fn main()->Result<(),Box<dyn Error>> {
     let args:Vec<String>=env::args().skip(1).collect();
     if args.len()!=2 || !["emit","verify"].contains(&args[0].as_str()) {
       return Err("usage: agent20_04_continue <emit output.bin|verify /private/venus.mbn>".into());
     }
-    let intervals=[(initial::START,initial::fragment()?),(continuation_55800::START,continuation_55800::fragment()?),(continuation_56000::START,continuation_56000::fragment()?)];
+    let intervals=[(initial::START,initial::fragment()?),(continuation_55800::START,continuation_55800::fragment()?),(continuation_56000::START,continuation_56000::fragment()?),(continuation_56800::START,continuation_56800::fragment()?)];
     let mut next=initial::START;
     for (start,bytes) in &intervals {
        if *start!=next {return Err(format!("continuation gap at 0x{next:x}").into());}

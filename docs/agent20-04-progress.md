@@ -307,3 +307,11 @@ git diff --check
 - Direct generated-fragment comparison against revision-pinned original `venus.mbn`: **0 mismatches**. Independent Clang/LLVM verification matches **all 497 instruction encodings and all 15 data words** using the three `--data` ranges listed above and source `tools/agent20_04_roundtrip.py`.
 - Complete contiguous Agent 04 interval is `[0x40a2c,0x56800)` = **89,556 byte-identical source-derived bytes**; prefix `[0x40000,0x40a2c)` is intentionally excluded. Reservation ends at `0x68000` (exclusive).
 - Workspace: **239 Rust tests** and **13 Python tests** passed. Release build uses `CARGO_PROFILE_RELEASE_OPT_LEVEL=0`. Branch remains **provisional** because checkpoint 50's commit is not an ancestor of this repository.
+
+## Checkpoint 36 — controller class validation and multiple dispatch pools
+
+- Continued source-generated Venus A32 runtime `[0x56800,0x57000)` = **2,048 byte-identical bytes**, private MBN `[0x5a800,0x5b000)`; **481 executable ARM32 instructions** and **31 separately modeled data words**. The enclosing controller function continues across the module boundary.
+- Non-executable data, each verified separately from instructions: negative parameter offsets `[0x568b0,0x568bc)`, `[0x56918,0x56920)`, `[0x56930,0x56934)`, `[0x56944,0x5694c)`; diagnostic and eight-target jump table `[0x56978,0x5699c)`; format offset and second eight-target jump table `[0x56a60,0x56a84)`; pointer/flag pools `[0x56c6c,0x56c78)`, `[0x56e10,0x56e14)`, `[0x56fb0,0x56fb4)`. The jumping `ldr pc, [r1,r2]` at `0x56974` and `ldr pc, [r0,r2]` at `0x56a5c` confirm the arrays are handler pointers, not executable code.
+- Exact byte comparison to the pinned `venus.mbn`: **0 differences**. Independent Clang/LLVM A32 reconstruction verifies all 481 instructions and 31 words using nine manually classified `--data` ranges. The module does **not** copy opaque OEM instruction words or pad unknown bytes.
+- Combined contiguous Agent 04 region `[0x40a2c,0x57000)` now totals **91,604 exact bytes**. Reservation prefix `[0x40000,0x40a2c)` stays unimplemented; ownership ends before `0x68000`.
+- Offline **241 Rust tests**, **13 Python tests** pass; optimized release is built with `CARGO_PROFILE_RELEASE_OPT_LEVEL=0`, and this provisional branch retains older Agent 03 ancestry instead of checkpoint 50.
