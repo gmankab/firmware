@@ -1399,3 +1399,18 @@ python3 -S tools/adsp-agent20-rwe-next-controller-record-recovery.py \
   --llvm-mc "$HEXAGON_LLVM_MC" --reference "$NABU_ADSP_REFERENCE" \
   --output /tmp/adsp-controller-record-recovery-64.bin
 ```
+
+## Checkpoint 84: second indexed controller record query, ordinary return `[0x130d0,0x131e0)`
+
+- Reconstructed **272 byte-identical Hexagon V66 executable bytes** (68 instruction words) at ADSP file `[0x130d0,0x131e0)`, mapped physical `[0x8be100d0,0x8be101e0)`, SHA-256 `856ca4658b230473719605bb2c59749d1958e0d3b3727a3135dc1c68bd7c2486`.
+- The function walks a GP-backed controller-record index table, validates record types/flags and calls platform logging and update functions. It handles multiple error branches with the correct negative branch targets, bit positions, `.new` predicate dependencies, record-type fallbacks and the original ordinary `dealloc_return` at file `0x131dc`.
+- It begins after **12 reference zero-filled alignment bytes** `[0x130c4,0x130d0)` that are verified but **not counted** as executable source. The additional linked-list/error continuation begins at `0x131e0` and will be reconstructed separately; this is a normal-return path, not yet a whole-function claim.
+- LLVM6 source-assembles **67 instruction words**; the one `R2=SGP0` at file `0x130e0` uses the existing checked V66 encoder after a validated NOP placeholder. No machine-code word imports or packet-bit patches were needed. Predicate branch targets, including back branches to `0x1312c`, are explicitly named in the source.
+- Cumulative **12,320 independently reconstructed Hexagon executable bytes across 22 disjoint regions**. The previously authored 148-byte handler pointer table is **data**, not code. Many further ADSP segments and authenticated OEM inputs remain unreconstructed.
+- Full verification passed: **160 Rust tests, 335 Python tests**, release build, exact reference byte comparison and deterministic corruption/wrong-revision rejection.
+
+```sh
+python3 -S tools/adsp-agent20-rwe-next-controller-record-query.py \
+  --llvm-mc "$HEXAGON_LLVM_MC" --reference "$NABU_ADSP_REFERENCE" \
+  --output /tmp/adsp-controller-record-query-272.bin
+```
