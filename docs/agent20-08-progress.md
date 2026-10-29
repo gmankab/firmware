@@ -1241,3 +1241,19 @@ This is one complete packetized function, not a source-based rebuild
 of any adjacent routine. Total: **13,368 independently authored Hexagon
 executable bytes across 138 verified disjoint fragments**; the original
 OEM payload, alignment and signing material remain external/unbuilt.
+
+**Checkpoint 75 — codec mode verification next to LL/SC handler:**
+Added a complete **100-byte source-assembled mode-checking function**
+`[file 0x3c2f4,0x3c358)`, SHA-256
+`7f1bf9b284f312f7aa071f9d369ea8ab211514fc9d622fec0663b94d01be4ad9`.
+It validates a codec-mode identifier against a controller table,
+performs a bounded query and forwards an optional platform callback,
+then restores the saved caller frame. Its first packet explicitly
+separates `combine(r1,r0)` from the conditional register update, so LLVM6
+reproduces the original dependency and packet length. Together with the
+172-byte handle-state routine reconstructed in checkpoint 74 it forms
+**272 contiguous executable bytes** `[file 0x3c248,0x3c358)` with no
+included linker fill. Two following NOPs `[0x3c358,0x3c360)` are
+excluded. Cumulative **13,468 byte-identical executable bytes in 139
+nonoverlapping source-assembled fragments**; the rest of ADSP and any
+OEM authentication remain outside the verified provenance inventory.

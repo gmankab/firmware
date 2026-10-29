@@ -197,9 +197,9 @@ class ADSPExternalsAndCodeTests(unittest.TestCase):
     @unittest.skipUnless(LLVM_MC,'Hexagon LLVM6 assembler required')
     def test_complete_fragment_inventory_rejects_overlaps(self):
         manifest,regions=adsp.assembled_inventory(LLVM_MC,None)
-        self.assertEqual(len(manifest['fragments']),138)
-        self.assertEqual(manifest['total_independently_assembled_executable_bytes'],13368)
-        self.assertEqual(sum(map(len,regions.values())),13368)
+        self.assertEqual(len(manifest['fragments']),139)
+        self.assertEqual(manifest['total_independently_assembled_executable_bytes'],13468)
+        self.assertEqual(sum(map(len,regions.values())),13468)
         self.assertEqual(manifest['gap_bytes_included_in_generated_executables'],0)
         self.assertFalse(manifest['complete_adsp_image'])
         self.assertEqual(manifest['external_original_code_bytes_in_output'],0)
@@ -377,7 +377,7 @@ class ADSPExternalsAndCodeTests(unittest.TestCase):
     def test_inventory_every_fragment_uses_correct_original(self):
         inventory,_outputs=adsp.assembled_inventory(LLVM_MC,Path(REFERENCE).read_bytes())
         self.assertTrue(all(x['reference_byte_identical'] for x in inventory['fragments']))
-        self.assertEqual(inventory['total_independently_assembled_executable_bytes'],13368)
+        self.assertEqual(inventory['total_independently_assembled_executable_bytes'],13468)
 
     @unittest.skipUnless(LLVM_MC and REFERENCE,
                          'Hexagon LLVM6 and exact pinned ADSP reference required')
@@ -391,7 +391,7 @@ class ADSPExternalsAndCodeTests(unittest.TestCase):
                 adsp.verify_slice(built,original,off)
                 total+=len(built)
                 ranges.append((off,off+size))
-        self.assertEqual(total,13368)
+        self.assertEqual(total,13468)
         ranges.sort()
         self.assertEqual(ranges[0],(0x39000,0x39054))
         self.assertEqual(ranges[-1],(0x3640a8,0x3640f8))
@@ -2228,3 +2228,31 @@ class ADSPControllerHandleStateTests(unittest.TestCase):
         self.assertEqual(hashlib.sha256(fragment).hexdigest(),
                          '2738240bf1278496768ca5f23378c7c7997072ee8ee28bea26a8e3d3ce3a27e4')
         if REFERENCE:adsp.verify_slice(fragment,Path(REFERENCE).read_bytes(),off)
+
+
+class ADSPControllerModeAndLLSCTests(unittest.TestCase):
+    """Adjacent status mutations and callback-mode verification."""
+
+    def test_source_models_symbolic_branch_targets(self):
+        src,off,n=adsp.FRAGMENTS['controller-check-mode']
+        self.assertEqual((off,n),(0x3c2f4,100))
+        s=src.read_text()
+        for token in ('platform_enter','platform_query','platform_bad_mode',
+                      'next_handler','r21:20 = combine(r1,r0)','dealloc_return'):
+            self.assertIn(token,s)
+        for bad in ('.word ','.long ','.byte ','.incbin ','.fill '):
+            self.assertNotIn(bad,s)
+
+    @unittest.skipUnless(LLVM_MC,'LLVM6 Hexagon assembler required')
+    def test_mode_checker_exact_and_contiguous_with_handle_state(self):
+        pieces=[];ranges=[]
+        for name in ('controller-set-handle-state','controller-check-mode'):
+            src,off,n=adsp.FRAGMENTS[name]
+            code=adsp.compile_source(LLVM_MC,src,n)
+            ranges.append((off,off+n));pieces.append(code)
+            if REFERENCE:adsp.verify_slice(code,Path(REFERENCE).read_bytes(),off)
+        self.assertEqual(ranges,[(0x3c248,0x3c2f4),(0x3c2f4,0x3c358)])
+        self.assertEqual(len(b''.join(pieces)),272)
+        self.assertEqual(hashlib.sha256(pieces[-1]).hexdigest(),
+                        '7f1bf9b284f312f7aa071f9d369ea8ab211514fc9d622fec0663b94d01be4ad9')
+        if REFERENCE:adsp.verify_slice(b''.join(pieces),Path(REFERENCE).read_bytes(),0x3c248)
