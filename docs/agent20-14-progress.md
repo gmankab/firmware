@@ -1395,3 +1395,27 @@ OEM bytes are included. The Agent13 seam `[0x100000,0x1001c4)` and the rest
 of the large WLAN executable remain uncovered. Next function begins at
 `0x107f7c`. Checkpoint test gates: 160 Rust, 197 Python (zero skips),
 release build, reference hash, independent LLVM assembly and V66 packet decode.
+
+## Checkpoint 37 — session controller dispatch and frame packing
+
+Two complete Hexagon V66 functions at file `[0x107f7c,0x108368)` add
+**1,004 executable bytes** and match both independent assembler versions:
+
+- `[0x107f7c,0x108288)` (780): controller/session record dispatch, pending
+  callback processing, length checks, packed notification and error paths.
+  The last far jump uses an explicit `jump ##1955196` constant extender;
+  two packet-order choices were preserved via legal source ordering.
+- `[0x108288,0x108368)` (224): copy packed frame fields, normalize
+  endianness and publish the session descriptor. Two mixed memory packets
+  require `:mem_noshuf` for byte-identical write/read order.
+
+Cumulative reconstructed executable `[0x1001c4,0x108368)` = **33,188**
+bytes, plus two independently reconstructed jump tables of **496** bytes,
+for **33,684 total source-derived bytes**. No raw firmware opcodes or
+external source bytes are embedded. Both LLVM22/V66 and LLVM6/V65 produce
+the exact pinned firmware bytes (zero mismatches), as does the complete
+cumulative builder. 160 Rust tests, 200 Python tests (zero skipped) and
+workspace release build pass. The next function begins at `0x108368`.
+
+The 452-byte Agent13 seam and most of Agent14's 2.44MB allocation remain
+unreconstructed; on-device behavior and new OEM authentication are untested.
