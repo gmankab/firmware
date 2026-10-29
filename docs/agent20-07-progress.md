@@ -1384,3 +1384,18 @@ python3 -S tools/adsp-agent20-rwe-next-controller-record-select.py \
   --llvm-mc "$HEXAGON_LLVM_MC" --reference "$NABU_ADSP_REFERENCE" \
   --output /tmp/adsp-controller-record-select-308.bin
 ```
+
+## Checkpoint 83: controller record-recovery/error continuation `[0x13084,0x130c4)`
+
+- Reconstructed **64 byte-identical Hexagon V66 executable bytes** (16 words), original file `[0x13084,0x130c4)`, mapped physical `[0x8be10084,0x8be100c4)`, SHA-256 `cdba03a997337aaa3178e4bd36368cb1954bb07d83f766abd4f2705a335ccbae`.
+- The error branch clears the selected record's active flag, updates the queue pointer, executes `k0lock`, initializes the error record fields and invokes a controller cleanup service. The 12 bytes `[0x130c4,0x130d0)` immediately afterwards are **file-backed zero fill**, not reconstructed instructions; the next unrelated function begins at `0x130d0`.
+- LLVM6 directly assembles **15** of the 16 executable words; the one privileged V66 `k0lock` at `0x1308c` is produced through `KernelZeroLock.LOCK` after checking the original source-assembled placeholder. No original OEM opcode bytes or signed images are copied into the emitter.
+- Combining adjacent source-built fragments `[0x12e40,0x12f50)`, `[0x12f50,0x13084)`, and `[0x13084,0x130c4)` produces **644 consecutive byte-identical code bytes**. The normal return and error/recovery tail are both represented; the trailing zero fill remains separate and uncounted.
+- **Total independently generated ADSP executable code: 12,048 bytes across 21 disjoint intervals**, plus the independent 148-byte controller handler-table *data* from checkpoint 80.
+- Pinned reference comparison, **160 Rust tests and 332 Python tests**, full release build, K0 lock named-encoder validation, wrong-revision and deliberate corruption tests pass. No hardware behavior/MBNv6 signature acceptance is claimed.
+
+```sh
+python3 -S tools/adsp-agent20-rwe-next-controller-record-recovery.py \
+  --llvm-mc "$HEXAGON_LLVM_MC" --reference "$NABU_ADSP_REFERENCE" \
+  --output /tmp/adsp-controller-record-recovery-64.bin
+```
