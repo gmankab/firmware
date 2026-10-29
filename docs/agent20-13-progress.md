@@ -422,3 +422,25 @@ python3 tools/build-wlanmdsp-agent13.py /tmp/wlan-prefix-through-27a0.bin \
 - Cumulative *disjoint continuation* `[0x4568c,0x46fb4)` now totals **6,440 independently source-assembled instruction bytes**, SHA-256 `d9b0a2a900ffd2e6bd294a74c69543f442bcc2305307bcfdd48b2f1c5bec6f44`, with **zero differences** against the private, SHA-256-pinned `wlanmdsp.mbn` reference.
 - 160 offline Rust tests passed. Python discovery ran 43 cases, **41 passed and 2 skipped**; offline Rust release build and Git whitespace checks passed. First missing packet starts at file `0x46fb4` / VMA `0xb0006fb4`, the prologue of the following controller function.
 - **Provenance warning:** This branch descends from the verified Agent 13 checkpoint 16, not unavailable checkpoint 25. Earlier checkpoint 17–25 Git commits must be integrated before claiming a single source-generated prefix from file `0x40000`. Original firmware signing and hardware execution are not established.
+
+## Checkpoint 41 (disjoint) — record status, callback thunk, state reset
+
+- Added **168 independently assembled Hexagon instruction bytes** at file
+  `[0x46fb4,0x4705c)` (runtime VMA `[0xb0006fb4,0xb000705c)`):
+  - `[0x46fb4,0x47010)` **92 bytes**: compact status-flag check, record
+    count report and callback tail dispatch;
+  - `[0x47010,0x47028)` **24 bytes**: a call-through context thunk;
+  - `[0x47028,0x4705c)` **52 bytes**: clear codec state and diagnostic registers.
+- The call in the thunk is **in the same packet** as its following register
+  move and frame allocation; splitting it changes only the Hexagon packet
+  marker. The reset function similarly groups the call with a 32-bit
+  extended store and uses `:mem_noshuf` for a paired store/load.
+- The standalone source-built disjoint continuation `[0x4568c,0x4705c)` is
+  **6,608 bytes** with SHA-256
+  `6b6eca8d60646d37b88a099158fb7cabb79c6415dffd707923becf068a93f7c4`;
+  all **6,608 bytes** match pinned `wlanmdsp.mbn` exactly, including the
+  prior checkpoint40 6,440-byte prefix. No reference firmware bytes appear
+  in the assembler source or Git. The next routine begins at file `0x4705c`.
+- **Provenance:** this is still a disjoint checkpoint16-derived branch, not a
+  checkpoint25 or checkpoint50 descendant. Missing checkpoint17–25 history
+  must be applied before claiming joined WLAN executable-layout coverage.

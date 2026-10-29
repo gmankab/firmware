@@ -19,10 +19,10 @@ class SourceOnlyForwardTests(unittest.TestCase):
     def test_manifest_exact_boundaries(self):
         m=module()
         self.assertEqual(m.START,0x568c)
-        self.assertEqual(m.validate_manifest(),0x6fb4)
+        self.assertEqual(m.validate_manifest(),0x705c)
         self.assertEqual(m.FILE_BASE+m.START,0x4568c)
-        self.assertEqual(m.FILE_BASE+m.validate_manifest(),0x46fb4)
-        self.assertEqual(sum(length for _,_,_,length in m.FRAGMENTS),6440)
+        self.assertEqual(m.FILE_BASE+m.validate_manifest(),0x4705c)
+        self.assertEqual(sum(length for _,_,_,length in m.FRAGMENTS),6608)
 
     def test_validator_forbids_opaque_data_and_layout_holes(self):
         m=module()
@@ -76,6 +76,20 @@ class SourceOnlyForwardTests(unittest.TestCase):
         assert len(b)==8
         assert int.from_bytes(b[4:8],'little')==0x0aaa4042
         assert b[:4]==(0x4010).to_bytes(4,'little')
+
+    def test_status_compact_and_callback_packet_grouping(self):
+        m=module()
+        frags={name:(path,off,size) for name,path,off,size in m.FRAGMENTS}
+        self.assertEqual(frags['record-status-compact'][1:],(0x6fb4,0x5c))
+        self.assertEqual(frags['record-callback-thunk'][1:],(0x7010,0x18))
+        self.assertEqual(frags['record-state-clear'][1:],(0x7028,0x34))
+        status=frags['record-status-compact'][0].read_text()
+        thunk=frags['record-callback-thunk'][0].read_text()
+        reset=frags['record-state-clear'][0].read_text()
+        self.assertIn('memw(r29+#4) = r3.new',status)
+        self.assertIn('call -0x5c\n    r16 = r1',thunk)
+        self.assertIn('call -0xbdc\n    memw(r16+##4588) = r2',reset)
+        self.assertIn('}:mem_noshuf',reset)
 
     def test_controller_stage3_preserves_packet_order(self):
         m=module()
