@@ -197,9 +197,9 @@ class ADSPExternalsAndCodeTests(unittest.TestCase):
     @unittest.skipUnless(LLVM_MC,'Hexagon LLVM6 assembler required')
     def test_complete_fragment_inventory_rejects_overlaps(self):
         manifest,regions=adsp.assembled_inventory(LLVM_MC,None)
-        self.assertEqual(len(manifest['fragments']),131)
-        self.assertEqual(manifest['total_independently_assembled_executable_bytes'],12044)
-        self.assertEqual(sum(map(len,regions.values())),12044)
+        self.assertEqual(len(manifest['fragments']),132)
+        self.assertEqual(manifest['total_independently_assembled_executable_bytes'],12160)
+        self.assertEqual(sum(map(len,regions.values())),12160)
         self.assertEqual(manifest['gap_bytes_included_in_generated_executables'],0)
         self.assertFalse(manifest['complete_adsp_image'])
         self.assertEqual(manifest['external_original_code_bytes_in_output'],0)
@@ -366,7 +366,7 @@ class ADSPExternalsAndCodeTests(unittest.TestCase):
     def test_inventory_every_fragment_uses_correct_original(self):
         inventory,_outputs=adsp.assembled_inventory(LLVM_MC,Path(REFERENCE).read_bytes())
         self.assertTrue(all(x['reference_byte_identical'] for x in inventory['fragments']))
-        self.assertEqual(inventory['total_independently_assembled_executable_bytes'],12044)
+        self.assertEqual(inventory['total_independently_assembled_executable_bytes'],12160)
 
     @unittest.skipUnless(LLVM_MC and REFERENCE,
                          'Hexagon LLVM6 and exact pinned ADSP reference required')
@@ -380,7 +380,7 @@ class ADSPExternalsAndCodeTests(unittest.TestCase):
                 adsp.verify_slice(built,original,off)
                 total+=len(built)
                 ranges.append((off,off+size))
-        self.assertEqual(total,12044)
+        self.assertEqual(total,12160)
         ranges.sort()
         self.assertEqual(ranges[0],(0x39000,0x39054))
         self.assertEqual(ranges[-1],(0x3640a8,0x3640f8))
@@ -2019,3 +2019,36 @@ class ADSPControllerFormatCallbackTests(unittest.TestCase):
         data=b''.join(blocks)
         self.assertEqual(len(data),200)
         if REFERENCE:adsp.verify_slice(data,Path(REFERENCE).read_bytes(),0x3bb40)
+
+class ADSPFormatPlaneIterationTests(unittest.TestCase):
+    """Controller capacity growth with bounded iterations and callback results."""
+
+    def test_format_iteration_source_and_range(self):
+        name='controller-format-iterations'
+        source,off,size=adsp.FRAGMENTS[name]
+        self.assertEqual((off,size),(0x3bd60,116))
+        self.assertEqual(off+size,adsp.FRAGMENTS['format-constraint'][1])
+        body=source.read_text()
+        for forbidden in ('.word ','.long ','.byte ','.incbin ','.fill '):
+            self.assertNotIn(forbidden,body)
+        for text in ('r2 = and(r2,r3)', 'r20 = mpyi(r2,r2)',
+                     'query_controller_format', 'reserve_input_storage',
+                     'retry_iteration:', 'fail_allocation:', 'dealloc_return'):
+            self.assertIn(text,body)
+
+    @unittest.skipUnless(LLVM_MC,'Hexagon LLVM6 assembler required')
+    def test_exact_fragment_and_316_byte_adjacent_cluster(self):
+        names=['controller-format-iterations','format-constraint',
+               'parameter-combine','halfword-order']
+        blocks=[]
+        for name in names:
+            source,off,size=adsp.FRAGMENTS[name]
+            data=adsp.compile_source(LLVM_MC,source,size)
+            if name=='controller-format-iterations':
+                self.assertEqual(hashlib.sha256(data).hexdigest(),
+                    'aba05edab28d0a66fb4edc718e403e073fc69af023259a0d942dee358c829a0c')
+            if REFERENCE:adsp.verify_slice(data,Path(REFERENCE).read_bytes(),off)
+            blocks.append(data)
+        self.assertEqual(len(b''.join(blocks)),316)
+        if REFERENCE:
+            adsp.verify_slice(b''.join(blocks),Path(REFERENCE).read_bytes(),0x3bd60)
