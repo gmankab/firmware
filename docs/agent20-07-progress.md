@@ -1517,3 +1517,18 @@ python3 -S tools/adsp-agent20-rwe-next-controller-linked-record-remove.py \
   --llvm-mc "$HEXAGON_LLVM_MC" --reference "$NABU_ADSP_REFERENCE" \
   --output /tmp/adsp-linked-record-remove-216.bin
 ```
+
+## Checkpoint 92: controller record-purge wrapper `[0x13828,0x13844)`
+
+- Authored **28 byte-identical Hexagon V66 executable bytes** (seven words), file `[0x13828,0x13844)`, physical `[0x8be10828,0x8be10844)`, SHA-256 `79390e13a1a4f0e9e16d845c84b24805b5d5441bec6e7fb80940564652763eda`.
+- The wrapper saves an empty frame, reads controller `SGP0`, traverses the shared pointer fields, extracts a seven-bit record class and calls the previously reconstructed record purge function at file `0x13610`. The original `dealloc_return` is in the final duplex packet.
+- LLVM6 assembles six words directly. The V66 `R2=SGP0` uses the checked source placeholder. Placing `extractu(...)` and `call controller_record_purge` **in the same source packet** recovers the exact branch-relative displacement and parse markers; no opcode-bit patch is needed.
+- This extends the adjacent source-built interval `[0x13750,0x13844)` to **244 exact executable bytes**. The next twelve original bytes `[0x13844,0x13850)` are zero-filled linker alignment, **not independently reconstructed code**.
+- **Total source-built ADSP RWE executable: 13,936 bytes across 24 disjoint intervals**, plus 148 source-generated handler-pointer data bytes. The remaining executable and authenticated image are still incomplete.
+- Pinned-reference revision verification, mutation detection, LLVM6/Rizin cross-check, 160 Rust tests, Python tests, release build and Git bundle integrity pass.
+
+```sh
+python3 -S tools/adsp-agent20-rwe-next-controller-purge-wrapper.py \
+  --llvm-mc "$HEXAGON_LLVM_MC" --reference "$NABU_ADSP_REFERENCE" \
+  --output /tmp/adsp-controller-purge-wrapper-28.bin
+```
