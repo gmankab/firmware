@@ -19,10 +19,10 @@ class SourceOnlyForwardTests(unittest.TestCase):
     def test_manifest_exact_boundaries(self):
         m=module()
         self.assertEqual(m.START,0x568c)
-        self.assertEqual(m.validate_manifest(),0x705c)
+        self.assertEqual(m.validate_manifest(),0x7188)
         self.assertEqual(m.FILE_BASE+m.START,0x4568c)
-        self.assertEqual(m.FILE_BASE+m.validate_manifest(),0x4705c)
-        self.assertEqual(sum(length for _,_,_,length in m.FRAGMENTS),6608)
+        self.assertEqual(m.FILE_BASE+m.validate_manifest(),0x47188)
+        self.assertEqual(sum(length for _,_,_,length in m.FRAGMENTS),6908)
 
     def test_validator_forbids_opaque_data_and_layout_holes(self):
         m=module()
@@ -90,6 +90,20 @@ class SourceOnlyForwardTests(unittest.TestCase):
         self.assertIn('call -0x5c\n    r16 = r1',thunk)
         self.assertIn('call -0xbdc\n    memw(r16+##4588) = r2',reset)
         self.assertIn('}:mem_noshuf',reset)
+
+    def test_record_validator_preserves_packet_and_branch_source_order(self):
+        m=module()
+        byname={name:(p,off,size) for name,p,off,size in m.FRAGMENTS}
+        p,off,size=byname['controller-record-validate']
+        self.assertEqual((off,size),(0x705c,0x12c))
+        source=p.read_text()
+        self.assertIn('if (cmp.gtu(r19.new,r2)) jump:nt L_198',source)
+        self.assertIn('r18 = #20\n    r0 = ##488\n    r2 = r4',source)
+        self.assertIn('r18 = #6\n    r0 = ##496\n    r2 = r3',source)
+        self.assertIn('call -0x4e40',source)
+        self.assertIn('allocframe(#128)',source)
+        for opaque in ('.word','.byte','.incbin'):
+            self.assertNotIn(opaque,source)
 
     def test_controller_stage3_preserves_packet_order(self):
         m=module()

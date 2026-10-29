@@ -444,3 +444,27 @@ python3 tools/build-wlanmdsp-agent13.py /tmp/wlan-prefix-through-27a0.bin \
 - **Provenance:** this is still a disjoint checkpoint16-derived branch, not a
   checkpoint25 or checkpoint50 descendant. Missing checkpoint17–25 history
   must be applied before claiming joined WLAN executable-layout coverage.
+
+## Checkpoint 42 (disjoint) — bounded controller record validation
+
+- Added **300 independently assembled Hexagon instruction bytes** at WLAN
+  file `[0x4705c,0x47188)` (runtime `[0xb000705c,0xb0007188)`). The routine
+  checks record dimension bounds, computes normalized lengths, reports
+  invalid record counts, and calls the platform controller diagnostic hooks.
+- Three original packets contain a 32-bit immediate extension followed by
+  a duplex `r18`/`r2` assignment. LLVM6 produces the correct three words
+  only with the original semantic source order; no `.word` directives or
+  copied OEM instruction fields are used. A pair of compound call/memory
+  packets also preserves packet parse markers. Record-count branches use
+  named in-function labels, with differing call displacements at two sites.
+- Source-built disjoint continuation `[0x4568c,0x47188)` totals **6,908
+  bytes**, with SHA-256
+  `516480e71ad3faf72695094b769c9e2c9a88e8d36c66efcd33b3e172da1b350a`.
+  The full output and the new 300-byte region both have **zero byte
+  differences** from SHA-256-pinned original `wlanmdsp.mbn`. No OEM bytes
+  are stored in the repository or embedded into source generators.
+- The next instruction after `0x47188` begins a session/record processing
+  routine (the preceding call+allocframe packet ends at this boundary).
+- **History remains disjoint:** this branch descends from checkpoint16; the
+  unmerged checkpoint17–25 source commits must be integrated before claiming
+  a continuous source-generated prefix from WLAN file `0x40000`.
