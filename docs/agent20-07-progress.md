@@ -1561,3 +1561,18 @@ python3 -S tools/adsp-agent20-rwe-next-controller-performance-restore.py \
   --llvm-mc "$HEXAGON_LLVM_MC" --reference "$NABU_ADSP_REFERENCE" \
   --output /tmp/adsp-pmu-restore-216.bin
 ```
+
+## Checkpoint 95: controller cycle-counter helper `[0x139c8,0x139dc)`
+
+- Added **20 byte-identical executable bytes** (five V66 words), original ADSP file `[0x139c8,0x139dc)`, physical `[0x8be109c8,0x8be109dc)`, SHA-256 `f67f9c6f8fc83d81141176f92e4254305f03ee9b70f7d971b26a0ecc82c02a7d`.
+- The leaf reads the paired `PCYCLE` counter into `R1:0`, loads the GP-backed 64-bit saved accumulator, adds them, and tail-jumps into the earlier source-built controller cycle routine.
+- LLVM6 source-assembles four words. The V66 `R1:0=PCYCLE` read is constructed from the strictly checked paired-system-register operands (`R1:0`, S31:30) after validating its single NOP placeholder. No copied OEM word or packet-marker patch is needed.
+- Contiguous with checkpoint 94, the PMU restore plus clock leaf `[0x138f0,0x139dc)` now contains 236 exact executable bytes. The **four bytes following `[0x139dc,0x139e0)` are reference linker fill**, not code. Next routine begins at `0x139e0`.
+- **Total independently reconstructed ADSP RWE executable code: 14,328 bytes across 26 disjoint intervals**, plus 148 authored pointer-table data bytes. Large ADSP executable regions, semantics and OEM authentication remain incomplete.
+- Pinned-reference comparison, independent Hexagon LLVM6/Rizin decoding, wrong-revision/corrupt-output tests, full Rust and Python tests, release build and Git bundle verification pass.
+
+```sh
+python3 -S tools/adsp-agent20-rwe-next-controller-cycle-helper.py \
+  --llvm-mc "$HEXAGON_LLVM_MC" --reference "$NABU_ADSP_REFERENCE" \
+  --output /tmp/adsp-controller-cycle-helper-20.bin
+```
