@@ -2,11 +2,22 @@
 //! CDSP partial reconstruction command. Reference bytes stay outside Git.
 use firmware_tools::devices::xiaomi_nabu::{cdsp_boot as cdsp, cdsp_privilege as privileged, cdsp_tlb as tlb, cdsp_tlb_extension as extension, cdsp_copyfast as cache_copy, cdsp_cache_controller as cache_ctl, cdsp_dma_copy as dma_copy};
 use firmware_tools::devices::xiaomi_nabu::{cdsp_early_icache_tags as icache_tags,cdsp_early_cache_helpers as cache_helpers};
+use firmware_tools::devices::xiaomi_nabu::cdsp_early_format_guard as format_guard;
 use std::{env, fs};
 
 fn run() -> Result<(), Box<dyn std::error::Error>> {
     let arguments: Vec<String> = env::args().skip(1).collect();
     match arguments.as_slice() {
+        [action, output] if action=="emit-format-guard"=>{
+            fs::write(output,format_guard::build_format_guard_prefix()?)?;
+            println!("Emitted {} source-encoded CDSP format-guard bytes at file {:#x}..{:#x}; partial function.",
+               format_guard::FUNCTION_BYTES,format_guard::FILE_OFFSET,format_guard::REGION_END);
+        }
+        [action, reference] if action=="verify-format-guard"=>{
+            format_guard::verify_reference(&fs::read(reference)?)?;
+            println!("Verified {} CDSP format-guard bytes and all preceding joined early regions.",
+               format_guard::FUNCTION_BYTES);
+        }
         [action, output] if action == "emit-cache-helpers" => {
             fs::write(output,cache_helpers::build_cache_helper_group()?)?;
             println!("Emitted {} CDSP source-built helper bytes, file {:#x}..{:#x}.",
