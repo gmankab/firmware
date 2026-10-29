@@ -1801,3 +1801,17 @@ without any postassembly corrections. The accepted path continues at
 Contiguous auxiliary prefix `[0x446000,0x448bd8)` = **11,224 bytes**.
 Total partial reconstruction **11,836 bytes**: **11,528 executable**,
 **296 ELF metadata**, **12 alignment**. This is not full modem code.
+
+## Checkpoint 82 — Controller record byte-six validation
+
+Added **80 Hexagon V60 executable bytes** at `[0x448bd8,0x448c28)`
+(VMA `[0x1e402bd8,0x1e402c28)`). Byte six is validated before the
+controller's diagnostic callback, with signed and unsigned byte reads,
+source-defined constant arguments and the original error return. Both the
+accepted continuation and malformed-input paths assemble under LLVM6 with
+no packet transformations.
+
+The contiguous auxiliary prefix `[0x446000,0x448c28)` now spans **11,304
+bytes**; total generated later-modem coverage **11,916 bytes**, including
+**11,608 source-assembled executable bytes**, **296 generated ELF metadata**
+and **12 alignment bytes**. Rest of modem and OEM auth remain incomplete.

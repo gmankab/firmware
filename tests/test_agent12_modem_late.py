@@ -80,6 +80,25 @@ class ModemLateTests(unittest.TestCase):
                 ref=Path(os.environ['NABU_MODEM_REFERENCE']).read_bytes()
                 self.assertEqual(fixed,ref[0x4485f8:0x448628])
 
+    def test_type6_guard_and_error_packet_layout(self):
+        self.assertEqual((agent12.AUX_RECORD_TYPE6_START,
+                          agent12.AUX_RECORD_TYPE6_END),(0x448bd8,0x448c28))
+        text=agent12.AUX_RECORD_TYPE6_SOURCE.read_text()
+        for forbidden in ('.word','.byte','.incbin'):
+            self.assertNotIn(forbidden,text)
+        for required in ('memb(r16+#6)','memub(r16+#6)',
+                         'jump:t valid_type6','if (cmp.eq(r4.new,#0))',
+                         'memw(r29+#0) = r2.new', 'call error_report',
+                         'dealloc_return'):
+            self.assertIn(required,text)
+        if os.getenv('NABU_HEXAGON_LLVM_MC'):
+            result=agent12.assemble(Path(os.environ['NABU_HEXAGON_LLVM_MC']),
+                                    agent12.AUX_RECORD_TYPE6_SOURCE)
+            self.assertEqual(len(result),80)
+            if os.getenv('NABU_MODEM_REFERENCE'):
+                ref=Path(os.environ['NABU_MODEM_REFERENCE']).read_bytes()
+                self.assertEqual(result,ref[0x448bd8:0x448c28])
+
     def test_type5_guard_two_valid_values(self):
         self.assertEqual((agent12.AUX_RECORD_TYPE5_START,
                           agent12.AUX_RECORD_TYPE5_END),(0x448b8c,0x448bd8))
@@ -2296,8 +2315,8 @@ class ModemLateTests(unittest.TestCase):
         a = agent12.output_fragments(Path(os.environ["NABU_HEXAGON_LLVM_MC"]))
         self.assertEqual({k: len(v) for k, v in a.items()},
                          {0x7C000:160, 0x7C2EC:452,
-                          0x446000:agent12.AUX_RECORD_TYPE5_END-agent12.AUX_START})
-        self.assertEqual(sum(map(len,a.values())),agent12.AUX_RECORD_TYPE5_END - agent12.AUX_START + 612)
+                          0x446000:agent12.AUX_RECORD_TYPE6_END-agent12.AUX_START})
+        self.assertEqual(sum(map(len,a.values())),agent12.AUX_RECORD_TYPE6_END - agent12.AUX_START + 612)
         self.assertEqual(a[0x446000][0x0d8:0x200],agent12.emit_auxiliary_elf_symbols())
         self.assertEqual(a[0x446000][0x254:0x260],bytes(12))
         self.assertEqual(a[0x446000][0x1448:0x1460],
