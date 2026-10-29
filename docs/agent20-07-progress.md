@@ -1240,3 +1240,17 @@ python3 -S tools/adsp-agent20-rwe-next-controller-slot-scan-complete.py \
  --llvm-mc "$HEXAGON_LLVM_MC" --reference "$NABU_ADSP_REFERENCE" \
  --output /tmp/adsp-slot-scan-complete-620.bin
 ```
+
+## Checkpoint 73: controller-slot remove/search `[0x12430,0x1259c)`
+
+- Reconstructed **364 independently assembled, byte-identical executable bytes** (91 Hexagon V66 instruction words), file `[0x12430,0x1259c)`, physical `[0x8be0f430,0x8be0f59c)`, SHA-256 `5cac635ed34b47baf9c9b637f20cf500e584d88b425272e199d032809b48d3fb`.
+- The new function searches active controller bitmap tables and releases a selected slot through atomic `memw_locked` retry loops, conditional callback dispatch, counter adjustment and the original `dealloc_return`. Its three original-source-style assembly parts (104/124/136 bytes) are assembled **entirely by LLVM6**; no privileged instructions, packet-marker patches or OEM opcode-copy are necessary.
+- The immediately preceding complete scanner `[0x121c0,0x1242c)` and the release function are separated by the original four-byte linker fill `[0x1242c,0x12430)`, which is **not** included in executable bytes. Verified that both generated functions concatenate around exactly those four zero bytes in the reference.
+- Cumulative source-built ADSP RWE code **10,356 bytes across 18 disjoint intervals**. Next nonzero material begins at `0x125a0`, after another four-byte alignment gap. Full ADSP and OEM authentication remain incomplete.
+- 160 Rust tests, **302 Python tests**, reference byte equality, release build and Git integrity pass (configured LLVM6 toolchain and correct firmware reference).
+
+```sh
+python3 -S tools/adsp-agent20-rwe-next-controller-slot-remove-complete.py \
+ --llvm-mc "$HEXAGON_LLVM_MC" --reference "$NABU_ADSP_REFERENCE" \
+ --output /tmp/adsp-slot-remove-364.bin
+```
