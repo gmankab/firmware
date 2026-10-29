@@ -197,9 +197,9 @@ class ADSPExternalsAndCodeTests(unittest.TestCase):
     @unittest.skipUnless(LLVM_MC,'Hexagon LLVM6 assembler required')
     def test_complete_fragment_inventory_rejects_overlaps(self):
         manifest,regions=adsp.assembled_inventory(LLVM_MC,None)
-        self.assertEqual(len(manifest['fragments']),110)
-        self.assertEqual(manifest['total_independently_assembled_executable_bytes'],10580)
-        self.assertEqual(sum(map(len,regions.values())),10580)
+        self.assertEqual(len(manifest['fragments']),120)
+        self.assertEqual(manifest['total_independently_assembled_executable_bytes'],10744)
+        self.assertEqual(sum(map(len,regions.values())),10744)
         self.assertEqual(manifest['gap_bytes_included_in_generated_executables'],0)
         self.assertFalse(manifest['complete_adsp_image'])
         self.assertEqual(manifest['external_original_code_bytes_in_output'],0)
@@ -366,7 +366,7 @@ class ADSPExternalsAndCodeTests(unittest.TestCase):
     def test_inventory_every_fragment_uses_correct_original(self):
         inventory,_outputs=adsp.assembled_inventory(LLVM_MC,Path(REFERENCE).read_bytes())
         self.assertTrue(all(x['reference_byte_identical'] for x in inventory['fragments']))
-        self.assertEqual(inventory['total_independently_assembled_executable_bytes'],10580)
+        self.assertEqual(inventory['total_independently_assembled_executable_bytes'],10744)
 
     @unittest.skipUnless(LLVM_MC and REFERENCE,
                          'Hexagon LLVM6 and exact pinned ADSP reference required')
@@ -380,7 +380,7 @@ class ADSPExternalsAndCodeTests(unittest.TestCase):
                 adsp.verify_slice(built,original,off)
                 total+=len(built)
                 ranges.append((off,off+size))
-        self.assertEqual(total,10580)
+        self.assertEqual(total,10744)
         ranges.sort()
         self.assertEqual(ranges[0],(0x39000,0x39054))
         self.assertEqual(ranges[-1],(0x3640a8,0x3640f8))
@@ -1728,3 +1728,58 @@ class ADSPControllerPriorityListTests(unittest.TestCase):
         # store; the parser validates packet shape, not hardcoded OEM words.
         self.assertEqual((int.from_bytes(compiled[0x80:0x84],'little')>>14)&3,1)
         self.assertEqual((int.from_bytes(compiled[0x88:0x8c],'little')>>14)&3,3)
+
+class ADSPQuRTTrapAndAtomicTests(unittest.TestCase):
+    """Ten *independent source-assembled* Hexagon functions in a single span."""
+    NAMES = (
+        ('qurt-trap-103', 0x3f64c, 8,
+         'e3174fa12b22cbccf50aac89eb807db06f1ec6a5b8f35cc4b29cbf2ebb366624'),
+        ('qurt-io-marshall', 0x3f654, 48,
+         '83e070728da855a270cc1123795fd60aad83a96f0fe1c64d18e0b3f8b3ac8cbb'),
+        ('qurt-trap-107', 0x3f684, 8,
+         '1059a32e63cf3a4f299051243067e221d112fd82062216c83100686f216d875a'),
+        ('qurt-trap-12', 0x3f68c, 8,
+         '12c33ab0b7455500a951484e6e39755f98677942793675f6a7fda41b351055c7'),
+        ('qurt-trap-4', 0x3f694, 12,
+         '98ea521bbd19b29bd41a04899218b9d65f46828a349213853635d00307814ad3'),
+        ('qurt-trap-105', 0x3f6a0, 8,
+         '63534a59c070b5d7190898ba07f766c612f1d132e050dfc69a35415ca5be8e20'),
+        ('qurt-trap-11', 0x3f6a8, 8,
+         '051c0b320d3c01a3d04a45dbf0e19c78796d8c9b831f53000a712b69a3528456'),
+        ('qurt-trap-126', 0x3f6b0, 8,
+         '7341ca07087737e7b54dc5ae6b5bc1841fb3577621df9860cc4832db0e7c0e8c'),
+        ('qurt-atomic-word', 0x3f6b8, 20,
+         'b6f95e95b297a72d1524258cc1197dd3c1273ae6a390fe3d53aa0b1f568a218f'),
+        ('qurt-atomic-context', 0x3f6cc, 36,
+         '763e56b90fbed53d7c0edfb943788f7052cd17d39a30a25cdc70d326c69a7e9f'),
+    )
+
+    def test_qurt_source_bounds_and_no_embedded_vendor_opcodes(self):
+        self.assertEqual(sum(n for _, _, n, _ in self.NAMES), 164)
+        for j, (name, off, n, _sha) in enumerate(self.NAMES):
+            source, start, size = adsp.FRAGMENTS[name]
+            self.assertEqual((start, size), (off, n))
+            if j:
+                prev = self.NAMES[j-1]
+                self.assertEqual(prev[1]+prev[2],off)
+            text = source.read_text()
+            for forbidden in ('.word ','.long ','.byte ','.incbin ','.fill '):
+                self.assertNotIn(forbidden,text)
+        self.assertEqual(self.NAMES[-1][1]+self.NAMES[-1][2], 0x3f6f0)
+        assert 'memd_locked(r4,p0)' in adsp.FRAGMENTS['qurt-atomic-context'][0].read_text()
+
+    @unittest.skipUnless(LLVM_MC, 'LLVM6 Hexagon assembler required')
+    def test_each_quRT_source_is_exact_and_entire_164_byte_group_matches(self):
+        assembled = []
+        reference = Path(REFERENCE).read_bytes() if REFERENCE else None
+        for name,off,n,expected_sha in self.NAMES:
+            source,actual_off,actual_n = adsp.FRAGMENTS[name]
+            with self.subTest(name=name):
+                self.assertEqual((actual_off,actual_n),(off,n))
+                fragment=adsp.compile_source(LLVM_MC,source,n)
+                self.assertEqual(hashlib.sha256(fragment).hexdigest(),expected_sha)
+                if reference is not None:adsp.verify_slice(fragment,reference,off)
+                assembled.append(fragment)
+        combined=b''.join(assembled)
+        self.assertEqual(len(combined),164)
+        if reference is not None:adsp.verify_slice(combined,reference,0x3f64c)

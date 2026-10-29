@@ -81,6 +81,19 @@ FRAGMENTS = {
     'controller-state-tail': (TOOLS / 'adsp-late-controller-state-tail.S', 0x3EC64, 0x10),
     'controller-priority-tail': (TOOLS / 'adsp-late-controller-priority-tail.S', 0x3E000, 0x0C),
     'controller-priority-scan': (TOOLS / 'adsp-late-controller-priority-scan.S', 0x3E010, 0x94),
+    # QuRT trap handlers, stack marshal and 64-bit atomic registry writers.
+    # Exactly [0x3f64c,0x3f6f0), no NOP fill or original vendor instruction blobs.
+    'qurt-trap-103': (TOOLS / 'adsp-late-qurt-trap-103.S', 0x3F64C, 8),
+    'qurt-io-marshall': (TOOLS / 'adsp-late-qurt-io-marshall.S', 0x3F654, 48),
+    'qurt-trap-107': (TOOLS / 'adsp-late-qurt-trap-107.S', 0x3F684, 8),
+    'qurt-trap-12': (TOOLS / 'adsp-late-qurt-trap-12.S', 0x3F68C, 8),
+    'qurt-trap-4': (TOOLS / 'adsp-late-qurt-trap-4.S', 0x3F694, 12),
+    'qurt-trap-105': (TOOLS / 'adsp-late-qurt-trap-105.S', 0x3F6A0, 8),
+    'qurt-trap-11': (TOOLS / 'adsp-late-qurt-trap-11.S', 0x3F6A8, 8),
+    'qurt-trap-126': (TOOLS / 'adsp-late-qurt-trap-126.S', 0x3F6B0, 8),
+    'qurt-atomic-word': (TOOLS / 'adsp-late-qurt-atomic-word.S', 0x3F6B8, 20),
+    'qurt-atomic-context': (TOOLS / 'adsp-late-qurt-atomic-context.S', 0x3F6CC, 36),
+
     'call-descriptor-dispatch': (TOOLS / 'adsp-late-call-descriptor-dispatch.S', 0x3E0A4, 0x28),
     'controller-runtime-init': (TOOLS / 'adsp-late-controller-runtime-init.S', 0x3E0D0, 0x80),
     'controller-platform-bootstrap': (TOOLS / 'adsp-late-controller-platform-bootstrap.S', 0x3E150, 0x110),
