@@ -1754,3 +1754,21 @@ Contiguous auxiliary prefix `[0x446000,0x448ad0)` = **10,960 bytes**.
 Total generated coverage **11,572 bytes**: **11,264 executable Hexagon**,
 **296 ELF metadata**, **12 linker alignment**. Later modem code and OEM
 firmware authentication remain unimplemented.
+
+## Checkpoint 79 — Controller-record signature and diagnostic prefix
+
+Added **100 byte-identical V60 executable bytes** at modem file
+`[0x448ad0,0x448b34)`, VMA `[0x1e402ad0,0x1e402b34)`. The source
+loads four bytes of record magic, validates the controller's installed
+diagnostic callback, logs invalid headers, and preserves the early return.
+LLVM6 emits a three-word compare/extended-constant packet in an alternative
+issue order. A checked transformation verifies all opcode/register fields
+and parse markers before ordering source-generated words as the original.
+Negative tests reject semantic or parse-marker changes. No OEM words copied
+into the generator. The succeeding valid-header case begins at `0x448b34`
+and is still incomplete.
+
+Contiguous auxiliary prefix `[0x446000,0x448b34)` = **11,060 bytes**.
+Total generated later-modem coverage **11,672 bytes**, of which **11,364
+are executable**, **296 metadata**, **12 alignment**. Original modem OEM
+firmware and signing content remain incomplete.
