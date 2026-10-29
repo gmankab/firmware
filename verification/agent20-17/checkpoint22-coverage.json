@@ -1,0 +1,51 @@
+{
+  "agent": 17,
+  "checkpoint": 22,
+  "firmware_profile": "postmarketos",
+  "source_parent": "51b1f91f32d32542aa03e114f5a2f4d94b559e2a",
+  "coverage": {
+    "file_start": 1642,
+    "file_end": 56730,
+    "runtime_start": 1130,
+    "runtime_end": 56218,
+    "source_generated_bytes": 55088,
+    "instruction_bytes": 54784,
+    "typed_jump_data_bytes": 304,
+    "copied_original_firmware_bytes": 0,
+    "mismatches": 0,
+    "sha256": "c076561e9d3d06d3e09be5017d42a612708f00cc5872cf7ad0f11f9c2d9f6808"
+  },
+  "extension": {
+    "file_start": 49448,
+    "file_end": 56730,
+    "generated_bytes": 7282,
+    "instruction_count": 2759,
+    "instruction_bytes": 7276,
+    "typed_jump_data_bytes": 6,
+    "ex9_uses": 319,
+    "distinct_ex9_entries": 122,
+    "jump_table": {
+      "file_start": 56724,
+      "file_end": 56730,
+      "table_base_runtime": 56212,
+      "targets": [
+        56218,
+        56248,
+        56276,
+        56418,
+        56308,
+        56362
+      ]
+    }
+  },
+  "first_uncovered_file_offset": 56730,
+  "tests": {
+    "rust_passed": 260,
+    "python_passed": 40,
+    "release_opt_level0": "pass",
+    "reference": "pass",
+    "gnu_nds32_assembler": "unavailable",
+    "default_optimized_release": "not_verified",
+    "hardware": "not_verified"
+  }
+}
