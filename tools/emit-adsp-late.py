@@ -93,6 +93,11 @@ FRAGMENTS = {
     'qurt-trap-126': (TOOLS / 'adsp-late-qurt-trap-126.S', 0x3F6B0, 8),
     'qurt-atomic-word': (TOOLS / 'adsp-late-qurt-atomic-word.S', 0x3F6B8, 20),
     'qurt-atomic-context': (TOOLS / 'adsp-late-qurt-atomic-context.S', 0x3F6CC, 36),
+    # Four QuRT/controller helpers after 16 distinct original alignment NOPs.
+    'qurt-trap-init': (TOOLS / 'adsp-late-qurt-trap-init.S', 0x3F700, 28),
+    'qurt-raw-handle-dispatch': (TOOLS / 'adsp-late-qurt-raw-handle-dispatch.S', 0x3F71C, 48),
+    'qurt-clear-register-bank': (TOOLS / 'adsp-late-qurt-clear-register-bank.S', 0x3F74C, 32),
+    'qurt-copy-register-bank': (TOOLS / 'adsp-late-qurt-copy-register-bank.S', 0x3F76C, 28),
 
     'call-descriptor-dispatch': (TOOLS / 'adsp-late-call-descriptor-dispatch.S', 0x3E0A4, 0x28),
     'controller-runtime-init': (TOOLS / 'adsp-late-controller-runtime-init.S', 0x3E0D0, 0x80),

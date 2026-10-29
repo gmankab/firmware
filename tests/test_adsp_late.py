@@ -197,9 +197,9 @@ class ADSPExternalsAndCodeTests(unittest.TestCase):
     @unittest.skipUnless(LLVM_MC,'Hexagon LLVM6 assembler required')
     def test_complete_fragment_inventory_rejects_overlaps(self):
         manifest,regions=adsp.assembled_inventory(LLVM_MC,None)
-        self.assertEqual(len(manifest['fragments']),120)
-        self.assertEqual(manifest['total_independently_assembled_executable_bytes'],10744)
-        self.assertEqual(sum(map(len,regions.values())),10744)
+        self.assertEqual(len(manifest['fragments']),124)
+        self.assertEqual(manifest['total_independently_assembled_executable_bytes'],10880)
+        self.assertEqual(sum(map(len,regions.values())),10880)
         self.assertEqual(manifest['gap_bytes_included_in_generated_executables'],0)
         self.assertFalse(manifest['complete_adsp_image'])
         self.assertEqual(manifest['external_original_code_bytes_in_output'],0)
@@ -366,7 +366,7 @@ class ADSPExternalsAndCodeTests(unittest.TestCase):
     def test_inventory_every_fragment_uses_correct_original(self):
         inventory,_outputs=adsp.assembled_inventory(LLVM_MC,Path(REFERENCE).read_bytes())
         self.assertTrue(all(x['reference_byte_identical'] for x in inventory['fragments']))
-        self.assertEqual(inventory['total_independently_assembled_executable_bytes'],10744)
+        self.assertEqual(inventory['total_independently_assembled_executable_bytes'],10880)
 
     @unittest.skipUnless(LLVM_MC and REFERENCE,
                          'Hexagon LLVM6 and exact pinned ADSP reference required')
@@ -380,7 +380,7 @@ class ADSPExternalsAndCodeTests(unittest.TestCase):
                 adsp.verify_slice(built,original,off)
                 total+=len(built)
                 ranges.append((off,off+size))
-        self.assertEqual(total,10744)
+        self.assertEqual(total,10880)
         ranges.sort()
         self.assertEqual(ranges[0],(0x39000,0x39054))
         self.assertEqual(ranges[-1],(0x3640a8,0x3640f8))
@@ -1783,3 +1783,47 @@ class ADSPQuRTTrapAndAtomicTests(unittest.TestCase):
         combined=b''.join(assembled)
         self.assertEqual(len(combined),164)
         if reference is not None:adsp.verify_slice(combined,reference,0x3f64c)
+
+class ADSPQuRTControllerBankTests(unittest.TestCase):
+    """Four adjacent, independently reassembled platform register helpers."""
+    EXPECTED=(
+        ('qurt-trap-init',0x3f700,28,
+         'b92c6e376ac55b0fa27638a57eb82f181b7bbd41a6138455203a9ce8e899ea11'),
+        ('qurt-raw-handle-dispatch',0x3f71c,48,
+         'f885bbbdbf859cf6f98e65fdebd2ad8b23aae7589d60d8813a251dc8998d8003'),
+        ('qurt-clear-register-bank',0x3f74c,32,
+         '9edca0cdf9fb6d585e8753fa86960cc1342af3d47cd2b02f0cb890730a0301db'),
+        ('qurt-copy-register-bank',0x3f76c,28,
+         '5a8b39f7600ebc45087f3328cd0d15f587b3bb1bf60e452ff57e55f3d35040bc'),
+    )
+
+    def test_source_spans_and_filler_are_strictly_separate(self):
+        self.assertEqual(sum(size for _,_,size,_ in self.EXPECTED),136)
+        for i,(name,off,n,_sha) in enumerate(self.EXPECTED):
+            source,actual_off,actual_size=adsp.FRAGMENTS[name]
+            self.assertEqual((actual_off,actual_size),(off,n))
+            if i:
+                self.assertEqual(self.EXPECTED[i-1][1]+self.EXPECTED[i-1][2],off)
+            asm=source.read_text()
+            for forbidden in ('.word ','.long ','.byte ','.fill ','.incbin '):
+                self.assertNotIn(forbidden,asm)
+        self.assertEqual(adsp.FRAGMENTS['qurt-atomic-context'][1]+36,0x3f6f0)
+        self.assertEqual(self.EXPECTED[0][1]-0x3f6f0,16) # excluded NOP fill
+        self.assertEqual(self.EXPECTED[-1][1]+self.EXPECTED[-1][2],0x3f788)
+        self.assertIn(':endloop0',adsp.FRAGMENTS['qurt-clear-register-bank'][0].read_text())
+
+    @unittest.skipUnless(LLVM_MC,'LLVM6 Hexagon assembler required')
+    def test_exact_quRT_register_bank_functions_and_joined_reference(self):
+        reference=Path(REFERENCE).read_bytes() if REFERENCE else None
+        pieces=[]
+        for name,off,n,digest in self.EXPECTED:
+            with self.subTest(name=name):
+                src,o,length=adsp.FRAGMENTS[name]
+                self.assertEqual((o,length),(off,n))
+                code=adsp.compile_source(LLVM_MC,src,n)
+                self.assertEqual(hashlib.sha256(code).hexdigest(),digest)
+                if reference is not None:adsp.verify_slice(code,reference,off)
+                pieces.append(code)
+        combined=b''.join(pieces)
+        self.assertEqual(len(combined),136)
+        if reference is not None:adsp.verify_slice(combined,reference,0x3f700)

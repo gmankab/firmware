@@ -990,3 +990,24 @@ cases discovered, 203 pass and 3 are skipped. Release build and Git bundle
 verified. The ADSP image remains overwhelmingly unreconstructed and OEM
 signing has not been reproduced; this remains the provisional older-base
 agent branch pending genuine checkpoint-50 integration.
+
+**Checkpoint 61 — QuRT handle dispatch and controller register-bank helpers:**
+Source-rebuilt four complete Hexagon functions in a **136-byte** contiguous
+region `[0x3f700,0x3f788)`:
+
+- QuRT trap 103 initialization wrapper, 28 bytes.
+- Tagged controller handle decode and conditional indirect tail-call, 48 bytes.
+- Hardware `loop0`-based register-bank clear, 32 bytes.
+- Hardware `loop0`-based bounded register-bank copy, 28 bytes.
+
+The preceding `[0x3f6f0,0x3f700)` comprises **16 alignment NOP bytes** that
+are deliberately excluded from executable-source totals. Compiler packet
+ordering and original loop0/endloop0 parse markers match exactly. The newly
+added 136 bytes contain no source-imported opcode, raw OEM blob or inferred
+padding. All four source files independently compile under LLVM6 Hexagon v65
+shared-ISA assembler and match original Hexagon-v66 `adsp.mbn` exactly.
+
+Cumulative Agent 08 contribution: **10,880 independently source-assembled
+executable bytes in 124 nonoverlapping fragments**. All 160 Rust tests pass;
+208 Python tests discovered, 205 pass and 3 are skipped. Offline release
+build succeeds. Full ADSP firmware and authentic signing remain out of scope.
