@@ -1632,3 +1632,20 @@ Total generated partial modem coverage **10,912 bytes**, comprising
 **10,604 source-encoded executable Hexagon**, **296 independently generated
 ELF metadata**, and **12 explicit linker-alignment bytes**. The complete
 modem executable and OEM authentication are not rebuilt.
+
+## Checkpoint 72 — Optional controller result and scanner fallback
+
+Added **76 byte-identical Hexagon V60 source bytes** in modem file
+`[0x44883c,0x448888)` (VMA `[0x1e40283c,0x1e402888)`). This helper
+rejects missing record metadata, selects an optional indirect callback,
+reports the record index and returns to the earlier resource scanner.
+The reference's `call notifier` shares its packet with the extended
+register assignment and stack store; writing them as a source packet
+allows LLVM6 to produce the original bytes **without post-assembly fixes**.
+The new section ends before a complex instruction packet still to be
+reconstructed, preserving exact interval accounting.
+
+Auxiliary contiguous prefix `[0x446000,0x448888)` now spans **10,376 bytes**.
+Total partial modem coverage **10,988 bytes**: **10,680 executable Hexagon**,
+**296 independently generated ELF32 metadata**, and **12 alignment** bytes.
+The complete modem executable and OEM authentication are not rebuilt.
