@@ -19,10 +19,10 @@ class SourceOnlyForwardTests(unittest.TestCase):
     def test_manifest_exact_boundaries(self):
         m=module()
         self.assertEqual(m.START,0x568c)
-        self.assertEqual(m.validate_manifest(),0x76fc)
+        self.assertEqual(m.validate_manifest(),0x7758)
         self.assertEqual(m.FILE_BASE+m.START,0x4568c)
-        self.assertEqual(m.FILE_BASE+m.validate_manifest(),0x476fc)
-        self.assertEqual(sum(length for _,_,_,length in m.FRAGMENTS),8304)
+        self.assertEqual(m.FILE_BASE+m.validate_manifest(),0x47758)
+        self.assertEqual(sum(length for _,_,_,length in m.FRAGMENTS),8396)
 
     def test_validator_forbids_opaque_data_and_layout_holes(self):
         m=module()
@@ -321,7 +321,7 @@ class SourceOnlyForwardTests(unittest.TestCase):
         expected={'session-mode-10':0x7648,'session-mode-13':0x7650,
                   'session-mode-16':0x7658,'session-mode-17':0x7660,
                   'session-mode-29':0x7684,'session-mode-40':0x769c,
-                  'session-mode-51':0x76b0}
+                  'session-mode-51':0x76b0,'session-mode-9':0x76fc}
         for name,offset in expected.items():
             src,actual,length=fragments[name]
             self.assertEqual((actual,length),(offset,8))

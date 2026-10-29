@@ -640,3 +640,20 @@ python3 tools/build-wlanmdsp-agent13.py /tmp/wlan-prefix-through-27a0.bin \
 - Ancestry is still checkpoint16 (`7c730bf`), not checkpoint25 or the
   absent checkpoint50 integration. OEM signing, full-image reconstruction,
   device execution and source-level functional equivalence are not claimed.
+
+## Checkpoint 51 (disjoint) — format-9 dispatch and session status paths
+
+- Added **92 byte-identical instruction bytes** at WLAN file `[0x476fc,0x47758)`
+  (VMA `[0xb00076fc,0xb0007758)`). The first eight bytes encode a signed
+  far-branch extender and `r2=#9; jump` duplex, assembled independently from
+  semantic source files and combined with checked Hexagon packet parse fields.
+- The adjacent 84 bytes perform guard/status checks, format-specific
+  diagnostic dispatch and callback preparation, with packet-relative call
+  displacements authored explicitly. No embedded reference instruction words.
+- Entire current disjoint continuation `[0x4568c,0x47758)` now totals
+  **8,396 independently generated Hexagon bytes**, SHA-256
+  `424a8c62fab80a810bff7f473838ab50f67f7d60156c3919a1211b8e403e8513`,
+  with zero byte differences against the pinned reference. The current
+  function is still in progress; next missing packet begins at `0x47758`.
+- Branch ancestry still traces to checkpoint16, not missing checkpoints
+  17–25; complete signed WLAN firmware and device execution are not claimed.

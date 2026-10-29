@@ -85,6 +85,8 @@ FRAGMENTS = (
     ('session-mode-traces', SOURCE_DIR / 'agent13-runtime-session-state-ec-f8.S', 0x76a4, 0x0c),
     ('session-mode-51', SOURCE_DIR / 'agent13-runtime-session-mode-51-ext.S', 0x76b0, 0x08),
     ('session-mode-state', SOURCE_DIR / 'agent13-runtime-session-state-100-144.S', 0x76b8, 0x44),
+    ('session-mode-9', SOURCE_DIR / 'agent13-runtime-session-mode-9-ext.S', 0x76fc, 0x08),
+    ('session-mode-9-tail', SOURCE_DIR / 'agent13-runtime-session-mode-9-tail.S', 0x7704, 0x54),
 )
 
 
@@ -252,7 +254,8 @@ def build(llvm6: str):
             part = assemble_extended_duplex(mod, llvm6, source)
         elif name.startswith('session-mode-') and name in {
             'session-mode-10','session-mode-13','session-mode-16',
-            'session-mode-17','session-mode-29','session-mode-40','session-mode-51'}:
+            'session-mode-17','session-mode-29','session-mode-40','session-mode-51',
+            'session-mode-9'}:
             part = assemble_mode_case_duplex(mod, llvm6, source)
         else:
             part = mod.assemble(source, llvm6, 'hexagonv65', expected_length=size)
@@ -278,7 +281,7 @@ def main():
         parent.check_reference(fragment,args.reference.read_bytes(),runtime_offset=START)
     args.output.parent.mkdir(parents=True,exist_ok=True)
     args.output.write_bytes(fragment)
-    report={'agent':13,'checkpoint':'50-disjoint',
+    report={'agent':13,'checkpoint':'51-disjoint',
             'source_base':'Agent 13 checkpoint 16 (7c730bf); checkpoint25 source unavailable',
             'is_checkpoint25_descendant':False,
             'file_start':FILE_BASE+START,'file_end':FILE_BASE+end,
