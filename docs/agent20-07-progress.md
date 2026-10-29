@@ -1487,3 +1487,18 @@ python3 -S tools/adsp-agent20-rwe-next-controller-record-detach-tail.py \
   --llvm-mc "$HEXAGON_LLVM_MC" --reference "$NABU_ADSP_REFERENCE" \
   --output /tmp/adsp-controller-record-detach-tail-252.bin
 ```
+
+## Checkpoint 90: complete controller record purge `[0x13610,0x13744)`
+
+- Added **308 source-assembled, byte-identical Hexagon V66 executable bytes** (77 instruction words), file `[0x13610,0x13744)`, physical `[0x8be10610,0x8be10744)`, SHA-256 `427aee6e0d17d12c367003be00ae6350464b5b29cfec1429a67fb09d07033fa7`.
+- The routine iterates the controller's GP-linked record list, checks class ownership, zeroes selected record fields, acquires/releases K0 around dependent descriptor deactivation, and notifies downstream controller callbacks. Its original `dealloc_return` occurs at `0x13740`.
+- LLVM6 directly assembles **73 ordinary words**. Four privileged V66 operations are generated through checked encoders at verified source NOP placeholders: `R2=SGP0` at `0x13624`, `k0unlock` at `0x13650`, and `k0lock` at `0x136a0` and `0x13704`. The source explicitly includes the intentional Hexagon NOP pair at `[0x136c8,0x136d0)` with distinct continuation/termination parse bits; these are real executed packet slots, not fill or unknown source. Branches into `check_next` preserve the original target `0x1365c`.
+- Together with checkpoints 88/89, the controller-record detach and purge `[0x13480,0x13744)` form **708 byte-identical executable bytes**. The **eight bytes before** `[0x13478,0x13480)` and the **twelve bytes after** `[0x13744,0x13750)` are verified file-backed linker fill, **excluded** from code coverage.
+- Cumulative ADSP RWE independently reconstructed executable coverage: **13,692 bytes across 23 disjoint intervals**, plus 148 source-generated handler-pointer table *data* bytes. The full ADSP ELF/MBNv6 and OEM authentication are still incomplete.
+- Pinned-reference byte comparison, LLVM6/Rizin independent decoding, deliberate corrupt-output and wrong-revision rejection, full Rust/Python suites and release build pass.
+
+```sh
+python3 -S tools/adsp-agent20-rwe-next-controller-record-purge.py \
+  --llvm-mc "$HEXAGON_LLVM_MC" --reference "$NABU_ADSP_REFERENCE" \
+  --output /tmp/adsp-controller-record-purge-308.bin
+```
