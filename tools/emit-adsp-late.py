@@ -143,6 +143,7 @@ FRAGMENTS = {
     'controller-allocate-parameter': (TOOLS / 'adsp-late-controller-allocate-parameter.S', 0x40D20, 0xBC),
     'controller-linked-list-insert': (TOOLS / 'adsp-late-controller-linked-list-insert.S', 0x422C0, 0xCC),
     'controller-bitmask-difference': (TOOLS / 'adsp-late-controller-bitmask-difference.S', 0x42468, 0x78),
+    'controller-range-select': (TOOLS / 'adsp-late-controller-range-select.S', 0x42390, 0xD8),
     'controller-remove-registry': (TOOLS / 'adsp-late-controller-remove-registry.S', 0x40F80, 0x88),
     'controller-byte-selector': (TOOLS / 'adsp-late-controller-byte-selector.S', 0x41010, 0x68),
     'controller-mode-validate': (TOOLS / 'adsp-late-controller-mode-validate.S', 0x410A0, 0xAC),

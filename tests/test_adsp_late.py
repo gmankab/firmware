@@ -197,9 +197,9 @@ class ADSPExternalsAndCodeTests(unittest.TestCase):
     @unittest.skipUnless(LLVM_MC,'Hexagon LLVM6 assembler required')
     def test_complete_fragment_inventory_rejects_overlaps(self):
         manifest,regions=adsp.assembled_inventory(LLVM_MC,None)
-        self.assertEqual(len(manifest['fragments']),127)
-        self.assertEqual(manifest['total_independently_assembled_executable_bytes'],11540)
-        self.assertEqual(sum(map(len,regions.values())),11540)
+        self.assertEqual(len(manifest['fragments']),128)
+        self.assertEqual(manifest['total_independently_assembled_executable_bytes'],11756)
+        self.assertEqual(sum(map(len,regions.values())),11756)
         self.assertEqual(manifest['gap_bytes_included_in_generated_executables'],0)
         self.assertFalse(manifest['complete_adsp_image'])
         self.assertEqual(manifest['external_original_code_bytes_in_output'],0)
@@ -366,7 +366,7 @@ class ADSPExternalsAndCodeTests(unittest.TestCase):
     def test_inventory_every_fragment_uses_correct_original(self):
         inventory,_outputs=adsp.assembled_inventory(LLVM_MC,Path(REFERENCE).read_bytes())
         self.assertTrue(all(x['reference_byte_identical'] for x in inventory['fragments']))
-        self.assertEqual(inventory['total_independently_assembled_executable_bytes'],11540)
+        self.assertEqual(inventory['total_independently_assembled_executable_bytes'],11756)
 
     @unittest.skipUnless(LLVM_MC and REFERENCE,
                          'Hexagon LLVM6 and exact pinned ADSP reference required')
@@ -380,7 +380,7 @@ class ADSPExternalsAndCodeTests(unittest.TestCase):
                 adsp.verify_slice(built,original,off)
                 total+=len(built)
                 ranges.append((off,off+size))
-        self.assertEqual(total,11540)
+        self.assertEqual(total,11756)
         ranges.sort()
         self.assertEqual(ranges[0],(0x39000,0x39054))
         self.assertEqual(ranges[-1],(0x3640a8,0x3640f8))
@@ -1920,3 +1920,33 @@ class ADSPQuRTControllerParameterHandlerTests(unittest.TestCase):
         combined=b''.join(pieces)
         self.assertEqual(len(combined),796)
         if REFERENCE:adsp.verify_slice(combined,Path(REFERENCE).read_bytes(),0x3f700)
+
+class ADSPControllerRangeSelectionTests(unittest.TestCase):
+    """216-byte bounded range scanner, two controlled memory ordering packets."""
+
+    def test_source_and_neighbor_ranges(self):
+        src,off,n=adsp.FRAGMENTS['controller-range-select']
+        self.assertEqual((off,n),(0x42390,0xD8))
+        self.assertEqual(adsp.FRAGMENTS['controller-linked-list-insert'][1]+0xCC,0x4238C)
+        self.assertEqual(off-0x4238C,4)  # uncounted linker alignment NOP
+        self.assertEqual(off+n,adsp.FRAGMENTS['controller-bitmask-difference'][1])
+        body=src.read_text()
+        for forbidden in ('.word ','.long ','.byte ','.incbin ','.fill '):
+            self.assertNotIn(forbidden,body)
+        for op in ('loop0(loop_body,#21)', ':endloop0',
+                   'memw(r3+#0) = r1; r2 = memw(r20+#20) }:mem_noshuf',
+                   'memw(r3+#0) = r0; r2 = memw(r29+#4) }:mem_noshuf',
+                   'range_check:', 'finish:'):
+            self.assertIn(op,body)
+
+    @unittest.skipUnless(LLVM_MC,'Hexagon LLVM6 required')
+    def test_range_selector_is_exact_and_adjacent_to_bitmask_helper(self):
+        src,off,n=adsp.FRAGMENTS['controller-range-select']
+        value=adsp.compile_source(LLVM_MC,src,n)
+        self.assertEqual(hashlib.sha256(value).hexdigest(),
+            '5dc13d6bd8c1dd449fdb71592024b96a23a6c9742413eff1b65255879d85709f')
+        src2,off2,n2=adsp.FRAGMENTS['controller-bitmask-difference']
+        self.assertEqual((off2,n2),(off+n,120))
+        region=value+adsp.compile_source(LLVM_MC,src2,n2)
+        self.assertEqual(len(region),336)
+        if REFERENCE:adsp.verify_slice(region,Path(REFERENCE).read_bytes(),off)

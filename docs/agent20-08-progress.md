@@ -1071,3 +1071,23 @@ Cumulative Agent 08 coverage is now **11,540 executable bytes across 127
 verified fragments**. The high-level controller semantics are approximated
 from decoded instructions, not verified on hardware; the whole ADSP binary
 remains incomplete and not newly signed.
+
+**Checkpoint 65 — ordered controller range selection with Hexagon loop0:**
+Rebuilt a complete **216-byte** bounded range-selection routine
+`[file 0x42390,0x42468)` using LLVM6 V65-compatible instructions. The source
+implements ranked descriptor scanning, bounded `loop0(...,#21)` traversal,
+64-bit controller priority comparators, optional callback releases and a
+saved-register return. Two mixed memory packets required explicit
+`:mem_noshuf` to prevent LLVM6 compressing loads/stores into duplex words.
+Both packets, every PC-relative symbolic call and each branch parse marker
+now match original ADSP exactly; SHA-256 is
+`5dc13d6bd8c1dd449fdb71592024b96a23a6c9742413eff1b65255879d85709f`.
+
+The new routine connects directly to checkpoint 46's 120-byte bitmask helper,
+forming **336 continuous independently assembled executable bytes**
+`[0x42390,0x424e0)`; a four-byte alignment NOP between the preceding
+linked-list insertion and this routine is excluded from code counts.
+
+Total Agent 08 late-ADSP coverage: **11,756 source-generated executable bytes
+across 128 nonoverlapping fragments**, reference-identical, not a complete
+source-equivalent or newly signed ADSP firmware image.
