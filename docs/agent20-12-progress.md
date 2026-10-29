@@ -1599,3 +1599,19 @@ Contiguous auxiliary prefix `[0x446000,0x44878c)` = **10,124 bytes**.
 Total generated coverage **10,736 bytes**, including **10,428 source-encoded
 Hexagon executable**, **296 structured ELF32 metadata** and **12 alignment**.
 The original full modem image and OEM authentication remain unimplemented.
+
+## Checkpoint 70 — Third controller record and diagnostic trace
+
+Added **84 independently source-assembled Hexagon V60 bytes** at modem
+`[0x44878c,0x4487e0)`. This advances the controller record count, saves the
+source-derived status data and emits the third callback report or platform
+fallback. A fail-closed correction preserves original V60 packet order for
+the predicated branch and register assignment. Its full opcode classes,
+register operands, symbolic target displacement and packet parse markers
+are validated by negative tests.
+
+Auxiliary prefix `[0x446000,0x4487e0)` now spans **10,208 bytes**.
+Total verified partial modem coverage **10,820 bytes**: **10,512 executable
+Hexagon bytes**, **296 independently reconstructed ELF32 metadata bytes** and
+**12 explicit linker-alignment bytes**. The complete modem binary and OEM
+authentication are not reconstructed.

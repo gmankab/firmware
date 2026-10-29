@@ -80,6 +80,40 @@ class ModemLateTests(unittest.TestCase):
                 ref=Path(os.environ['NABU_MODEM_REFERENCE']).read_bytes()
                 self.assertEqual(fixed,ref[0x4485f8:0x448628])
 
+    def test_phase42_third_predicated_trace_packet_order(self):
+        self.assertEqual((agent12.AUX_LARGE_CONTROLLER_PHASE42_START,
+                          agent12.AUX_LARGE_CONTROLLER_PHASE42_END),
+                         (0x44878c,0x4487e0))
+        src=agent12.AUX_LARGE_CONTROLLER_PHASE42_SOURCE.read_text()
+        for forbidden in ('.word','.byte','.incbin'):
+            self.assertNotIn(forbidden,src)
+        self.assertIn('if (!p0.new) r3 = ##507577979',src)
+        w=[0x7800c000]*21;w[8:11]=[0x5c205812,0x01e44419,0x7e80e763]
+        out=struct.unpack('<21I',agent12.restore_aux_large_controller_phase42_predicated_trace(
+            struct.pack('<21I',*w)))
+        self.assertEqual(out[8:11],(0x01e44419,0x7e806763,0x5c20d812))
+        for index,bad,reason in [
+            (8,0x4c205812,'opcode classes'),
+            (9,0x11e44419,'opcode classes'),
+            (10,0x6e80e763,'opcode classes'),
+            (8,0x5c205813,'operands/branch target'),
+            (9,0x01e4441a,'operands/branch target'),
+            (10,0x7e80e762,'operands/branch target'),
+            (8,0x5c20d812,'packet markers'),
+            (10,0x7e806763,'packet markers'),
+        ]:
+            corrupted=w.copy();corrupted[index]=bad
+            with self.assertRaisesRegex(ValueError,reason):
+                agent12.restore_aux_large_controller_phase42_predicated_trace(
+                    struct.pack('<21I',*corrupted))
+        if os.getenv('NABU_HEXAGON_LLVM_MC'):
+            source=agent12.assemble(Path(os.environ['NABU_HEXAGON_LLVM_MC']),
+                                    agent12.AUX_LARGE_CONTROLLER_PHASE42_SOURCE)
+            reconstructed=agent12.restore_aux_large_controller_phase42_predicated_trace(source)
+            if os.getenv('NABU_MODEM_REFERENCE'):
+                ref=Path(os.environ['NABU_MODEM_REFERENCE']).read_bytes()
+                self.assertEqual(reconstructed,ref[0x44878c:0x4487e0])
+
     def test_phase41_second_predicated_trace_packet_order(self):
         self.assertEqual((agent12.AUX_LARGE_CONTROLLER_PHASE41_START,
                           agent12.AUX_LARGE_CONTROLLER_PHASE41_END),
@@ -1904,8 +1938,8 @@ class ModemLateTests(unittest.TestCase):
         a = agent12.output_fragments(Path(os.environ["NABU_HEXAGON_LLVM_MC"]))
         self.assertEqual({k: len(v) for k, v in a.items()},
                          {0x7C000:160, 0x7C2EC:452,
-                          0x446000:agent12.AUX_LARGE_CONTROLLER_PHASE41_END-agent12.AUX_START})
-        self.assertEqual(sum(map(len,a.values())),agent12.AUX_LARGE_CONTROLLER_PHASE41_END - agent12.AUX_START + 612)
+                          0x446000:agent12.AUX_LARGE_CONTROLLER_PHASE42_END-agent12.AUX_START})
+        self.assertEqual(sum(map(len,a.values())),agent12.AUX_LARGE_CONTROLLER_PHASE42_END - agent12.AUX_START + 612)
         self.assertEqual(a[0x446000][0x0d8:0x200],agent12.emit_auxiliary_elf_symbols())
         self.assertEqual(a[0x446000][0x254:0x260],bytes(12))
         self.assertEqual(a[0x446000][0x1448:0x1460],
