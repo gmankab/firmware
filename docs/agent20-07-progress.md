@@ -1502,3 +1502,18 @@ python3 -S tools/adsp-agent20-rwe-next-controller-record-purge.py \
   --llvm-mc "$HEXAGON_LLVM_MC" --reference "$NABU_ADSP_REFERENCE" \
   --output /tmp/adsp-controller-record-purge-308.bin
 ```
+
+## Checkpoint 91: linked controller-record remove `[0x13750,0x13828)`
+
+- Rebuilt **216 byte-identical executable ADSP V66 bytes** (54 instructions), file `[0x13750,0x13828)`, physical `[0x8be10750,0x8be10828)`, SHA-256 `35e4f47f86d5ce46d2fa1f76fc41196640598f2d42c3bfbaaf480c5cf8958bdb`.
+- The routine traverses the global controller record list and per-record sublists; it unlinks an owned entry, updates status fields, marks the hardware slot for cleanup and invokes the controller notification callback. The original `dealloc_return` is preserved at `0x13824`.
+- LLVM6 independently assembles all **54 words**. The external `call` at `0x13760` shares its original packet with following address-extender/memory operations; the checked `packet_continuation` changes only the parse marker. A labeled retry branch was corrected to the original `walk_owners` test, with no reference-code word imported.
+- The **twelve preceding bytes `[0x13744,0x13750)` are file-backed zero fill** and are excluded from source-derived code. This starts a new disjoint interval, while record-detach + record-purge `[0x13480,0x13744)` remains separately covered.
+- **Total source-assembled ADSP RWE executable code: 13,908 bytes across 24 disjoint intervals**, plus 148 source-generated handler-pointer DATA bytes. Full ADSP executable, OEM signatures and on-device semantics are not yet complete.
+- Pinned-image comparison, LLVM6/Rizin independent decoding, corruption/wrong-revision rejection, Rust/Python regression suites and release build pass.
+
+```sh
+python3 -S tools/adsp-agent20-rwe-next-controller-linked-record-remove.py \
+  --llvm-mc "$HEXAGON_LLVM_MC" --reference "$NABU_ADSP_REFERENCE" \
+  --output /tmp/adsp-linked-record-remove-216.bin
+```
