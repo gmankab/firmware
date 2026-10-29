@@ -1325,3 +1325,18 @@ python3 -S tools/adsp-agent20-rwe-next-controller-format-selector-cases-c.py \
   --llvm-mc "$HEXAGON_LLVM_MC" --reference "$NABU_ADSP_REFERENCE" \
   --output /tmp/adsp-controller-format-cases-c-212.bin
 ```
+
+## Checkpoint 79: 18 codec-format report case stubs `[0x1289c,0x129bc)`
+
+- Independently source-assembled **288 byte-identical ADSP Hexagon V66 executable bytes** (72 instruction words), original file `[0x1289c,0x129bc)`, mapped physical `[0x8be0f89c,0x8be0f9bc)`, SHA-256 `19d909acd9d466c8b628f889cc8bf4720e11d5e1f69afc8d7d86660750ff5e84`.
+- Eighteen source-authored diagnostic cases each call the same platform callback (`0x8be11438` mapped physical), put a distinct named diagnostic-string address into R0 via its instruction extender and branch to the shared callback (`0x8be0f860`). Every source-authored four-word sequence matches exactly with LLVM6. Messages themselves are **external static data**, not emitted or called independent executable source.
+- Entire controller format-selector function code `[0x126a8,0x129bc)` is now **788 contiguous independently assembled bytes**, with the original return and all format-specific stubs. Tests rebuild its five adjacent parts and compare them as one blob.
+- The following `[0x129bc,0x12a50)` is a **non-instruction 37-entry pointer table** indexed by the earlier `r2=memw(r2<<#2+##0xf000f9f4)` instruction; do NOT disassemble those 148 bytes as executable V66 source. The subsequent bytes contain error strings and metadata. Original firmware authentication is not independently generated.
+- Cumulative independently reconstructed ADSP RWE code **11,404 bytes over 20 disjoint intervals**. The adjacent pointer table contributes **zero** executable source bytes.
+- Verified reference SHA-256, zero mismatches, 160 Rust tests, **320 Python tests**, release build, independent Rizin decoding, and corrupted-byte/revision rejection.
+
+```sh
+python3 -S tools/adsp-agent20-rwe-next-controller-format-selector-reports.py \
+  --llvm-mc "$HEXAGON_LLVM_MC" --reference "$NABU_ADSP_REFERENCE" \
+  --output /tmp/adsp-controller-format-reports-288.bin
+```
