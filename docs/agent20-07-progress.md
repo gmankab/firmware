@@ -1198,3 +1198,17 @@ python3 -S tools/adsp-agent20-rwe-next-controller-slot-leaves.py \
  --llvm-mc "$HEXAGON_LLVM_MC" --reference "$NABU_ADSP_REFERENCE" \
  --output /tmp/adsp-slot-leaves-164.bin
 ```
+
+## Checkpoint 70: controller-slot scanner prefix `[0x121c0,0x12220)`
+
+- Source-assembled **96 byte-identical Hexagon V66 executable bytes** (24 instruction words), file `[0x121c0,0x12220)`, physical `[0x8be0f1c0,0x8be0f220)`, SHA-256 `24cfc910d10268d647a141debe5a5eba275eb56967636ed7b90e687aa5162e6f`.
+- Begins a controller slot scanner with `allocframe(#56)`, global controller-table address loads, and `loop0` over allocated slot entries. The register move and `memd` store at file `0x121cc–0x121d8` must share the original packet. LLVM6 assembles all 24 instruction operands, but its packetizer emits separate packets for `p0=cmp.eq` and `r0=#1`; **only two checked architectural packet-continuation parse fields** are changed at `0x121cc` and `0x121d0` to preserve the original packet grouping. No opcode/body bits are inserted from the reference.
+- The file-backed four-byte linker fill `[0x121bc,0x121c0)` is **excluded** from executable source counts. Previous executable island ends at `0x121bc`. New partial function ends mid-execution at `0x12220`; the same function continues immediately thereafter.
+- Cumulative independently reconstructed RWE code is **9,468 bytes across 17 disjoint intervals** (prior 9,372 plus new 96). Full ADSP firmware and OEM authentication remain incomplete.
+- LLVM6/reference verification and deliberate revision/byte-mutation tests passed. 160 Rust tests and 293 Python tests pass when the tools and ADSP reference are configured; release build succeeds.
+
+```sh
+python3 -S tools/adsp-agent20-rwe-next-controller-slot-scan-prefix.py \
+  --llvm-mc "$HEXAGON_LLVM_MC" --reference "$NABU_ADSP_REFERENCE" \
+  --output /tmp/adsp-slot-scan-prefix-96.bin
+```
