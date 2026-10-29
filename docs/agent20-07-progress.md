@@ -1546,3 +1546,18 @@ python3 -S tools/adsp-agent20-rwe-next-controller-runtime-clock.py \
   --llvm-mc "$HEXAGON_LLVM_MC" --reference "$NABU_ADSP_REFERENCE" \
   --output /tmp/adsp-runtime-clock-156.bin
 ```
+
+## Checkpoint 94: controller PMU and SYSCFG restoration `[0x138f0,0x139c8)`
+
+- Rebuilt **216 byte-identical Hexagon V66 executable bytes** (54 instruction words), file `[0x138f0,0x139c8)`, physical `[0x8be108f0,0x8be109c8)`, SHA-256 `84387939f67494b86139a563b7d501212253f476d5a4ac507289fe247d49bbde`.
+- The routine uses two LL/SC (`memw_locked`) sequences to preserve controller PMU/SYSCFG state around a register-bank restore, clears and sets SYSCFG bit 9 with `isync`, loads the saved performance counters and returns via `jumpr lr` on either path.
+- LLVM6 source-assembles **38 ordinary packet words**, including atomic memory operations and branch retry paths. A checked V66 register encoder supplies **16 original system-register transfers**: read/write SYSCFG, writes to PMUCNT0..3, S44..47, PMUCFG, S55, PMUEVTCFG and S54. Every source NOP placeholder is validated before substitution; no reference opcode is imported. New named `SystemRegister` enum entries are PMUCNT0..3, S44, S45, S46 and S55.
+- The four bytes `[0x138ec,0x138f0)` preceding this function are original zero linker fill, excluded from executable coverage. The function's two return instructions end at `0x139c8`, followed by a separate cycle-counter helper.
+- **Total reconstructed ADSP RWE executable bytes: 14,308 across 26 disjoint intervals**, plus 148 source-authored codec-handler pointer data bytes. Most of ADSP and OEM signature/cert content remain unreconstructed.
+- Pinned ADSP revision and byte equality, LLVM6 assembler and independent Rizin decoder, corrupted-reference/output rejection, complete Rust and Python tests, release build and Git bundle verification pass.
+
+```sh
+python3 -S tools/adsp-agent20-rwe-next-controller-performance-restore.py \
+  --llvm-mc "$HEXAGON_LLVM_MC" --reference "$NABU_ADSP_REFERENCE" \
+  --output /tmp/adsp-pmu-restore-216.bin
+```

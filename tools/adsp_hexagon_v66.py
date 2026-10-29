@@ -36,7 +36,15 @@ class SystemRegister(IntEnum):
     ISDBGPR = 43
     EVB = 16
     PMUEVTCFG = 52
+    S44 = 44  # PMU accumulator restore bank
+    S45 = 45
+    S46 = 46
     S47 = 47
+    PMUCNT0 = 48
+    PMUCNT1 = 49
+    PMUCNT2 = 50
+    PMUCNT3 = 51
+    S55 = 55
     HTID = 8
     CCR = 7
     ELR = 3
