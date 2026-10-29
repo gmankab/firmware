@@ -1,0 +1,43 @@
+{
+  "agent": 17,
+  "checkpoint": 19,
+  "source_parent": "51b1f91f32d32542aa03e114f5a2f4d94b559e2a",
+  "firmware_profile": "postmarketos",
+  "pinned_sha256": "8b845514621ebfd95759a0919f3aa3d825314abb478a7cad1c3fb4c6872b70b5",
+  "coverage": {
+    "file_start": 1642,
+    "file_end": 40720,
+    "total_source_generated": 39078,
+    "instruction_bytes": 38794,
+    "typed_jump_table_bytes": 284,
+    "copied_reference_bytes": 0,
+    "byte_differences": 0,
+    "sha256": "64326eb2f1c5a565ba8de323a128edf35e9f843f6aa855b6e7af7f0d2c700c24"
+  },
+  "new": {
+    "file_start": 36448,
+    "file_end": 40720,
+    "total_bytes": 4272,
+    "instruction_bytes": 4228,
+    "instruction_count": 1637,
+    "typed_data_bytes": 44,
+    "table_ranges": [
+      [
+        36624,
+        36636
+      ],
+      [
+        40688,
+        40720
+      ]
+    ]
+  },
+  "verification": {
+    "rust_tests": 254,
+    "python_tests": 40,
+    "reference_comparison": "pass",
+    "default_release_build": "not_run",
+    "GNU_NDS32_assembly": "unavailable",
+    "release_opt_level_0": "passed"
+  }
+}

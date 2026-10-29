@@ -38,6 +38,8 @@ pub mod extension9_disjoint;
 pub mod extension10_disjoint;
 #[path="novatek_ilmlow_extension11.rs"]
 pub mod extension11;
+#[path="novatek_ilmlow_extension12.rs"]
+pub mod extension12;
 #[path="novatek_ilmlow_contiguous.rs"]
 pub mod contiguous;
 use isa::{Csr,Insn,Reg,R0,R1,R2};
