@@ -857,3 +857,12 @@ python3 tools/agent20_06_a32_roundtrip.py /private/venus.mbn 0xa8ea0 0xa92c8 \
 - Full fragment matches pinned private reference `venus.mbn` SHA-256 `9d4af65d7ede845e900f1b29ff425b7a8e2947056e695e246e58a2091445a085`: **zero mismatches**. Independent Clang/LLVM A32 reassembly with four exact `--data-range`s verifies all new bytes.
 - Offline Rust workspace **260 tests passed**; Python suite **13 passed**; `git diff --check` passed. Release build not run for this checkpoint.
 - This is instruction-level re-encoding, not high-level source semantic recovery, device behavior validation, signing, or checkpoint-50-based integration. It remains a provisional branch with old ancestry.
+
+## Checkpoint 88 — controller frame restoration and table copies
+
+- Contiguous typed ARM32 Venus tail `[0xa8000,0xc65ac)` = **124,332 byte-identical bytes**, original MBN `[0xac000,0xca5ac)`.
+- New `[0xc6334,0xc65ac)` = **632 bytes**, containing **153 typed instructions** (612 bytes) and **five explicitly classified data words** (20 bytes): warning at `[0xc6438,0xc643c)` plus four hardware-table pointers at `[0xc659c,0xc65ac)`.
+- One function restores controller resource fields and codec-channel flags, returning with the original `pop {...,pc}` at `0xc6434`; the following helper initializes fixed-width byte tables with ARM32 byte post-indexed addressing and returns at `0xc6598`. No synthetic instruction bytes or undisclosed padding.
+- Full fragment exact comparison against pinned original `venus.mbn` (`9d4af65d7ede845e900f1b29ff425b7a8e2947056e695e246e58a2091445a085`) passed. Independent Clang/LLVM round-trip reproduces 612 code bytes and 20 classified data bytes with zero mismatches.
+- The Cargo workspace log records **261 passed Rust tests**, 13 Python tests passed. The combined test process exceeded the command window after writing completed Rust results; Python was run separately. Release build was not run.
+- Next missing runtime address: **`0xc65ac`** (original MBN offset `0xca5ac`), start of the next codec table initialization function. Branch remains provisional on older Agent 03 ancestry, not checkpoint-50 integrated.
