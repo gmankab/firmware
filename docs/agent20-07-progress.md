@@ -1340,3 +1340,17 @@ python3 -S tools/adsp-agent20-rwe-next-controller-format-selector-reports.py \
   --llvm-mc "$HEXAGON_LLVM_MC" --reference "$NABU_ADSP_REFERENCE" \
   --output /tmp/adsp-controller-format-reports-288.bin
 ```
+
+## Checkpoint 80: source-derived 37-entry codec handler pointer table `[0x129bc,0x12a50)`
+
+- Independently regenerated **148 byte-identical non-executable DATA bytes** for the 37-entry codec-format virtual dispatch table, ADSP file `[0x129bc,0x12a50)`, virtual handlers in `[0xf000f6dc,0xf000f9ac]`, SHA-256 `ed0b75feae45d904044b73c64dc7bd3e1ba350e93a35cb073c909065b838958f`.
+- Each entry is generated from the source-authored case file offset and the ELF executable `PT_LOAD` virtual mapping: `virtual_address = 0xf0003000 + (case_file_offset - 0x6000)`. Validated all 37 aligned targets lie in the rebuilt selector code and preserve repeated defaults. Unsupported/synthetic addresses are rejected; wrong revision and intentional corruption tests pass. No original OEM data slices are used for generation.
+- This data follows the **788-byte completely source-assembled executable selector** `[0x126a8,0x129bc)` directly. Combined code + structured pointer table `[0x126a8,0x12a50)` now accounts for 936 reference-exact bytes, **788 executable + 148 data**. The adjacent diagnostic strings from `0x12a50` onward are separate original non-executable data, not source reconstructed here.
+- **Executable coverage unchanged: 11,404 Hexagon instruction bytes over 20 disjoint intervals.** 148 additional bytes are explicitly classified as authored handler-pointer metadata and must never be added to the executable count.
+- Full offline validation: 160 Rust tests, **323 Python tests**, release build and reference comparison pass. Existing LLVM6/Rizin checks for preceding code remain valid.
+
+```sh
+python3 -S tools/adsp-agent20-rwe-next-controller-format-handler-table.py \
+  --reference "$NABU_ADSP_REFERENCE" \
+  --output /tmp/adsp-controller-format-table-148.bin
+```
