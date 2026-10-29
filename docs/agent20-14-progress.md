@@ -1444,3 +1444,23 @@ coverage and source paths are recorded in
 `docs/evidence/agent20-14/checkpoint-38.json`. The leading Agent13 seam
 `[0x100000,0x1001c4)` remains intentionally uncovered. Neither functional
 hardware behavior nor new OEM firmware authentication has been established.
+
+## Checkpoint 39 — bounded controller records and session owner relinking
+
+Two adjacent complete Hexagon routines at `[0x108724,0x108a80)` add **860
+source-authored executable bytes**. `session-controller-record-handler`
+(752 bytes, 74 packets) handles session packet decoding, callback dispatch,
+controller record update and error reporting; `session-owner-relink` (108
+bytes, 11 packets) updates the session owner/backpointer under controller
+synchronization. Four packets in the first function use intentional source
+instruction ordering to match Hexagon packet pairings and one external jump
+has an explicit constant extender. Both LLVM22 V66 and LLVM6 V65 assemble
+the exact pinned reference bytes independently.
+
+The cumulative code region `[0x1001c4,0x108a80)` contains **35,004 executable
+bytes**. Adding the separately generated 496-byte dispatch tables yields
+**35,500 source-derived bytes**. No layout padding or externally sourced
+OEM executable bytes are included. The next function begins at `0x108a80`.
+All 160 Rust and 206 Python tests passed with no skips; the offline release
+build, reference check, packet decoder and second assembler checks passed.
+The original firmware has **not** been re-signed or executed on hardware.
