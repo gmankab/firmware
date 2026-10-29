@@ -848,3 +848,12 @@ python3 tools/agent20_06_a32_roundtrip.py /private/venus.mbn 0xa8ea0 0xa92c8 \
 - Direct `agent20_06_venus_tail -- verify` matches pinned original Venus MBN (`9d4af65d7ede845e900f1b29ff425b7a8e2947056e695e246e58a2091445a085`) with **zero mismatches**. Independent Clang/LLVM mnemonic round-trip verifies all 712 code and 12 explicit data bytes.
 - Cargo workspace Rust test output confirms **259 tests passed**, Python suite **13 passed**. The combined invocation exceeded the command execution window after the completed Rust test output; Python was rerun and passed separately. Release build was not run.
 - Next missing runtime address `0xc5fac` (original file `0xc9fac`), within the later error-handling path. Work remains provisional from older agent ancestry, not a claimed checkpoint-50 integration.
+
+## Checkpoint 87 — controller error routing and global-address table
+
+- Source-generated contiguous Venus ARM32 tail `[0xa8000,0xc6334)` = **123,700 exact bytes**, MBN `[0xac000,0xca334)`.
+- New `[0xc5fac,0xc6334)` = **904 bytes**, consisting of **195 reconstructed typed ARM32 instructions** (780 bytes) and **31 classified data words** (124 bytes). Three isolated diagnostic pointers occur at runtime `0xc6150`, `0xc61bc`, and `0xc624c`; a 28-word controller diagnostic/global pointer table occupies `[0xc62c4,0xc6334)`.
+- Branch paths rejoin earlier controller routines, including session resource exhaustion and codec record fallbacks. The next routine begins at runtime `0xc6334` (`venus.mbn` offset `0xca334`).
+- Full fragment matches pinned private reference `venus.mbn` SHA-256 `9d4af65d7ede845e900f1b29ff425b7a8e2947056e695e246e58a2091445a085`: **zero mismatches**. Independent Clang/LLVM A32 reassembly with four exact `--data-range`s verifies all new bytes.
+- Offline Rust workspace **260 tests passed**; Python suite **13 passed**; `git diff --check` passed. Release build not run for this checkpoint.
+- This is instruction-level re-encoding, not high-level source semantic recovery, device behavior validation, signing, or checkpoint-50-based integration. It remains a provisional branch with old ancestry.
