@@ -161,6 +161,7 @@ pub mod cdsp_early_worker_handoff;
 pub mod cdsp_early_worker_recovery;
 pub mod cdsp_early_revision_guard;
 pub mod cdsp_early_dcache_tags;
+pub mod cdsp_early_icache_guard;
 pub mod cdsp_early_worker_privileged_state;
 pub mod cdsp_early_worker_callbacks;
 pub mod cdsp_early_worker_command;
