@@ -1254,3 +1254,17 @@ python3 -S tools/adsp-agent20-rwe-next-controller-slot-remove-complete.py \
  --llvm-mc "$HEXAGON_LLVM_MC" --reference "$NABU_ADSP_REFERENCE" \
  --output /tmp/adsp-slot-remove-364.bin
 ```
+
+## Checkpoint 74: global controller-query and hardware table search `[0x125a0,0x126a4)`
+
+- **260 original-exact, independently source-assembled Hexagon V66 executable bytes** (65 words), file `[0x125a0,0x126a4)` and physical `[0x8be0f5a0,0x8be0f6a4)`, SHA-256 `e30fe3f56f951d6ff1040061cebd6b71bd473c07a71f260bd3d5098b04bf29ee`.
+- The function queries a controller record via checked `R2=SGP0`, issues two conditional runtime callbacks, inspects header/mode fields, iterates a platform-record table with `loop0`, and returns through the original `dealloc_return`. LLVM6 assembles **64 of 65 instruction words**; the one privileged `SGP0` read at `0x125ac` uses the existing validated V66 register encoder. The one NOP at `0x12654` is an **intentional hardware-loop delimiter**, not an unresolved privileged placeholder.
+- The preceding complete slot-removal routine `[0x12430,0x1259c)` and this code are separated by an actual four-byte linker-fill region `[0x1259c,0x125a0)`. Both outputs are separately and concatenation-byte checked; no padding is counted as program source.
+- Cumulative independently generated ADSP RWE source **10,616 executable bytes across 19 disjoint intervals**. Next nonzero firmware material starts at file `0x126a8`, after a four-byte zero gap. Full ADSP image, remaining executable sections and OEM authentication are not reconstructed.
+- 160 Rust tests and **305 Python tests** pass using the pinned original and LLVM6. A release build also succeeds. No original opcode words are imported from ADSP firmware.
+
+```sh
+python3 -S tools/adsp-agent20-rwe-next-controller-global-query-complete.py \
+ --llvm-mc "$HEXAGON_LLVM_MC" --reference "$NABU_ADSP_REFERENCE" \
+ --output /tmp/adsp-global-controller-query-260.bin
+```
