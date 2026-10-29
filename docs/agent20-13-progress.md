@@ -550,3 +550,25 @@ python3 tools/build-wlanmdsp-agent13.py /tmp/wlan-prefix-through-27a0.bin \
 - The record-processing routine is complete through its original error
   paths; the next function begins at file `0x474a0`. Git ancestry is still
   from checkpoint16; checkpoints 17–25 remain absent.
+
+## Checkpoint 47 (disjoint) — controller session-parameter dispatcher
+
+- Added **192 source-assembled Hexagon instruction bytes** at WLAN file
+  `[0x474a0,0x47560)` (runtime `[0xb00074a0,0xb0007560)`). The code
+  allocates session state, validates its mode parameter, loads a format
+  handler and dispatches conditionally to further controller routines.
+- The conditional jump at `0x474d0` requires a **source-level extended
+  immediate**; LLVM6 otherwise chooses the shorter encoding. Its displacement
+  and the following predicate-directed mode branch were verified against the
+  pinned reference, without copying OEM code words. A table-indirect `jumpr`
+  remains named as a register operation.
+- The new bytes are a **partial function**, not a fabricated return.
+  Its following controller routines and branches remain unresolved after
+  `0x47560`, the next source-boundary packet.
+- Combined disjoint continuation `[0x4568c,0x47560)` is now **7,892 exact
+  Hexagon instruction bytes**, SHA-256
+  `3c5418f40ee387b012bb56526e33fb5d5b84c29ca059236c7c645c14f6fd42d7`.
+  Zero byte differences against the original WLAN MBN. Full offline
+  Rust/Python tests and release build passed.
+- Still not checkpoint25-descended: checkpoint17–25 source integration
+  is pending, as is full firmware signing and runtime validation.

@@ -19,10 +19,10 @@ class SourceOnlyForwardTests(unittest.TestCase):
     def test_manifest_exact_boundaries(self):
         m=module()
         self.assertEqual(m.START,0x568c)
-        self.assertEqual(m.validate_manifest(),0x74a0)
+        self.assertEqual(m.validate_manifest(),0x7560)
         self.assertEqual(m.FILE_BASE+m.START,0x4568c)
-        self.assertEqual(m.FILE_BASE+m.validate_manifest(),0x474a0)
-        self.assertEqual(sum(length for _,_,_,length in m.FRAGMENTS),7700)
+        self.assertEqual(m.FILE_BASE+m.validate_manifest(),0x47560)
+        self.assertEqual(sum(length for _,_,_,length in m.FRAGMENTS),7892)
 
     def test_validator_forbids_opaque_data_and_layout_holes(self):
         m=module()
@@ -152,6 +152,18 @@ class SourceOnlyForwardTests(unittest.TestCase):
         self.assertEqual(source.count('    nop\n'),3)
         self.assertNotIn('.word',source)
         self.assertNotIn('.incbin',source)
+
+    def test_parameter_dispatch_preserves_extended_conditional_jump(self):
+        m=module()
+        p,off,size={n:(p,o,s) for n,p,o,s in m.FRAGMENTS}['session-parameter-dispatch']
+        self.assertEqual((off,size),(0x74a0,0xc0))
+        text=p.read_text()
+        self.assertIn('if (p0.new) jump:nt ##0x5d4',text)
+        self.assertIn('r5:4 = combine(#1,##2388)',text)
+        self.assertIn('jumpr r5',text)
+        self.assertIn('allocframe(#80)',text)
+        self.assertNotIn('.incbin',text)
+        self.assertNotIn('.word',text)
 
     def test_controller_stage3_preserves_packet_order(self):
         m=module()
