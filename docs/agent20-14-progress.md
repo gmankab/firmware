@@ -1370,3 +1370,28 @@ complete function begins at `0x107b60`. Tests: 160 Rust, 194 Python (0 skipped),
 release build and both assembler/decoder byte-identity checks pass. This is
 source-level instruction reconstruction, not a proof of hardware behavior
 or newly OEM-signed firmware.
+
+## Checkpoint 36 — controller session commands and record serialization
+
+Five contiguous full Hexagon V66 functions at file `[0x107b60,0x107f7c)`,
+runtime `[0xb00c7b60,0xb00c7f7c)`, add **1,052 executable bytes**:
+
+- `[0x107b60,0x107c34)` (212): verify controller/record capacity and register session command fields.
+- `[0x107c34,0x107c8c)` (88): serialize a status summary and forward it to the controller handler.
+- `[0x107c8c,0x107d30)` (164): revalidate session fields and route command errors.
+- `[0x107d30,0x107f38)` (520): construct a serialized session record, validate lengths and emit notifications through conditional callbacks.
+- `[0x107f38,0x107f7c)` (68): report a short session state summary.
+
+Six packet-order choices were resolved using legal instruction reordering.
+One conditional call uses an explicitly source-encoded constant extender
+`if (!p0) call ##-888` so its instruction size and destination match the
+reference; original opcode bytes are not pasted. Both LLVM22/V66 and LLVM6/V65
+reassemble all new functions with zero differences against the pinned WLAN.
+
+Cumulative source-authored executable `[0x1001c4,0x107f7c)` is **32,184**
+bytes and separately generated dispatch-table data remains **496** bytes,
+for **32,680 source-derived bytes**. No layout padding or externally supplied
+OEM bytes are included. The Agent13 seam `[0x100000,0x1001c4)` and the rest
+of the large WLAN executable remain uncovered. Next function begins at
+`0x107f7c`. Checkpoint test gates: 160 Rust, 197 Python (zero skips),
+release build, reference hash, independent LLVM assembly and V66 packet decode.
