@@ -1683,3 +1683,23 @@ Total generated partial modem coverage **11,164 bytes**: **10,856
 Hexagon executable**, **296 independently generated ELF metadata**, and
 **12 alignment** bytes. The full modem firmware and OEM signature are not
 reconstructed.
+
+## Checkpoint 75 — Controller iteration bounds with architected A/A duplex
+
+Added **72 source-derived, independently matched executable bytes** in
+`[0x448938,0x448980)` (VMA `[0x1e402938,0x1e402980)`). The controller
+increments its record index and establishes the next buffer bound, tests
+a descriptor-limit and callback registry, and reports the diagnostic
+before looping into the earlier resource scanner. The original opening
+`r18=add(r10,#32); r22=add(r22,#1)` is a 32-bit Hexagon A/A duplex.
+LLVM6 expands it into two full-width instructions; a new checked encoder
+uses the architectural compact register map, six-bit add-immediate field,
+SA1 increment class and A/A duplex packet class. Four symbolic branches
+are relocated with explicit source opcode/operand and destination checks.
+Negative tests reject altered compact instructions, packet markers and
+branch target fields; no private OEM instruction bytes are imported.
+
+The contiguous auxiliary prefix `[0x446000,0x448980)` is **10,624 bytes**.
+Total source-generated partial modem coverage **11,236 bytes** consists of
+**10,928 executable Hexagon**, **296 ELF metadata**, **12 alignment** bytes.
+The remaining modem firmware and OEM authentication remain incomplete.

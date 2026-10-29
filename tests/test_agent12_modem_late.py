@@ -80,6 +80,61 @@ class ModemLateTests(unittest.TestCase):
                 ref=Path(os.environ['NABU_MODEM_REFERENCE']).read_bytes()
                 self.assertEqual(fixed,ref[0x4485f8:0x448628])
 
+    def test_phase47_source_duplex_and_symbolic_branch_relocations(self):
+        self.assertEqual((agent12.AUX_LARGE_CONTROLLER_PHASE47_START,
+                          agent12.AUX_LARGE_CONTROLLER_PHASE47_END),
+                         (0x448938,0x448980))
+        text=agent12.AUX_LARGE_CONTROLLER_PHASE47_SOURCE.read_text()
+        for forbidden in ('.word','.byte','.incbin'):
+            self.assertNotIn(forbidden,text)
+        self.assertIn('r18 = add(r10,#32)',text)
+        self.assertIn('r22 = add(r22,#1)',text)
+        self.assertIn('callr r4',text)
+        encoded=agent12.encode_v60_duplex_large_addi_inc(
+            add_dest=18,add_src=10,add_imm=32,inc_dest=22,inc_src=22)
+        self.assertEqual(encoded,0x220a31ee)
+        for kwargs in [
+            dict(add_dest=18,add_src=18,add_imm=32,inc_dest=22,inc_src=22),
+            dict(add_dest=18,add_src=10,add_imm=31,inc_dest=22,inc_src=22),
+            dict(add_dest=18,add_src=10,add_imm=64,inc_dest=22,inc_src=22),
+            dict(add_dest=18,add_src=10,add_imm=32,inc_dest=10,inc_src=22),
+        ]:
+            with self.assertRaises(ValueError):
+                agent12.encode_v60_duplex_large_addi_inc(**kwargs)
+        words=[0x7800c000]*19
+        words[0:2]=[0xb00a4412,0xb016c036]
+        for i,w in [(0x10,0x2082f650),(0x18,0x2442e01a),
+                    (0x3c,0x5bff6f16),(0x48,0x59fff890)]:
+            words[i//4]=w
+        actual=struct.unpack('<18I',agent12.restore_aux_large_controller_phase47_scan(
+            struct.pack('<19I',*words)))
+        self.assertEqual(actual[0],encoded)
+        for pos,value in [(0x0c,0x2082f658),(0x14,0x2442e01c),
+                          (0x38,0x5bff6f18),(0x44,0x59fff892)]:
+            self.assertEqual(actual[pos//4],value)
+        for pos,value,reason in [
+            (0,0xb00a4413,'duplex scalar opcode'),
+            (4,0xb016c037,'duplex scalar opcode'),
+            (0,0xb00ac412,'duplex scalar parse'),
+            (0x10,0x2082f651,'branch opcode/target'),
+            (0x18,0x2442e01b,'branch opcode/target'),
+            (0x3c,0x5bff6f17,'branch opcode/target'),
+            (0x48,0x59fff891,'branch opcode/target'),
+        ]:
+            broken=words.copy();broken[pos//4]=value
+            with self.assertRaisesRegex(ValueError,reason):
+                agent12.restore_aux_large_controller_phase47_scan(
+                    struct.pack('<19I',*broken))
+        with self.assertRaisesRegex(ValueError,'76 source bytes'):
+            agent12.restore_aux_large_controller_phase47_scan(bytes(72))
+        if os.getenv('NABU_HEXAGON_LLVM_MC'):
+            asm=agent12.assemble(Path(os.environ['NABU_HEXAGON_LLVM_MC']),
+                                 agent12.AUX_LARGE_CONTROLLER_PHASE47_SOURCE)
+            out=agent12.restore_aux_large_controller_phase47_scan(asm)
+            if os.getenv('NABU_MODEM_REFERENCE'):
+                modem=Path(os.environ['NABU_MODEM_REFERENCE']).read_bytes()
+                self.assertEqual(out,modem[0x448938:0x448980])
+
     def test_phase46_callback_status_and_frame_counters(self):
         self.assertEqual((agent12.AUX_LARGE_CONTROLLER_PHASE46_START,
                           agent12.AUX_LARGE_CONTROLLER_PHASE46_END),
@@ -2046,8 +2101,8 @@ class ModemLateTests(unittest.TestCase):
         a = agent12.output_fragments(Path(os.environ["NABU_HEXAGON_LLVM_MC"]))
         self.assertEqual({k: len(v) for k, v in a.items()},
                          {0x7C000:160, 0x7C2EC:452,
-                          0x446000:agent12.AUX_LARGE_CONTROLLER_PHASE46_END-agent12.AUX_START})
-        self.assertEqual(sum(map(len,a.values())),agent12.AUX_LARGE_CONTROLLER_PHASE46_END - agent12.AUX_START + 612)
+                          0x446000:agent12.AUX_LARGE_CONTROLLER_PHASE47_END-agent12.AUX_START})
+        self.assertEqual(sum(map(len,a.values())),agent12.AUX_LARGE_CONTROLLER_PHASE47_END - agent12.AUX_START + 612)
         self.assertEqual(a[0x446000][0x0d8:0x200],agent12.emit_auxiliary_elf_symbols())
         self.assertEqual(a[0x446000][0x254:0x260],bytes(12))
         self.assertEqual(a[0x446000][0x1448:0x1460],

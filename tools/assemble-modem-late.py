@@ -89,6 +89,7 @@ AUX_LARGE_CONTROLLER_PHASE43_SOURCE = ROOT / "crates/firmware-tools/src/devices/
 AUX_LARGE_CONTROLLER_PHASE44_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_aux_large_controller_phase44.s"
 AUX_LARGE_CONTROLLER_PHASE45_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_aux_large_controller_phase45.s"
 AUX_LARGE_CONTROLLER_PHASE46_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_aux_large_controller_phase46.s"
+AUX_LARGE_CONTROLLER_PHASE47_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_aux_large_controller_phase47.s"
 AUX_DISPATCH_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_aux_dispatch_helpers.s"
 AUX_TYPE_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_aux_type_config.s"
 AUX_NOTIFY_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_aux_controller_notify.s"
@@ -292,6 +293,8 @@ AUX_LARGE_CONTROLLER_PHASE45_START = AUX_LARGE_CONTROLLER_PHASE44_END
 AUX_LARGE_CONTROLLER_PHASE45_END = 0x4488CC
 AUX_LARGE_CONTROLLER_PHASE46_START = AUX_LARGE_CONTROLLER_PHASE45_END
 AUX_LARGE_CONTROLLER_PHASE46_END = 0x448938
+AUX_LARGE_CONTROLLER_PHASE47_START = AUX_LARGE_CONTROLLER_PHASE46_END
+AUX_LARGE_CONTROLLER_PHASE47_END = 0x448980
 MARKER_MASK = 3 << 14
 CONTINUE_MARKER = 1 << 14
 END_MARKER = 3 << 14
@@ -2286,6 +2289,65 @@ def restore_aux_large_controller_phase45_signed_branch(assembled: bytes) -> byte
     return struct.pack('<17I',*w)
 
 
+def encode_v60_duplex_large_addi_inc(*, add_dest: int, add_src: int,
+                                     add_imm: int, inc_dest: int, inc_src: int) -> int:
+    """Encode the 6-bit-immediate A/A compound instruction for record scan.
+
+    Slot 1 A1_addi uses 6-bit positive immediate plus mapped destination
+    Rx (R18 -> compact index 10; unmapped source is R10). Slot 0 is SA1_inc
+    with R22 mapped to compact index 14. A/A parser class is 3.
+    """
+    rx=compact_register_index(add_dest)
+    if add_src!=rx or not 32<=add_imm<=63:
+        raise ValueError('large duplex add requires Rx source and 6-bit immediate 32..63')
+    rd=compact_register_index(inc_dest)
+    rs=compact_register_index(inc_src)
+    addsub=(add_imm<<4)|rx
+    incsub=0x1100|(rs<<4)|rd
+    cls=3
+    return (((cls>>1)<<29)|((cls&1)<<13)|(addsub<<16)|incsub)
+
+
+def restore_aux_large_controller_phase47_scan(assembled: bytes) -> bytes:
+    """Pack one explicit duplex and relocate 4 checked symbolic transfers.
+
+    LLVM6 expands an A/A duplex from two scalar source instructions and
+    computes branches with this longer instruction layout. The source
+    provides explicit mnemonic operands and targets; the original packet
+    shortens by 4 bytes. Verify every affected opcode, operand, parse marker
+    and relative target *before* re-encoding. No OEM opcode bytes are used.
+    """
+    n=AUX_LARGE_CONTROLLER_PHASE47_END-AUX_LARGE_CONTROLLER_PHASE47_START
+    if len(assembled)!=n+4:
+        raise ValueError('phase47 expects 76 source bytes before duplex compression')
+    w=list(struct.unpack('<19I',assembled))
+    a,b=w[:2]
+    if (a&~MARKER_MASK,b&~MARKER_MASK)!=(0xb00a0412,0xb0160036):
+        raise ValueError('phase47 duplex scalar opcode/operand classes changed')
+    if (a&MARKER_MASK,b&MARKER_MASK)!=(CONTINUE_MARKER,END_MARKER):
+        raise ValueError('phase47 duplex scalar parse markers changed')
+    compact=encode_v60_duplex_large_addi_inc(add_dest=18,add_src=10,
+                                              add_imm=32,inc_dest=22,inc_src=22)
+    w[:2]=[compact]
+    # The four Hexagon transfers retain their named branch/call targets,
+    # after the emitter rehomes the source to a one-word shorter packet.
+    for byte_offset,expected_core,old_disp,delta,isa_class in [
+        (0x0c,0x2082f640,0x10,8,0x20),
+        (0x14,0x2442e000,0x1a,2,0x24),
+        (0x38,0x5bff6f00,0x16,2,0x5b),
+        (0x44,0x59fff880,0x10,2,0x59),
+    ]:
+        j=byte_offset//4
+        word=w[j]
+        if word>>24!=isa_class or (word&~0x3f)!=expected_core or (word&0x3f)!=old_disp:
+            raise ValueError(f'phase47 source branch opcode/target changed at {byte_offset:#x}')
+        next_disp=old_disp+delta
+        if next_disp>0x3f:
+            raise ValueError('phase47 branch relocation overflow')
+        w[j]=(word&~0x3f)|next_disp
+    return struct.pack('<18I',*w)
+
+
 def output_fragments(llvm_mc: Path) -> dict[int, bytes]:
     atomic = restore_atomic_packet_order(assemble(llvm_mc, ATOMIC_SOURCE))
     controller = restore_controller_packet_order(assemble(llvm_mc, CONTROL_SOURCE))
@@ -2384,6 +2446,8 @@ def output_fragments(llvm_mc: Path) -> dict[int, bytes]:
     aux_large_controller_phase45=restore_aux_large_controller_phase45_signed_branch(
         assemble(llvm_mc,AUX_LARGE_CONTROLLER_PHASE45_SOURCE))
     aux_large_controller_phase46=assemble(llvm_mc,AUX_LARGE_CONTROLLER_PHASE46_SOURCE)
+    aux_large_controller_phase47=restore_aux_large_controller_phase47_scan(
+        assemble(llvm_mc,AUX_LARGE_CONTROLLER_PHASE47_SOURCE))
     aux_dispatch = assemble(llvm_mc,AUX_DISPATCH_SOURCE)
     aux_type = restore_aux_type_return_packets(assemble(llvm_mc,AUX_TYPE_SOURCE))
     aux_notify = restore_aux_controller_notify_packets(assemble(llvm_mc,AUX_NOTIFY_SOURCE))
@@ -2481,6 +2545,7 @@ def output_fragments(llvm_mc: Path) -> dict[int, bytes]:
         (aux_large_controller_phase44,AUX_LARGE_CONTROLLER_PHASE44_START,AUX_LARGE_CONTROLLER_PHASE44_END,'controller optional callback result and scanner fallback'),
         (aux_large_controller_phase45,AUX_LARGE_CONTROLLER_PHASE45_START,AUX_LARGE_CONTROLLER_PHASE45_END,'controller signed-decrement callback and fallback packet'),
         (aux_large_controller_phase46,AUX_LARGE_CONTROLLER_PHASE46_START,AUX_LARGE_CONTROLLER_PHASE46_END,'controller callback counters and scan result'),
+        (aux_large_controller_phase47,AUX_LARGE_CONTROLLER_PHASE47_START,AUX_LARGE_CONTROLLER_PHASE47_END,'controller iteration bounds and optional callback'),
     ]:
         if len(fragment)!=end-start:
             raise ValueError(f"auxiliary {label} source length mismatch")
@@ -2572,7 +2637,8 @@ def output_fragments(llvm_mc: Path) -> dict[int, bytes]:
             AUX_LARGE_CONTROLLER_PHASE42_END==AUX_LARGE_CONTROLLER_PHASE43_START and
             AUX_LARGE_CONTROLLER_PHASE43_END==AUX_LARGE_CONTROLLER_PHASE44_START and
             AUX_LARGE_CONTROLLER_PHASE44_END==AUX_LARGE_CONTROLLER_PHASE45_START and
-            AUX_LARGE_CONTROLLER_PHASE45_END==AUX_LARGE_CONTROLLER_PHASE46_START):
+            AUX_LARGE_CONTROLLER_PHASE45_END==AUX_LARGE_CONTROLLER_PHASE46_START and
+            AUX_LARGE_CONTROLLER_PHASE46_END==AUX_LARGE_CONTROLLER_PHASE47_START):
         raise ValueError("controller phase13 gap was silently bridged")
     if AUX_LOOKUP_END!=AUX_REGISTRY_CORE_START or AUX_REGISTRY_CORE_END!=AUX_DISPATCH_START:
         raise ValueError("modem auxiliary registry source intervals have a gap")
@@ -2607,7 +2673,7 @@ def output_fragments(llvm_mc: Path) -> dict[int, bytes]:
                         aux_large_controller_phase40+aux_large_controller_phase41+
                         aux_large_controller_phase42+aux_large_controller_phase43+
                         aux_large_controller_phase44+aux_large_controller_phase45+
-                        aux_large_controller_phase46,
+                        aux_large_controller_phase46+aux_large_controller_phase47,
     }
 
 
