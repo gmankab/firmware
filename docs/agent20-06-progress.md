@@ -829,3 +829,13 @@ python3 tools/agent20_06_a32_roundtrip.py /private/venus.mbn 0xa8ea0 0xa92c8 \
   ```
 
 - **257 Rust and 13 Python tests passed.** No new release-build success is claimed. Next uncovered runtime `0xc5aec`, original MBN file `0xc9aec`; branch remains provisional based on old Agent 03 and is not part of a verified checkpoint-50-derived integration. Typed A32 opcode equality does not establish full independent source semantics or OEM authentication.
+
+## Checkpoint 85 — controller record suffix and three literal pools
+
+- Independently emitted `[runtime 0xa8000,0xc5cd8)` = **122,072 consecutive exact bytes**; pinned Venus file range `[0xac000,0xc9cd8)`.
+- Newly reconstructed `[0xc5aec,0xc5cd8)` = **492 bytes**: **114 A32 instructions** (456 bytes) and **nine literal/data words** (36 bytes), in explicit pools `[0xc5aec,0xc5afc)`, `[0xc5bcc,0xc5bd8)` and `[0xc5cd0,0xc5cd8)`.
+- The original firmware has codec initialization, channel-mode flags, resource status checks, and diagnostic branches. The `LDRH` writeback and conditional byte access retain their original register modes. This checkpoint ends just before additional controller status instructions at `0xc5cd8`; the enclosing routine is incomplete.
+- Direct `agent20_06_venus_tail verify` against the pinned `venus.mbn` SHA-256 `9d4af65d7ede845e900f1b29ff425b7a8e2947056e695e246e58a2091445a085` passed with zero different bytes.
+- Independent Clang/LLVM `tools/agent20_06_a32_roundtrip.py` with the three `--data-range`s independently matched all new 492 bytes, without classifying literal pointers as instructions.
+- With isolated Rust/Cargo target and reduced debug information to avoid 4-GiB compiler OOM, the Rust workspace reports **258 tests passed**, and the Python suite **13 tests passed**. Offline release build was not run for this checkpoint.
+- Next missing runtime instruction: **`0xc5cd8`** (MBN file `0xc9cd8`). This remains a **provisional old-base** branch, not a checkpoint-50-based integration; byte identity is instruction encoding equivalence, not behavioral validation or independent OEM signing.
