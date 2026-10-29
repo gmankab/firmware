@@ -1565,3 +1565,21 @@ bytes. Across disjoint fragments, **10,544 bytes** are generated: **10,236
 Hexagon executable**, **296 original ELF data metadata independently
 reconstructed**, and **12 linker-alignment zeros**. OEM modem firmware,
 image signing and remaining executable code are not complete.
+
+## Checkpoint 68 — Controller frame advance and first diagnostic callback
+
+Reconstructed **112 additional Hexagon V60 executable bytes** in file
+`[0x4486cc,0x44873c)` (VMA `[0x1e4026cc,0x1e40273c)`). It advances the
+controller record, checks the pending frame pointer, and emits either a
+callback diagnostic or a fallback platform log. LLVM6 schedules an
+independent conditional branch ahead of the immediate extender and
+predicated register value; a new fail-closed transformation validates the
+assembled opcode classes, operands, target displacement and original
+packet markers before restoring the required instruction issue order.
+Negative tests reject mutated opcode bits, registers, and packet markers.
+
+Auxiliary prefix `[0x446000,0x44873c)` is **10,044 contiguous bytes**.
+Total generated coverage **10,656 bytes** = **10,348 Hexagon executable**,
+**296 independently reconstructed ELF metadata**, and **12 explicit linker
+alignment** bytes. All match the pinned original `modem.mbn`, but the full
+firmware and OEM authentication remain incomplete.
