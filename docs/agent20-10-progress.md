@@ -832,3 +832,23 @@ python3 tools/verify-agent20-10-cdsp-controller-enumeration.py \
   ```
 
 - **269 offline Rust and 23 Python tests passed**, and the offline release build succeeded; first missing file offset is **`0x569fc`** (physical `0x96cc89fc`), a continuation of this function. This is a **provisional Agent05-descended branch**, not checkpoint-50-integrated history. No new OEM authentication or hardware execution has been established.
+
+## Checkpoint 43 — forward controller status and scan-loop setup through 0x56a30
+
+- Added **52 typed Hexagon V66 executable bytes** at CDSP original file `[0x569fc,0x56a30)`, physical `[0x96cc89fc,0x96cc8a30)`, with **zero differences** against the exact pinned original. This follows the prior bounded byte scan without a gap.
+- The code reads the extended GP status word at `GP+0xc028c0f0`, right shifts by 12 and writes its `.new` value to R17+32, calls a controller service at physical `0x96ddf2c0`, combines string pointer `0xc02261e1` with R17, tests an optional controller descriptor, writes P0-guarded global state at `0xc036415c`, and initializes `R23:22` before the upcoming indexed hardware-loop packet. The final NOP at `0x56a2c` is inside the active function, **not counted as structural alignment**.
+- The independently authored LLVM6 fixture reproduces eight full original instruction words, one additional instruction differing only in parse marker, and equivalent call/conditional branch targets. LLVM6 **shrinks the reference's forced two-word GP-relative load to a single short GP instruction**; the verifier explicitly documents this and checks that the original forced-extended addressing and original packet topology are valid using Rizin V66. The fixture is not misrepresented as an independent exact 52-byte compilation.
+- Contiguous RWE prefix `[0x56000,0x56a30)` is **2,608 byte-identical file bytes**, with **2,552 source-generated executable bytes** (including the one internal NOP) and the prior **56 separately tracked structural/layout bytes**. The complete earlier 1,200-byte short controller yields a unique Agent 20-10 executable total of **3,752 bytes** across two disjoint original ELF regions. Remaining CDSP executable and OEM authentication are unreconstructed.
+- Command-line reproducer:
+
+  ```sh
+  cargo run --offline --locked -p firmware-tools --bin cdsp-late-controller-status -- verify-prefix /private/cdsp.mbn
+  cargo run --offline --locked -p firmware-tools --bin cdsp-late-controller-status -- emit /tmp/controller-status-52.bin
+  cargo run --offline --locked -p firmware-tools --bin cdsp-late-controller-status -- emit-prefix /tmp/cdsp-rwe-prefix-2608.bin
+  python3 tools/verify-agent20-10-cdsp-controller-status.py \
+    --llvm-mc /private/llvm6/bin/llvm-mc --rz-asm /private/rz-asm \
+    --generated /tmp/controller-status-52.bin --reference /private/cdsp.mbn \
+    --prefix /tmp/cdsp-rwe-prefix-2608.bin
+  ```
+
+- Current next uncovered file byte is **`0x56a30`** (physical `0x96cc8a30`), beginning the indexed controller-record search. Branch ancestry remains provisional on Agent 05's older CDSP history, not checkpoint-50-integrated; source-byte equivalence is not full firmware re-signing or a hardware behavior test.
