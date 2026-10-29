@@ -1345,3 +1345,28 @@ new firmware authentication has been established.
 Validation: 160 Rust tests, 191 Python tests, release build, both assemblers,
 V66 decoder and complete cumulative reference comparison pass. Exact hashes
 and packet counts are recorded in `docs/evidence/agent20-14/checkpoint-34.json`.
+
+## Checkpoint 35 — session diagnostics and bounded controller dispatch
+
+Five adjacent complete WLAN functions at file `[0x107710,0x107b60)`,
+VMA `[0xb00c7710,0xb00c7b60)`, add **1,104 executable bytes**:
+
+- `0x107710–0x1077e8` (216): validate bounded status-window records, log unknown session state and tail-call diagnostics.
+- `0x1077e8–0x1078d0` (232): update session parameter ranges, optional channel pointers and record length.
+- `0x1078d0–0x107970` (160): dispatch bounded record kinds through the existing jump table; original far jump needs explicit `##` extender.
+- `0x107970–0x107998` (40): invalid-mode diagnostic thunk.
+- `0x107998–0x107b60` (456): verify session context and controller state, allocate resources and emit status events.
+
+Packet structure is expressed in legal V66 mnemonic packets; source-level
+ordering fixes restore one duplex and one multiple-operation packet without
+copying reference opcode bytes. All five functions independently assemble
+under LLVM 22/V66 and LLVM 6/V65 and match the pinned WLAN image exactly.
+
+Cumulative executable `[0x1001c4,0x107b60)` = **31,132 bytes**, plus two
+separately constructed dispatch tables of **496 data bytes**, total **31,628
+source-derived bytes**. No OEM payload, implicit zeros or padding are counted.
+The Agent13 seam `[0x100000,0x1001c4)` remains outside this branch. Next
+complete function begins at `0x107b60`. Tests: 160 Rust, 194 Python (0 skipped),
+release build and both assembler/decoder byte-identity checks pass. This is
+source-level instruction reconstruction, not a proof of hardware behavior
+or newly OEM-signed firmware.
