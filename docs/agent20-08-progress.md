@@ -1227,3 +1227,17 @@ forming **544 contiguous source-assembled bytes** `[0x3f4d0,0x3f6f0)`
 without including any OEM filler. Cumulative **13,196 independently
 source-assembled executable bytes across 137 nonoverlapping fragments**;
 most ADSP image text and all new OEM authentication remain unfinished.
+
+**Checkpoint 74 — controller handle-state and LL/SC updates:**
+Reconstructed an additional **172 byte-identical executable bytes**
+`[ADSP file 0x3c248,0x3c2f4)` implementing descriptor bit tests,
+controller state selection and **two locked-memory LL/SC retry loops**.
+The branch to the `alternate_handler` outside this fragment is expressed
+symbolically rather than filled with unknown bytes. Original packet
+boundaries and register dependency order reproduce the pinned Hexagon
+firmware exactly (SHA-256:
+`2738240bf1278496768ca5f23378c7c7997072ee8ee28bea26a8e3d3ce3a27e4`).
+This is one complete packetized function, not a source-based rebuild
+of any adjacent routine. Total: **13,368 independently authored Hexagon
+executable bytes across 138 verified disjoint fragments**; the original
+OEM payload, alignment and signing material remain external/unbuilt.

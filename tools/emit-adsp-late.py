@@ -148,6 +148,7 @@ FRAGMENTS = {
     'controller-unlink-resource': (TOOLS / 'adsp-late-controller-unlink-resource.S', 0x40798, 0xE8),
     'controller-service-log': (TOOLS / 'adsp-late-controller-service-log.S', 0x41080, 0x18),
     'controller-configured-scan': (TOOLS / 'adsp-late-controller-configured-scan.S', 0x41440, 0x5C),
+    'controller-set-handle-state': (TOOLS / 'adsp-late-controller-set-handle-state.S', 0x3C248, 0xAC),
     'controller-bitfield-normalize': (TOOLS / 'adsp-late-controller-bitfield-normalize.S', 0x40CE8, 0x38),
     'controller-allocate-parameter': (TOOLS / 'adsp-late-controller-allocate-parameter.S', 0x40D20, 0xBC),
     'controller-linked-list-insert': (TOOLS / 'adsp-late-controller-linked-list-insert.S', 0x422C0, 0xCC),

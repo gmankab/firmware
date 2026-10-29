@@ -197,9 +197,9 @@ class ADSPExternalsAndCodeTests(unittest.TestCase):
     @unittest.skipUnless(LLVM_MC,'Hexagon LLVM6 assembler required')
     def test_complete_fragment_inventory_rejects_overlaps(self):
         manifest,regions=adsp.assembled_inventory(LLVM_MC,None)
-        self.assertEqual(len(manifest['fragments']),137)
-        self.assertEqual(manifest['total_independently_assembled_executable_bytes'],13196)
-        self.assertEqual(sum(map(len,regions.values())),13196)
+        self.assertEqual(len(manifest['fragments']),138)
+        self.assertEqual(manifest['total_independently_assembled_executable_bytes'],13368)
+        self.assertEqual(sum(map(len,regions.values())),13368)
         self.assertEqual(manifest['gap_bytes_included_in_generated_executables'],0)
         self.assertFalse(manifest['complete_adsp_image'])
         self.assertEqual(manifest['external_original_code_bytes_in_output'],0)
@@ -377,7 +377,7 @@ class ADSPExternalsAndCodeTests(unittest.TestCase):
     def test_inventory_every_fragment_uses_correct_original(self):
         inventory,_outputs=adsp.assembled_inventory(LLVM_MC,Path(REFERENCE).read_bytes())
         self.assertTrue(all(x['reference_byte_identical'] for x in inventory['fragments']))
-        self.assertEqual(inventory['total_independently_assembled_executable_bytes'],13196)
+        self.assertEqual(inventory['total_independently_assembled_executable_bytes'],13368)
 
     @unittest.skipUnless(LLVM_MC and REFERENCE,
                          'Hexagon LLVM6 and exact pinned ADSP reference required')
@@ -391,7 +391,7 @@ class ADSPExternalsAndCodeTests(unittest.TestCase):
                 adsp.verify_slice(built,original,off)
                 total+=len(built)
                 ranges.append((off,off+size))
-        self.assertEqual(total,13196)
+        self.assertEqual(total,13368)
         ranges.sort()
         self.assertEqual(ranges[0],(0x39000,0x39054))
         self.assertEqual(ranges[-1],(0x3640a8,0x3640f8))
@@ -2203,3 +2203,28 @@ class ADSPControllerExtendedInitializationTests(unittest.TestCase):
         for x,y in zip(pieces,pieces[1:]):self.assertEqual(x[1],y[0])
         self.assertEqual(sum(len(x[2]) for x in pieces),0x220)
         if REFERENCE:adsp.verify_slice(b''.join(x[2] for x in pieces),Path(REFERENCE).read_bytes(),0x3f4d0)
+
+
+class ADSPControllerHandleStateTests(unittest.TestCase):
+    """Independent source for typed-state LL/SC handler and early returns."""
+
+    def test_lookups_use_conditional_packets_not_raw_vendor_words(self):
+        src,off,n=adsp.FRAGMENTS['controller-set-handle-state']
+        self.assertEqual((off,n),(0x3c248,172))
+        text=src.read_text()
+        for t in ('p0 = tstbit(r3,#16)','memuh(r2+##224)',
+                  'memw_locked(r4,p0) = r3','memw_locked(r1,p0) = r4',
+                  'if (!p0.new) dealloc_return:t','controller_tail'):
+            self.assertIn(t,text)
+        for bad in ('.word ','.long ','.byte ','.incbin ','.fill '):
+            self.assertNotIn(bad,text)
+        self.assertIn('alternate_handler',text)
+
+    @unittest.skipUnless(LLVM_MC,'Hexagon LLVM6 required')
+    def test_code_identity_for_bounded_controller_handle_state(self):
+        src,off,n=adsp.FRAGMENTS['controller-set-handle-state']
+        fragment=adsp.compile_source(LLVM_MC,src,n)
+        self.assertEqual(len(fragment),172)
+        self.assertEqual(hashlib.sha256(fragment).hexdigest(),
+                         '2738240bf1278496768ca5f23378c7c7997072ee8ee28bea26a8e3d3ce3a27e4')
+        if REFERENCE:adsp.verify_slice(fragment,Path(REFERENCE).read_bytes(),off)
