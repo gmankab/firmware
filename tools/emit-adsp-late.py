@@ -98,6 +98,7 @@ FRAGMENTS = {
     'qurt-raw-handle-dispatch': (TOOLS / 'adsp-late-qurt-raw-handle-dispatch.S', 0x3F71C, 48),
     'qurt-clear-register-bank': (TOOLS / 'adsp-late-qurt-clear-register-bank.S', 0x3F74C, 32),
     'qurt-copy-register-bank': (TOOLS / 'adsp-late-qurt-copy-register-bank.S', 0x3F76C, 28),
+    'qurt-controller-context-create': (TOOLS / 'adsp-late-qurt-controller-context-create.S', 0x3F788, 132),
 
     'call-descriptor-dispatch': (TOOLS / 'adsp-late-call-descriptor-dispatch.S', 0x3E0A4, 0x28),
     'controller-runtime-init': (TOOLS / 'adsp-late-controller-runtime-init.S', 0x3E0D0, 0x80),

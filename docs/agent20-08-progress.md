@@ -1011,3 +1011,21 @@ Cumulative Agent 08 contribution: **10,880 independently source-assembled
 executable bytes in 124 nonoverlapping fragments**. All 160 Rust tests pass;
 208 Python tests discovered, 205 pass and 3 are skipped. Offline release
 build succeeds. Full ADSP firmware and authentic signing remain out of scope.
+
+**Checkpoint 62 — QuRT context allocator:**
+Reconstructed the **132-byte** controller context allocator
+`[file 0x3f788,0x3f80c)` from original source-level Hexagon operations
+using LLVM6's V65-compatible packet ISA. It preserves allocation and
+failure paths, initializes registry fields and makes two checked PC-relative
+platform calls. The important packet boundary is at file `0x3f7d0–0x3f7dc`:
+an extended conditional register load ends one packet and the following call
+joins two memory stores in the next. This layout, not a vendored opcode
+literal, produces an independent SHA-256
+`451166f98b3ad3878640d7e95c47b57ddd70269583a8278a05ea191e8d74c445`.
+
+The new function joins the four checkpoint-61 controller helpers directly,
+yielding **268 consecutive source-built executable bytes** `[0x3f700,0x3f80c)`.
+The original 16 preceding NOPs remain uncounted.
+Agent 08 has now independently reconstructed **11,012 executable bytes in
+125 verified fragments**. Full reference comparison and Python/Rust/release
+checks pass; no claim of full ADSP firmware reconstruction or OEM signing.

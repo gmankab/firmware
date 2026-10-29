@@ -197,9 +197,9 @@ class ADSPExternalsAndCodeTests(unittest.TestCase):
     @unittest.skipUnless(LLVM_MC,'Hexagon LLVM6 assembler required')
     def test_complete_fragment_inventory_rejects_overlaps(self):
         manifest,regions=adsp.assembled_inventory(LLVM_MC,None)
-        self.assertEqual(len(manifest['fragments']),124)
-        self.assertEqual(manifest['total_independently_assembled_executable_bytes'],10880)
-        self.assertEqual(sum(map(len,regions.values())),10880)
+        self.assertEqual(len(manifest['fragments']),125)
+        self.assertEqual(manifest['total_independently_assembled_executable_bytes'],11012)
+        self.assertEqual(sum(map(len,regions.values())),11012)
         self.assertEqual(manifest['gap_bytes_included_in_generated_executables'],0)
         self.assertFalse(manifest['complete_adsp_image'])
         self.assertEqual(manifest['external_original_code_bytes_in_output'],0)
@@ -366,7 +366,7 @@ class ADSPExternalsAndCodeTests(unittest.TestCase):
     def test_inventory_every_fragment_uses_correct_original(self):
         inventory,_outputs=adsp.assembled_inventory(LLVM_MC,Path(REFERENCE).read_bytes())
         self.assertTrue(all(x['reference_byte_identical'] for x in inventory['fragments']))
-        self.assertEqual(inventory['total_independently_assembled_executable_bytes'],10880)
+        self.assertEqual(inventory['total_independently_assembled_executable_bytes'],11012)
 
     @unittest.skipUnless(LLVM_MC and REFERENCE,
                          'Hexagon LLVM6 and exact pinned ADSP reference required')
@@ -380,7 +380,7 @@ class ADSPExternalsAndCodeTests(unittest.TestCase):
                 adsp.verify_slice(built,original,off)
                 total+=len(built)
                 ranges.append((off,off+size))
-        self.assertEqual(total,10880)
+        self.assertEqual(total,11012)
         ranges.sort()
         self.assertEqual(ranges[0],(0x39000,0x39054))
         self.assertEqual(ranges[-1],(0x3640a8,0x3640f8))
@@ -1827,3 +1827,32 @@ class ADSPQuRTControllerBankTests(unittest.TestCase):
         combined=b''.join(pieces)
         self.assertEqual(len(combined),136)
         if reference is not None:adsp.verify_slice(combined,reference,0x3f700)
+
+class ADSPQuRTContextCreateTests(unittest.TestCase):
+    """Original 132-byte controller context constructor and packet boundaries."""
+
+    @unittest.skipUnless(LLVM_MC,'LLVM6 Hexagon assembler required')
+    def test_context_constructor_is_exact_and_uses_architectural_packets(self):
+        name='qurt-controller-context-create'
+        source,off,size=adsp.FRAGMENTS[name]
+        self.assertEqual((off,size),(0x3f788,132))
+        self.assertEqual(adsp.FRAGMENTS['qurt-copy-register-bank'][1]+28,off)
+        asm=source.read_text()
+        self.assertIn('allocframe(#16)',asm)
+        self.assertIn('if (!p0) r4 = ##-268187220 }',asm)
+        self.assertIn('{ call platform_create; memw(r17+#0) = r4;',asm)
+        self.assertIn('if (!p0) call platform_release',asm)
+        self.assertIn('allocation_failed:',asm)
+        for forbidden in ('.word ','.long ','.byte ','.fill ','.incbin '):
+            self.assertNotIn(forbidden,asm)
+        out=adsp.compile_source(LLVM_MC,source,size)
+        self.assertEqual(hashlib.sha256(out).hexdigest(),
+            '451166f98b3ad3878640d7e95c47b57ddd70269583a8278a05ea191e8d74c445')
+        if REFERENCE:adsp.verify_slice(out,Path(REFERENCE).read_bytes(),off)
+        # The conditional literal ends a packet; the following call and two
+        # stores are a separate packet. A single 3-op packet would reorder.
+        at=lambda x:(int.from_bytes(out[x:x+4],'little')>>14)&3
+        self.assertEqual(at(0x4c),3)
+        self.assertEqual(at(0x50),1)
+        self.assertEqual(at(0x54),0)  # two stores form a duplex instruction
+        self.assertEqual(at(0x58),3)
