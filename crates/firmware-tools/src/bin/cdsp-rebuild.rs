@@ -2,12 +2,21 @@
 //! CDSP partial reconstruction command. Reference bytes stay outside Git.
 use firmware_tools::devices::xiaomi_nabu::{cdsp_boot as cdsp, cdsp_privilege as privileged, cdsp_tlb as tlb, cdsp_tlb_extension as extension, cdsp_copyfast as cache_copy, cdsp_cache_controller as cache_ctl, cdsp_dma_copy as dma_copy};
 use firmware_tools::devices::xiaomi_nabu::{cdsp_early_icache_tags as icache_tags,cdsp_early_cache_helpers as cache_helpers};
-use firmware_tools::devices::xiaomi_nabu::cdsp_early_format_guard as format_guard;
+use firmware_tools::devices::xiaomi_nabu::{cdsp_early_format_guard as format_guard,cdsp_early_format_guard_tail as format_tail};
 use std::{env, fs};
 
 fn run() -> Result<(), Box<dyn std::error::Error>> {
     let arguments: Vec<String> = env::args().skip(1).collect();
     match arguments.as_slice() {
+        [action, output] if action=="emit-format-guard-tail"=>{
+            fs::write(output,format_tail::build_format_guard_continuation()?)?;
+            println!("Emitted {} CDSP codec guard continuation bytes, file {:#x}..{:#x}; partial function.",
+                format_tail::FUNCTION_BYTES,format_tail::FILE_OFFSET,format_tail::REGION_END);
+        }
+        [action, reference] if action=="verify-format-guard-tail"=>{
+            format_tail::verify_reference(&fs::read(reference)?)?;
+            println!("Verified {} format guard continuation bytes and all earlier source-built early CDSP regions.",format_tail::FUNCTION_BYTES);
+        }
         [action, output] if action=="emit-format-guard"=>{
             fs::write(output,format_guard::build_format_guard_prefix()?)?;
             println!("Emitted {} source-encoded CDSP format-guard bytes at file {:#x}..{:#x}; partial function.",

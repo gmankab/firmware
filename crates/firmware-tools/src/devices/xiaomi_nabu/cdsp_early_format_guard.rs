@@ -10,24 +10,25 @@ pub const REGION_END: usize = 0x5538;
 pub const FUNCTION_BYTES: usize = REGION_END-FILE_OFFSET;
 pub const PHYSICAL_ADDRESS: u32 = 0x96c0_2488;
 
-fn put(out:&mut Vec<u8>,op:u32,marker:P){out.extend_from_slice(&marker.apply(op).to_le_bytes());}
+pub(super) fn put(out:&mut Vec<u8>,op:u32,marker:P){out.extend_from_slice(&marker.apply(op).to_le_bytes());}
 fn allocframe(bytes:u16)->Result<u32,String>{
     if bytes==0 || bytes%8!=0 || bytes>0x1ff8{return Err("Hexagon frame must be nonzero and 8-byte aligned".into());}
     Ok(0xa09d_c000|u32::from(bytes/8))
 }
-fn small_and(dst:Gpr,src:Gpr,mask:u8)->Result<u32,String>{
-    if mask>63 {return Err("narrow Hexagon AND mask exceeds 6 bits".into());}
+pub(super) fn small_and(dst:Gpr,src:Gpr,mask:u16)->Result<u32,String>{
+    // The small V66 form contains an 8-bit unsigned mask in bits 12:5.
+    if mask>255 {return Err("narrow Hexagon AND mask exceeds 8 bits".into());}
     Ok(0x7600_c000|(u32::from(src.number())<<16)|(u32::from(mask)<<5)|u32::from(dst.number()))
 }
-fn compare_p0_imm(src:Gpr,value:u8)->Result<u32,String>{
+pub(super) fn compare_p0_imm(src:Gpr,value:u8)->Result<u32,String>{
     if value>127 {return Err("Hexagon small immediate comparison >127".into());}
     Ok(0x7500_c000|(u32::from(src.number())<<16)|(u32::from(value)<<5))
 }
-fn p0_assign_small(dst:Gpr,value:u8)->Result<u32,String>{
+pub(super) fn p0_assign_small(dst:Gpr,value:u8)->Result<u32,String>{
     if value>127 {return Err("Hexagon predicated assignment >127".into());}
     Ok(0x7e00_c000|(u32::from(value)<<5)|u32::from(dst.number()))
 }
-fn p0new_jump(packet_start:u32,target:u32,predicted_taken:bool,negated:bool)->Result<u32,String>{
+pub(super) fn p0new_jump(packet_start:u32,target:u32,predicted_taken:bool,negated:bool)->Result<u32,String>{
     if packet_start%4!=0||target%4!=0||target<=packet_start||target-packet_start>0x3fe {
         return Err("P0.new branch must be positive, 4-byte aligned and within 0x3fe bytes".into());
     }
@@ -37,7 +38,7 @@ fn p0new_jump(packet_start:u32,target:u32,predicted_taken:bool,negated:bool)->Re
     let base=if negated {0x5c20_c800} else if predicted_taken {0x5c00_d800} else {0x5c00_c800};
     Ok(base|((half&0x100)<<5)|(half&0xff))
 }
-fn extended_compare_p0(src:Gpr,value:u32)->[u32;2]{
+pub(super) fn extended_compare_p0(src:Gpr,value:u32)->[u32;2]{
     let ext=((value>>20)<<16)|((value>>6)&0x3fff)|0x4000;
     let cmp=0x7500_c000|(u32::from(src.number())<<16)|((value&0x3f)<<5);
     [ext,cmp]
@@ -126,6 +127,6 @@ pub fn verify_reference(reference:&[u8])->Result<(),String>{
         assert_eq!(p0new_jump(0x96c0_2524,0x96c0_2538,false,true).unwrap(),0x5c20_c80a);
         assert!(p0new_jump(0x96c0_24d0,0x96c0_24d0,false,true).is_err());
         assert!(p0new_jump(0x96c0_24d0,0x96c0_30d0,false,true).is_err());
-        assert!(small_and(r(11),r(11),64).is_err());
+        assert!(small_and(r(11),r(11),256).is_err());
     }
 }
