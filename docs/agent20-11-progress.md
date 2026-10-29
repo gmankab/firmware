@@ -523,3 +523,12 @@ python3 -m unittest discover -s tests -p 'test_*.py'
 - LLVM 6 assembles the instruction operands directly. Two alternate valid producer/branch packet orders are strictly checked and reordered to the original code's parse fields, with zero copied OEM opcodes. Existing earlier callback/GP normalizers remain fail-closed. Independent decoder confirmed source semantics and original register fields.
 - Complete 420-byte output SHA-256 `3f127e23b4a7189634b3448adafcf625e1829c007753f71b5e610f20c7d8e004`, **zero mismatches** to pinned modem reference SHA-256 `6f5cb32bc10e41abb40938d185805e788f5637a41d3ebcef278e4e169fc36782`.
 - Next unimplemented executable instruction is `[file 0x39f8c]`; no intervening bytes are silently counted as source or BSS. Neither later modem image sections nor OEM authentication are complete.
+
+## Checkpoint 66 — Controller slot countdown and protected format-state commit
+
+- Independently assembled **584 consecutive Hexagon V60 bytes** in the third modem RWE island `[file 0x39de8,0x3a030)`, physical `[0x8e041de8,0x8e042030)`, virtual `[0xc0841de8,0xc0842030)`. The new `[0x39f8c,0x3a030)` is **164 instruction bytes** after checkpoint 65.
+- Implemented typed controller register writes, S6/S3 protected reads, extended immediate frame-slot calculation, two checked candidate-table loads, the two slot-countdown loops, and original protected format-state commit (`0x3a00c`) and privileged system-register write (`0x3a028`). Branches cross into later and earlier exception-frame code but do not add those outside bytes.
+- Critical fix: group the `extractu`, extended `or` and `.new` predicated branch in **one valid Hexagon packet** in source. LLVM 6 now reproduces all four words at `[0x39fe0,0x39ff0)` **without** any new raw-opcode normalization. Prior guarded GP-class and video predicate packet normalizations stay unchanged and fail closed.
+- Entire fragment SHA-256 `1a85ad15916f09d44a6561996301d5fbad986f86795d3d6fa6e30e86fc8f170e`, **zero mismatches** against pinned `modem.mbn` SHA-256 `6f5cb32bc10e41abb40938d185805e788f5637a41d3ebcef278e4e169fc36782`.
+- **169 Rust tests, 47 Python tests and offline release build passed**, using LLVM 6 Hexagon V60 and external pinned original reference. The previous RWE islands remain separate; fill/data gaps are not counted.
+- Next executable instruction at file `0x3a030` begins a protected locked-word acquisition and exception-mask update. Complete modem firmware/OEM authentication are still outside this checkpoint.

@@ -7,7 +7,7 @@ spec=importlib.util.spec_from_file_location('modem_rwe_controller',SCRIPT)
 mod=importlib.util.module_from_spec(spec);spec.loader.exec_module(mod)
 class ControllerTests(unittest.TestCase):
     def test_bounds_and_elf_addresses(self):
-        self.assertEqual((mod.FILE_START,mod.FILE_END),(0x39de8,0x39f8c))
+        self.assertEqual((mod.FILE_START,mod.FILE_END),(0x39de8,0x3a030))
         self.assertEqual(mod.VIRTUAL_START-mod.FILE_START,0xc0808000)
         self.assertEqual(mod.PHYSICAL_START-mod.FILE_START,0x8e008000)
     def test_wrong_modem_reference_is_rejected(self):
@@ -25,7 +25,7 @@ class ControllerTests(unittest.TestCase):
         if not mc:self.skipTest('Set AGENT11_LLVM_MC to verify original LLVM6 source assembly')
         source=SCRIPT.parents[1]/'crates/firmware-tools/src/devices/xiaomi_nabu/modem_rwe_exception_controller.s'
         data=mod.assemble(Path(mc),source)
-        self.assertEqual(len(data),420)
+        self.assertEqual(len(data),584)
         get=lambda i:struct.unpack_from('<I',data,i-mod.FILE_START)[0]
         self.assertEqual(get(0x39de8),0x6e800000|(3<<14)|29)
         self.assertEqual(get(0x39dec),0x5bff7f8e)
@@ -60,6 +60,14 @@ class ControllerTests(unittest.TestCase):
         self.assertEqual(get(0x39f50),0xd2167c80)  # checked boundscheck
         self.assertEqual(get(0x39f6c),0x6509c000)  # re-swap SGP0
         self.assertEqual(get(0x39f88),0x6509c000)  # fallback swap
+        self.assertEqual(get(0x39f8c),0x6300c002) # checked extended-control write
+        self.assertEqual(get(0x39ff0),0xbfe37fe3) # slot counter decrement
+        self.assertEqual(get(0x39ff4),0x2572c1e8) # loop exit predicate
+        self.assertEqual(get(0x39ff8),0x5800c060) # recovery branch
+        self.assertEqual(get(0x3a00c),0x6c82c003) # privileged state commit
+        self.assertEqual(get(0x3a018),0x9780ffe2) # negative-index memory load
+        self.assertEqual(get(0x3a028),0x67004003) # protected system-reg write
+        self.assertEqual(get(0x3a02c),0xf200c003) # original predicate packet
         ref=os.environ.get('AGENT11_MODEM_MBN')
         if ref:mod.verify(Path(ref).read_bytes(),data)
 if __name__=='__main__':unittest.main()

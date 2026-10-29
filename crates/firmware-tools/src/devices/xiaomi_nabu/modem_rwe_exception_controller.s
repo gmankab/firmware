@@ -29,6 +29,30 @@
  .endif
  .word (0x62000000 | ((\gpr+32)<<16) | (\marker<<14) | \special)
 .endm
+.macro MODEM_CTRL_SYS_WRITE gpr,sys,marker=3
+ .if (\gpr<0)||(\gpr>31)||(\sys<0)||(\sys>63)||(\marker<1)||(\marker>3)
+  .error "invalid privileged system register write"
+ .endif
+ .word (0x67000000 | (\sys<<16) | (\marker<<14) | \gpr)
+.endm
+.macro MODEM_CTRL_EXT_CONTROL_WRITE field,gpr,marker=3
+ .if (\field<0)||(\field>63)||(\gpr<0)||(\gpr>31)||(\marker<1)||(\marker>3)
+  .error "invalid extended controller field write"
+ .endif
+ .word (0x63000000 | (\field<<16) | (\marker<<14) | \gpr)
+.endm
+.macro MODEM_CTRL_PRIVILEGED_ACTION action,marker=3
+ .if (\action!=0x20)||(\marker!=3)
+  .error "unexpected protected address-space action"
+ .endif
+ .word (0x6c200000 | (\marker<<14) | \action)
+.endm
+.macro MODEM_CTRL_PRIVILEGED_STATE_COMMIT field,gpr,marker=3
+ .if (\field!=2)||(\gpr<0)||(\gpr>31)||(\marker!=3)
+  .error "invalid privileged controller-state commit field or register"
+ .endif
+ .word (0x6c800000 | (\field<<16) | (\marker<<14) | \gpr)
+.endm
 .globl agent11_modem_rwe_controller_entry
 agent11_modem_rwe_controller_entry:
 // Public privileged system register S0 / per-thread controller selector.
@@ -176,3 +200,57 @@ MODEM_CTRL_Y_WRITE 4,31,1
 { r23:22 = memd(r9+#24) }
 { r29:28 = memd(r9+#16); r31:30 = memd(r9+#8) }
 MODEM_CTRL_SWAP_SGP0 9,3
+// Restore the controller's exception address base, then construct its
+// mode-dependent frame-slot pointer. The compare/new-branch is in one packet.
+.globl agent11_modem_rwe_select_controller_slot
+agent11_modem_rwe_select_controller_slot:
+MODEM_CTRL_EXT_CONTROL_WRITE 0,2,3
+MODEM_CTRL_SYS_READ 0,6,1
+{ r1 = ##50331648 }
+.set modem_ctrl_no_frame_slot,agent11_modem_rwe_controller_entry+0x2dc
+{
+  r0 = sub(##620756992,asl(r0,#24))
+  r1 = r0
+  if (cmp.gtu(r0.new,r1)) jump:nt modem_ctrl_no_frame_slot
+}
+// Publish an exception-frame pointer, load the current controller S3 state
+// and shift a packed pair to identify the next controller-page candidate.
+MODEM_CTRL_PRIVILEGED_ACTION 0x20,3
+{ memd(##-1065082048) = r3:2 }
+MODEM_CTRL_SYS_READ 0,3,1
+{ r1 = extractu(r1,#7,#8) }
+{ r3:2 = lsr(r1:0,#12); r0 = add(r0,#4) }
+// Check alignment and validity of the selected table entry before an
+// atomic controller-state update. Branches preserve references to later
+// register restore code without importing any unreconstructed instructions.
+MODEM_CTRL_PRIVILEGED_STATE_COMMIT 2,3,3
+.set modem_ctrl_mask_lock_retry,agent11_modem_rwe_controller_entry+0x248
+{ r3 = and(r3,#-256); if (!cmp.eq(r3.new,#0)) jump:nt modem_ctrl_mask_lock_retry }
+{ r3 = ##1809833343; r2 = memw(r0+#-4) }
+.set modem_ctrl_format_counter_fallback,agent11_modem_rwe_controller_entry+0x214
+{
+  r3 = extractu(r2,#2,#14)
+  r2 = or(r2,##5037116)
+  if (cmp.eq(r2.new,r3)) jump:nt modem_ctrl_format_counter_fallback
+}
+// Count down the codec-format slot index with two explicitly decoded
+// packet-local .new compares before submitting the protected frame.
+.set modem_ctrl_revisit_format,agent11_modem_rwe_controller_entry+0x1d8
+{
+  r3 = add(r3,#-1)
+  if (!cmp.gtu(r3.new,#1)) jump:nt modem_ctrl_revisit_format
+}
+.set modem_ctrl_commit_frame,agent11_modem_rwe_controller_entry+0x2d0
+{ jump modem_ctrl_commit_frame }
+.set modem_ctrl_retry_frame_slot,agent11_modem_rwe_controller_entry+0x210
+{ r3 = add(r3,#-1); if (cmp.gtu(r3.new,#1)) jump:nt modem_ctrl_retry_frame_slot }
+{ r3:2 = lsr(r1:0,#12); r0 = add(r0,#4) }
+MODEM_CTRL_PRIVILEGED_STATE_COMMIT 2,3,3
+.set modem_ctrl_update_format_counter,agent11_modem_rwe_controller_entry+0x248
+{ r3 = and(r3,#-256); if (!cmp.eq(r3.new,#0)) jump:nt modem_ctrl_update_format_counter }
+{ r2 = memw(r0+#-4) }
+{ r3 = extractu(r2,#2,#14) }
+.set modem_ctrl_test_format_again,agent11_modem_rwe_controller_entry+0x21c
+{ r3 = add(r3,#-1); if (!cmp.gtu(r3.new,#1)) jump:nt modem_ctrl_test_format_again }
+MODEM_CTRL_SYS_WRITE 3,0,1
+{ p3 = cmp.eq(r0,r0) }
