@@ -8,7 +8,7 @@
 use super::{Profile,FILE_START,ILM_FILE_BASE};
 use super::isa::{Insn,Reg};
 
-pub const FILE_END:usize=super::extension10_disjoint::FILE_END;
+pub const FILE_END:usize=super::extension11::FILE_END;
 pub const MOVD44_GAP_ONE:usize=0x38bc;
 pub const MOVD44_GAP_TWO:usize=0x39f8;
 
@@ -42,6 +42,7 @@ pub fn build_postmarketos()->Result<Vec<u8>,String>{
         super::extension8_disjoint::fragment(),
         super::extension9_disjoint::fragment(),
         super::extension10_disjoint::fragment(),
+        super::extension11::fragment(),
     ]{append_source_fragment(&mut output,frag)?;}
     if FILE_START+output.len()!=FILE_END{
         return Err("typed contiguous lower-ILM writer has unexpected length".into());

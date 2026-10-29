@@ -163,12 +163,16 @@ pub enum Insn {
     /// N32 ALU2/MADDR32: multiply-add rounded 32-bit DSP operation.
     MultiplyAddRounded32 { dest:Reg, left:Reg, right:Reg },
     MultiplyWide { dest:Reg, left:Reg, right:Reg },
+    /// N32 ALU2 ABS subopcode 0x03: absolute signed source value.
+    AbsoluteRegister {dest:Reg,source:Reg},
     MaximumRegister {dest:Reg,left:Reg,right:Reg},
     /// N32 ALU2 MIN: unsigned minimum selected from two registers.
     MinimumRegister {dest:Reg,left:Reg,right:Reg},
     MultiplyRegister64 {dest:Reg,left:Reg,right:Reg,signed:bool},
     RegisterAlu {op:AluRegOp,dest:Reg,left:Reg,right:Reg,shift:u8},
     OrShiftRight {dest:Reg,left:Reg,right:Reg,shift:u8},
+    /// N32 ALU1 ADD/SUB/AND/XOR_SRLI subops 0x1c..0x1f.
+    RegisterAluShiftRight {op:AluRegOp,dest:Reg,left:Reg,right:Reg,shift:u8},
     ZeroExtendWide {dest:Reg,source:Reg},
     ReverseSubtractImmediate {dest:Reg,source:Reg,value:i16},
     /// SLTI45 writes the implicit temporary register TA.
@@ -205,6 +209,12 @@ pub enum Insn {
     /// Code-adjacent 15-way halfword-offset dispatch using LE table data.
     JumpTableOffsets15 {base:u32,targets:[u32;15]},
     JumpTableOffsets12 {base:u32,targets:[u32;12]},
+    /// LE halfword offsets after a fourteen-way NDS32 indirect branch.
+    JumpTableOffsets14 {base:u32,targets:[u32;14]},
+    /// LE halfword offsets after a sixteen-way indirect branch.
+    JumpTableOffsets16Entries {base:u32,targets:[u32;16]},
+    /// Unsigned byte offsets for a twelve-way indirect branch.
+    JumpTableOffsets12Bytes {base:u32,targets:[u32;12]},
     JumpTableOffsets6 {base:u32,targets:[u32;6]},
     /// NDS32 jump-table byte offsets, not executable instructions. `base` is
     /// the register-held table pointer. Each entry is derived from a named
@@ -254,6 +264,21 @@ impl Insn {
         use Insn::*;
         if let JumpTableOffsets12{base,targets}=self {
             return emit_little_endian_branch_offsets(base,&targets);
+        }
+        if let JumpTableOffsets14{base,targets}=self {
+            return emit_little_endian_branch_offsets(base,&targets);
+        }
+        if let JumpTableOffsets16Entries{base,targets}=self {
+            return emit_little_endian_branch_offsets(base,&targets);
+        }
+        if let JumpTableOffsets12Bytes{base,targets}=self {
+            let mut bytes=Vec::with_capacity(12);
+            for (i,target) in targets.into_iter().enumerate() {
+                let delta=target.checked_sub(base).ok_or_else(||format!("12-way target {i} precedes table"))?;
+                if delta>255 || delta&1!=0{return Err(format!("12-way target {i} unaligned/outside byte table"));}
+                bytes.push(delta as u8);
+            }
+            return Ok(bytes);
         }
         if let JumpTableOffsets6{base,targets}=self {
             return emit_little_endian_branch_offsets(base,&targets);
@@ -449,6 +474,14 @@ impl Insn {
                 |(dest.number()<<20)|(source.number()<<15)|signed(i64::from(value),15)?,
             ZeroExtendWide{dest,source} => (0x20<<25)|(dest.number()<<20)
                 |(source.number()<<15)|0x13,
+            RegisterAluShiftRight{op,dest,left,right,shift} => {
+                if shift>31{return Err("NDS32 ALU1 shifted right register exceeds 31 bits".into());}
+                let sub=match op {AluRegOp::Add=>0x1c,AluRegOp::Sub=>0x1d,
+                    AluRegOp::And=>0x1e,AluRegOp::Xor=>0x1f,
+                    _=>return Err("unsupported NDS32 ALU1 right-shift arithmetic opcode".into())};
+                (0x20<<25)|(dest.number()<<20)|(left.number()<<15)
+                 |(right.number()<<10)|(u32::from(shift)<<5)|sub
+            },
             OrShiftRight{dest,left,right,shift} => {
                 if shift>31{return Err("OR_SRLI amount exceeds 31".into());}
                 (0x20<<25)|(dest.number()<<20)|(left.number()<<15)|(right.number()<<10)
@@ -457,6 +490,8 @@ impl Insn {
             MultiplyRegister64{dest,left,right,signed:is_signed} =>
                 (0x21<<25)|(dest.number()<<20)|(left.number()<<15)|(right.number()<<10)
                     |if is_signed {0x68}else{0x69},
+            AbsoluteRegister{dest,source} => (0x21<<25)
+                |(dest.number()<<20)|(source.number()<<15)|3,
             MaximumRegister{dest,left,right} => (0x21<<25)
                 |(dest.number()<<20)|(left.number()<<15)|(right.number()<<10),
             MinimumRegister{dest,left,right} => (0x21<<25)
@@ -647,6 +682,9 @@ impl Insn {
             LoadSignedByteGp { dest,address } => format!("lbsi.gp {},[{}]",r(dest),i64::from(address)-i64::from(gp)),
             ReadSystem { dest,csr } => format!("mfsr {},{}",r(dest),if let Csr::Number(index)=csr {format!("0x{index:x}")} else if csr==Csr::IntMask3 {"0xc2".into()} else {format!("${}",csr.name())}),
             WriteSystem { source,csr } => format!("mtsr {},{}",r(source),if let Csr::Number(index)=csr {format!("0x{index:x}")} else if csr==Csr::IntMask3 {"0xc2".into()} else {format!("${}",csr.name())}),
+            JumpTableOffsets14{base,targets}=>format!("jump.offsets14 0x{base:x} {}",targets.iter().map(|x|format!("0x{x:x}")).collect::<Vec<_>>().join(",")),
+            JumpTableOffsets16Entries{base,targets}=>format!("jump.offsets16entries 0x{base:x} {}",targets.iter().map(|x|format!("0x{x:x}")).collect::<Vec<_>>().join(",")),
+            JumpTableOffsets12Bytes{base,targets}=>format!("jump.offsets12bytes 0x{base:x} {}",targets.iter().map(|x|format!("0x{x:x}")).collect::<Vec<_>>().join(",")),
             JumpTableOffsets8{base,targets} => format!("jump.offsets8 0x{base:x} {}",targets.iter().map(|x|format!("0x{x:x}")).collect::<Vec<_>>().join(",")),
             JumpTableOffsets10{base,targets} => format!("jump.offsets10 {}",std::iter::once(format!("0x{base:x}"))
                 .chain(targets.iter().map(|target|format!("0x{target:x}")))
@@ -656,6 +694,9 @@ impl Insn {
             ReverseSubtractImmediate{dest,source,value} => format!("subri {},{},{}",r(dest),r(source),value),
             ZeroExtendWide{dest,source} => format!("zeh {},{}",r(dest),r(source)),
             OrShiftRight{dest,left,right,shift} => format!("or_srli {},{},{},{}",r(dest),r(left),r(right),shift),
+            RegisterAluShiftRight{op,dest,left,right,shift} =>
+                format!("{}_srli {},{},{},{}",op.mnemonic(),r(dest),r(left),r(right),shift),
+            AbsoluteRegister{dest,source}=>format!("abs {},{}",r(dest),r(source)),
             MultiplyRegister64{dest,left,right,signed:is_signed} => format!("{} {},{},{}",if is_signed{"mulsr64"}else{"mulr64"},r(dest),r(left),r(right)),
             MaximumRegister{dest,left,right} => format!("max {},{},{}",r(dest),r(left),r(right)),
             MinimumRegister{dest,left,right} => format!("min {},{},{}",r(dest),r(left),r(right)),
@@ -761,6 +802,29 @@ impl Insn {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn abs_and_shifted_right_alu_are_checked_and_have_distinct_opcodes(){
+        let r=Reg::new;
+        assert_eq!(Insn::AbsoluteRegister{dest:r(1),source:r(5)}
+            .encode(0x78b0,0x2d9e0).unwrap(),[0x42,0x12,0x80,0x03]);
+        assert_eq!(Insn::RegisterAluShiftRight{op:AluRegOp::Add,dest:r(2),left:r(2),right:r(17),shift:4}
+            .encode(0x7a86,0x2d9e0).unwrap(),[0x40,0x21,0x44,0x9c]);
+        assert!(Insn::RegisterAluShiftRight{op:AluRegOp::Slts,dest:r(2),left:r(2),right:r(17),shift:4}
+            .encode(0x7a86,0x2d9e0).is_err());
+    }
+    #[test]
+    fn sized_jump_tables_validate_offset_and_alignment(){
+        let twelve:[u32;12]=std::array::from_fn(|i|0x8d10+((i+1)*2) as u32);
+        assert_eq!(Insn::JumpTableOffsets12Bytes{base:0x8d10,targets:twelve}
+            .encode(0,0).unwrap(),(1u8..=12).map(|x|x*2).collect::<Vec<_>>());
+        let fourteen:[u32;14]=std::array::from_fn(|i|0x8c44+(i*2) as u32);
+        assert_eq!(Insn::JumpTableOffsets14{base:0x8c44,targets:fourteen}.encode(0,0).unwrap().len(),28);
+        let sixteen:[u32;16]=std::array::from_fn(|i|0x9cf0+(i*2) as u32);
+        assert_eq!(Insn::JumpTableOffsets16Entries{base:0x9cf0,targets:sixteen}.encode(0,0).unwrap().len(),32);
+        let mut bad=twelve;bad[7]=0x8d10+300;
+        assert!(Insn::JumpTableOffsets12Bytes{base:0x8d10,targets:bad}.encode(0,0).is_err());
+    }
+
     use super::*;
     #[test]
     fn six_and_twelve_way_offsets_are_le_halfwords(){
