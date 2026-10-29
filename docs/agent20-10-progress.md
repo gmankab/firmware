@@ -872,3 +872,23 @@ python3 tools/verify-agent20-10-cdsp-controller-enumeration.py \
   ```
 
 - First uncovered file byte: **`0x56a74`** (physical `0x96cc8a74`), inside the original controller candidate iteration. Branch ancestry remains **provisional from old Agent05**, not checkpoint-50-integrated. No hardware behavior or novel OEM authentication is established.
+
+## Checkpoint 45 — indexed record-size and capacity guard to file 0x56aa8
+
+- Implemented **52 independently source-encoded Hexagon V66 executable bytes** at CDSP file `[0x56a74,0x56aa8)` (physical `[0x96cc8a74,0x96cc8aa8)`), directly after the original indexed lookup. All 13 packet words match the pinned original `cdsp.mbn` byte-for-byte; no OEM instruction words enter the generator.
+- The code loads current and previous record sizes, adds shifted metadata lengths, detects two unsigned capacity overflows with **fused `.new` guards**, then dispatches the shared merge helper at physical `0x96cd0480` and prepares its fallback argument tuple. The branch target is measured from the first producer word of each V66 packet, not the guard consumer.
+- Independent assembler fixture `tools/agent20-10-cdsp-controller-record-bounds-semantic.s` reproduces the **same operands/semantics** (five words byte-identical and five others differing only in packet parse bits). LLVM 6 reorders the two compare/branch packets and uses explicit `P1=cmp.gtu(...)` guards where the original consumes the freshly loaded `R2.new` or `R3.new`. Rizin V66 independently verifies every original packet, both branches to physical `0x96cc8aa8`, and the call to `0x96cd0480`. The LLVM fixture is **not** claimed to produce the original 52 bytes exactly.
+- The regenerated contiguous `RWE` prefix `[file 0x56000,0x56aa8)` now has **2,728 byte-identical file bytes**: **2,672 executable** and **56 previously accounted layout/alignment bytes**. Including the separately complete `[0x55000,0x554b0)` controller, unique independently authored executable coverage has reached **3,872 bytes**. This is still far short of the full CDSP image.
+- Commands (original reference remains outside Git):
+
+  ```sh
+  cargo run --offline --locked -p firmware-tools --bin cdsp-late-controller-record-bounds -- verify-prefix /private/cdsp.mbn
+  cargo run --offline --locked -p firmware-tools --bin cdsp-late-controller-record-bounds -- emit /tmp/cdsp-bounds-52.bin
+  cargo run --offline --locked -p firmware-tools --bin cdsp-late-controller-record-bounds -- emit-prefix /tmp/cdsp-rwe-prefix-2728.bin
+  python3 tools/verify-agent20-10-cdsp-controller-record-bounds.py \
+    --llvm-mc /private/llvm6/bin/llvm-mc --rz-asm /private/rz-asm \
+    --generated /tmp/cdsp-bounds-52.bin --reference /private/cdsp.mbn \
+    --prefix /tmp/cdsp-rwe-prefix-2728.bin
+  ```
+
+- First uncovered file offset is `0x56aa8` (physical `0x96cc8aa8`), in the same indexed-record controller search loop. This is a provisional branch rooted in Agent 05's prior CDSP history, **not** in a verified checkpoint-50 integration, and not complete signed/flashable firmware.
