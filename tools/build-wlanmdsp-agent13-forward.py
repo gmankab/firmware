@@ -74,6 +74,17 @@ FRAGMENTS = (
     ('session-state-prefix', SOURCE_DIR / 'agent13-runtime-session-state-prefix.S', 0x75b8, 0x28),
     ('session-state-extended-duplex', SOURCE_DIR / 'agent13-runtime-session-state-extended-branch.S', 0x75e0, 0x08),
     ('session-state-register-setup', SOURCE_DIR / 'agent13-runtime-session-state-setup.S', 0x75e8, 0x60),
+    ('session-mode-10', SOURCE_DIR / 'agent13-runtime-session-mode-10-ext.S', 0x7648, 0x08),
+    ('session-mode-13', SOURCE_DIR / 'agent13-runtime-session-mode-13-ext.S', 0x7650, 0x08),
+    ('session-mode-16', SOURCE_DIR / 'agent13-runtime-session-mode-16-ext.S', 0x7658, 0x08),
+    ('session-mode-17', SOURCE_DIR / 'agent13-runtime-session-mode-17-ext.S', 0x7660, 0x08),
+    ('session-mode-flags', SOURCE_DIR / 'agent13-runtime-session-state-b0-cc.S', 0x7668, 0x1c),
+    ('session-mode-29', SOURCE_DIR / 'agent13-runtime-session-mode-29-ext.S', 0x7684, 0x08),
+    ('session-mode-call', SOURCE_DIR / 'agent13-runtime-session-state-d4-e4.S', 0x768c, 0x10),
+    ('session-mode-40', SOURCE_DIR / 'agent13-runtime-session-mode-40-ext.S', 0x769c, 0x08),
+    ('session-mode-traces', SOURCE_DIR / 'agent13-runtime-session-state-ec-f8.S', 0x76a4, 0x0c),
+    ('session-mode-51', SOURCE_DIR / 'agent13-runtime-session-mode-51-ext.S', 0x76b0, 0x08),
+    ('session-mode-state', SOURCE_DIR / 'agent13-runtime-session-state-100-144.S', 0x76b8, 0x44),
 )
 
 
@@ -104,6 +115,11 @@ def validate_manifest(fragments=FRAGMENTS):
         raise ValueError('missing independent duplex semantic source')
     if any(raw in duplex_source.read_text() for raw in ('.incbin', '.byte', '.word', '.quad', '.long', '.fill')):
         raise ValueError('duplex helper contains forbidden opaque firmware bytes')
+    for name,source,_,_ in fragments:
+        if name.startswith('session-mode-') and source.name.endswith('-ext.S'):
+            short=source.with_name(source.name.replace('-ext.S','-duplex.S'))
+            if not short.is_file() or any(x in short.read_text() for x in ('.word','.byte','.incbin','.fill','.quad','.long')):
+                raise ValueError(f'{name}: invalid duplex semantic source')
     if previous + FILE_BASE > 0x100000:
         raise ValueError('Agent 13 attempted to cross the exclusive file 0x100000 boundary')
     return previous
@@ -202,6 +218,25 @@ def assemble_extended_duplex(parent, llvm6: str, extender_source: Path) -> bytes
     return extended[:4]+duplex
 
 
+def assemble_mode_case_duplex(parent, llvm6: str, source: Path) -> bytes:
+    """Combine LLVM-assembled signed extender and register/branch duplex.
+
+    The short and extended forms are assembled from two distinct source files
+    because LLVM6 cannot schedule a single duplex with an immediate extender.
+    Assert packet markers; no reference firmware bytes participate in build.
+    """
+    duplex_source=source.with_name(source.name.replace('-ext.S','-duplex.S'))
+    if source==duplex_source or not duplex_source.is_file():
+        raise ValueError('missing independently authored duplex source')
+    first=parent.assemble(source,llvm6,'hexagonv65',expected_length=8)
+    second=parent.assemble(duplex_source,llvm6,'hexagonv65',expected_length=4)
+    high=int.from_bytes(first[:4],'little')
+    low=int.from_bytes(second,'little')
+    if (high>>14)&3 != 1 or (low>>14)&3 != 3:
+        raise ValueError('extended duplex does not form a valid 2-word packet')
+    return first[:4]+second
+
+
 def build(llvm6: str):
     mod = load_parent()
     end = validate_manifest()
@@ -215,6 +250,10 @@ def build(llvm6: str):
             part = assemble_controller_loop_registers(mod, llvm6, source)
         elif name == 'session-state-extended-duplex':
             part = assemble_extended_duplex(mod, llvm6, source)
+        elif name.startswith('session-mode-') and name in {
+            'session-mode-10','session-mode-13','session-mode-16',
+            'session-mode-17','session-mode-29','session-mode-40','session-mode-51'}:
+            part = assemble_mode_case_duplex(mod, llvm6, source)
         else:
             part = mod.assemble(source, llvm6, 'hexagonv65', expected_length=size)
         if len(part) != size:
@@ -239,7 +278,7 @@ def main():
         parent.check_reference(fragment,args.reference.read_bytes(),runtime_offset=START)
     args.output.parent.mkdir(parents=True,exist_ok=True)
     args.output.write_bytes(fragment)
-    report={'agent':13,'checkpoint':'49-disjoint',
+    report={'agent':13,'checkpoint':'50-disjoint',
             'source_base':'Agent 13 checkpoint 16 (7c730bf); checkpoint25 source unavailable',
             'is_checkpoint25_descendant':False,
             'file_start':FILE_BASE+START,'file_end':FILE_BASE+end,

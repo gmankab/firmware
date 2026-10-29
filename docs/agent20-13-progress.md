@@ -617,3 +617,26 @@ python3 tools/build-wlanmdsp-agent13.py /tmp/wlan-prefix-through-27a0.bin \
   branch ancestry; this **does not** establish a contiguous executable-layout
   prefix from `0x40000`. No complete or authenticated WLAN firmware was built.
 - Next missing file offset is **`0x47648`** (VMA `0xb0007648`).
+
+## Checkpoint 50 (disjoint) — controller format case packets
+
+- Added **180 independently assembled Hexagon instruction bytes** at WLAN
+  file `[0x47648,0x476fc)` (VMA `[0xb0007648,0xb00076fc)`). This continues
+  the format/state case selector without inventing a return beyond it.
+- Seven two-word packets contain signed immediate extenders and one-word
+  `r2=#case; jump` duplex branch opcodes. LLVM6 independently generates the
+  far-branch extender and low-immediate duplex instructions; the builder
+  concatenates **compiler-generated** pieces with mandatory Hexagon packet
+  marker validation and never reads private OEM bytes during construction.
+- Four adjacent semantic source files implement case-flag setup, diagnostic
+  routing, and controller state checks, including the original packet-relative
+  branch displacements.
+- Total disjoint Agent 13 continuation `[file 0x4568c,0x476fc)` is now
+  **8,304 byte-identical independently generated instruction bytes**.
+  SHA-256 `b1d5e11ffe2273c02dcae1b0e27f7d73b820669dbf331ec84c27ebb2882d6f8f`.
+- Original `wlanmdsp.mbn` checksum/revision and full strict reference byte
+  comparison pass. This is **partial function coverage** only; the next
+  missing packet starts file `0x476fc`, VMA `0xb00076fc`.
+- Ancestry is still checkpoint16 (`7c730bf`), not checkpoint25 or the
+  absent checkpoint50 integration. OEM signing, full-image reconstruction,
+  device execution and source-level functional equivalence are not claimed.

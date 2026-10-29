@@ -19,10 +19,10 @@ class SourceOnlyForwardTests(unittest.TestCase):
     def test_manifest_exact_boundaries(self):
         m=module()
         self.assertEqual(m.START,0x568c)
-        self.assertEqual(m.validate_manifest(),0x7648)
+        self.assertEqual(m.validate_manifest(),0x76fc)
         self.assertEqual(m.FILE_BASE+m.START,0x4568c)
-        self.assertEqual(m.FILE_BASE+m.validate_manifest(),0x47648)
-        self.assertEqual(sum(length for _,_,_,length in m.FRAGMENTS),8124)
+        self.assertEqual(m.FILE_BASE+m.validate_manifest(),0x476fc)
+        self.assertEqual(sum(length for _,_,_,length in m.FRAGMENTS),8304)
 
     def test_validator_forbids_opaque_data_and_layout_holes(self):
         m=module()
@@ -314,6 +314,23 @@ class SourceOnlyForwardTests(unittest.TestCase):
         other=m.SOURCE_DIR/'agent13-runtime-session-state-short-duplex.S'
         self.assertIn('r1 = #63; jump 0x80',other.read_text())
         self.assertNotIn('.word',other.read_text())
+
+    def test_seven_controller_case_duplex_packets(self):
+        m=module()
+        fragments={name:(path,offset,size) for name,path,offset,size in m.FRAGMENTS}
+        expected={'session-mode-10':0x7648,'session-mode-13':0x7650,
+                  'session-mode-16':0x7658,'session-mode-17':0x7660,
+                  'session-mode-29':0x7684,'session-mode-40':0x769c,
+                  'session-mode-51':0x76b0}
+        for name,offset in expected.items():
+            src,actual,length=fragments[name]
+            self.assertEqual((actual,length),(offset,8))
+            self.assertIn('jump ##',src.read_text())
+            other=src.with_name(src.name.replace('-ext.S','-duplex.S'))
+            self.assertIn('; jump 0x',other.read_text())
+            for data in (src.read_text(),other.read_text()):
+                self.assertNotIn('.word',data)
+                self.assertNotIn('.incbin',data)
 
 
 if __name__=='__main__':unittest.main()
