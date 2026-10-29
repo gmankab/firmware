@@ -19,10 +19,10 @@ class SourceOnlyForwardTests(unittest.TestCase):
     def test_manifest_exact_boundaries(self):
         m=module()
         self.assertEqual(m.START,0x568c)
-        self.assertEqual(m.validate_manifest(),0x72f8)
+        self.assertEqual(m.validate_manifest(),0x739c)
         self.assertEqual(m.FILE_BASE+m.START,0x4568c)
-        self.assertEqual(m.FILE_BASE+m.validate_manifest(),0x472f8)
-        self.assertEqual(sum(length for _,_,_,length in m.FRAGMENTS),7276)
+        self.assertEqual(m.FILE_BASE+m.validate_manifest(),0x4739c)
+        self.assertEqual(sum(length for _,_,_,length in m.FRAGMENTS),7440)
 
     def test_validator_forbids_opaque_data_and_layout_holes(self):
         m=module()
@@ -129,6 +129,17 @@ class SourceOnlyForwardTests(unittest.TestCase):
         self.assertIn('memb(r29+#26) = r2.new',text)
         for opaque in ('.incbin','.word','.byte'):
             self.assertNotIn(opaque,text)
+
+    def test_session_record_update_preserves_packed_controller_memops(self):
+        m=module()
+        path,off,size={n:(p,o,s) for n,p,o,s in m.FRAGMENTS}['session-record-update']
+        self.assertEqual((off,size),(0x72f8,0xa4))
+        text=path.read_text()
+        self.assertIn('memuh(r20+#38)',text)
+        self.assertIn('r0 = add(r4,mpyi(#48,r2))\n    r3 = lsl(#1,r3)',text)
+        self.assertIn('call -0x5250',text)
+        self.assertIn('}:mem_noshuf',text) if ':mem_noshuf' in text else self.assertIn('p0 = !cmp.gtu',text)
+        self.assertNotIn('.word',text)
 
     def test_controller_stage3_preserves_packet_order(self):
         m=module()

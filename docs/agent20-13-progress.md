@@ -511,3 +511,21 @@ python3 tools/build-wlanmdsp-agent13.py /tmp/wlan-prefix-through-27a0.bin \
 - Git history still derives from checkpoint16 and lacks checkpoint17–25.
   Do not call this contiguous with the original Agent 7 prefix until those
   source histories are incorporated into a checkpoint-50-rooted integration.
+
+## Checkpoint 45 (disjoint) — session record increment and guarded updates
+
+- Added **164 source-built Hexagon instruction bytes** in WLAN file
+  `[0x472f8,0x4739c)` (runtime `[0xb00072f8,0xb000739c)`). The code
+  advances the per-session cursor, checks bounded record widths, updates
+  a per-slot bitmap and conditionally appends a record field.
+- The packet at `0x47370` must keep multiply-indexed address calculation
+  with the following `lsl`/byte-count operations. Separating it changes only
+  the Hexagon packet parser marker; the platform call at `0x47380` is
+  itself a separate packet, not grouped with the next source load.
+- The verified disjoint continuation `[0x4568c,0x4739c)` is now **7,440
+  Hexagon instruction bytes**, with SHA-256
+  `8b0445fc9e00e5154d9a9e30e0b10ed46ff4c3cfe9007fca19f36d33291734e2`.
+  The original pinned WLAN MBN and the independently assembled bytes match
+  exactly, with zero differences and no borrowed OEM instruction words.
+- The record routine continues at file `0x4739c`. Missing checkpoint17–25
+  source history prevents claiming a contiguous prefix from `0x40000`.
