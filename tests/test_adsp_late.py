@@ -197,9 +197,9 @@ class ADSPExternalsAndCodeTests(unittest.TestCase):
     @unittest.skipUnless(LLVM_MC,'Hexagon LLVM6 assembler required')
     def test_complete_fragment_inventory_rejects_overlaps(self):
         manifest,regions=adsp.assembled_inventory(LLVM_MC,None)
-        self.assertEqual(len(manifest['fragments']),134)
-        self.assertEqual(manifest['total_independently_assembled_executable_bytes'],12516)
-        self.assertEqual(sum(map(len,regions.values())),12516)
+        self.assertEqual(len(manifest['fragments']),136)
+        self.assertEqual(manifest['total_independently_assembled_executable_bytes'],12816)
+        self.assertEqual(sum(map(len,regions.values())),12816)
         self.assertEqual(manifest['gap_bytes_included_in_generated_executables'],0)
         self.assertFalse(manifest['complete_adsp_image'])
         self.assertEqual(manifest['external_original_code_bytes_in_output'],0)
@@ -377,7 +377,7 @@ class ADSPExternalsAndCodeTests(unittest.TestCase):
     def test_inventory_every_fragment_uses_correct_original(self):
         inventory,_outputs=adsp.assembled_inventory(LLVM_MC,Path(REFERENCE).read_bytes())
         self.assertTrue(all(x['reference_byte_identical'] for x in inventory['fragments']))
-        self.assertEqual(inventory['total_independently_assembled_executable_bytes'],12516)
+        self.assertEqual(inventory['total_independently_assembled_executable_bytes'],12816)
 
     @unittest.skipUnless(LLVM_MC and REFERENCE,
                          'Hexagon LLVM6 and exact pinned ADSP reference required')
@@ -391,7 +391,7 @@ class ADSPExternalsAndCodeTests(unittest.TestCase):
                 adsp.verify_slice(built,original,off)
                 total+=len(built)
                 ranges.append((off,off+size))
-        self.assertEqual(total,12516)
+        self.assertEqual(total,12816)
         ranges.sort()
         self.assertEqual(ranges[0],(0x39000,0x39054))
         self.assertEqual(ranges[-1],(0x3640a8,0x3640f8))
@@ -2118,3 +2118,44 @@ class ADSPControllerBootstrapHandoffTests(unittest.TestCase):
         self.assertEqual(hashlib.sha256(code).hexdigest(),
             '73f35b110bacff48bf4113123398f3ad8c33a166451070f44caa8133017b2f6d')
         if REFERENCE:adsp.verify_slice(code,Path(REFERENCE).read_bytes(),off)
+
+
+class ADSPRegistryRandomServiceTests(unittest.TestCase):
+    """Controller randomized probe and packet-spanning atomic registry ops."""
+
+    def test_assembly_has_symbolic_calls_and_no_vendor_opcode_arrays(self):
+        p,off,length=adsp.FRAGMENTS['registry-random-service']
+        self.assertEqual((off,length),(0x39320,0x128))
+        text=p.read_text()
+        for token in ('upcyclelo','platform_cycle','platform_step',
+                      'platform_compare','platform_report','restore_frame:',
+                      'r24 ^= xor(r6,r22)','r3 = insert(r2,#7,#0)'):
+            self.assertIn(token,text)
+        for forbidden in ('.word ','.long ','.byte ','.incbin ','.fill '):
+            self.assertNotIn(forbidden,text)
+        src,off,sz=adsp.FRAGMENTS['return-only']
+        self.assertEqual((off,sz),(0x394b4,4))
+        self.assertIn('{ jumpr lr }',src.read_text())
+
+    @unittest.skipUnless(LLVM_MC,'LLVM6 Hexagon assembler required')
+    def test_registry_random_service_and_contiguous_cluster(self):
+        names=['registry-random-service','controller-bootstrap-handoff',
+               'controller-atomic-decrement-and-copy','atomic-add','return-only']
+        offsets=[];pieces=[]
+        for name in names:
+            with self.subTest(name=name):
+                p,off,size=adsp.FRAGMENTS[name]
+                chunk=adsp.compile_source(LLVM_MC,p,size)
+                self.assertEqual(len(chunk),size)
+                offsets.append((off,off+size))
+                if REFERENCE:adsp.verify_slice(chunk,Path(REFERENCE).read_bytes(),off)
+                pieces.append(chunk)
+        self.assertEqual(offsets[0][0],0x39320)
+        self.assertEqual(offsets[-1][1],0x394b8)
+        for (_,end),(start,_) in zip(offsets,offsets[1:]):self.assertEqual(end,start)
+        self.assertEqual(sum(map(len,pieces)),0x198)
+        self.assertEqual(hashlib.sha256(pieces[0]).hexdigest(),
+            '59339b4dfb4d4ef5466fab4e1c23dec1e32f72168f063982bfefc1b602b27ee1')
+        self.assertEqual(hashlib.sha256(pieces[-1]).hexdigest(),
+            'e038769b9d1239ee5328a660de1e6654d10dcc3c68eb151ed522a73237271a64')
+        if REFERENCE:adsp.verify_slice(b''.join(pieces),Path(REFERENCE).read_bytes(),0x39320)

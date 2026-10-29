@@ -1186,3 +1186,26 @@ The prior standalone copy source remains as a cross-check but is no
 longer independently counted by the inventory; fragment count stays 134.
 **Cumulative independently generated executable coverage: 12,516 bytes
 in 134 nonoverlapping fragments**, excluding linker fill and OEM payload.
+
+**Checkpoint 72 — registry random probe plus contiguous handler cluster:**
+Rebuilt **296 independently source-assembled instruction bytes** in the
+controller randomized registry/probe routine `[0x39320,0x39448)` (LLVM6
+SHA-256 `59339b4dfb4d4ef5466fab4e1c23dec1e32f72168f063982bfefc1b602b27ee1`).
+This routine records a conditional platform counter update, 32-bit
+randomized mixing using `upcyclelo`, register save/restore, a bounded
+retry loop, and a diagnostic callback. The final reporting packet had
+to be authored in the order `(r3:2, r5, r4, r1:0)` to reproduce the
+original duplex selection; no OEM machine-code word was imported.
+The preceding `[0x39318,0x39320)` contains **two NOP alignment words** and
+is excluded from executable-source totals.
+
+An additional independently compiled **four-byte return-only helper**
+`[0x394b4,0x394b8)` (SHA-256
+`e038769b9d1239ee5328a660de1e6654d10dcc3c68eb151ed522a73237271a64`)
+closes a gap between the existing 20-byte atomic update and the 136-byte
+buffer-handoff routine. Together with checkpoint 70's bootstrap and
+checkpoint 71's packet-spanning atomic decrement, this yields **408
+contiguous verified executable bytes** `[0x39320,0x394b8)`.
+Only **300 new** executable bytes are counted (296+4). Cumulative
+**12,816 source-assembled executable bytes across 136 nonoverlapping
+fragments**, no OEM padding or reference slices imported into output.
