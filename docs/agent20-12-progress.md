@@ -1443,3 +1443,21 @@ Total rebuilt later-modem coverage **9,780 bytes** is **9,472 Hexagon
 executable**, **296 source-generated ELF metadata**, and **12 explicit
 linker-alignment zeros**, all byte-identical to the pinned modem reference.
 Remaining modem executable and OEM authentication are not reconstructed.
+
+## Checkpoint 61 — Encoded buffer-plane descriptors and format flags
+
+Independently assembled **148 new Hexagon V60 instruction bytes** at
+`[0x4483d0,0x448464)` (`[0x1e4023d0,0x1e402464)` runtime). The stream
+handler copies 64-bit descriptor tuples, combines scaled buffer indices,
+updates maximum plane span and packed hardware control flags, then stores
+record byte counts into the destination register array. LLVM6 reorders a
+source-assembled controller-pointer load and independent scaled address;
+`restore_aux_large_controller_phase32_descriptor_order` validates complete
+opcode/operand fields and parse markers before restoring issue order. No
+OEM instruction bytes are embedded in source or as assembler output templates.
+
+The auxiliary contiguous prefix is now **9,316 bytes** at file
+`[0x446000,0x448464)`. Total independently generated modem coverage is
+**9,928 bytes**: **9,620 executable Hexagon bytes**, **296 semantic ELF
+metadata bytes**, and **12 linker alignment bytes**. All outputs are compared
+with the pinned image; this is not yet full firmware or new OEM signing.
