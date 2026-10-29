@@ -1369,3 +1369,18 @@ python3 -S tools/adsp-agent20-rwe-next-controller-record-lookup.py \
   --llvm-mc "$HEXAGON_LLVM_MC" --reference "$NABU_ADSP_REFERENCE" \
   --output /tmp/adsp-controller-record-lookup-272.bin
 ```
+
+## Checkpoint 82: indexed controller record selection and normal return `[0x12f50,0x13084)`
+
+- Added **308 byte-identical Hexagon V66 executable bytes** (77 instruction words), ADSP file `[0x12f50,0x13084)`, mapped physical `[0x8be0ff50,0x8be10084)`, SHA-256 `7f93ac885a941e8686adb6cba39a95d0a7c98deedbff48fc59d30ea0cf04d301`.
+- The routine checks an index against the controller's GP-backed table, maps 0x20-byte records, checks the metadata class/marker, updates the per-record active state and invokes the platform callback. An inner record walk handles bitmap/status flags and the function normally returns via `dealloc_return` at file `0x13080`.
+- LLVM6 directly assembles 76 of 77 original instruction words. One privileged `R2=SGP0` read at `0x12f68` uses the existing typed V66 encoder after validating a NOP sentinel. The unusual four-register packet initializes R7/R5/R20/R0 in exactly the original order from mnemonics (no reference opcode copying or parse-marker patches).
+- The function has **an additional error/recovery continuation after `0x13084`** not included in this checkpoint; do not call the full function complete yet. Adjacent to the prior 272-byte record-list initializer, the independently rebuilt run `[0x12e40,0x13084)` is **580 consecutive executable bytes**.
+- **Total source-authored executable ADSP RWE code: 11,984 bytes across 21 disjoint intervals**. The 148 bytes of selector pointer-table DATA generated in checkpoint 80 remain separate. OEM certificates, calibration and remaining executable content are not rebuilt or signed.
+- Validation: pinned-reference byte comparison, **160 Rust tests and 329 Python tests**, release build, deterministic source assembler, SGP0 typed encoding tests, and deliberate corrupted-byte/revision tests all pass.
+
+```sh
+python3 -S tools/adsp-agent20-rwe-next-controller-record-select.py \
+  --llvm-mc "$HEXAGON_LLVM_MC" --reference "$NABU_ADSP_REFERENCE" \
+  --output /tmp/adsp-controller-record-select-308.bin
+```
