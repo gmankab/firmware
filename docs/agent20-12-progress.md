@@ -1461,3 +1461,21 @@ The auxiliary contiguous prefix is now **9,316 bytes** at file
 **9,928 bytes**: **9,620 executable Hexagon bytes**, **296 semantic ELF
 metadata bytes**, and **12 linker alignment bytes**. All outputs are compared
 with the pinned image; this is not yet full firmware or new OEM signing.
+
+## Checkpoint 62 — Normal and alternate controller descriptor reporting
+
+Added **80 source-assembled byte-identical Hexagon V60 code bytes** at
+`[0x448464,0x4484b4)`, controller virtual addresses
+`[0x1e402464,0x1e4024b4)`. The routine tests the selected callback flag,
+writes descriptor lengths through predicated stores, and calls the normal
+or fallback platform report. Each branch and callback is a named symbolic
+relative target, with `.new` predicate packet semantics preserved. LLVM6
+assembles these instructions directly to the exact original **without**
+packet transformations or raw OEM instruction words in the source.
+
+The auxiliary reconstructed prefix is now **9,396 contiguous bytes**
+`[0x446000,0x4484b4)`; total partial generated modem coverage is
+**10,008 bytes**, including **9,700 Hexagon executable**, **296 ELF
+metadata** and **12 linker-alignment** bytes, reference-verified. The
+original modem remains mostly unreconstructed and no new OEM signature
+or hardware equivalence is claimed.
