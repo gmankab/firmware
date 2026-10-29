@@ -756,3 +756,22 @@ python3 tools/verify-agent20-10-cdsp-controller-frame-setup.py \
   --llvm-mc /private/llvm6/bin/llvm-mc --llvm-objdump /private/llvm6/bin/llvm-objdump \
   --generated /tmp/frame-64.bin --prefix /tmp/cdsp-rwe-2352.bin --reference /private/cdsp.mbn
 ```
+
+## Checkpoint 39 — controller input-init prefix `0x56930–0x56954`
+
+- Added **36 independently encoded executable bytes** in CDSP file `[0x56930,0x56954)`, physical `[0x96cc8930,0x96cc8954)`. The previous saved controller prologue at `[0x568f0,0x56930)` remains intact.
+- The generated RWE prefix `[0x56000,0x56954)` is **2,388 byte-identical file bytes**, split into **2,332 independently generated executable bytes and 56 prior structural NOP/fill bytes**. The short `R E` controller segment `[0x55000,0x554b0)` contributes another 1,200 executable bytes, bringing Agent 20-10 unique executable coverage to **3,532 bytes**.
+- Source operation: direct call to controller initialization service at physical `0x96dc4248`; write `R19` to `memw(R18=##0xc0364ae0)`; read input mode byte at `0xc02a0e40` using `R20`; pack an address/byte cursor pair; skip empty input to `0x96cc8ad0`; store `.new` predicate result to `SP+20`.
+- Independent LLVM 6 fixture reproduces all operation semantics, but ends the first call packet and schedules the predicate branch before the byte-load extender. Original packet boundaries/order are retained in checked Rust fields and decoded with Rizin V66. Original nine Hexagon words match the byte reference exactly; the packet-relative branch uses start `0x96cc8944`.
+- Both `emit` and `verify-prefix` are exposed in the unique `cdsp-late-controller-init` bin, so no previous agent's CLI is modified. The new routine continues after `0x56954` and is not yet complete.
+- **Provisional ancestry:** same Agent 05 old CDSP checkpoint as previous 38 checkpoints; original checkpoint-50-rooted integration base was not provided. Do not claim original checkpoint-50 ancestry, emulator execution, or OEM signing.
+
+Verify with:
+
+```sh
+cargo run --offline --locked --bin cdsp-late-controller-init -- verify-prefix /private/cdsp.mbn
+cargo run --offline --locked --bin cdsp-late-controller-init -- emit /tmp/controller-36.bin
+python3 tools/verify-agent20-10-cdsp-controller-init.py \
+  --llvm-mc /path/to/llvm6/bin/llvm-mc --rz-asm /path/to/rz-asm \
+  --generated /tmp/controller-36.bin --reference /private/cdsp.mbn
+```
