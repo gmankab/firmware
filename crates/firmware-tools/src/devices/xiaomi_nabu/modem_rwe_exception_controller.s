@@ -29,11 +29,29 @@
  .endif
  .word (0x62000000 | ((\gpr+32)<<16) | (\marker<<14) | \special)
 .endm
-.macro MODEM_CTRL_SYS_WRITE gpr,sys,marker=3
- .if (\gpr<0)||(\gpr>31)||(\sys<0)||(\sys>63)||(\marker<1)||(\marker>3)
+.macro MODEM_CTRL_CONTROL_PAIR_READ gpr_low,creg_low,marker=3
+ .if (\gpr_low<0)||(\gpr_low>30)||(\gpr_low & 1)||(\creg_low<0)||(\creg_low>62)||(\creg_low & 1)||(\marker<1)||(\marker>3)
+  .error "invalid privileged control-register pair read"
+ .endif
+ .word (0x68000000 | (\creg_low<<16) | (\marker<<14) | \gpr_low)
+.endm
+.macro MODEM_CTRL_PRIVILEGED_SELECT action,marker=3
+ .if (\action!=0x40)||(\marker!=3)
+  .error "invalid protected page-map selection"
+ .endif
+ .word (0x6c200000 | (\marker<<14) | \action)
+.endm
+.macro MODEM_CTRL_RETURN_FROM_EXCEPTION marker=3
+ .if (\marker!=3)
+  .error "RTE must be standalone end-of-packet"
+ .endif
+ .word (0x57e00000 | (\marker<<14))
+.endm
+.macro MODEM_CTRL_SYS_WRITE sysreg,gpr,marker=3
+ .if (\sysreg<0)||(\sysreg>63)||(\gpr<0)||(\gpr>31)||(\marker<1)||(\marker>3)
   .error "invalid privileged system register write"
  .endif
- .word (0x67000000 | (\sys<<16) | (\marker<<14) | \gpr)
+ .word (0x67000000 | (\gpr<<16) | (\marker<<14) | \sysreg)
 .endm
 .macro MODEM_CTRL_EXT_CONTROL_WRITE field,gpr,marker=3
  .if (\field<0)||(\field>63)||(\gpr<0)||(\gpr>31)||(\marker<1)||(\marker>3)
@@ -254,3 +272,41 @@ MODEM_CTRL_PRIVILEGED_STATE_COMMIT 2,3,3
 { r3 = add(r3,#-1); if (!cmp.gtu(r3.new,#1)) jump:nt modem_ctrl_test_format_again }
 MODEM_CTRL_SYS_WRITE 3,0,1
 { p3 = cmp.eq(r0,r0) }
+// Acquire and release the shared controller-frame lock with a bounded
+// architectural locked-word retry. Publish the mask only for a valid lane.
+.set modem_ctrl_shared_lock_retry,agent11_modem_rwe_controller_entry+0x250
+{ r2 = ##-1065090812 }
+{ r3 = memw_locked(r2) }
+{
+  p0 = cmp.eq(r3,#0)
+  if (!p0.new) jump:nt modem_ctrl_shared_lock_retry
+  if (p0.new) r3 = #1
+}
+{ memw_locked(r2,p0) = r3 }
+{ if (!p0) jump:nt modem_ctrl_shared_lock_retry }
+MODEM_CTRL_SYS_READ 2,6,1
+{ r3 = ##65536 }
+.set modem_ctrl_release_shared_owner,agent11_modem_rwe_controller_entry+0x2b0
+{ p0 = bitsclr(r2,r3); if (p0.new) jump:nt modem_ctrl_release_shared_owner }
+MODEM_CTRL_SYS_READ 2,8,1
+{ r3 = memw(##-1065090816) }
+{ trace(r3); r3 = clrbit(r3,r2) }
+{
+  p0 = !cmp.eq(r3,#0)
+  if (p0.new) jump:t modem_ctrl_release_shared_owner
+  memw(##-1065090816) = r3
+}
+// Finish protected interrupt-mask synchronization. Register selector S63 is
+// the per-thread interrupt status, not a general-purpose register index.
+MODEM_CTRL_SYS_READ 2,63,3
+{ trace(r2); r2 = clrbit(r2,#16) }
+MODEM_CTRL_SYS_WRITE 63,2,3
+{ trace(r2) }
+modem_ctrl_release_shared_owner:
+{ r3 = #0; memw(##-1065090812) = r3.new }
+// Snapshot the masked interrupt controller state and finish the normal
+// protected exception re-entry branch through its architectural RTE.
+MODEM_CTRL_CONTROL_PAIR_READ 0,34,1
+{ r3:2 = memd(##-1065082048) }
+MODEM_CTRL_PRIVILEGED_SELECT 0x40,3
+MODEM_CTRL_RETURN_FROM_EXCEPTION 3

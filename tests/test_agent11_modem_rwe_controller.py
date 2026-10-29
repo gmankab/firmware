@@ -7,7 +7,7 @@ spec=importlib.util.spec_from_file_location('modem_rwe_controller',SCRIPT)
 mod=importlib.util.module_from_spec(spec);spec.loader.exec_module(mod)
 class ControllerTests(unittest.TestCase):
     def test_bounds_and_elf_addresses(self):
-        self.assertEqual((mod.FILE_START,mod.FILE_END),(0x39de8,0x3a030))
+        self.assertEqual((mod.FILE_START,mod.FILE_END),(0x39de8,0x3a0b8))
         self.assertEqual(mod.VIRTUAL_START-mod.FILE_START,0xc0808000)
         self.assertEqual(mod.PHYSICAL_START-mod.FILE_START,0x8e008000)
     def test_wrong_modem_reference_is_rejected(self):
@@ -25,7 +25,7 @@ class ControllerTests(unittest.TestCase):
         if not mc:self.skipTest('Set AGENT11_LLVM_MC to verify original LLVM6 source assembly')
         source=SCRIPT.parents[1]/'crates/firmware-tools/src/devices/xiaomi_nabu/modem_rwe_exception_controller.s'
         data=mod.assemble(Path(mc),source)
-        self.assertEqual(len(data),584)
+        self.assertEqual(len(data),720)
         get=lambda i:struct.unpack_from('<I',data,i-mod.FILE_START)[0]
         self.assertEqual(get(0x39de8),0x6e800000|(3<<14)|29)
         self.assertEqual(get(0x39dec),0x5bff7f8e)
@@ -68,6 +68,25 @@ class ControllerTests(unittest.TestCase):
         self.assertEqual(get(0x3a018),0x9780ffe2) # negative-index memory load
         self.assertEqual(get(0x3a028),0x67004003) # protected system-reg write
         self.assertEqual(get(0x3a02c),0xf200c003) # original predicate packet
+        self.assertEqual(get(0x3a030),0x0c085004)  # extended locked-word address
+        self.assertEqual(get(0x3a038),0x9202c003)  # protected locked read
+        self.assertEqual(get(0x3a044),0xa0a2c300)  # conditional locked store
+        self.assertEqual(get(0x3a04c),0x6e864002)  # privileged S6 read
+        self.assertEqual(get(0x3a058),0xc7824300)  # hardware mask bitsclr
+        self.assertEqual(get(0x3a06c),0x62434000)  # trace packet continues
+        self.assertEqual(get(0x3a070),0xc683c243)  # trace packet closes
+        self.assertEqual(get(0x3a074),0x75034010)  # producer-first predicate
+        self.assertEqual(get(0x3a078),0x5c005812)  # conditional jump
+        self.assertEqual(get(0x3a07c),0x0c085004)  # extended memory store
+        self.assertEqual(get(0x3a080),0x4880c300)  # end packet
+        self.assertEqual(get(0x3a084),0x6ebfc002)  # S63 interrupt mask read
+        self.assertEqual(get(0x3a08c),0x8cc2d022)  # clear interrupt flag bit
+        self.assertEqual(get(0x3a090),0x6702c03f)  # S63 <= r2, checked fields
+        self.assertEqual(get(0x3a098),0x78004003)  # reset lock flag
+        self.assertEqual(get(0x3a0a0),0x48a0d204)  # GP-linked store
+        self.assertEqual(get(0x3a0a4),0x68224000)  # C35:34 -> r1:0
+        self.assertEqual(get(0x3a0b0),0x6c20c040)  # protected frame-mode select
+        self.assertEqual(get(0x3a0b4),0x57e0c000)  # architectural RTE
         ref=os.environ.get('AGENT11_MODEM_MBN')
         if ref:mod.verify(Path(ref).read_bytes(),data)
 if __name__=='__main__':unittest.main()

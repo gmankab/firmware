@@ -11,7 +11,7 @@ import argparse, hashlib, struct, subprocess, tempfile, runpy
 from pathlib import Path
 
 FILE_START = 0x39de8
-FILE_END = 0x3a030
+FILE_END = 0x3a0b8
 VIRTUAL_START = 0xc0841de8
 PHYSICAL_START = 0x8e041de8
 PINNED_SHA256 = '6f5cb32bc10e41abb40938d185805e788f5637a41d3ebcef278e4e169fc36782'
@@ -63,6 +63,14 @@ def normalize_v60_gp(source:bytes)->bytes:
             words[k:k+2]=[(p&~(3<<14))|(1<<14), (b&~(3<<14))|(3<<14)]
         else:
             words[k:k+2]=[p,b]
+    # LLVM6 interchanges the predicate and conditional jump in the shared
+    # status-mask packet while preserving all source-assembled operand bits.
+    # The original branch is followed by an immediate extender and a store
+    # in the same packet; both parse bits must therefore remain unchanged.
+    k=(0x3a074-FILE_START)//4
+    if tuple(words[k:k+2]) != (0x5c005812,0x75034010):
+        raise ValueError('Unexpected controller status-mask predicate packet')
+    words[k:k+2]=[words[k+1],words[k]]
     return struct.pack('<'+'I'*len(words),*words)
 
 def assemble(llvm_mc:Path,source:Path)->bytes:

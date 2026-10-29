@@ -532,3 +532,11 @@ python3 -m unittest discover -s tests -p 'test_*.py'
 - Entire fragment SHA-256 `1a85ad15916f09d44a6561996301d5fbad986f86795d3d6fa6e30e86fc8f170e`, **zero mismatches** against pinned `modem.mbn` SHA-256 `6f5cb32bc10e41abb40938d185805e788f5637a41d3ebcef278e4e169fc36782`.
 - **169 Rust tests, 47 Python tests and offline release build passed**, using LLVM 6 Hexagon V60 and external pinned original reference. The previous RWE islands remain separate; fill/data gaps are not counted.
 - Next executable instruction at file `0x3a030` begins a protected locked-word acquisition and exception-mask update. Complete modem firmware/OEM authentication are still outside this checkpoint.
+
+## Checkpoint 67 — Interrupt-mask lock release and protected RTE
+
+- The third modem RWE island now contains **720 consecutive source-assembled, byte-identical Hexagon V60 bytes** `[file 0x39de8,0x3a0b8)`. Newly verified `[0x3a030,0x3a0b8)` adds **136 executable bytes**, physical `[0x8e042030,0x8e0420b8)`, virtual `[0xc0842030,0xc08420b8)`.
+- It acquires a protected controller lock with `memw_locked`, tests ownership and branch retry, probes S6/S8/S63, clears one per-thread interrupt bit, logs the resulting mask, publishes the shared status, reads C35:34 into `r1:0`, and completes the original protected `RTE` at file `0x3a0b4`.
+- Architected privileged S63 write and C35:34 pair read are expressed as **operand-checked Hexagon ISA macros**, not as copied firmware words. The original four-word predicate-branch and GP-word store packet is preserved. LLVM6 reverses a two-word predicate/branch pair at `[0x3a074,0x3a07c)`; the verifier confirms both LLVM-authored operand words and only reverses their order. Other new instructions match immediately from LLVM6 without corrections.
+- Complete 720-byte fragment SHA-256 `b1852ad439183fcf08ea0123ca59cb6bb58f4054548ba09c139d725f8952cd89`, **zero mismatches** against pinned modem SHA-256 `6f5cb32bc10e41abb40938d185805e788f5637a41d3ebcef278e4e169fc36782`. **169 Rust tests, 47 Python tests, offline locked release build passed.**
+- This routine returns at `0x3a0b4`. The alternate protected controller-frame handling path begins at `0x3a0b8`; prior disjoint RWE fragments and all file padding stay excluded. The complete modem firmware and OEM authentication remain unfinished.
