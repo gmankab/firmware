@@ -1485,3 +1485,33 @@ Full gates pass: **160 Rust tests, 208 Python tests (no skips)**, workspace
 release build, independent assemblers and V66 decoder. No OEM payload was
 pasted into the source; no hardware behavior or new OEM signatures are
 claimed. The Agent13 452-byte seam remains outside this branch.
+
+## Checkpoint 41 — controller event pipeline and session feature queries
+
+Five adjacent Hexagon V66 routines comprise file offsets `[0x108bd4,0x109114)`
+(runtime `[0xb00c8bd4,0xb00c9114)`) and add **1,344 independently
+assembled executable bytes**:
+
+- `controller-event-pipeline` (1,144 bytes, 131 packets) validates encoded
+  event payloads, formats status/dictionary records and updates session slots;
+  a controller-diagnostic fall-through is preserved at the end of the region.
+- `session-diag-routed-call` (44 bytes, five packets) sends two initialized
+  command-status parameters to an external session helper.
+- `session-record-slot-array` (100 bytes, 11 packets) constructs a
+  fixed-stride record array using `loop0`, then transfers control; it has an
+  explicit far-jump constant extender.
+- `session-flag-query` (24 bytes) and `session-feature-query` (32 bytes)
+  return controller session state and readiness flags.
+
+The event writer uses exact source-level ordering for a combined duplex and
+an explicit conditional-call extender. Both LLVM22/V66 and LLVM6/V65 assemble
+identical bytes with zero mismatches against the pinned reference. The
+cumulative executable region `[0x1001c4,0x109114)` is **36,688 bytes**,
+plus **496 independently authored table bytes**, giving **37,184 total
+source-derived bytes**. First uncovered file offset: `0x109114`.
+
+The complete workspace passes **160 Rust tests**, **210 Python tests (no
+skips)**, the release build, V66 instruction decoding, and an independent
+assembler round-trip. No original firmware payload is embedded in Git or
+new OEM authentication/hardware execution claimed. The Agent13 leading
+452-byte seam remains outside Agent14 ownership.
