@@ -1615,3 +1615,20 @@ Total verified partial modem coverage **10,820 bytes**: **10,512 executable
 Hexagon bytes**, **296 independently reconstructed ELF32 metadata bytes** and
 **12 explicit linker-alignment bytes**. The complete modem binary and OEM
 authentication are not reconstructed.
+
+## Checkpoint 71 — Fourth controller report and handoff
+
+Added **92 independently source-assembled Hexagon V60 bytes** at original
+modem file `[0x4487e0,0x44883c)` (virtual `[0x1e4027e0,0x1e40283c)`).
+The routine loads and advances the next controller record, dispatches a
+fourth trace code 538 and joins the shared controller handoff. Calls and
+branches use symbolic destinations. LLVM6 reorders the independent
+extender/predicate/branch sequence; a checked source transformation
+validates ISA classes, exact operands, branch displacement and packet markers
+before preserving the reference issue order. Negative tests reject changes.
+
+Contiguous auxiliary prefix `[0x446000,0x44883c)` = **10,300 bytes**.
+Total generated partial modem coverage **10,912 bytes**, comprising
+**10,604 source-encoded executable Hexagon**, **296 independently generated
+ELF metadata**, and **12 explicit linker-alignment bytes**. The complete
+modem executable and OEM authentication are not rebuilt.
