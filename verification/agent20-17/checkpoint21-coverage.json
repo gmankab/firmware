@@ -1,0 +1,50 @@
+{
+  "agent": 17,
+  "checkpoint": 21,
+  "profile": "postmarketos",
+  "source_parent": "51b1f91f32d32542aa03e114f5a2f4d94b559e2a",
+  "range": {
+    "file_start": 1642,
+    "file_end": 49448,
+    "runtime_start": 1130,
+    "runtime_end": 48936,
+    "bytes": 47806,
+    "instruction_bytes": 47508,
+    "typed_table_data_bytes": 298,
+    "external_reference_bytes": 0,
+    "byte_differences": 0,
+    "sha256": "f958873f6628745f83e41dc9a2e0ccd698c390fc4def3f6080276447b8accf63"
+  },
+  "extension": {
+    "file_start": 43618,
+    "file_end": 49448,
+    "byte_count": 5830,
+    "instruction_count": 2077,
+    "instruction_bytes": 5816,
+    "typed_table_data_bytes": 14,
+    "ex9_uses": 262,
+    "distinct_ex9_indices": 95,
+    "tables": [
+      {
+        "file_start": 49372,
+        "file_end": 49378,
+        "kind": "five-byte relative offsets and explicit alignment zero"
+      },
+      {
+        "file_start": 49440,
+        "file_end": 49448,
+        "kind": "four little-endian halfword targets"
+      }
+    ]
+  },
+  "next_missing_file_offset": 49448,
+  "tool_gates": {
+    "reference_bytes": "pass",
+    "rust_workspace_tests": 259,
+    "python_tests": 40,
+    "release_opt0": "pass",
+    "gnu_nds32_assembler": "unavailable",
+    "release_default_optimized": "not_verified",
+    "on_device": "not_performed"
+  }
+}

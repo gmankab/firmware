@@ -137,6 +137,8 @@ pub enum Insn {
     /// N32 ALU1 CMOVZ/CMOVN, conditional on a register being zero or nonzero.
     ConditionalMove {dest:Reg,source:Reg,condition:Reg,nonzero:bool},
     /// N32 ALU1 SEH, sign-extend low 16 bits of the source register.
+    /// N32 ALU1 SEB (subopcode 0x10): sign extend lowest source byte.
+    SignExtendByteWide {dest:Reg,source:Reg},
     SignExtendHalfWide {dest:Reg,source:Reg},
     BranchImmediate { reg: Reg, value: i16, nonzero: bool, target: u32 },
     BranchA5 { reg: Reg, nonzero: bool, target: u32 },
@@ -188,6 +190,9 @@ pub enum Insn {
     BitTestImmediate {dest:Reg,source:Reg,bit:u8},
     IndexedByte { store: bool, reg: Reg, base: Reg, index: Reg, shift: u8 },
     IndexedMemory { store:bool, width:Width, signed:bool, reg:Reg, base:Reg,index:Reg,shift:u8 },
+    /// N32 indexed load/store with base writeback (LBI/LHI/LWI.BI and
+    /// SBI/SHI/SWI.BI; GNU MEM subopcodes 4..6,12..14).
+    IndexedPostIndexedMemory {store:bool,width:Width,reg:Reg,base:Reg,index:Reg,shift:u8},
     JumpShort { target: u32 },
     JumpRelative { target: u32, link: bool },
     /// IFC_LP/IFC_ON state differs from conventional JAL/RET.
@@ -215,6 +220,12 @@ pub enum Insn {
     JumpTableOffsets16Entries {base:u32,targets:[u32;16]},
     /// Unsigned byte offsets for a twelve-way indirect branch.
     JumpTableOffsets12Bytes {base:u32,targets:[u32;12]},
+    /// Five byte offsets, followed by one zero byte for code alignment.
+    JumpTableOffsets5Padded {base:u32,targets:[u32;5]},
+    /// Four little-endian halfword offsets selected by a 2-bit index.
+    JumpTableOffsets4Halfwords {base:u32,targets:[u32;4]},
+    /// Six byte offset entries selected by an unsigned index.
+    JumpTableOffsets6Bytes {base:u32,targets:[u32;6]},
     JumpTableOffsets6 {base:u32,targets:[u32;6]},
     /// NDS32 jump-table byte offsets, not executable instructions. `base` is
     /// the register-held table pointer. Each entry is derived from a named
@@ -270,6 +281,28 @@ impl Insn {
         }
         if let JumpTableOffsets16Entries{base,targets}=self {
             return emit_little_endian_branch_offsets(base,&targets);
+        }
+        if let JumpTableOffsets5Padded{base,targets}=self {
+            let mut bytes=Vec::with_capacity(6);
+            for (i,target) in targets.into_iter().enumerate(){
+                let delta=target.checked_sub(base).ok_or_else(||format!("five-way target {i} precedes base"))?;
+                if delta>255 || delta&1!=0{return Err(format!("five-way target {i} invalid byte offset"));}
+                bytes.push(delta as u8);
+            }
+            bytes.push(0); // alignment byte after exactly five cases
+            return Ok(bytes);
+        }
+        if let JumpTableOffsets4Halfwords{base,targets}=self {
+            return emit_little_endian_branch_offsets(base,&targets);
+        }
+        if let JumpTableOffsets6Bytes{base,targets}=self {
+            let mut bytes=Vec::with_capacity(6);
+            for (i,target) in targets.into_iter().enumerate(){
+                let delta=target.checked_sub(base).ok_or_else(||format!("six-way target {i} precedes base"))?;
+                if delta>255 || delta&1!=0{return Err(format!("six-way target {i} invalid byte offset"));}
+                bytes.push(delta as u8);
+            }
+            return Ok(bytes);
         }
         if let JumpTableOffsets12Bytes{base,targets}=self {
             let mut bytes=Vec::with_capacity(12);
@@ -417,6 +450,8 @@ impl Insn {
             ConditionalMove{dest,source,condition,nonzero} =>
                 (0x20<<25)|(dest.number()<<20)|(source.number()<<15)
                     |(condition.number()<<10)|(if nonzero{0x1b}else{0x1a}),
+            SignExtendByteWide{dest,source} => (0x20<<25)
+                |(dest.number()<<20)|(source.number()<<15)|0x10,
             SignExtendHalfWide{dest,source} => (0x20<<25)
                 |(dest.number()<<20)|(source.number()<<15)|0x11,
             BranchImmediate { reg,value,nonzero,target } => (0x2d<<25)|(reg.number()<<20)
@@ -443,6 +478,13 @@ impl Insn {
                 if bit>31{return Err("BCLR bit exceeds 31".into());}
                 (0x21<<25)|(dest.number()<<20)|(source.number()<<15)|(u32::from(bit)<<10)|9
             }
+            IndexedPostIndexedMemory{store,width,reg,base,index,shift} => {
+                if shift>3{return Err("NDS32 MEM post-indexed shift exceeds 3".into());}
+                if !store && reg==base{return Err("NDS32 postindexed load aliases destination with writeback base".into());}
+                let sub=match width{Width::Byte=>4,Width::Half=>5,Width::Word=>6}+if store{8}else{0};
+                (0x1c<<25)|(reg.number()<<20)|(base.number()<<15)
+                |(index.number()<<10)|(u32::from(shift)<<8)|sub
+            },
             IndexedMemory {store,width,signed,reg,base,index,shift} => {
                 if shift>3 || (store && signed) {return Err("invalid indexed memory shift/sign".into());}
                 let op=match (store,width,signed){
@@ -684,6 +726,9 @@ impl Insn {
             WriteSystem { source,csr } => format!("mtsr {},{}",r(source),if let Csr::Number(index)=csr {format!("0x{index:x}")} else if csr==Csr::IntMask3 {"0xc2".into()} else {format!("${}",csr.name())}),
             JumpTableOffsets14{base,targets}=>format!("jump.offsets14 0x{base:x} {}",targets.iter().map(|x|format!("0x{x:x}")).collect::<Vec<_>>().join(",")),
             JumpTableOffsets16Entries{base,targets}=>format!("jump.offsets16entries 0x{base:x} {}",targets.iter().map(|x|format!("0x{x:x}")).collect::<Vec<_>>().join(",")),
+            JumpTableOffsets5Padded{base,targets}=>format!("jump.offsets5padded 0x{base:x} {}",targets.iter().map(|x|format!("0x{x:x}")).collect::<Vec<_>>().join(",")),
+            JumpTableOffsets4Halfwords{base,targets}=>format!("jump.offsets4halfs 0x{base:x} {}",targets.iter().map(|x|format!("0x{x:x}")).collect::<Vec<_>>().join(",")),
+            JumpTableOffsets6Bytes{base,targets}=>format!("jump.offsets6bytes 0x{base:x} {}",targets.iter().map(|x|format!("0x{x:x}")).collect::<Vec<_>>().join(",")),
             JumpTableOffsets12Bytes{base,targets}=>format!("jump.offsets12bytes 0x{base:x} {}",targets.iter().map(|x|format!("0x{x:x}")).collect::<Vec<_>>().join(",")),
             JumpTableOffsets8{base,targets} => format!("jump.offsets8 0x{base:x} {}",targets.iter().map(|x|format!("0x{x:x}")).collect::<Vec<_>>().join(",")),
             JumpTableOffsets10{base,targets} => format!("jump.offsets10 {}",std::iter::once(format!("0x{base:x}"))
@@ -693,6 +738,7 @@ impl Insn {
             AddressFromStack {dest,offset} => format!("addri36.sp {},{}",r(dest),offset),
             ReverseSubtractImmediate{dest,source,value} => format!("subri {},{},{}",r(dest),r(source),value),
             ZeroExtendWide{dest,source} => format!("zeh {},{}",r(dest),r(source)),
+            SignExtendByteWide{dest,source} => format!("seb {},{}",r(dest),r(source)),
             OrShiftRight{dest,left,right,shift} => format!("or_srli {},{},{},{}",r(dest),r(left),r(right),shift),
             RegisterAluShiftRight{op,dest,left,right,shift} =>
                 format!("{}_srli {},{},{},{}",op.mnemonic(),r(dest),r(left),r(right),shift),
@@ -776,6 +822,7 @@ impl Insn {
             BitTestImmediate{dest,source,bit} => format!("btst {},{},{}",r(dest),r(source),bit),
             BitSet { dest,source,bit } => format!("bset {},{},{}",r(dest),r(source),bit),
             BitClearAt { dest,source,bit } => format!("bclr {},{},{}",r(dest),r(source),bit),
+            IndexedPostIndexedMemory{store,width,reg,base,index,shift} => format!("{}{}i.bi {},[{}],({},<<{})",if store{"s"}else{"l"},width.letter(),r(reg),r(base),r(index),shift),
             IndexedMemory {store,width,signed,reg,base,index,shift} => format!("{}{}{} {},[{}+({}<<{})]",if store{"s"}else{"l"},width.letter(),if signed{"s"}else{""},r(reg),r(base),r(index),shift),
             IndexedByte { store,reg,base,index,shift } => format!("{}b {},[{}+({}<<{})]",if store{"s"}else{"l"},r(reg),r(base),r(index),shift),
             JumpShort { target } => format!("j8 .{:+}",i64::from(target)-i64::from(pc)),
@@ -802,6 +849,40 @@ impl Insn {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn five_six_byte_and_four_halfword_tables_are_strict(){
+        let five=Insn::JumpTableOffsets5Padded{base:0xbedc,
+            targets:[0xbee2,0xbee8,0xbee8,0xbef2,0xbef8]};
+        assert_eq!(five.encode(0,0).unwrap(),[6,12,12,22,28,0]);
+        let four=Insn::JumpTableOffsets4Halfwords{base:0xbf20,
+            targets:[0xbf28,0xbf54,0xbf70,0xc022]};
+        assert_eq!(four.encode(0,0).unwrap(),[8,0,52,0,80,0,2,1]);
+        let six=Insn::JumpTableOffsets6Bytes{base:0xdb94,
+            targets:[0xdb9a,0xdbb8,0xdbd4,0xdc62,0xdbf4,0xdc2a]};
+        assert_eq!(six.encode(0,0).unwrap(),[6,36,64,206,96,150]);
+        let invalid=Insn::JumpTableOffsets5Padded{base:0xbedc,targets:[0xbee2,0xbee3,0xbee8,0xbef2,0xbef8]};
+        assert!(invalid.encode(0,0).is_err());
+    }
+
+    #[test]
+    fn wide_sign_extend_byte_encodes_signed_byte_lanes(){
+        let r=Reg::new;
+        assert_eq!(Insn::SignExtendByteWide{dest:r(9),source:r(2)}
+           .encode(0xb3fa,0x2d9e0).unwrap(),[0x40,0x91,0x00,0x10]);
+    }
+
+    #[test]
+    fn postindexed_indexed_loads_have_correct_mem_subop_and_reject_aliasing(){
+        let r=Reg::new;
+        assert_eq!(Insn::IndexedPostIndexedMemory{store:false,width:Width::Half,
+            reg:r(0),base:r(1),index:r(4),shift:0}.encode(0xa862,0x2d9e0).unwrap(),
+            [0x38,0x00,0x90,0x05]);
+        assert!(Insn::IndexedPostIndexedMemory{store:false,width:Width::Half,
+            reg:r(1),base:r(1),index:r(4),shift:0}.encode(0xa862,0).is_err());
+        assert!(Insn::IndexedPostIndexedMemory{store:true,width:Width::Word,
+            reg:r(0),base:r(1),index:r(4),shift:4}.encode(0xa862,0).is_err());
+    }
+
     #[test]
     fn abs_and_shifted_right_alu_are_checked_and_have_distinct_opcodes(){
         let r=Reg::new;
