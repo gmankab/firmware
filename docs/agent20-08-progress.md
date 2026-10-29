@@ -1029,3 +1029,22 @@ The original 16 preceding NOPs remain uncounted.
 Agent 08 has now independently reconstructed **11,012 executable bytes in
 125 verified fragments**. Full reference comparison and Python/Rust/release
 checks pass; no claim of full ADSP firmware reconstruction or OEM signing.
+
+**Checkpoint 63 — QuRT controller request dispatch and argument relay:**
+A full **112-byte** source-assembled Hexagon function
+`[file 0x3f9ac,0x3fa1c)` validates request modes 53 and 70, marshals
+up to 8 input arguments through the allocated stack frame and forwards
+to named platform handlers through symbolic relocations. The initial
+predicate/branch/frame-allocation packet and the conditional marshalling
+packet preserve original parse markers and operand dependencies.
+
+Generated SHA-256 is
+`377b1693882556c3c8eb9ff557e719845fb35e308d0f2e4ce51d9fb361976e09`,
+identical to the pinned original 112-byte interval. This function directly
+precedes the earlier `controller-indirect-callback` at `0x3fa1c` and has
+no undocumented fill or opaque code. The remaining `[0x3f80c,0x3f9ac)`
+controller path (416 bytes) is still unimplemented.
+
+**Cumulative: 11,124 independently source-generated executable bytes in 126
+verified fragments**. The full original ADSP image, firmware behavior, and
+new OEM signature remain outside these verified claims.

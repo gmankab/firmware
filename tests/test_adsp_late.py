@@ -197,9 +197,9 @@ class ADSPExternalsAndCodeTests(unittest.TestCase):
     @unittest.skipUnless(LLVM_MC,'Hexagon LLVM6 assembler required')
     def test_complete_fragment_inventory_rejects_overlaps(self):
         manifest,regions=adsp.assembled_inventory(LLVM_MC,None)
-        self.assertEqual(len(manifest['fragments']),125)
-        self.assertEqual(manifest['total_independently_assembled_executable_bytes'],11012)
-        self.assertEqual(sum(map(len,regions.values())),11012)
+        self.assertEqual(len(manifest['fragments']),126)
+        self.assertEqual(manifest['total_independently_assembled_executable_bytes'],11124)
+        self.assertEqual(sum(map(len,regions.values())),11124)
         self.assertEqual(manifest['gap_bytes_included_in_generated_executables'],0)
         self.assertFalse(manifest['complete_adsp_image'])
         self.assertEqual(manifest['external_original_code_bytes_in_output'],0)
@@ -366,7 +366,7 @@ class ADSPExternalsAndCodeTests(unittest.TestCase):
     def test_inventory_every_fragment_uses_correct_original(self):
         inventory,_outputs=adsp.assembled_inventory(LLVM_MC,Path(REFERENCE).read_bytes())
         self.assertTrue(all(x['reference_byte_identical'] for x in inventory['fragments']))
-        self.assertEqual(inventory['total_independently_assembled_executable_bytes'],11012)
+        self.assertEqual(inventory['total_independently_assembled_executable_bytes'],11124)
 
     @unittest.skipUnless(LLVM_MC and REFERENCE,
                          'Hexagon LLVM6 and exact pinned ADSP reference required')
@@ -380,7 +380,7 @@ class ADSPExternalsAndCodeTests(unittest.TestCase):
                 adsp.verify_slice(built,original,off)
                 total+=len(built)
                 ranges.append((off,off+size))
-        self.assertEqual(total,11012)
+        self.assertEqual(total,11124)
         ranges.sort()
         self.assertEqual(ranges[0],(0x39000,0x39054))
         self.assertEqual(ranges[-1],(0x3640a8,0x3640f8))
@@ -1856,3 +1856,30 @@ class ADSPQuRTContextCreateTests(unittest.TestCase):
         self.assertEqual(at(0x50),1)
         self.assertEqual(at(0x54),0)  # two stores form a duplex instruction
         self.assertEqual(at(0x58),3)
+
+class ADSPQuRTControllerRequestBridgeTests(unittest.TestCase):
+    """112-byte Hexagon controller-mode argument relay with no opaque words."""
+
+    def test_request_bridge_layout_and_argument_handling(self):
+        name='qurt-controller-request-bridge'
+        src,start,size=adsp.FRAGMENTS[name]
+        self.assertEqual((start,size),(0x3f9ac,112))
+        self.assertEqual(start+size,adsp.FRAGMENTS['controller-indirect-callback'][1])
+        text=src.read_text()
+        for forbidden in ('.word ','.long ','.byte ','.fill ','.incbin '):
+            self.assertNotIn(forbidden,text)
+        for term in ('p0 = cmp.eq(r2,#53)', 'p0 = cmp.eq(r2,#70)',
+                     'r9 = memw(r29+#48)', 'dispatch_marshalled:',
+                     '.set dispatch_marshalled'):
+            if term == 'dispatch_marshalled:':
+                self.assertIn('{ call dispatch_marshalled;',text)
+            else:
+                self.assertIn(term,text)
+
+    @unittest.skipUnless(LLVM_MC,'LLVM6 Hexagon assembler required')
+    def test_request_bridge_reference_and_digest(self):
+        src,start,size=adsp.FRAGMENTS['qurt-controller-request-bridge']
+        result=adsp.compile_source(LLVM_MC,src,size)
+        self.assertEqual(hashlib.sha256(result).hexdigest(),
+            '377b1693882556c3c8eb9ff557e719845fb35e308d0f2e4ce51d9fb361976e09')
+        if REFERENCE:adsp.verify_slice(result,Path(REFERENCE).read_bytes(),start)
