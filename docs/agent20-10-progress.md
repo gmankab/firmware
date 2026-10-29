@@ -932,3 +932,23 @@ python3 tools/verify-agent20-10-cdsp-controller-enumeration.py \
   ```
 
 - This provisional branch remains on Agent 05's *older* CDSP history, not yet the actual checkpoint-50-integrated tree. No OEM signing, full CDSP image, or behavioral validation is claimed. Next file address: `0x56b00` (physical `0x96cc8b00`).
+
+## Checkpoint 48 — bank-controller enumeration prologue at `0x56b00–0x56b30`
+
+- Added **48 independently generated Hexagon V66 executable bytes** at original CDSP file `[0x56b00,0x56b30)`, physical `[0x96cc8b00,0x96cc8b30)`.
+- The narrow typed encoders cover a force-extended zero assignment, an 80-byte frame with paired R17:16 save, additional R19:18 and R21:20 frame saves, a conditional high-mask assignment, three SP-relative 64-bit register-pair stores, a guarded bank-range branch to `0x96cc8e1c`, and a trailing LSR shift. The function continues beyond this prefix; no return is fabricated.
+- The pinned reference MBN is compared **only by the independent verifier**: generated 48 bytes and the joined `[0x56000,0x56b30)` **2,864-byte layout** match exactly. The prior 60 structural alignment bytes remain non-executable. Including previously reconstructed `[0x55000,0x554b0)` (1,200 executable bytes), new independent executable coverage totals **4,004 bytes** (2,804 executable in RWE + 1,200 in the complete controller segment).
+- The independent LLVM 6 fixture (`tools/agent20-10-cdsp-controller-bank-entry.s`) assembles **11/12 words identically**, including the 0x96cc8e1c branch, frame duplex and all register stores. LLVM closes the last LSR as a separate packet; the original continues, so the **one changed packet-marker byte** is explained and normalized strictly to bits 14..15 in the verifier. Rizin V66 validates all 12 original words and their packet/branch decoding. No claim of independent exact LLVM binary match for that last word.
+- The RWE prefix now covers **2,864 file bytes**, **2,804 executable + 60 layout**. Next uncovered file byte `0x56b30` (physical `0x96cc8b30`), inside the original bank enumerator. Full CDSP reconstruction, hardware behavior and OEM authentication remain unresolved; current branch is still provisional on Agent 05 older Git history.
+
+Reproduce with private pinned CDSP `cdsp.mbn` outside Git:
+
+```sh
+cargo run --offline --locked -p firmware-tools --bin cdsp-late-controller-bank-entry -- verify-prefix /private/cdsp.mbn
+cargo run --offline --locked -p firmware-tools --bin cdsp-late-controller-bank-entry -- emit /tmp/cdsp-bank48.bin
+cargo run --offline --locked -p firmware-tools --bin cdsp-late-controller-bank-entry -- emit-prefix /tmp/cdsp-rwe-prefix-2864.bin
+python3 tools/verify-agent20-10-cdsp-controller-bank-entry.py \
+  --llvm-mc /private/llvm6/bin/llvm-mc --rz-asm /private/rz-asm \
+  --generated /tmp/cdsp-bank48.bin --prefix /tmp/cdsp-rwe-prefix-2864.bin \
+  --reference /private/cdsp.mbn
+```
