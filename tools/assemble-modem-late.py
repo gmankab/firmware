@@ -92,6 +92,7 @@ AUX_LARGE_CONTROLLER_PHASE46_SOURCE = ROOT / "crates/firmware-tools/src/devices/
 AUX_LARGE_CONTROLLER_PHASE47_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_aux_large_controller_phase47.s"
 AUX_LARGE_CONTROLLER_PHASE48_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_aux_large_controller_phase48.s"
 AUX_LARGE_CONTROLLER_PHASE49_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_aux_large_controller_phase49.s"
+AUX_BUFFER_FACTORY_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_aux_buffer_factory.s"
 AUX_DISPATCH_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_aux_dispatch_helpers.s"
 AUX_TYPE_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_aux_type_config.s"
 AUX_NOTIFY_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_aux_controller_notify.s"
@@ -301,6 +302,8 @@ AUX_LARGE_CONTROLLER_PHASE48_START = AUX_LARGE_CONTROLLER_PHASE47_END
 AUX_LARGE_CONTROLLER_PHASE48_END = 0x4489F4
 AUX_LARGE_CONTROLLER_PHASE49_START = AUX_LARGE_CONTROLLER_PHASE48_END
 AUX_LARGE_CONTROLLER_PHASE49_END = 0x448A90
+AUX_BUFFER_FACTORY_START = AUX_LARGE_CONTROLLER_PHASE49_END
+AUX_BUFFER_FACTORY_END = 0x448AD0
 MARKER_MASK = 3 << 14
 CONTINUE_MARKER = 1 << 14
 END_MARKER = 3 << 14
@@ -2422,6 +2425,26 @@ def restore_aux_large_controller_phase49_return(assembled: bytes) -> bytes:
     return struct.pack('<39I',*words)
 
 
+def restore_aux_buffer_factory_move_packet(assembled: bytes) -> bytes:
+    """Join two scalar source moves into one original V60 factory packet.
+
+    The source explicitly separates the full-width moves so LLVM6 cannot
+    replace them with an unwanted duplex. After validating exact register
+    operands and ISA classes, restore the producer packet's two continuation
+    markers. No OEM payload words are copied from the reference.
+    """
+    if len(assembled)!=AUX_BUFFER_FACTORY_END-AUX_BUFFER_FACTORY_START:
+        raise ValueError('buffer factory needs 64 assembled source bytes')
+    words=list(struct.unpack('<16I',assembled))
+    if (words[0]&~MARKER_MASK,words[1]&~MARKER_MASK)!=(0x70620010,0x70630002):
+        raise ValueError('buffer factory register move fields changed')
+    if (words[0]&MARKER_MASK,words[1]&MARKER_MASK)!=(END_MARKER,END_MARKER):
+        raise ValueError('buffer factory opening packet markers changed')
+    words[0]=(words[0]&~MARKER_MASK)|CONTINUE_MARKER
+    words[1]=(words[1]&~MARKER_MASK)|CONTINUE_MARKER
+    return struct.pack('<16I',*words)
+
+
 def output_fragments(llvm_mc: Path) -> dict[int, bytes]:
     atomic = restore_atomic_packet_order(assemble(llvm_mc, ATOMIC_SOURCE))
     controller = restore_controller_packet_order(assemble(llvm_mc, CONTROL_SOURCE))
@@ -2526,6 +2549,8 @@ def output_fragments(llvm_mc: Path) -> dict[int, bytes]:
         assemble(llvm_mc,AUX_LARGE_CONTROLLER_PHASE48_SOURCE))
     aux_large_controller_phase49=restore_aux_large_controller_phase49_return(
         assemble(llvm_mc,AUX_LARGE_CONTROLLER_PHASE49_SOURCE))
+    aux_buffer_factory=restore_aux_buffer_factory_move_packet(
+        assemble(llvm_mc,AUX_BUFFER_FACTORY_SOURCE))
     aux_dispatch = assemble(llvm_mc,AUX_DISPATCH_SOURCE)
     aux_type = restore_aux_type_return_packets(assemble(llvm_mc,AUX_TYPE_SOURCE))
     aux_notify = restore_aux_controller_notify_packets(assemble(llvm_mc,AUX_NOTIFY_SOURCE))
@@ -2626,6 +2651,7 @@ def output_fragments(llvm_mc: Path) -> dict[int, bytes]:
         (aux_large_controller_phase47,AUX_LARGE_CONTROLLER_PHASE47_START,AUX_LARGE_CONTROLLER_PHASE47_END,'controller iteration bounds and optional callback'),
         (aux_large_controller_phase48,AUX_LARGE_CONTROLLER_PHASE48_START,AUX_LARGE_CONTROLLER_PHASE48_END,'controller frame callback and missing-registry diagnostics'),
         (aux_large_controller_phase49,AUX_LARGE_CONTROLLER_PHASE49_START,AUX_LARGE_CONTROLLER_PHASE49_END,'controller terminal callback and restored V60 frame'),
+        (aux_buffer_factory,AUX_BUFFER_FACTORY_START,AUX_BUFFER_FACTORY_END,'independent auxiliary buffer-object factory'),
     ]:
         if len(fragment)!=end-start:
             raise ValueError(f"auxiliary {label} source length mismatch")
@@ -2720,7 +2746,8 @@ def output_fragments(llvm_mc: Path) -> dict[int, bytes]:
             AUX_LARGE_CONTROLLER_PHASE45_END==AUX_LARGE_CONTROLLER_PHASE46_START and
             AUX_LARGE_CONTROLLER_PHASE46_END==AUX_LARGE_CONTROLLER_PHASE47_START and
             AUX_LARGE_CONTROLLER_PHASE47_END==AUX_LARGE_CONTROLLER_PHASE48_START and
-            AUX_LARGE_CONTROLLER_PHASE48_END==AUX_LARGE_CONTROLLER_PHASE49_START):
+            AUX_LARGE_CONTROLLER_PHASE48_END==AUX_LARGE_CONTROLLER_PHASE49_START and
+            AUX_LARGE_CONTROLLER_PHASE49_END==AUX_BUFFER_FACTORY_START):
         raise ValueError("controller phase13 gap was silently bridged")
     if AUX_LOOKUP_END!=AUX_REGISTRY_CORE_START or AUX_REGISTRY_CORE_END!=AUX_DISPATCH_START:
         raise ValueError("modem auxiliary registry source intervals have a gap")
@@ -2756,7 +2783,8 @@ def output_fragments(llvm_mc: Path) -> dict[int, bytes]:
                         aux_large_controller_phase42+aux_large_controller_phase43+
                         aux_large_controller_phase44+aux_large_controller_phase45+
                         aux_large_controller_phase46+aux_large_controller_phase47+
-                        aux_large_controller_phase48+aux_large_controller_phase49,
+                        aux_large_controller_phase48+aux_large_controller_phase49+
+                        aux_buffer_factory,
     }
 
 

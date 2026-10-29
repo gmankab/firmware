@@ -1738,3 +1738,19 @@ The entire **large session function is now byte-identical** through
 coverage **11,508 bytes** = **11,200 source-encoded executable Hexagon**,
 **296 independently generated ELF metadata**, and **12 linker alignment**.
 OEM modem payload and full authentication remain incomplete.
+
+## Checkpoint 78 — Independent auxiliary buffer-object factory
+
+Added the complete **64-byte Hexagon V60 factory** at modem file
+`[0x448a90,0x448ad0)` (virtual `[0x1e402a90,0x1e402ad0)`). It allocates
+and initializes a 272-byte stack frame, prepares the public controller
+buffer array and registers the resulting metadata. LLVM6 chooses to pack
+the first two register moves into a shorter duplex unless they are written
+as source-separated full-width operations. The fail-closed packet correction
+checks register/opcode fields and original parse markers, then joins the two
+full-width instructions. The source is entirely independent of OEM bytes.
+
+Contiguous auxiliary prefix `[0x446000,0x448ad0)` = **10,960 bytes**.
+Total generated coverage **11,572 bytes**: **11,264 executable Hexagon**,
+**296 ELF metadata**, **12 linker alignment**. Later modem code and OEM
+firmware authentication remain unimplemented.
