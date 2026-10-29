@@ -1226,3 +1226,17 @@ python3 -S tools/adsp-agent20-rwe-next-controller-slot-scan-operations.py \
  --llvm-mc "$HEXAGON_LLVM_MC" --reference "$NABU_ADSP_REFERENCE" \
  --output /tmp/adsp-slot-scan-operations-240.bin
 ```
+
+## Checkpoint 72: complete controller-slot scanner `[0x121c0,0x1242c)`
+
+- Added the final **284 exact executable bytes** `[0x12310,0x1242c)`, physical `[0x8be0f310,0x8be0f42c)`: bitmap walk/locked state changes (144 bytes), class flags and bit handling (80 bytes), loop epilogue and original `dealloc_return` (60 bytes).
+- The entire **620-byte** scanner `[0x121c0,0x1242c)` independently rebuilds from **155 Hexagon V66 instruction words**, sha256 `322bae494c2e3d6048ea096aea64ff4be6081896439413eb25f88d0fb2bd6fe6`. The final 71 instruction words and packet delimiters come entirely from LLVM6 source. The only parse-field adjustments in the complete function are the previously validated two packet-continuation bits at `0x121cc` and `0x121d0`.
+- All five constituent source sections are verified both separately and as a single contiguous function, with deliberate byte-corruption and wrong-revision rejection. Four-byte alignment before the function remains excluded from code totals.
+- **Cumulative source-built ADSP RWE code: 9,992 bytes across 17 disjoint executable intervals.** Next visible material after the function starts at file offset `0x1242c`; inspect it before classifying as code or fill.
+- Configured LLVM6 and pinned-reference tests: **160 Rust** and **299 Python**, all pass; release build passes. Still not a complete ADSP image or independently signed OEM firmware.
+
+```sh
+python3 -S tools/adsp-agent20-rwe-next-controller-slot-scan-complete.py \
+ --llvm-mc "$HEXAGON_LLVM_MC" --reference "$NABU_ADSP_REFERENCE" \
+ --output /tmp/adsp-slot-scan-complete-620.bin
+```
