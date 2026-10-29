@@ -80,6 +80,60 @@ class ModemLateTests(unittest.TestCase):
                 ref=Path(os.environ['NABU_MODEM_REFERENCE']).read_bytes()
                 self.assertEqual(fixed,ref[0x4485f8:0x448628])
 
+    def test_phase49_source_registered_callback_and_exact_return(self):
+        self.assertEqual((agent12.AUX_LARGE_CONTROLLER_PHASE49_START,
+                          agent12.AUX_LARGE_CONTROLLER_PHASE49_END),
+                         (0x4489f4,0x448a90))
+        src=agent12.AUX_LARGE_CONTROLLER_PHASE49_SOURCE.read_text()
+        for forbidden in ('.word','.byte','.incbin'):
+            self.assertNotIn(forbidden,src)
+        self.assertIn('memd(r17+#192) = r1:0',src)
+        self.assertIn('dealloc_return',src)
+        words=[0x7800c000]*39
+        for pos,val in [
+            (0x08,0x5bfff33e),(0x0c,0x7071c000),(0x10,0xa191d40d),
+            (0x18,0x5c004828),(0x1c,0x751b4000),
+            (0x48,0x919b4160),(0x4c,0xa1d1c018),
+            (0x54,0x5800c00a),(0x5c,0x91db4020),
+            (0x60,0xa1d1c017),(0x80,0x7071c000),
+        ]:
+            words[pos//4]=val
+        before=struct.pack('<39I',*words)
+        after=struct.unpack('<39I',agent12.restore_aux_large_controller_phase49_return(before))
+        for pos,w in [
+            (0x08,0x5bff733e),(0x0c,0x70714000),(0x10,0xa191540d),
+            (0x18,0x751b4000),(0x1c,0x5c004828),
+            (0x48,0xa1d14018),(0x4c,0x919bc160),
+            (0x54,0x5800400a),(0x5c,0xa1d14017),
+            (0x60,0x91dbc020),(0x80,0x70714000),
+        ]:
+            self.assertEqual(after[pos//4],w)
+        for pos,mutated,msg in [
+            (0x08,0x4bfff33e,'producer opcode/register'),
+            (0x0c,0x7071c001,'producer opcode/register'),
+            (0x10,0xa191540d,'producer packet marker'),
+            (0x18,0x5c004829,'predicated branch'),
+            (0x1c,0x751b4001,'predicated branch'),
+            (0x48,0x919b4161,'load/store'),
+            (0x4c,0xa1d14018,'load/store'),
+            (0x54,0x5800400a,'producer packet marker'),
+            (0x5c,0x91db4021,'load/store'),
+            (0x80,0x70714000,'producer packet marker'),
+        ]:
+            corrupt=words.copy();corrupt[pos//4]=mutated
+            with self.assertRaisesRegex(ValueError,msg):
+                agent12.restore_aux_large_controller_phase49_return(
+                    struct.pack('<39I',*corrupt))
+        with self.assertRaisesRegex(ValueError,'156 source-assembled bytes'):
+            agent12.restore_aux_large_controller_phase49_return(before[:-4])
+        if os.getenv('NABU_HEXAGON_LLVM_MC'):
+            source=agent12.assemble(Path(os.environ['NABU_HEXAGON_LLVM_MC']),
+                                    agent12.AUX_LARGE_CONTROLLER_PHASE49_SOURCE)
+            final=agent12.restore_aux_large_controller_phase49_return(source)
+            if os.getenv('NABU_MODEM_REFERENCE'):
+                reference=Path(os.environ['NABU_MODEM_REFERENCE']).read_bytes()
+                self.assertEqual(final,reference[0x4489f4:0x448a90])
+
     def test_phase48_predicated_callback_issue_order(self):
         self.assertEqual((agent12.AUX_LARGE_CONTROLLER_PHASE48_START,
                           agent12.AUX_LARGE_CONTROLLER_PHASE48_END),
@@ -2136,8 +2190,8 @@ class ModemLateTests(unittest.TestCase):
         a = agent12.output_fragments(Path(os.environ["NABU_HEXAGON_LLVM_MC"]))
         self.assertEqual({k: len(v) for k, v in a.items()},
                          {0x7C000:160, 0x7C2EC:452,
-                          0x446000:agent12.AUX_LARGE_CONTROLLER_PHASE48_END-agent12.AUX_START})
-        self.assertEqual(sum(map(len,a.values())),agent12.AUX_LARGE_CONTROLLER_PHASE48_END - agent12.AUX_START + 612)
+                          0x446000:agent12.AUX_LARGE_CONTROLLER_PHASE49_END-agent12.AUX_START})
+        self.assertEqual(sum(map(len,a.values())),agent12.AUX_LARGE_CONTROLLER_PHASE49_END - agent12.AUX_START + 612)
         self.assertEqual(a[0x446000][0x0d8:0x200],agent12.emit_auxiliary_elf_symbols())
         self.assertEqual(a[0x446000][0x254:0x260],bytes(12))
         self.assertEqual(a[0x446000][0x1448:0x1460],

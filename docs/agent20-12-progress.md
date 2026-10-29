@@ -1719,3 +1719,22 @@ Contiguous auxiliary `[0x446000,0x4489f4)` = **10,740 bytes**.
 Total partial modem coverage **11,352 bytes**: **11,044 source-encoded
 Hexagon code**, **296 structured ELF metadata**, **12 alignment**.
 The rest of the modem image and OEM signature remain incomplete.
+
+## Checkpoint 77 — Complete large controller-session function
+
+Added **156 source-assembled Hexagon V60 bytes** at original modem
+`[0x4489f4,0x448a90)` (virtual `[0x1e4029f4,0x1e402a90)`). This is
+ the original controller-session function's register/descriptor return and
+platform callback exit, including 64-bit status-pair copies and
+`dealloc_return`. LLVM6 fuses two full-width instructions into a duplex
+unless the source separates them. The checked post-assembler transform
+restores the original four-instruction packet, compare/predicated ordering,
+64-bit store/load producer order, and their packet markers. Negative tests
+reject any altered opcode, operand, branch displacement or parse bits.
+
+The entire **large session function is now byte-identical** through
+`0x448a90`, where the next independent routine starts. The auxiliary prefix
+`[0x446000,0x448a90)` spans **10,896 bytes**. Total partial modem
+coverage **11,508 bytes** = **11,200 source-encoded executable Hexagon**,
+**296 independently generated ELF metadata**, and **12 linker alignment**.
+OEM modem payload and full authentication remain incomplete.
