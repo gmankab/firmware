@@ -852,3 +852,23 @@ python3 tools/verify-agent20-10-cdsp-controller-enumeration.py \
   ```
 
 - Current next uncovered file byte is **`0x56a30`** (physical `0x96cc8a30`), beginning the indexed controller-record search. Branch ancestry remains provisional on Agent 05's older CDSP history, not checkpoint-50-integrated; source-byte equivalence is not full firmware re-signing or a hardware behavior test.
+
+## Checkpoint 44 — indexed controller record lookup to CDSP RWE 0x56a74
+
+- Added **68 independently encoded Hexagon V66 executable bytes** in CDSP file `[0x56a30,0x56a74)` (physical `[0x96cc8a30,0x96cc8a74)`), continuing the controller input-function begun at `0x568f0`. All **17 original instruction words are byte-identical** to the pinned CDSP reference without embedding OEM byte arrays in the Rust generator.
+- This range loads an indexed record from `R17+R23`, branches past invalid `-1` descriptors to `0x96cc8aa8`, emits a diagnostic trace through physical `0x96dc0bac`, saves stack/controller state using a V66 duplex packet, constructs an argument tuple for the resource helper at `0x96cd1230`, normalizes its return count and exits early if the candidate handle matches R16.
+- Independent LLVM6 fixture `tools/agent20-10-cdsp-controller-record-lookup-semantic.s` confirms eight original words exactly and seven more with **only packet parse bits changed**. LLVM6 uses explicit `P1=cmp.eq(...)` branches in place of the original `R3.new` and `R2.new` fused guard encodings; Rizin V66 checks the original 17-word arrangement and verifies that **both** equivalent branches target physical `0x96cc8aa8`. No claim of exact LLVM6 binary reassembly is made for altered schedule/guard forms.
+- The contiguous RWE layout `[0x56000,0x56a74)` is now **2,676 exact file bytes**, consisting of **2,620 independently source-encoded executable bytes** and **56 earlier structural NOP/fill bytes**. The separately completed `[0x55000,0x554b0)` controller adds another 1,200 executable bytes, giving **3,820 distinct CDSP executable bytes** in two non-overlapping firmware regions. Full CDSP reconstruction and OEM signing remain incomplete.
+- Reproduce the source-only output and independent verification:
+
+  ```sh
+  cargo run --offline --locked -p firmware-tools --bin cdsp-late-controller-record-lookup -- verify-prefix /private/cdsp.mbn
+  cargo run --offline --locked -p firmware-tools --bin cdsp-late-controller-record-lookup -- emit /tmp/cdsp-record-lookup-68.bin
+  cargo run --offline --locked -p firmware-tools --bin cdsp-late-controller-record-lookup -- emit-prefix /tmp/cdsp-rwe-prefix-2676.bin
+  python3 tools/verify-agent20-10-cdsp-controller-record-lookup.py \
+    --llvm-mc /private/llvm6/bin/llvm-mc --rz-asm /private/rz-asm \
+    --generated /tmp/cdsp-record-lookup-68.bin --reference /private/cdsp.mbn \
+    --prefix /tmp/cdsp-rwe-prefix-2676.bin
+  ```
+
+- First uncovered file byte: **`0x56a74`** (physical `0x96cc8a74`), inside the original controller candidate iteration. Branch ancestry remains **provisional from old Agent05**, not checkpoint-50-integrated. No hardware behavior or novel OEM authentication is established.
