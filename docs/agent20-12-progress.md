@@ -1496,3 +1496,18 @@ file bytes**. Total reconstructed later-modem coverage is **10,116 file
 bytes**: **9,808 Hexagon executable**, **296 semantic ELF metadata**, and
 **12 linker-fill bytes**. The original firmware remains incomplete and
 no newly generated OEM signature or hardware equivalence is claimed.
+
+## Checkpoint 64 — Signed frame-size comparison and controller notifier
+
+Reconstructed **96 directly source-assembled Hexagon V60 bytes** at file
+`[0x448520,0x448580)` (VMA `[0x1e402520,0x1e402580)`). Controller
+callbacks compare 64-bit size pairs, update result records, and choose an
+optional registry callback or the platform notifier before returning to
+an earlier resource-scanner loop. The relative branches are expressed
+symbolically; LLVM6 produces the original bytes **without any packet
+adjustment**. No OEM opcode data is embedded in the assembler source.
+
+Contiguous auxiliary coverage is **9,600 bytes** from file `0x446000`
+through `0x448580`. Total late-modem generated coverage **10,212 bytes**:
+**9,904 executable Hexagon bytes**, **296 ELF metadata**, and **12 linker
+alignment**. The modem image and its OEM authentication are incomplete.
