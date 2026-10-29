@@ -892,3 +892,23 @@ python3 tools/verify-agent20-10-cdsp-controller-enumeration.py \
   ```
 
 - First uncovered file offset is `0x56aa8` (physical `0x96cc8aa8`), in the same indexed-record controller search loop. This is a provisional branch rooted in Agent 05's prior CDSP history, **not** in a verified checkpoint-50 integration, and not complete signed/flashable firmware.
+
+## Checkpoint 46 — indexed-record cursor and function return through 0x56adc
+
+- Implemented **52 additional Hexagon V66 source-encoded executable bytes** in original CDSP `[0x56aa8,0x56adc)` (physical `[0x96cc8aa8,0x96cc8adc)`). All 13 words agree exactly with the pinned original; the instruction generator uses checked register/offset/packet operands and the unchanged original return form, not OEM instruction arrays.
+- This code advances the record cursor, tests the next descriptor for nonzero and loops to `0x96cc8a30`, bounds the byte-candidate scan at 30, computes a 160-byte entry stride, checks the candidate against a byte table, conditionally loops back to `0x96cc8990`, restores four callee-saved GPR pairs and executes `dealloc_return`. Both backedges use the **physical producer packet** start for relative displacement, not the consumer's address.
+- The independent LLVM6 fixture `tools/agent20-10-cdsp-controller-record-advance-semantic.s` reconstructs the same named instructions with **six exact instruction words**. LLVM6 changes two packet markers, one `P0.new` predicate qualifier and two R2.new consumer packets into explicit P1 compares; its branch-offset encoding for the bounded exit also differs due to reordering. Rizin V66 verifies every original word, the original new-value semantics and all three branch targets. The LLVM output is **not** claimed to be binary-identical for those changed packets.
+- The complete record-scan controller function now returns at `0x56adc`. The contiguous RWE prefix `[0x56000,0x56adc)` matches **2,780 file bytes**: **2,724 executable** and **56 structural/layout bytes**. With the earlier independent 1,200-byte controller `[0x55000,0x554b0)`, unique independently authored Hexagon executable coverage is **3,924 bytes** in disjoint regions. Full CDSP firmware is not reconstructed, signed, or hardware-verified.
+- Reproducer:
+
+  ```sh
+  cargo run --offline --locked -p firmware-tools --bin cdsp-late-controller-record-advance -- verify-prefix /private/cdsp.mbn
+  cargo run --offline --locked -p firmware-tools --bin cdsp-late-controller-record-advance -- emit /tmp/cdsp-record-cursor-52.bin
+  cargo run --offline --locked -p firmware-tools --bin cdsp-late-controller-record-advance -- emit-prefix /tmp/cdsp-rwe-prefix-2780.bin
+  python3 tools/verify-agent20-10-cdsp-controller-record-advance.py \
+    --llvm-mc /private/llvm6/bin/llvm-mc --rz-asm /private/rz-asm \
+    --generated /tmp/cdsp-record-cursor-52.bin --reference /private/cdsp.mbn \
+    --prefix /tmp/cdsp-rwe-prefix-2780.bin
+  ```
+
+- Next uncovered file address: `0x56adc` (physical `0x96cc8adc`), where two diagnostic helper-call sequences follow, and new independent function begins at `0x56b00`. Branch ancestry remains **Agent05-based/provisional**, not checkpoint-50-integrated.
