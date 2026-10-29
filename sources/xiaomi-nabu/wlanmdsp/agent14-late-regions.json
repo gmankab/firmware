@@ -1299,6 +1299,26 @@
       "sha256": "1e3d014abaf422b09b795e6061aaa6f36bb52c8be35cc4e2408ed7bc29e321a2",
       "checkpoint": 37,
       "classification": "executable"
+    },
+    {
+      "name": "session-record-codec-check",
+      "file_start": 1082216,
+      "file_end": 1082852,
+      "source": "sources/xiaomi-nabu/wlanmdsp/agent14-late-session-record-codec-check.S",
+      "symbol": "agent14_late_session_record_codec_check",
+      "sha256": "a2f146716945c67dbf202ad228c17aad98ba64a1975bfcde763d3ba616a4c078",
+      "checkpoint": 38,
+      "classification": "executable"
+    },
+    {
+      "name": "session-record-type-guard",
+      "file_start": 1082852,
+      "file_end": 1083172,
+      "source": "sources/xiaomi-nabu/wlanmdsp/agent14-late-session-record-type-guard.S",
+      "symbol": "agent14_late_session_record_type_guard",
+      "sha256": "20b20a9931c9c3a1f8d4e3d66bfa1c0b2d26bd85b098018b4763b9cf8c531871",
+      "checkpoint": 38,
+      "classification": "executable"
     }
   ]
 }

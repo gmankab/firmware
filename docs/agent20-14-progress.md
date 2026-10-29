@@ -1419,3 +1419,28 @@ workspace release build pass. The next function begins at `0x108368`.
 
 The 452-byte Agent13 seam and most of Agent14's 2.44MB allocation remain
 unreconstructed; on-device behavior and new OEM authentication are untested.
+
+## Checkpoint 38 — input record validation and classification
+
+Two complete Hexagon packetized routines at WLAN file offsets
+`[0x108368,0x108724)` (runtime `[0xb00c8368,0xb00c8724)`) contribute **956
+executable bytes**: `session-record-codec-check` (636 bytes, 71 packets)
+validates a packed interface record, compares 64-bit bounds, and dispatches
+status diagnostics; `session-record-type-guard` (320 bytes, 39 packets) checks
+record type, length and flags with a conditionally selected byte span.
+
+Both routines match the SHA-256-pinned reference **byte-for-byte** using two
+independent assemblers: LLVM22/HexagonV66 and LLVM6/HexagonV65. Source-level
+packet ordering preserves the data-dependent read-and-write `:mem_noshuf`
+packet and a two-word memory packet; two far jumps have explicit constant
+extenders. No original OEM opcode or opaque layout bytes are copied into the
+source. The cumulative executable region `[0x1001c4,0x108724)` is **34,144
+bytes**, plus **496 independently source-constructed jump-table data bytes** =
+**34,640 source-derived bytes total**. The next function starts at `0x108724`.
+
+The workspace passes **160 Rust tests, 203 Python tests (no skips)** and
+an offline release build. Exact per-region SHA-256, packet counts, decoder
+coverage and source paths are recorded in
+`docs/evidence/agent20-14/checkpoint-38.json`. The leading Agent13 seam
+`[0x100000,0x1001c4)` remains intentionally uncovered. Neither functional
+hardware behavior nor new OEM firmware authentication has been established.
