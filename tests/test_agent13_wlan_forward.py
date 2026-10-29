@@ -19,10 +19,10 @@ class SourceOnlyForwardTests(unittest.TestCase):
     def test_manifest_exact_boundaries(self):
         m=module()
         self.assertEqual(m.START,0x568c)
-        self.assertEqual(m.validate_manifest(),0x7560)
+        self.assertEqual(m.validate_manifest(),0x75b8)
         self.assertEqual(m.FILE_BASE+m.START,0x4568c)
-        self.assertEqual(m.FILE_BASE+m.validate_manifest(),0x47560)
-        self.assertEqual(sum(length for _,_,_,length in m.FRAGMENTS),7892)
+        self.assertEqual(m.FILE_BASE+m.validate_manifest(),0x475b8)
+        self.assertEqual(sum(length for _,_,_,length in m.FRAGMENTS),7980)
 
     def test_validator_forbids_opaque_data_and_layout_holes(self):
         m=module()
@@ -164,6 +164,17 @@ class SourceOnlyForwardTests(unittest.TestCase):
         self.assertIn('allocframe(#80)',text)
         self.assertNotIn('.incbin',text)
         self.assertNotIn('.word',text)
+
+    def test_session_report_uses_source_encoded_extracts_and_extended_jumps(self):
+        m=module()
+        path,off,size={n:(p,o,s) for n,p,o,s in m.FRAGMENTS}['session-parameter-report']
+        self.assertEqual((off,size),(0x7560,0x58))
+        source=path.read_text()
+        self.assertIn('r2 = extractu(r18,#1,#1)\n    call 0x1f783c',source)
+        self.assertIn('r2 = extractu(r18,#1,#2)\n    call 0x1f7830',source)
+        self.assertIn('jump ##0x488',source)
+        self.assertIn('jump ##0x558',source)
+        self.assertNotIn('.word',source)
 
     def test_controller_stage3_preserves_packet_order(self):
         m=module()

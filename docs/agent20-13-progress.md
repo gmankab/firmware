@@ -572,3 +572,22 @@ python3 tools/build-wlanmdsp-agent13.py /tmp/wlan-prefix-through-27a0.bin \
   Rust/Python tests and release build passed.
 - Still not checkpoint25-descended: checkpoint17–25 source integration
   is pending, as is full firmware signing and runtime validation.
+
+## Checkpoint 48 (disjoint) — controller parameter reports and extended branches
+
+- Added **88 independently assembled Hexagon instruction bytes** at WLAN
+  file `[0x47560,0x475b8)` (runtime `[0xb0007560,0xb00075b8)`). Three
+  format-field extracts are followed by controller diagnostic calls; the
+  section ends at two separate extended branch packets.
+- LLVM6 requires both `extractu` instructions grouped with their following
+  calls, and two explicit `##` immediate extenders for far conditional
+  paths. The call displacements are original packet-relative values,
+  authored in instruction source; no copied OEM opcode words or `.incbin`.
+- The complete disjoint continuation `[0x4568c,0x475b8)` is **7,980 exact
+  Hexagon source-assembled bytes**, SHA-256
+  `bbeda15366ba6d145b4c07bf214c93e394698cdd64bfe301914f82894dc0fd1c`.
+  Zero reference differences. Rust, Python and offline release-build checks
+  pass; next missing packet starts file `0x475b8` (vaddr `0xb00075b8`).
+- This remains a **checkpoint16-derived disjoint** contribution; absent
+  checkpoint17–25 commits must be integrated before asserting a contiguous
+  original WLAN prefix from file `0x40000`.
