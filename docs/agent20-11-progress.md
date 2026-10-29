@@ -507,3 +507,11 @@ python3 -m unittest discover -s tests -p 'test_*.py'
 - LLVM6 originally schedules the same legal predicate/call packet with the branch first. The verifier checks **all three independently assembled operands** and their parse bits, then restores source order and the correct halfword PC displacement. A separate GP-load class conversion is guarded by the signed extender and exact register fields. The subsequent two-access memory packet now groups naturally and needs no correction.
 - Generated 184-byte SHA-256: `08ef4f0d2a7d738b61935e7068681933586a2e1f5b72d5fb4afdcd0cd39e7100`, zero differences to original pinned `modem.mbn` SHA-256 `6f5cb32bc10e41abb40938d185805e788f5637a41d3ebcef278e4e169fc36782`. The two previous disjoint RWE islands and data/fill intervals remain **excluded** from this island's count.
 - Next independently reconstructible file offset: `0x39ea0`, start of a new controller-state/protected frame processing routine.
+
+## Checkpoint 64 — Controller ownership probe and descriptor reset
+
+- The third RWE island is extended by **72 independently source-assembled bytes** `[file 0x39ea0,0x39ee8)`, totaling **256 exact consecutive bytes** `[file 0x39de8,0x39ee8)`. Physical `[0x8e041de8,0x8e041ee8)` and virtual `[0xc0841de8,0xc0841ee8)`.
+- Checks three absolute per-core frame pointers through extended loads and fused `r18.new` conditional branches, clears five frame descriptor words using original Hexagon duplex packets, and dispatches through a genuinely extended far-branch and packetized status probes.
+- The assembler emits the packet/external-call forms directly once the original two-access packet and forced `jump ##` are expressed in source; the only normalization remains the checked GP-load class and legal earlier predicate/call packet. No new raw OEM instructions were imported.
+- Generated SHA-256: `9753d02131eae69b85d454601344a8c2aacc191b36884684de57503afe1aa963`, pinned `modem.mbn` reference comparison **zero differing bytes**. Earlier RWE islands and intervening non-source/data gaps remain excluded.
+- First uncovered file-backed instruction: `0x39ee8`, beginning a video/context handoff path requiring further protected ISA encoding.

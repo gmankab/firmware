@@ -86,3 +86,20 @@ MODEM_CTRL_SYS_READ 0,8,1
 { r0 = #0; dealloc_return }
 modem_ctrl_error_return:
 { r0 = #1; dealloc_return }
+// Probe three per-core controller pointers and zero the no-owner frame.
+// The compare/new-branch V60 duplex form is assembled from symbolic operands.
+.globl agent11_modem_rwe_probe_controller_owner
+agent11_modem_rwe_probe_controller_owner:
+.set modem_ctrl_owner_done,agent11_modem_rwe_controller_entry+0xe8
+{ r18 = memw(##-1065076432); if (cmp.eq(r18.new,#0)) jump:t modem_ctrl_owner_done }
+{ r18 = memw(##-1065067868); if (!cmp.eq(r18.new,#0)) jump:nt modem_ctrl_owner_done }
+{ r18 = memw(##-1065265136); if (cmp.eq(r18.new,#0)) jump:t modem_ctrl_owner_done }
+{ memw(r18+#36) = #0; memw(r18+#32) = #0 }
+{ memw(r18+#16) = #0; memw(r18+#20) = #0 }
+{ memw(r18+#4) = clrbit(#21) }
+modem_ctrl_owner_done:
+{ r18 = memw(##-1065268620) }
+.set modem_ctrl_far_handler,agent11_modem_rwe_controller_entry+0x242a4
+{ p0 = cmp.eq(r18,#0); if (p0.new) jump:t modem_ctrl_far_handler }
+.set modem_ctrl_fallback_next,agent11_modem_rwe_controller_entry+0xee0
+{ jump ##modem_ctrl_fallback_next }

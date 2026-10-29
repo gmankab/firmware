@@ -7,7 +7,7 @@ spec=importlib.util.spec_from_file_location('modem_rwe_controller',SCRIPT)
 mod=importlib.util.module_from_spec(spec);spec.loader.exec_module(mod)
 class ControllerTests(unittest.TestCase):
     def test_bounds_and_elf_addresses(self):
-        self.assertEqual((mod.FILE_START,mod.FILE_END),(0x39de8,0x39ea0))
+        self.assertEqual((mod.FILE_START,mod.FILE_END),(0x39de8,0x39ee8))
         self.assertEqual(mod.VIRTUAL_START-mod.FILE_START,0xc0808000)
         self.assertEqual(mod.PHYSICAL_START-mod.FILE_START,0x8e008000)
     def test_wrong_modem_reference_is_rejected(self):
@@ -25,7 +25,7 @@ class ControllerTests(unittest.TestCase):
         if not mc:self.skipTest('Set AGENT11_LLVM_MC to verify original LLVM6 source assembly')
         source=SCRIPT.parents[1]/'crates/firmware-tools/src/devices/xiaomi_nabu/modem_rwe_exception_controller.s'
         data=mod.assemble(Path(mc),source)
-        self.assertEqual(len(data),184)
+        self.assertEqual(len(data),256)
         get=lambda i:struct.unpack_from('<I',data,i-mod.FILE_START)[0]
         self.assertEqual(get(0x39de8),0x6e800000|(3<<14)|29)
         self.assertEqual(get(0x39dec),0x5bff7f8e)
@@ -45,6 +45,12 @@ class ControllerTests(unittest.TestCase):
         self.assertEqual(get(0x39e84),0x48203f40)  # dealloc_return r0=2
         self.assertEqual(get(0x39e98),0x48003f40)  # return r0=0
         self.assertEqual(get(0x39e9c),0x48103f40)  # return r0=1
+        self.assertEqual(get(0x39ea0),0x0c0850e4)
+        self.assertEqual(get(0x39ea8),0x2402e018)
+        self.assertEqual(get(0x39eac),0x0c08516a)
+        self.assertEqual(get(0x39ec4),0xf0a910a8)  # two zero stores
+        self.assertEqual(get(0x39ed8),0x00004906)  # forced far branch
+        self.assertEqual(get(0x39ee4),0x5800c050)  # far fallback jump
         ref=os.environ.get('AGENT11_MODEM_MBN')
         if ref:mod.verify(Path(ref).read_bytes(),data)
 if __name__=='__main__':unittest.main()
