@@ -1048,3 +1048,26 @@ controller path (416 bytes) is still unimplemented.
 **Cumulative: 11,124 independently source-generated executable bytes in 126
 verified fragments**. The full original ADSP image, firmware behavior, and
 new OEM signature remain outside these verified claims.
+
+**Checkpoint 64 — complete QuRT controller parameter handler:**
+New source-assembled **416-byte** function `[file 0x3f80c,0x3f9ac)`
+selects request/descriptor types, verifies resource dimensions and tag bits,
+marshals the controller's extended stack fields, invokes two platform helper
+routines and handles normal/error returns. Its 64-bit and .new conditional
+Hexagon packets are authored as semantic instruction groupings, with PC-relative
+external calls expressed by symbolic `.set` targets. The only assembly
+mismatch was a duplex pair at `[0x3f83c,0x3f844)`; moving `r1 = r3` before
+`r17 = #0` in the source packet produces exactly the original parse bits.
+
+The generated fragment SHA-256 is
+`840ca1cd9bd848928e174a34c459cca7b288b53b7616ed8d455674bde3468d72`
+and all bytes match pinned `adsp.mbn`. It joins checkpoint 62's preceding
+allocator at `0x3f80c` and checkpoint 63's following request dispatcher at
+`0x3f9ac`, producing **796 continuous source-generated Hexagon instruction
+bytes `[0x3f700,0x3fa1c)`**. The 16 NOP bytes `[0x3f6f0,0x3f700)` remain
+excluded from the independent source count.
+
+Cumulative Agent 08 coverage is now **11,540 executable bytes across 127
+verified fragments**. The high-level controller semantics are approximated
+from decoded instructions, not verified on hardware; the whole ADSP binary
+remains incomplete and not newly signed.

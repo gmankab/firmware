@@ -197,9 +197,9 @@ class ADSPExternalsAndCodeTests(unittest.TestCase):
     @unittest.skipUnless(LLVM_MC,'Hexagon LLVM6 assembler required')
     def test_complete_fragment_inventory_rejects_overlaps(self):
         manifest,regions=adsp.assembled_inventory(LLVM_MC,None)
-        self.assertEqual(len(manifest['fragments']),126)
-        self.assertEqual(manifest['total_independently_assembled_executable_bytes'],11124)
-        self.assertEqual(sum(map(len,regions.values())),11124)
+        self.assertEqual(len(manifest['fragments']),127)
+        self.assertEqual(manifest['total_independently_assembled_executable_bytes'],11540)
+        self.assertEqual(sum(map(len,regions.values())),11540)
         self.assertEqual(manifest['gap_bytes_included_in_generated_executables'],0)
         self.assertFalse(manifest['complete_adsp_image'])
         self.assertEqual(manifest['external_original_code_bytes_in_output'],0)
@@ -366,7 +366,7 @@ class ADSPExternalsAndCodeTests(unittest.TestCase):
     def test_inventory_every_fragment_uses_correct_original(self):
         inventory,_outputs=adsp.assembled_inventory(LLVM_MC,Path(REFERENCE).read_bytes())
         self.assertTrue(all(x['reference_byte_identical'] for x in inventory['fragments']))
-        self.assertEqual(inventory['total_independently_assembled_executable_bytes'],11124)
+        self.assertEqual(inventory['total_independently_assembled_executable_bytes'],11540)
 
     @unittest.skipUnless(LLVM_MC and REFERENCE,
                          'Hexagon LLVM6 and exact pinned ADSP reference required')
@@ -380,7 +380,7 @@ class ADSPExternalsAndCodeTests(unittest.TestCase):
                 adsp.verify_slice(built,original,off)
                 total+=len(built)
                 ranges.append((off,off+size))
-        self.assertEqual(total,11124)
+        self.assertEqual(total,11540)
         ranges.sort()
         self.assertEqual(ranges[0],(0x39000,0x39054))
         self.assertEqual(ranges[-1],(0x3640a8,0x3640f8))
@@ -1883,3 +1883,40 @@ class ADSPQuRTControllerRequestBridgeTests(unittest.TestCase):
         self.assertEqual(hashlib.sha256(result).hexdigest(),
             '377b1693882556c3c8eb9ff557e719845fb35e308d0f2e4ce51d9fb361976e09')
         if REFERENCE:adsp.verify_slice(result,Path(REFERENCE).read_bytes(),start)
+
+class ADSPQuRTControllerParameterHandlerTests(unittest.TestCase):
+    """Source-identical 416-byte Hexagon parameter and callback handler."""
+
+    def test_controller_handler_has_validated_layout(self):
+        src,off,n=adsp.FRAGMENTS['qurt-controller-parameter-handler']
+        self.assertEqual((off,n),(0x3f80c,416))
+        self.assertEqual(adsp.FRAGMENTS['qurt-controller-context-create'][1]+132,off)
+        self.assertEqual(off+n,adsp.FRAGMENTS['qurt-controller-request-bridge'][1])
+        text=src.read_text()
+        for forbid in ('.word ','.long ','.byte ','.fill ','.incbin '):
+            self.assertNotIn(forbid,text)
+        for token in ('handle_secondary_type:', 'alternate_type:',
+                      'external_cleanup:', 'check_descriptor:',
+                      'return_status:', 'memw(r29+#20) = #0',
+                      '{ call query_controller; r1 = r3; r17 = #0;'):
+            self.assertIn(token,text)
+
+    @unittest.skipUnless(LLVM_MC, 'Hexagon LLVM6 assembler required')
+    def test_reference_exact_and_796_byte_qurt_contiguous_cluster(self):
+        src,off,n=adsp.FRAGMENTS['qurt-controller-parameter-handler']
+        data=adsp.compile_source(LLVM_MC,src,n)
+        self.assertEqual(hashlib.sha256(data).hexdigest(),
+            '840ca1cd9bd848928e174a34c459cca7b288b53b7616ed8d455674bde3468d72')
+        if REFERENCE:adsp.verify_slice(data,Path(REFERENCE).read_bytes(),off)
+        # All seven function bodies join exactly without a raw byte pad.
+        names=['qurt-trap-init', 'qurt-raw-handle-dispatch',
+               'qurt-clear-register-bank','qurt-copy-register-bank',
+               'qurt-controller-context-create','qurt-controller-parameter-handler',
+               'qurt-controller-request-bridge']
+        pieces=[]
+        for name in names:
+            source, _offset, length = adsp.FRAGMENTS[name]
+            pieces.append(adsp.compile_source(LLVM_MC,source,length))
+        combined=b''.join(pieces)
+        self.assertEqual(len(combined),796)
+        if REFERENCE:adsp.verify_slice(combined,Path(REFERENCE).read_bytes(),0x3f700)
