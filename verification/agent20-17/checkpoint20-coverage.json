@@ -1,0 +1,38 @@
+{
+  "agent": 17,
+  "checkpoint": 20,
+  "firmware_profile": "postmarketos",
+  "base_commit": "9cb66cf0e7a42a11b8e1a74754ffaca0857c9145",
+  "source_parent": "51b1f91f32d32542aa03e114f5a2f4d94b559e2a",
+  "coverage": {
+    "file_start": 1642,
+    "file_end": 43618,
+    "byte_count": 41976,
+    "instruction_bytes": 41692,
+    "typed_jump_data_bytes": 284,
+    "copied_oem_bytes": 0,
+    "byte_mismatches": 0,
+    "sha256": "241436ebaa95f7f39140ee9ae5982b03b12cfdd033b3fa14f541c95d070be2ac"
+  },
+  "extension": {
+    "file_start": 40720,
+    "file_end": 43618,
+    "byte_count": 2898,
+    "instruction_count": 1062,
+    "instruction_bytes": 2898,
+    "typed_jump_data_bytes": 0
+  },
+  "next_unknown": {
+    "file_offset": 43618,
+    "issue": "N32 MEM indexed postindexed LHI.BI subopcode 0x5; pending checked encoder"
+  },
+  "gnu_nds32_assembly": "unavailable",
+  "hardware_execution": "untested",
+  "default_optimized_release": "unverified",
+  "tests": {
+    "rust_passed": 255,
+    "python_passed": 40,
+    "release_opt_level0_passed": true,
+    "reference_comparison_passed": true
+  }
+}
