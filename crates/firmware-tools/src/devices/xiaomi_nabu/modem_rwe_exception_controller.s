@@ -32,3 +32,57 @@ MODEM_CTRL_SYS_READ 29,0,3
 { p0 = cmp.eq(r1,#0); if (p0.new) jump:t agent11_modem_rwe_far_codec }
 .set agent11_modem_rwe_fallback,agent11_modem_rwe_controller_entry+0x28c4
 { jump agent11_modem_rwe_fallback }
+// Initialize per-thread handler state; preserve the externally generated GP
+// pointer and call earlier exception-frame helpers without inlining them.
+.globl agent11_modem_rwe_dispatch_per_thread
+agent11_modem_rwe_dispatch_per_thread:
+{ allocframe(#0) }
+.set modem_prev_capture,agent11_modem_rwe_controller_entry-0x4c8
+{
+  call modem_prev_capture
+  r1 = setbit(r1,#29)
+  r28 = r0
+}
+MODEM_CTRL_SYS_READ 1,0,3
+.set modem_prev_dispatch_handler,agent11_modem_rwe_controller_entry-0x494
+{
+  r0 = r28
+  p0 = cmp.eq(r0,#0)
+  r1 = memw(r1+#0)
+  if (p0) call modem_prev_dispatch_handler
+}
+{ r0 = add(r0,#8) }
+MODEM_CTRL_SYS_READ 28,8,1
+{ r1 = add(r28,#104) }
+MODEM_CTRL_SYS_READ 0,0,3
+.set modem_prev_service,agent11_modem_rwe_controller_entry-0x3dc
+{
+  r1 += mpyi(r28,#224)
+  call modem_prev_service
+}
+.set modem_diag_success,agent11_modem_rwe_controller_entry+0x11bc
+{ if (p0) call ##modem_diag_success }
+// The controller routes a zero-status callback to a direct fast-exit.
+.set modem_ctrl_call_done,agent11_modem_rwe_controller_entry+0xa0
+{ if (p0) jump:nt modem_ctrl_call_done }
+MODEM_CTRL_SYS_READ 18,28,3   // privileged status selector S28
+{ r0 = memw(##-1065077624); memw(r1=##-1065081904) = r18 }
+{ dccleana(r1) }
+MODEM_CTRL_SYS_READ 1,8,1
+{ r0 = extract(r0,#3,#0) }
+.set modem_ctrl_error_return,agent11_modem_rwe_controller_entry+0xb4
+{ p1 = cmp.eq(r0,r1); if (!p1.new) jump:nt modem_ctrl_error_return }
+{ r1 = memw(r0=##-1065081908) }
+{ r1 = add(r1,#1) }
+{ memw(r0+#0) = r1 }
+{ r0 = #2; dealloc_return }
+modem_ctrl_call_done:
+MODEM_CTRL_SYS_READ 0,8,1
+.set modem_ctrl_cleanup_0,agent11_modem_rwe_controller_entry-0x2fc
+{ call modem_ctrl_cleanup_0 }
+MODEM_CTRL_SYS_READ 0,8,1
+.set modem_ctrl_cleanup_1,agent11_modem_rwe_controller_entry-0x2d4
+{ call modem_ctrl_cleanup_1 }
+{ r0 = #0; dealloc_return }
+modem_ctrl_error_return:
+{ r0 = #1; dealloc_return }

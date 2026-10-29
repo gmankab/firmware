@@ -11,7 +11,7 @@ import argparse, hashlib, struct, subprocess, tempfile, runpy
 from pathlib import Path
 
 FILE_START = 0x39de8
-FILE_END = 0x39e0c
+FILE_END = 0x39ea0
 VIRTUAL_START = 0xc0841de8
 PHYSICAL_START = 0x8e041de8
 PINNED_SHA256 = '6f5cb32bc10e41abb40938d185805e788f5637a41d3ebcef278e4e169fc36782'
@@ -32,6 +32,20 @@ def normalize_v60_gp(source:bytes)->bytes:
     if words[index]!=0x919cc681:
         raise ValueError('Unexpected generic GP-load operands or packet marker')
     words[index]=(0x4980<<16)|(words[index]&0xffff)
+    # LLVM6 schedules the branch ahead of the mov/duplex in the same legal
+    # call packet. Preserve original dependency order, correcting only the
+    # architectural signed branch displacement for the moved branch slot.
+    # All operand, immediate and parse fields are checked on LLVM-built code.
+    a=(0x39e20-FILE_START)//4
+    source=tuple(words[a:a+3])
+    if source != (0x5dde609a, 0x707c4000, 0x59000011):
+        raise ValueError('Unexpected independent predicate/call packet')
+    branch,mov,duplex=source
+    if (branch & (3<<14))!=(1<<14) or (duplex & (3<<14)) != 0:
+        raise ValueError('Incompatible Hexagon packet markers')
+    # The moved branch targets the same absolute callable handler.
+    # Encoding stores the displacement in signed halfword units.
+    words[a:a+3]=[mov,duplex,branch-4]
     return struct.pack('<'+'I'*len(words),*words)
 
 def assemble(llvm_mc:Path,source:Path)->bytes:
