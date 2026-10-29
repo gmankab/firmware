@@ -1703,3 +1703,19 @@ The contiguous auxiliary prefix `[0x446000,0x448980)` is **10,624 bytes**.
 Total source-generated partial modem coverage **11,236 bytes** consists of
 **10,928 executable Hexagon**, **296 ELF metadata**, **12 alignment** bytes.
 The remaining modem firmware and OEM authentication remain incomplete.
+
+## Checkpoint 76 — Controller frame callback and missing-registry warning
+
+Added **116 byte-identical Hexagon V60 executable bytes** in file
+`[0x448980,0x4489f4)` (VMA `[0x1e402980,0x1e4029f4)`). The controller
+queries the next frame, calls the optional resource callback, emits the
+missing-registry diagnostic if required and returns to the earlier frame
+scanner. One checked correction restores the V60 predicated move before
+its independent compare/conditional jump, with opcode, register, branch
+and parse-marker negative tests. Symbolic external callbacks remain
+independent of the original reference.
+
+Contiguous auxiliary `[0x446000,0x4489f4)` = **10,740 bytes**.
+Total partial modem coverage **11,352 bytes**: **11,044 source-encoded
+Hexagon code**, **296 structured ELF metadata**, **12 alignment**.
+The rest of the modem image and OEM signature remain incomplete.

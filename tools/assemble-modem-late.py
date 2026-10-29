@@ -90,6 +90,7 @@ AUX_LARGE_CONTROLLER_PHASE44_SOURCE = ROOT / "crates/firmware-tools/src/devices/
 AUX_LARGE_CONTROLLER_PHASE45_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_aux_large_controller_phase45.s"
 AUX_LARGE_CONTROLLER_PHASE46_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_aux_large_controller_phase46.s"
 AUX_LARGE_CONTROLLER_PHASE47_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_aux_large_controller_phase47.s"
+AUX_LARGE_CONTROLLER_PHASE48_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_aux_large_controller_phase48.s"
 AUX_DISPATCH_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_aux_dispatch_helpers.s"
 AUX_TYPE_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_aux_type_config.s"
 AUX_NOTIFY_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_aux_controller_notify.s"
@@ -295,6 +296,8 @@ AUX_LARGE_CONTROLLER_PHASE46_START = AUX_LARGE_CONTROLLER_PHASE45_END
 AUX_LARGE_CONTROLLER_PHASE46_END = 0x448938
 AUX_LARGE_CONTROLLER_PHASE47_START = AUX_LARGE_CONTROLLER_PHASE46_END
 AUX_LARGE_CONTROLLER_PHASE47_END = 0x448980
+AUX_LARGE_CONTROLLER_PHASE48_START = AUX_LARGE_CONTROLLER_PHASE47_END
+AUX_LARGE_CONTROLLER_PHASE48_END = 0x4489F4
 MARKER_MASK = 3 << 14
 CONTINUE_MARKER = 1 << 14
 END_MARKER = 3 << 14
@@ -2348,6 +2351,30 @@ def restore_aux_large_controller_phase47_scan(assembled: bytes) -> bytes:
     return struct.pack('<18I',*w)
 
 
+def restore_aux_large_controller_phase48_predicated_packet(assembled: bytes) -> bytes:
+    """Keep the original predicated move before a compare/branch packet.
+
+    LLVM6 schedules the predicate producer ahead of the independent
+    conditional register assignment; reorder only after validating both
+    opcode classes, original registers, branch displacement and packet
+    continuation. No external OEM bytes are consulted.
+    """
+    if len(assembled)!=AUX_LARGE_CONTROLLER_PHASE48_END-AUX_LARGE_CONTROLLER_PHASE48_START:
+        raise ValueError('phase48 requires 116 source-assembled bytes')
+    w=list(struct.unpack('<29I',assembled))
+    compare,predicated=w[6:8]
+    if (compare>>24,predicated>>24)!=(0x10,0x74):
+        raise ValueError('phase48 predicate opcode classes changed')
+    if (compare&~MARKER_MASK,predicated&~MARKER_MASK)!=(
+            0x1040202e,0x74962002):
+        raise ValueError('phase48 predicate registers or branch changed')
+    if (compare&MARKER_MASK,predicated&MARKER_MASK)!=(
+            CONTINUE_MARKER,CONTINUE_MARKER):
+        raise ValueError('phase48 predicate packet markers changed')
+    w[6:8]=[predicated,compare]
+    return struct.pack('<29I',*w)
+
+
 def output_fragments(llvm_mc: Path) -> dict[int, bytes]:
     atomic = restore_atomic_packet_order(assemble(llvm_mc, ATOMIC_SOURCE))
     controller = restore_controller_packet_order(assemble(llvm_mc, CONTROL_SOURCE))
@@ -2448,6 +2475,8 @@ def output_fragments(llvm_mc: Path) -> dict[int, bytes]:
     aux_large_controller_phase46=assemble(llvm_mc,AUX_LARGE_CONTROLLER_PHASE46_SOURCE)
     aux_large_controller_phase47=restore_aux_large_controller_phase47_scan(
         assemble(llvm_mc,AUX_LARGE_CONTROLLER_PHASE47_SOURCE))
+    aux_large_controller_phase48=restore_aux_large_controller_phase48_predicated_packet(
+        assemble(llvm_mc,AUX_LARGE_CONTROLLER_PHASE48_SOURCE))
     aux_dispatch = assemble(llvm_mc,AUX_DISPATCH_SOURCE)
     aux_type = restore_aux_type_return_packets(assemble(llvm_mc,AUX_TYPE_SOURCE))
     aux_notify = restore_aux_controller_notify_packets(assemble(llvm_mc,AUX_NOTIFY_SOURCE))
@@ -2546,6 +2575,7 @@ def output_fragments(llvm_mc: Path) -> dict[int, bytes]:
         (aux_large_controller_phase45,AUX_LARGE_CONTROLLER_PHASE45_START,AUX_LARGE_CONTROLLER_PHASE45_END,'controller signed-decrement callback and fallback packet'),
         (aux_large_controller_phase46,AUX_LARGE_CONTROLLER_PHASE46_START,AUX_LARGE_CONTROLLER_PHASE46_END,'controller callback counters and scan result'),
         (aux_large_controller_phase47,AUX_LARGE_CONTROLLER_PHASE47_START,AUX_LARGE_CONTROLLER_PHASE47_END,'controller iteration bounds and optional callback'),
+        (aux_large_controller_phase48,AUX_LARGE_CONTROLLER_PHASE48_START,AUX_LARGE_CONTROLLER_PHASE48_END,'controller frame callback and missing-registry diagnostics'),
     ]:
         if len(fragment)!=end-start:
             raise ValueError(f"auxiliary {label} source length mismatch")
@@ -2638,7 +2668,8 @@ def output_fragments(llvm_mc: Path) -> dict[int, bytes]:
             AUX_LARGE_CONTROLLER_PHASE43_END==AUX_LARGE_CONTROLLER_PHASE44_START and
             AUX_LARGE_CONTROLLER_PHASE44_END==AUX_LARGE_CONTROLLER_PHASE45_START and
             AUX_LARGE_CONTROLLER_PHASE45_END==AUX_LARGE_CONTROLLER_PHASE46_START and
-            AUX_LARGE_CONTROLLER_PHASE46_END==AUX_LARGE_CONTROLLER_PHASE47_START):
+            AUX_LARGE_CONTROLLER_PHASE46_END==AUX_LARGE_CONTROLLER_PHASE47_START and
+            AUX_LARGE_CONTROLLER_PHASE47_END==AUX_LARGE_CONTROLLER_PHASE48_START):
         raise ValueError("controller phase13 gap was silently bridged")
     if AUX_LOOKUP_END!=AUX_REGISTRY_CORE_START or AUX_REGISTRY_CORE_END!=AUX_DISPATCH_START:
         raise ValueError("modem auxiliary registry source intervals have a gap")
@@ -2673,7 +2704,8 @@ def output_fragments(llvm_mc: Path) -> dict[int, bytes]:
                         aux_large_controller_phase40+aux_large_controller_phase41+
                         aux_large_controller_phase42+aux_large_controller_phase43+
                         aux_large_controller_phase44+aux_large_controller_phase45+
-                        aux_large_controller_phase46+aux_large_controller_phase47,
+                        aux_large_controller_phase46+aux_large_controller_phase47+
+                        aux_large_controller_phase48,
     }
 
 
