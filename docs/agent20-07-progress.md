@@ -1532,3 +1532,17 @@ python3 -S tools/adsp-agent20-rwe-next-controller-purge-wrapper.py \
   --llvm-mc "$HEXAGON_LLVM_MC" --reference "$NABU_ADSP_REFERENCE" \
   --output /tmp/adsp-controller-purge-wrapper-28.bin
 ```
+
+## Checkpoint 93: controller runtime-cycle and thread-start wrapper `[0x13850,0x138ec)`
+
+- Rebuilt **156 byte-identical Hexagon V66 executable bytes** (39 instruction words), ADSP file `[0x13850,0x138ec)`, physical `[0x8be10850,0x8be108ec)`, SHA-256 `c63e8c8a0bbbfa890462553634551a8a5a193f60c59171fb02dd936bf9ce7f90`.
+- The wrapper synchronizes the controller cycle counter, writes timing registers, cleans an instruction/data-cache line, starts the selected thread, performs K0-protected callbacks and records post-startup cycle deltas. It branches to the original controller finalizer with a restored frame; following four bytes are file-backed zero-fill, **not code**.
+- LLVM6 source-assembles **34 ordinary instructions**, including `dccleaninva(r0)` and the combined memory operations under `:mem_noshuf`. Five V66-only instructions are individually encoded from checked operands: paired `PCYCLE` reads into `R1:0` and `R3:2`, `start(R0)`, `k0lock`, and `k0unlock`. Two instruction words at offsets `0x1386c` and `0x13878` use only validated `packet_continuation` parse changes; none of their operand bits is altered or replaced with OEM machine code.
+- This function begins after **twelve bytes `[0x13844,0x13850)` of zero linker fill**. **Cumulative independently source-built ADSP RWE code: 14,092 bytes across 25 disjoint intervals**, plus separately source-authored 148-byte format-handler data. No OEM-authenticated image signing or hardware behavior is claimed.
+- Pinned ADSP SHA-256 verified, byte comparison exact, independent LLVM6/Rizin decode, deliberately corrupted output/wrong revision checks, Rust/Python test suites, release build and Git bundle verification pass.
+
+```sh
+python3 -S tools/adsp-agent20-rwe-next-controller-runtime-clock.py \
+  --llvm-mc "$HEXAGON_LLVM_MC" --reference "$NABU_ADSP_REFERENCE" \
+  --output /tmp/adsp-runtime-clock-156.bin
+```
