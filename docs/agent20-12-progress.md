@@ -1787,3 +1787,17 @@ Contiguous auxiliary prefix `[0x446000,0x448b8c)` = **11,148 bytes**.
 Total generated partial modem coverage **11,760 bytes**: **11,452 executable
 Hexagon bytes**, **296 structured ELF metadata**, **12 linker alignment**.
 The remaining modem code and original OEM authentication are not rebuilt.
+
+## Checkpoint 81 — Controller compact type-5 field and callback
+
+Added **76 byte-identical Hexagon V60 bytes** at `[0x448b8c,0x448bd8)`
+(VMA `[0x1e402b8c,0x1e402bd8)`). The record parser checks that byte 5
+is one of two supported values, routes invalid values to the controller's
+source-defined diagnostic callback and retains the original error return.
+The LLVM6 assembler matches exact instruction bytes and packet structure
+without any postassembly corrections. The accepted path continues at
+`0x448bd8`, where subsequent record fields remain to be rebuilt.
+
+Contiguous auxiliary prefix `[0x446000,0x448bd8)` = **11,224 bytes**.
+Total partial reconstruction **11,836 bytes**: **11,528 executable**,
+**296 ELF metadata**, **12 alignment**. This is not full modem code.
