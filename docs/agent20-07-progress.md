@@ -1458,3 +1458,17 @@ python3 -S tools/adsp-agent20-rwe-next-controller-record-snapshot.py \
   --llvm-mc "$HEXAGON_LLVM_MC" --reference "$NABU_ADSP_REFERENCE" \
   --output /tmp/adsp-controller-record-snapshot-232.bin
 ```
+
+## Checkpoint 88: controller record-detach initial lookup `[0x13480,0x13514)`
+
+- Added **148 byte-identical executable bytes** (37 Hexagon V66 words) at ADSP file `[0x13480,0x13514)`, physical `[0x8be10480,0x8be10514)`, SHA-256 `ef228e884d45f0f18550e17e72e51e9a528a5af477cee7689019306a397115e8`.
+- Starts after eight bytes of reference zero linker fill `[0x13478,0x13480)`, which remain **excluded** from independently authored executable coverage. The routine is **partial**: controller-record field processing and its normal/recovery return continue after `0x13514`.
+- Explicit Hexagon V66 packets implement the record index check, lookup of GP-backed controller globals, linked-list traversal, and three error branches. LLVM6 assembles 36 of 37 words; the one V66-only `R2=SGP0` at `0x1348c` uses a checked named operand encoder after verifying a NOP sentinel. No source-derived instructions are copied as raw OEM words.
+- Total source-built ADSP RWE executable: **13,132 bytes across 23 disjoint intervals**, plus 148 bytes of source-generated codec handler *data* from checkpoint 80. File linker fill and diagnostic text remain outside code totals.
+- The pinned ADSP image SHA is `4b579e5dc1333d634e5bdc93f3314e357e0e30dab7140833f6cc7aef086b1c1e`. Byte comparison, revision/corruption safety tests, independent LLVM6 assembly, and regression suites pass. This is a partial function and not independently OEM-authenticated firmware.
+
+```sh
+python3 -S tools/adsp-agent20-rwe-next-controller-record-detach-prefix.py \
+  --llvm-mc "$HEXAGON_LLVM_MC" --reference "$NABU_ADSP_REFERENCE" \
+  --output /tmp/adsp-controller-record-detach-prefix-148.bin
+```
