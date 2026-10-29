@@ -19,10 +19,10 @@ class SourceOnlyForwardTests(unittest.TestCase):
     def test_manifest_exact_boundaries(self):
         m=module()
         self.assertEqual(m.START,0x568c)
-        self.assertEqual(m.validate_manifest(),0x7990)
+        self.assertEqual(m.validate_manifest(),0x7ab0)
         self.assertEqual(m.FILE_BASE+m.START,0x4568c)
-        self.assertEqual(m.FILE_BASE+m.validate_manifest(),0x47990)
-        self.assertEqual(sum(length for _,_,_,length in m.FRAGMENTS),8964)
+        self.assertEqual(m.FILE_BASE+m.validate_manifest(),0x47ab0)
+        self.assertEqual(sum(length for _,_,_,length in m.FRAGMENTS),9252)
 
     def test_validator_forbids_opaque_data_and_layout_holes(self):
         m=module()
@@ -53,6 +53,34 @@ class SourceOnlyForwardTests(unittest.TestCase):
         self.assertIn('loop0(L_00514,r7)',bitmap)
         self.assertIn('}:endloop0',bitmap)
         self.assertIn('}:endloop0',loop)
+
+    def test_session_handler_hardware_loop_and_next_cases(self):
+        m=module()
+        parts={name:(source,off,size) for name,source,off,size in m.FRAGMENTS}
+        expected=[
+            ('session-handler-bitmap-3d8-420',0x7990,0x48),
+            ('session-handler-report-420-450',0x79d8,0x30),
+            ('session-handler-cases-450-474',0x7a08,0x24),
+            ('session-handler-flags-474-4a0',0x7a2c,0x2c),
+            ('session-handler-callbacks-4a0-4d0',0x7a58,0x30),
+            ('session-handler-tail-4d0-4f8',0x7a88,0x28),
+        ]
+        for name,off,size in expected:
+            self.assertIn(name,parts)
+            self.assertEqual(parts[name][1:],(off,size))
+        loop=parts['session-handler-bitmap-3d8-420'][0].read_text()
+        self.assertIn('loop0(L_bitmap_loop,r2)',loop)
+        self.assertIn('L_bitmap_loop:',loop)
+        self.assertIn('}:endloop0',loop)
+        self.assertIn('r2 = setbit(r2,r3)',loop)
+        callback=parts['session-handler-callbacks-4a0-4d0'][0].read_text()
+        self.assertIn('callr r4',callback)
+        self.assertIn('r0 = r19;',callback)
+        self.assertIn('r2 = r18',callback)
+        for name,_,_ in expected:
+            asm=parts[name][0].read_text()
+            for raw in ('.incbin','.byte','.word','.fill','.quad','.long'):
+                self.assertNotIn(raw,asm)
 
     def test_next_controller_split_is_adjacent(self):
         m=module()

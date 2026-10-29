@@ -681,3 +681,21 @@ python3 tools/build-wlanmdsp-agent13.py /tmp/wlan-prefix-through-27a0.bin \
 - Git base is still checkpoint16, not the missing 17–25 history or the
   checkpoint-50-integrated branch. This does not prove a contiguous whole
   firmware executable prefix or any new OEM signature/hardware behavior.
+
+## Checkpoint 53 (disjoint) — hardware bitmap loop, handlers and callback dispatch
+
+- Added **288 independently source-assembled Hexagon bytes** in WLAN file
+  `[0x47990,0x47ab0)` (VMA `[0xb0007990,0xb0007ab0)`).
+  The 72-byte bitmap/hardware-loop section uses `loop0(L_bitmap_loop,r2)`
+  with a local label and a paired `:endloop0`, producing the reference
+  loop opcode without embedding reference words.
+- The five other packet-aligned segments implement record callbacks, state
+  changes, per-class error reporting and the next guarded dispatch path.
+  All branches and duplex register assignments are written as readable
+  semantic Hexagon source, with no reference opcode arrays.
+- Total disjoint Agent 13 coverage becomes **9,252 exact instruction bytes**
+  at `[file 0x4568c,0x47ab0)`. Original `wlanmdsp.mbn` is used only for
+  optional strict post-build comparison.
+- This agent branch **still starts from checkpoint 16**, not checkpoint 25.
+  No continuous WLAN code coverage from `0x40000`, full rebuilt image,
+  OEM re-signing, or hardware execution is claimed.
