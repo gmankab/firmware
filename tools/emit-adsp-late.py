@@ -70,6 +70,7 @@ FRAGMENTS = {
     'controller-case-router': (TOOLS / 'adsp-late-controller-case-router.S', 0x3BAC0, 0x7C),
     'controller-format-trampoline': (TOOLS / 'adsp-late-controller-format-trampoline.S', 0x3BB40, 0x0C),
     'controller-format-bits': (TOOLS / 'adsp-late-controller-format-bits.S', 0x3BB4C, 0x98),
+    'controller-filter-records': (TOOLS / 'adsp-late-controller-filter-records.S', 0x3BE9C, 0x11C),
     'descriptor-tag-compare': (TOOLS / 'adsp-late-descriptor-tag-compare.S', 0x3BFB8, 0x14),
     'atomic-event-bit': (TOOLS / 'adsp-late-atomic-event-bit.S', 0x3BFCC, 0x44),
     'packet-type-check': (TOOLS / 'adsp-late-packet-type-check.S', 0x3D048, 0x14),

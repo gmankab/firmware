@@ -1141,3 +1141,18 @@ It connects directly to prior `format-constraint`, `parameter-combine` and
 `[0x3bd60,0x3be9c)`. Cumulative coverage is **12,160 executable bytes
 across 132 verified disjoint fragments**. Adjacent unimplemented functions,
 OEM firmware signing and hardware-level behavior remain outside scope.
+
+**Checkpoint 69 — packed controller record filtering:**
+Rebuilt a full **284-byte** record selection/filter routine
+`[0x3be9c,0x3bfb8)` with a bounded controller list walk, 64-bit mask
+checks, temporary record storage, optional error-report callbacks and
+saved-register return. The original packet `[0x3beec,0x3bef8)` places the
+`r17 = #0` assignment before the `r21 = #16` / memory-load duplex; LLVM6
+reproduced it after reordering these authored operations. It matches every
+byte of the pinned ADSP image (SHA-256
+`34167d91ddf66a4f03e3bf3257688a39ffff24037e3db29dc0f9594160cbc3aa`).
+It connects to the prior descriptor-tag comparator and atomic event-bit
+setter, yielding **372 contiguous byte-identical executable bytes**
+`[0x3be9c,0x3c010)`, excluding no OEM padding and importing no vendor words.
+Agent 08 cumulative source-assembled coverage is now **12,444 executable
+bytes across 133 verified fragments**. This is not complete ADSP firmware.
