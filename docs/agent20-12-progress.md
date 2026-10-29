@@ -1427,3 +1427,19 @@ is **9,720 bytes**, consisting of **9,412 executable source bytes**,
 **296 ELF metadata bytes** and **12 linker alignment bytes**. All bytes
 match pinned original `modem.mbn`; this is not a full firmware rebuild
 or a newly valid OEM signature.
+
+## Checkpoint 60 — Extended controller report and buffer format fallback
+
+Added **60 byte-identical executable bytes** at modem file
+`[0x448394,0x4483d0)` (VMA `[0x1e402394,0x1e4023d0)`). The code selects
+a fixed controller mapping, emits callback/diagnostic packets, and restores
+the codec-format processing context. Two checked LLVM6 source-packet
+corrections issue the controller store before a following load and preserve
+an extended conditional report before the predicated branch; their ISA
+opcode, operand, immediate, target, and packet-marker checks fail closed.
+
+Full auxiliary prefix `[0x446000,0x4483d0)` now covers **9,168 bytes**.
+Total rebuilt later-modem coverage **9,780 bytes** is **9,472 Hexagon
+executable**, **296 source-generated ELF metadata**, and **12 explicit
+linker-alignment zeros**, all byte-identical to the pinned modem reference.
+Remaining modem executable and OEM authentication are not reconstructed.
