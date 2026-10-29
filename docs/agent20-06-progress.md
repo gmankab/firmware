@@ -839,3 +839,12 @@ python3 tools/agent20_06_a32_roundtrip.py /private/venus.mbn 0xa8ea0 0xa92c8 \
 - Independent Clang/LLVM `tools/agent20_06_a32_roundtrip.py` with the three `--data-range`s independently matched all new 492 bytes, without classifying literal pointers as instructions.
 - With isolated Rust/Cargo target and reduced debug information to avoid 4-GiB compiler OOM, the Rust workspace reports **258 tests passed**, and the Python suite **13 tests passed**. Offline release build was not run for this checkpoint.
 - Next missing runtime instruction: **`0xc5cd8`** (MBN file `0xc9cd8`). This remains a **provisional old-base** branch, not a checkpoint-50-based integration; byte identity is instruction encoding equivalence, not behavioral validation or independent OEM signing.
+
+## Checkpoint 86 — frame registration, state flags and MMIO modes
+
+- Source-derived typed ARM32 output `[runtime 0xa8000,0xc5fac)` = **122,796 byte-identical bytes**; reference MBN `[0xac000,0xc9fac)`.
+- Newly rebuilt `[0xc5cd8,0xc5fac)` = **724 bytes**, comprising **178 instructions** (712 bytes) and three explicitly classified diagnostic pointers (12 bytes) in pools `[0xc5f34,0xc5f38)` and `[0xc5fa4,0xc5fac)`.
+- The function registers live codec dimensions, propagates flags, maintains controller MMIO bit fields and returns via the original `pop {...pc}` at `0xc5f88`, followed by a conditional error path. New helper code at `0xc5fac` remains uncovered.
+- Direct `agent20_06_venus_tail -- verify` matches pinned original Venus MBN (`9d4af65d7ede845e900f1b29ff425b7a8e2947056e695e246e58a2091445a085`) with **zero mismatches**. Independent Clang/LLVM mnemonic round-trip verifies all 712 code and 12 explicit data bytes.
+- Cargo workspace Rust test output confirms **259 tests passed**, Python suite **13 passed**. The combined invocation exceeded the command execution window after the completed Rust test output; Python was rerun and passed separately. Release build was not run.
+- Next missing runtime address `0xc5fac` (original file `0xc9fac`), within the later error-handling path. Work remains provisional from older agent ancestry, not a claimed checkpoint-50 integration.
