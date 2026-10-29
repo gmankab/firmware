@@ -515,3 +515,11 @@ python3 -m unittest discover -s tests -p 'test_*.py'
 - The assembler emits the packet/external-call forms directly once the original two-access packet and forced `jump ##` are expressed in source; the only normalization remains the checked GP-load class and legal earlier predicate/call packet. No new raw OEM instructions were imported.
 - Generated SHA-256: `9753d02131eae69b85d454601344a8c2aacc191b36884684de57503afe1aa963`, pinned `modem.mbn` reference comparison **zero differing bytes**. Earlier RWE islands and intervening non-source/data gaps remain excluded.
 - First uncovered file-backed instruction: `0x39ee8`, beginning a video/context handoff path requiring further protected ISA encoding.
+
+## Checkpoint 65 — Video-frame bounds and privileged controller bank return
+
+- The third modem RWE island is now **420 independently assembled, byte-identical Hexagon V60 bytes** `[file 0x39de8,0x39f8c)`, physical `[0x8e041de8,0x8e041f8c)` and virtual `[0xc0841de8,0xc0841f8c)`. New `[0x39ee8,0x39f8c)` contributes **164 original executable bytes**.
+- Source-authored SGP0 swap, privileged S8 controller read, original video-frame pointer assembly, saved P3:0 and register-pair capture, bounds-check `p0=boundscheck(r23:22,r29:28):raw:lo`, two codec-ID predicate paths and SGP0 return. The far PC-relative jump is forced through a Hexagon immediate extender and retains the original target. The fallback function restores all register pairs before switching the SGP0 bank back.
+- LLVM 6 assembles the instruction operands directly. Two alternate valid producer/branch packet orders are strictly checked and reordered to the original code's parse fields, with zero copied OEM opcodes. Existing earlier callback/GP normalizers remain fail-closed. Independent decoder confirmed source semantics and original register fields.
+- Complete 420-byte output SHA-256 `3f127e23b4a7189634b3448adafcf625e1829c007753f71b5e610f20c7d8e004`, **zero mismatches** to pinned modem reference SHA-256 `6f5cb32bc10e41abb40938d185805e788f5637a41d3ebcef278e4e169fc36782`.
+- Next unimplemented executable instruction is `[file 0x39f8c]`; no intervening bytes are silently counted as source or BSS. Neither later modem image sections nor OEM authentication are complete.

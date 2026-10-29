@@ -11,6 +11,24 @@
   .word (0x6e800000 | (\sys<<16) | (\marker<<14) | \dest)
 .endm
 
+.macro MODEM_CTRL_SWAP_SGP0 gpr,marker=3
+ .if (\gpr<0)||(\gpr>31)||(\marker!=3)
+  .error "invalid SGP0 swap register or packet marker"
+ .endif
+ .word (0x65000000 | (\gpr<<16) | (\marker<<14))
+.endm
+.macro MODEM_CTRL_Y_READ gpr,yreg,marker=1
+ .if (\gpr<0)||(\gpr>31)||(\yreg<0)||(\yreg>31)||(\marker<1)||(\marker>3)
+  .error "invalid Y-register read"
+ .endif
+ .word (0x6a000000 | (\yreg<<16) | (\marker<<14) | \gpr)
+.endm
+.macro MODEM_CTRL_Y_WRITE special,gpr,marker=1
+ .if (\special<0)||(\special>31)||(\gpr<0)||(\gpr>31)||(\marker<1)||(\marker>3)
+  .error "invalid register-to-Y write or packet marker"
+ .endif
+ .word (0x62000000 | ((\gpr+32)<<16) | (\marker<<14) | \special)
+.endm
 .globl agent11_modem_rwe_controller_entry
 agent11_modem_rwe_controller_entry:
 // Public privileged system register S0 / per-thread controller selector.
@@ -103,3 +121,58 @@ modem_ctrl_owner_done:
 { p0 = cmp.eq(r18,#0); if (p0.new) jump:t modem_ctrl_far_handler }
 .set modem_ctrl_fallback_next,agent11_modem_rwe_controller_entry+0xee0
 { jump ##modem_ctrl_fallback_next }
+// Capture the current video context into the protected exception frame.
+.globl agent11_modem_rwe_begin_video_context
+agent11_modem_rwe_begin_video_context:
+MODEM_CTRL_SWAP_SGP0 9,3
+MODEM_CTRL_SYS_READ 9,8,3
+{ r9 = asl(r9,#18) }
+{ r9.l = #22528 }
+{ r9 |= lsr(r9,#16) }
+{ r9.h = #49281 }
+{ r9 = memw(r9+#0) }
+MODEM_CTRL_SYS_READ 30,6,1
+{ memd(r9+#8) = r31:30; memd(r9+#16) = r29:28 }
+MODEM_CTRL_Y_READ 31,4,1
+{ r28 = ##-805306368; memd(r9+#24) = r23:22 }
+// Validate restored video frame boundaries before replacing frame registers.
+.set modem_ctrl_video_frame_restore,agent11_modem_rwe_controller_entry+0x190
+{
+  p0 = !tstbit(r30,#16)
+  if (p0.new) jump:nt modem_ctrl_video_frame_restore
+  r30 = and(r30,#255)
+  r29.l = #0
+}
+MODEM_CTRL_SYS_READ 22,9,1
+.set modem_ctrl_frame_control_accept,agent11_modem_rwe_controller_entry+0x16c
+{
+  p0 = cmp.eq(r30,#35)
+  if (p0.new) jump:nt modem_ctrl_frame_control_accept
+  r29.h = #53248
+}
+MODEM_CTRL_SYS_READ 22,3,1
+{
+  p0 = cmp.eq(r30,#29)
+  if (p0.new) jump:nt modem_ctrl_frame_control_accept
+}
+{ jump modem_ctrl_video_frame_restore }
+// Bounds-check the active video frame; restore the protected SGP0 bank
+// and tail-transfer to the saved video-thread dispatcher.
+// Bounds check starts at 0x39f50; both earlier branches deliberately
+// address the second instruction in the original packet.
+{
+  p0 = boundscheck(r23:22,r29:28):raw:lo
+  if (!p0.new) jump:nt modem_ctrl_video_frame_restore
+  memw(r9+#4) = r22
+}
+MODEM_CTRL_Y_WRITE 4,31,1
+{ r23:22 = memd(r9+#24) }
+{ r29:28 = memd(r9+#16); r31:30 = memd(r9+#8) }
+MODEM_CTRL_SWAP_SGP0 9,3
+.set modem_ctrl_video_thread_resume,agent11_modem_rwe_controller_entry+0x3fd14
+{ jump ##modem_ctrl_video_thread_resume }
+modem_ctrl_video_frame_restore:
+MODEM_CTRL_Y_WRITE 4,31,1
+{ r23:22 = memd(r9+#24) }
+{ r29:28 = memd(r9+#16); r31:30 = memd(r9+#8) }
+MODEM_CTRL_SWAP_SGP0 9,3

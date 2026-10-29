@@ -11,7 +11,7 @@ import argparse, hashlib, struct, subprocess, tempfile, runpy
 from pathlib import Path
 
 FILE_START = 0x39de8
-FILE_END = 0x39ee8
+FILE_END = 0x39f8c
 VIRTUAL_START = 0xc0841de8
 PHYSICAL_START = 0x8e041de8
 PINNED_SHA256 = '6f5cb32bc10e41abb40938d185805e788f5637a41d3ebcef278e4e169fc36782'
@@ -46,6 +46,23 @@ def normalize_v60_gp(source:bytes)->bytes:
     # The moved branch targets the same absolute callable handler.
     # Encoding stores the displacement in signed halfword units.
     words[a:a+3]=[mov,duplex,branch-4]
+    # Two other predicate-producing Hexagon packets have the same legal
+    # producer-first / branch-first ordering choice. Guard all assembled
+    # register, condition and immediate fields before any swap.
+    for address,expected_branch,expected_pred,terminal in (
+        (0x39f34,0x5c004810,0x751e4460,False),
+        (0x39f44,0x5c004808,0x751ec3a0,True),
+    ):
+        k=(address-FILE_START)//4
+        if tuple(words[k:k+2]) != (expected_branch,expected_pred):
+            raise ValueError(f'Unexpected video-frame predicate packet at 0x{address:x}')
+        b,p=words[k:k+2]
+        if terminal:
+            # The compare must continue and the conditional jump must close
+            # the original packet. No non-marker operand bits are changed.
+            words[k:k+2]=[(p&~(3<<14))|(1<<14), (b&~(3<<14))|(3<<14)]
+        else:
+            words[k:k+2]=[p,b]
     return struct.pack('<'+'I'*len(words),*words)
 
 def assemble(llvm_mc:Path,source:Path)->bytes:
