@@ -559,3 +559,42 @@ integration is owned by Agent01, and the cumulative patch is provided.
 - New EX9 dependency uses: 319, distinct EX9 table indices: 122; these table bytes belong to Agent 18 and are excluded from source-generated count.
 - `cargo test --workspace --offline --locked` passes **260 Rust tests**, Python discovery **40 tests**, and opt-level-0 offline release builds pass; independent GNU NDS32 assembler and default optimized release remain **unverified**. Hardware run not performed.
 - Next uncovered file `0xdd9a` (runtime `0xdb9a`); assigned upper boundary still `0x10000`. This remains source-encoded instruction equivalence, not behavioral source decompilation or a signed image.
+
+## Checkpoint 23 — Entire assigned lower ILM interval byte-covered
+
+Agent 17's **assigned postmarketOS file interval is complete at instruction-byte
+encoding level**: `[0x66a,0x10000)` = **63,894 contiguous source-derived bytes**, SHA-256
+`3537fd832f28904d18df07180d375ceba101483da57a3b659659ae826f3f1dac`,
+all matching the pinned original exactly, **zero mismatches**. Breakdown:
+
+- **63,556 bytes** of complete typed NDS32 executable instructions (using
+  checked constructors, without embedding original instruction byte arrays).
+- **336 bytes** of source-authored jump-table data with named branch targets;
+  the latest two tables are at file `[0xdfa0,0xdfa6)` (five byte offsets plus
+  an alignment zero) and `[0xf5b4,0xf5ce)` (13 LE halfword offsets).
+- **2 bytes** of a **cross-owner NDS32 instruction prefix** at file
+  `[0xfffe,0x10000)`, encoded using the full typed instruction
+  `MOVI r6, 131332` (`0x44620104`). The remaining two bytes
+  `[0x10000,0x10002)` belong to Agent 18; **they are not emitted here**.
+- **Zero** copied OEM payload/instruction bytes and **zero** dummy fill.
+
+New since checkpoint 22: file `[0xdd9a,0x10000)` = 8,806 source-generated
+bytes (8,772 complete instruction bytes, 32 jump-table bytes, 2 shared
+instruction-prefix bytes). As a result there are **no bytes remaining in
+Agent 17's exclusive file reservation**. This is not a claim that the whole
+Novatek ILM or full firmware is reconstructed: Agent 18 owns `[0x10000,... )`,
+and runtime execution/ISA semantic equivalence is not yet tested.
+
+All required source-side gates run and pass: **263 Rust tests**, **40 Python
+tests**, `git diff --check`, verified pinned reference byte equality, and
+an offline opt-level-0 release build. The **default optimized release build
+and independent GNU NDS32 assembler** remain unverified/unavailable in this
+runtime and should not be reported as passing. The older map220v profile's
+separately maintained prefix comparison still passes; the remainder of this
+large extension is specific to the pinned postmarketOS revision.
+
+The standalone branch still descends from Agent 09 SHA
+`51b1f91f32d32542aa03e114f5a2f4d94b559e2a`, not a checkpoint-50-integrated
+source tree. Apply the portable patch to the actual integration base; Agent 01
+owns the final shared-file merge. Signing, hardware boot and complete image
+reconstruction are separate pending tasks.

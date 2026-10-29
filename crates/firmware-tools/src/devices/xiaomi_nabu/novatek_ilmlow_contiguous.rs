@@ -8,7 +8,11 @@
 use super::{Profile,FILE_START,ILM_FILE_BASE};
 use super::isa::{Insn,Reg};
 
-pub const FILE_END:usize=super::extension15::FILE_END;
+/// Exclusive upper boundary of Agent17's assigned ILM file range.
+pub const FILE_END:usize=0x10000;
+/// The instruction begins two bytes before Agent17/18's file split. It is
+/// encoded as a complete NDS32 MOVI, but only the first halfword is owned here.
+pub const CROSS_OWNER_WORD_FILE:usize=0xfffe;
 pub const MOVD44_GAP_ONE:usize=0x38bc;
 pub const MOVD44_GAP_TWO:usize=0x39f8;
 
@@ -47,7 +51,15 @@ pub fn build_postmarketos()->Result<Vec<u8>,String>{
         super::extension13::fragment(),
         super::extension14::fragment(),
         super::extension15::fragment(),
+        super::extension16::fragment(),
+        super::extension17::fragment(),
     ]{append_source_fragment(&mut output,frag)?;}
+    // Complete source-level N32 instruction encodes 0x44620104 and occupies
+    // file [0xfffe,0x10002). Agent18 owns [0x10000,0x10002); do not output it.
+    let straddling=Insn::MoveImmediate{dest:Reg::new(6),value:131332}
+        .encode((CROSS_OWNER_WORD_FILE-ILM_FILE_BASE) as u32,Profile::Postmarketos.gp())?;
+    if straddling.len()!=4{return Err("boundary N32 instruction not exactly four bytes".into());}
+    append(&mut output,CROSS_OWNER_WORD_FILE,&straddling[..2])?;
     if FILE_START+output.len()!=FILE_END{
         return Err("typed contiguous lower-ILM writer has unexpected length".into());
     }
@@ -72,6 +84,11 @@ pub fn compare_postmarketos(firmware:&[u8])->Result<(),String>{
         assert_eq!(&src[MOVD44_GAP_ONE-FILE_START..MOVD44_GAP_ONE-FILE_START+2],[0xfd,0x20]);
         assert_eq!(&src[MOVD44_GAP_TWO-FILE_START..MOVD44_GAP_TWO-FILE_START+2],[0xfd,0x36]);
         assert_eq!(&src[0x76e6-FILE_START..0x76e8-FILE_START],[0xfd,0x14]);
+        assert_eq!(FILE_END,0x10000);
+        assert_eq!(&src[CROSS_OWNER_WORD_FILE-FILE_START..],[0x44,0x62]);
+        let whole=Insn::MoveImmediate{dest:Reg::new(6),value:131332}
+            .encode((CROSS_OWNER_WORD_FILE-ILM_FILE_BASE) as u32,Profile::Postmarketos.gp()).unwrap();
+        assert_eq!(whole,[0x44,0x62,0x01,0x04]);
         let mut fw=vec![0;FILE_END];
         fw[FILE_START..FILE_END].copy_from_slice(&src);
         assert!(compare_postmarketos(&fw).is_ok());

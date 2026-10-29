@@ -218,6 +218,8 @@ pub enum Insn {
     JumpTableOffsets14 {base:u32,targets:[u32;14]},
     /// LE halfword offsets after a sixteen-way indirect branch.
     JumpTableOffsets16Entries {base:u32,targets:[u32;16]},
+    /// Thirteen little-endian halfword offsets from an indirect format switch.
+    JumpTableOffsets13 {base:u32,targets:[u32;13]},
     /// Unsigned byte offsets for a twelve-way indirect branch.
     JumpTableOffsets12Bytes {base:u32,targets:[u32;12]},
     /// Five byte offsets, followed by one zero byte for code alignment.
@@ -280,6 +282,9 @@ impl Insn {
             return emit_little_endian_branch_offsets(base,&targets);
         }
         if let JumpTableOffsets16Entries{base,targets}=self {
+            return emit_little_endian_branch_offsets(base,&targets);
+        }
+        if let JumpTableOffsets13{base,targets}=self {
             return emit_little_endian_branch_offsets(base,&targets);
         }
         if let JumpTableOffsets5Padded{base,targets}=self {
@@ -725,6 +730,7 @@ impl Insn {
             ReadSystem { dest,csr } => format!("mfsr {},{}",r(dest),if let Csr::Number(index)=csr {format!("0x{index:x}")} else if csr==Csr::IntMask3 {"0xc2".into()} else {format!("${}",csr.name())}),
             WriteSystem { source,csr } => format!("mtsr {},{}",r(source),if let Csr::Number(index)=csr {format!("0x{index:x}")} else if csr==Csr::IntMask3 {"0xc2".into()} else {format!("${}",csr.name())}),
             JumpTableOffsets14{base,targets}=>format!("jump.offsets14 0x{base:x} {}",targets.iter().map(|x|format!("0x{x:x}")).collect::<Vec<_>>().join(",")),
+            JumpTableOffsets13{base,targets}=>format!("jump.offsets13 0x{base:x} {}",targets.iter().map(|x|format!("0x{x:x}")).collect::<Vec<_>>().join(",")),
             JumpTableOffsets16Entries{base,targets}=>format!("jump.offsets16entries 0x{base:x} {}",targets.iter().map(|x|format!("0x{x:x}")).collect::<Vec<_>>().join(",")),
             JumpTableOffsets5Padded{base,targets}=>format!("jump.offsets5padded 0x{base:x} {}",targets.iter().map(|x|format!("0x{x:x}")).collect::<Vec<_>>().join(",")),
             JumpTableOffsets4Halfwords{base,targets}=>format!("jump.offsets4halfs 0x{base:x} {}",targets.iter().map(|x|format!("0x{x:x}")).collect::<Vec<_>>().join(",")),
@@ -849,6 +855,18 @@ impl Insn {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn thirteen_halfword_switch_rejects_invalid_target(){
+        let a=0xf3b4_u32;
+        let targets=[0xf3ce,0xf43e,0xf49e,0xf4de,0xf51a,0xf55a,0xf564,
+                     0xf56e,0xf582,0xf5ba,0xf58c,0xf5c0,0xf5c6];
+        let ins=Insn::JumpTableOffsets13{base:a,targets};
+        let encoded=ins.encode(a,0).unwrap();
+        assert_eq!(encoded.len(),26);
+        let mut bad=targets;bad[1]=a+1;
+        assert!(Insn::JumpTableOffsets13{base:a,targets:bad}.encode(a,0).is_err());
+    }
+
     #[test]
     fn five_six_byte_and_four_halfword_tables_are_strict(){
         let five=Insn::JumpTableOffsets5Padded{base:0xbedc,

@@ -46,6 +46,10 @@ pub mod extension13;
 pub mod extension14;
 #[path="novatek_ilmlow_extension15.rs"]
 pub mod extension15;
+#[path="novatek_ilmlow_extension16.rs"]
+pub mod extension16;
+#[path="novatek_ilmlow_extension17.rs"]
+pub mod extension17;
 #[path="novatek_ilmlow_contiguous.rs"]
 pub mod contiguous;
 use isa::{Csr,Insn,Reg,R0,R1,R2};

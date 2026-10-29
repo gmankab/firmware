@@ -1,0 +1,72 @@
+{
+  "agent": 17,
+  "checkpoint": 23,
+  "firmware_profile": "postmarketos",
+  "branch": "agents20/17-novatek-ilm-low",
+  "source_parent": "51b1f91f32d32542aa03e114f5a2f4d94b559e2a",
+  "coverage": {
+    "file_start": 1642,
+    "file_end_exclusive": 65536,
+    "runtime_start": 1130,
+    "runtime_end_exclusive": 65024,
+    "source_generated_bytes": 63894,
+    "complete_instruction_bytes": 63556,
+    "typed_jump_data_bytes": 336,
+    "cross_owner_partial_instruction_prefix_bytes": 2,
+    "copied_original_firmware_bytes": 0,
+    "byte_differences": 0,
+    "sha256": "3537fd832f28904d18df07180d375ceba101483da57a3b659659ae826f3f1dac"
+  },
+  "new_since_checkpoint22": {
+    "file_start": 56730,
+    "file_end_exclusive": 65536,
+    "byte_count": 8806,
+    "complete_instruction_bytes": 8772,
+    "typed_jump_data_bytes": 32,
+    "boundary_instruction_prefix_bytes": 2,
+    "extension16_instruction_count": 2282,
+    "extension17_instruction_count": 955,
+    "jump_tables": [
+      {
+        "file_start": 57248,
+        "file_end_exclusive": 57254,
+        "type": "five unsigned byte offsets and one zero for alignment",
+        "offset_base_runtime": 56736
+      },
+      {
+        "file_start": 62900,
+        "file_end_exclusive": 62926,
+        "type": "thirteen little-endian halfword offsets",
+        "offset_base_runtime": 62388
+      }
+    ]
+  },
+  "boundary_to_agent18": {
+    "owner_Agent17_file_bytes": [
+      65534,
+      65536
+    ],
+    "owner_Agent18_file_bytes": [
+      65536,
+      65538
+    ],
+    "instruction_file_range": [
+      65534,
+      65538
+    ],
+    "instruction_semantics": "NDS32 MOVI r6, 131332 (one four-byte instruction; only first 2 bytes emitted by this agent)",
+    "four_byte_architecture_encoding": "44620104"
+  },
+  "next_uncovered_owned_file_offset": null,
+  "next_owner": "Agent 18, file >=0x10000",
+  "tests": {
+    "rust_passed": 263,
+    "python_passed": 40,
+    "release_opt_level0": "pass",
+    "postmarketos_exact_reference": "pass",
+    "map220v_separately_pinned_prefix": "pass",
+    "gnu_nds32_assembler": "unavailable",
+    "default_optimized_release": "not_verified",
+    "hardware": "not_verified"
+  }
+}
