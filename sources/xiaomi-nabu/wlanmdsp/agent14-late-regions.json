@@ -1339,6 +1339,26 @@
       "sha256": "ea4db5af555a7196c87cd88f8c5b5c2fc97178fee292559ff03c0a8dedff8875",
       "checkpoint": 39,
       "classification": "executable"
+    },
+    {
+      "name": "controller-window-bind",
+      "file_start": 1084032,
+      "file_end": 1084212,
+      "source": "sources/xiaomi-nabu/wlanmdsp/agent14-late-controller-window-bind.S",
+      "symbol": "agent14_late_controller_window_bind",
+      "sha256": "a2fa7d2d06b81c2b7f26e4c925dddab3f4140f9e418e8f9502a3dbf57dab4a8c",
+      "checkpoint": 40,
+      "classification": "executable"
+    },
+    {
+      "name": "controller-context-allocate",
+      "file_start": 1084212,
+      "file_end": 1084372,
+      "source": "sources/xiaomi-nabu/wlanmdsp/agent14-late-controller-context-allocate.S",
+      "symbol": "agent14_late_controller_context_allocate",
+      "sha256": "d3b648f9c0f66062332aa2e364a822922874806a96198e1fba9a6d2824ee3542",
+      "checkpoint": 40,
+      "classification": "executable"
     }
   ]
 }

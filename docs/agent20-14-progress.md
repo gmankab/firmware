@@ -1464,3 +1464,24 @@ OEM executable bytes are included. The next function begins at `0x108a80`.
 All 160 Rust and 206 Python tests passed with no skips; the offline release
 build, reference check, packet decoder and second assembler checks passed.
 The original firmware has **not** been re-signed or executed on hardware.
+
+## Checkpoint 40 — controller window binding and session context allocation
+
+Two complete WLAN/Hexagon V66 routines `[0x108a80,0x108bd4)` (runtime
+`[0xb00c8a80,0xb00c8bd4)`) add **340 executable bytes**: a 180-byte
+`controller-window-bind` helper and a 160-byte session context allocation
+helper. Window binding copies session dimensions and buffer linkage, uses the
+original conditional subrecord handling, and passes controller-owned state to
+a tail-call. To preserve five data-dependent memory packet encodings, source
+code applies `:mem_noshuf` rather than loading raw firmware opcodes.
+
+The primary LLVM22/V66 assembler and independent LLVM6/V65 produce identical
+instructions and packet boundaries, with **zero** mismatches against the
+pinned WLAN image. Cumulative code `[0x1001c4,0x108bd4)` is **35,344 bytes**,
+plus separately authored dispatch data **496 bytes** = **35,840 total
+source-derived bytes**. The next function begins at `0x108bd4`.
+
+Full gates pass: **160 Rust tests, 208 Python tests (no skips)**, workspace
+release build, independent assemblers and V66 decoder. No OEM payload was
+pasted into the source; no hardware behavior or new OEM signatures are
+claimed. The Agent13 452-byte seam remains outside this branch.
