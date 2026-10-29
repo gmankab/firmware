@@ -1576,3 +1576,18 @@ python3 -S tools/adsp-agent20-rwe-next-controller-cycle-helper.py \
   --llvm-mc "$HEXAGON_LLVM_MC" --reference "$NABU_ADSP_REFERENCE" \
   --output /tmp/adsp-controller-cycle-helper-20.bin
 ```
+
+## Checkpoint 96: controller-mode dispatch prefix `[0x139e0,0x13a2c)`
+
+- Added **76 byte-identical source-rebuilt Hexagon V66 code bytes** (19 instruction words), original ADSP file `[0x139e0,0x13a2c)`, physical `[0x8be109e0,0x8be10a2c)`, SHA-256 `0109d17552424ed2d70c6c53150c4fa6b82aa91cf69c54ec40e8a41f58bd5d58`.
+- First controller-mode routine validates the input mode and shared controller pointer, has the original early return, and branches into the later clock and atomic-lock paths (still unreconstructed at this checkpoint).
+- LLVM6 source-assembles 18 ordinary packet words and groups the `R18=#0`/`P0` test in the original common packet, preserving the branch target. The privileged V66 `R2=SGP0` instruction is independently generated with the checked system-register encoder at a validated LLVM NOP placeholder.
+- Three source-assembled instruction words require **only checked packet parse-field continuation** (at `0x139e0`, `0x139f8`, `0x13a04`); no operand or branch target bits are patched. Source contains neither OEM binary words nor `.incbin`.
+- The four bytes `[0x139dc,0x139e0)` before this new function are linker fill, not new executable code. **Total independently source-built ADSP RWE code is now 14,404 bytes across 27 disjoint intervals**, plus 148 separately reconstructed pointer-table data bytes.
+- Pinned-reference SHA-256 check, exact generated-vs-reference bytes, wrong-revision and corruption rejection, Rust/Python regression tests and offline release build pass. Further paths start at `0x13a2c`.
+
+```sh
+python3 -S tools/adsp-agent20-rwe-next-controller-mode-prefix.py \
+  --llvm-mc "$HEXAGON_LLVM_MC" --reference "$NABU_ADSP_REFERENCE" \
+  --output /tmp/adsp-controller-mode-prefix-76.bin
+```
