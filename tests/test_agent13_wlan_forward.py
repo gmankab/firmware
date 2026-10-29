@@ -19,10 +19,10 @@ class SourceOnlyForwardTests(unittest.TestCase):
     def test_manifest_exact_boundaries(self):
         m=module()
         self.assertEqual(m.START,0x568c)
-        self.assertEqual(m.validate_manifest(),0x739c)
+        self.assertEqual(m.validate_manifest(),0x74a0)
         self.assertEqual(m.FILE_BASE+m.START,0x4568c)
-        self.assertEqual(m.FILE_BASE+m.validate_manifest(),0x4739c)
-        self.assertEqual(sum(length for _,_,_,length in m.FRAGMENTS),7440)
+        self.assertEqual(m.FILE_BASE+m.validate_manifest(),0x474a0)
+        self.assertEqual(sum(length for _,_,_,length in m.FRAGMENTS),7700)
 
     def test_validator_forbids_opaque_data_and_layout_holes(self):
         m=module()
@@ -140,6 +140,18 @@ class SourceOnlyForwardTests(unittest.TestCase):
         self.assertIn('call -0x5250',text)
         self.assertIn('}:mem_noshuf',text) if ':mem_noshuf' in text else self.assertIn('p0 = !cmp.gtu',text)
         self.assertNotIn('.word',text)
+
+    def test_session_report_error_paths_complete_to_alignment(self):
+        m=module()
+        p,offset,size={n:(p,o,s) for n,p,o,s in m.FRAGMENTS}['session-error-paths']
+        self.assertEqual((offset,size),(0x739c,0x104))
+        source=p.read_text()
+        self.assertIn('call -0x50c0\n    r1:0 = combine',source)
+        self.assertIn('r0 = ##2955570556\n    r2 = #10',source)
+        self.assertIn('memb(r2+#0) += #1',source) if 'memb(r2+#0)' in source else self.assertIn('memw(r29+#0)',source)
+        self.assertEqual(source.count('    nop\n'),3)
+        self.assertNotIn('.word',source)
+        self.assertNotIn('.incbin',source)
 
     def test_controller_stage3_preserves_packet_order(self):
         m=module()

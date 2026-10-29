@@ -529,3 +529,24 @@ python3 tools/build-wlanmdsp-agent13.py /tmp/wlan-prefix-through-27a0.bin \
   exactly, with zero differences and no borrowed OEM instruction words.
 - The record routine continues at file `0x4739c`. Missing checkpoint17–25
   source history prevents claiming a contiguous prefix from `0x40000`.
+
+## Checkpoint 46 (disjoint) — complete session record error/report paths
+
+- Added **260 Hexagon-assembled bytes** in WLAN file `[0x4739c,0x474a0)`
+  (runtime `[0xb000739c,0xb00074a0)`), including three explicit 4-byte
+  terminal NOPs `[0x47494,0x474a0)` that provide function-alignment fill.
+  The remaining 248 bytes encode source-authored instructions for bounded
+  error reporting, branch-specific diagnostic callbacks, record-count
+  updates and a shared tail route; no OEM opcode arrays were copied.
+- LLVM6 keeps the call at `0x473e0` in the same packet as the extended
+  diagnostic argument; putting it in a separate block changes a parser bit.
+  The three-instruction packet at `0x47448` must present the extended
+  `r0` immediate before `r2=#10` to preserve the original duplex encoding.
+- Full disjoint continuation `[0x4568c,0x474a0)` totals **7,700 exact
+  bytes**, SHA-256
+  `dd6b73020c2c629eed289f0138f5948847155c13b298603befb102646caa1dc7`.
+  Original WLAN reference checks, offline Rust/Python regression tests and
+  release build passed with zero byte mismatches.
+- The record-processing routine is complete through its original error
+  paths; the next function begins at file `0x474a0`. Git ancestry is still
+  from checkpoint16; checkpoints 17–25 remain absent.
