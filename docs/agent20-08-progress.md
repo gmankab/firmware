@@ -1106,3 +1106,23 @@ adjacent, giving **212 contiguous executable bytes `[0x3ba68,0x3bb3c)`**.
 The next four-byte alignment NOP `[0x3bb3c,0x3bb40)` remains excluded.
 Cumulative Agent 08 coverage: **11,880 source-generated executable bytes in
 129 nonoverlapping fragments**. No OEM instruction payload is imported.
+
+**Checkpoint 67 — codec-format trampoline and callback bitfield helper:**
+Rebuilt the 12-byte controller-format tail-call trampoline
+`[file 0x3bb40,0x3bb4c)` and the 152-byte format-bitfield encoder
+`[file 0x3bb4c,0x3bbe4)`. The latter queries a controller parameter,
+folds a `ct0` indexed lookup and dynamic mask, and conditionally publishes
+an updated four-byte payload. Two Hexagon packet groups required semantic
+instruction reordering: putting the `r18 = r3` move before a pair combine,
+and placing the `r5 = #4` assignment before `r4 = add(r29,#4)`. LLVM6 now
+produces every reference byte without opaque opcode directives.
+The two new fragments join earlier verified `guarded-multiply` and
+`platform-calculate` helpers, yielding **200 contiguous executable bytes**
+`[0x3bb40,0x3bc08)`; the four-byte alignment NOP `[0x3bb3c,0x3bb40)`
+is not counted as reconstructed code.
+SHA-256s: trampoline
+`e43df0811168e8c45adb0ae71d4c9f8700fd8fb7d6aa505470808cef7b9d0226`,
+formatter `e52fcd8223301228c7abb2d8ef5cdf59090549f5092ea8997094bf6ebcc602d6`.
+Cumulative independent source-generated ADSP code: **12,044 executable bytes
+across 131 nonoverlapping fragments**, verified byte-identical to the pinned
+reference. Most ADSP executable text remains unreconstructed.

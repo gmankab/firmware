@@ -197,9 +197,9 @@ class ADSPExternalsAndCodeTests(unittest.TestCase):
     @unittest.skipUnless(LLVM_MC,'Hexagon LLVM6 assembler required')
     def test_complete_fragment_inventory_rejects_overlaps(self):
         manifest,regions=adsp.assembled_inventory(LLVM_MC,None)
-        self.assertEqual(len(manifest['fragments']),129)
-        self.assertEqual(manifest['total_independently_assembled_executable_bytes'],11880)
-        self.assertEqual(sum(map(len,regions.values())),11880)
+        self.assertEqual(len(manifest['fragments']),131)
+        self.assertEqual(manifest['total_independently_assembled_executable_bytes'],12044)
+        self.assertEqual(sum(map(len,regions.values())),12044)
         self.assertEqual(manifest['gap_bytes_included_in_generated_executables'],0)
         self.assertFalse(manifest['complete_adsp_image'])
         self.assertEqual(manifest['external_original_code_bytes_in_output'],0)
@@ -366,7 +366,7 @@ class ADSPExternalsAndCodeTests(unittest.TestCase):
     def test_inventory_every_fragment_uses_correct_original(self):
         inventory,_outputs=adsp.assembled_inventory(LLVM_MC,Path(REFERENCE).read_bytes())
         self.assertTrue(all(x['reference_byte_identical'] for x in inventory['fragments']))
-        self.assertEqual(inventory['total_independently_assembled_executable_bytes'],11880)
+        self.assertEqual(inventory['total_independently_assembled_executable_bytes'],12044)
 
     @unittest.skipUnless(LLVM_MC and REFERENCE,
                          'Hexagon LLVM6 and exact pinned ADSP reference required')
@@ -380,7 +380,7 @@ class ADSPExternalsAndCodeTests(unittest.TestCase):
                 adsp.verify_slice(built,original,off)
                 total+=len(built)
                 ranges.append((off,off+size))
-        self.assertEqual(total,11880)
+        self.assertEqual(total,12044)
         ranges.sort()
         self.assertEqual(ranges[0],(0x39000,0x39054))
         self.assertEqual(ranges[-1],(0x3640a8,0x3640f8))
@@ -1979,3 +1979,43 @@ class ADSPControllerCaseRouterTests(unittest.TestCase):
         self.assertEqual(output[0x10:0x14],bytes.fromhex('2248205c'))
         if REFERENCE:
             adsp.verify_slice(output,Path(REFERENCE).read_bytes(),off)
+
+class ADSPControllerFormatCallbackTests(unittest.TestCase):
+    """A typed formatter and controller/parameter trampoline after the router."""
+
+    def test_format_fragments_are_adjacent_and_have_symbolic_calls(self):
+        tramp,off0,n0=adsp.FRAGMENTS['controller-format-trampoline']
+        fmt,off1,n1=adsp.FRAGMENTS['controller-format-bits']
+        self.assertEqual((off0,n0,off1,n1),(0x3bb40,12,0x3bb4c,152))
+        self.assertEqual(adsp.FRAGMENTS['controller-case-router'][1]+124+4,off0)
+        self.assertEqual(off1+n1,adsp.FRAGMENTS['guarded-multiply'][1])
+        for src in (tramp,fmt):
+            code=src.read_text()
+            for forbidden in ('.word ','.long ','.byte ','.incbin ','.fill '):
+                self.assertNotIn(forbidden,code)
+            self.assertIn('.set ',code)
+        source=fmt.read_text()
+        self.assertIn('r18 = r3; r1:0 = combine(r16,#0)',source)
+        self.assertIn('r3:2 = combine(r17,#83); r5 = #4; r4 = add',source)
+        self.assertIn('r2 = ct0(r2)',source)
+
+    @unittest.skipUnless(LLVM_MC,'Hexagon LLVM6 assembler required')
+    def test_source_exact_200_byte_contiguous_block(self):
+        cases=[('controller-format-trampoline',12,
+                'e43df0811168e8c45adb0ae71d4c9f8700fd8fb7d6aa505470808cef7b9d0226'),
+               ('controller-format-bits',152,
+                'e52fcd8223301228c7abb2d8ef5cdf59090549f5092ea8997094bf6ebcc602d6')]
+        blocks=[]
+        for name,n,digest in cases:
+            src,off,size=adsp.FRAGMENTS[name]
+            self.assertEqual(size,n)
+            code=adsp.compile_source(LLVM_MC,src,size)
+            self.assertEqual(hashlib.sha256(code).hexdigest(),digest)
+            if REFERENCE:adsp.verify_slice(code,Path(REFERENCE).read_bytes(),off)
+            blocks.append(code)
+        for name in ('guarded-multiply','platform-calculate'):
+            src,off,n=adsp.FRAGMENTS[name]
+            blocks.append(adsp.compile_source(LLVM_MC,src,n))
+        data=b''.join(blocks)
+        self.assertEqual(len(data),200)
+        if REFERENCE:adsp.verify_slice(data,Path(REFERENCE).read_bytes(),0x3bb40)
