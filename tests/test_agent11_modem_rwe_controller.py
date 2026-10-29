@@ -7,7 +7,7 @@ spec=importlib.util.spec_from_file_location('modem_rwe_controller',SCRIPT)
 mod=importlib.util.module_from_spec(spec);spec.loader.exec_module(mod)
 class ControllerTests(unittest.TestCase):
     def test_bounds_and_elf_addresses(self):
-        self.assertEqual((mod.FILE_START,mod.FILE_END),(0x39de8,0x3a2d8))
+        self.assertEqual((mod.FILE_START,mod.FILE_END),(0x39de8,0x3a33c))
         self.assertEqual(mod.VIRTUAL_START-mod.FILE_START,0xc0808000)
         self.assertEqual(mod.PHYSICAL_START-mod.FILE_START,0x8e008000)
     def test_wrong_modem_reference_is_rejected(self):
@@ -25,7 +25,7 @@ class ControllerTests(unittest.TestCase):
         if not mc:self.skipTest('Set AGENT11_LLVM_MC to verify original LLVM6 source assembly')
         source=SCRIPT.parents[1]/'crates/firmware-tools/src/devices/xiaomi_nabu/modem_rwe_exception_controller.s'
         data=mod.assemble(Path(mc),source)
-        self.assertEqual(len(data),1264)
+        self.assertEqual(len(data),1364)
         get=lambda i:struct.unpack_from('<I',data,i-mod.FILE_START)[0]
         self.assertEqual(get(0x39de8),0x6e800000|(3<<14)|29)
         self.assertEqual(get(0x39dec),0x5bff7f8e)
@@ -115,6 +115,14 @@ class ControllerTests(unittest.TestCase):
         self.assertEqual(get(0x3a2bc),0x62334004)  # P3:0 recovered
         self.assertEqual(get(0x3a2d0),0x170a4030)  # compact r0=r18+jump
         self.assertEqual(get(0x3a2d4),0x901ec01e)  # original deallocframe
+        self.assertEqual(get(0x3a2d8),0x65094000)  # SGP0 continue packet
+        self.assertEqual(get(0x3a2e0),0xa1c9c007)  # saved protected GPR pair
+        self.assertEqual(get(0x3a2e8),0x5bffff7c)  # call earlier frame capture
+        self.assertEqual(get(0x3a300),0x6718c003)  # saved ELR publication
+        self.assertEqual(get(0x3a318),0x5c20400e)  # original predicate branch
+        self.assertEqual(get(0x3a324),0x6e86c000)  # controller status read
+        self.assertEqual(get(0x3a330),0x6700c006)  # protected status write
+        self.assertEqual(get(0x3a338),0x59ffff52)  # transfer to frame recovery
         ref=os.environ.get('AGENT11_MODEM_MBN')
         if ref:mod.verify(Path(ref).read_bytes(),data)
 if __name__=='__main__':unittest.main()

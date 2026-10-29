@@ -12,7 +12,7 @@
 .endm
 
 .macro MODEM_CTRL_SWAP_SGP0 gpr,marker=3
- .if (\gpr<0)||(\gpr>31)||(\marker!=3)
+ .if (\gpr<0)||(\gpr>31)||((\marker!=1)&&(\marker!=3))
   .error "invalid SGP0 swap register or packet marker"
  .endif
  .word (0x65000000 | (\gpr<<16) | (\marker<<14))
@@ -427,3 +427,31 @@ MODEM_CTRL_SYS_READ 28,6,1
 { p3:0 = r19; jump agent11_modem_rwe_controller_entry; deallocframe }
 modem_ctrl_alt_frame_exit:
 { p3:0 = r19; r0 = r18; jump ##agent11_modem_rwe_probe_controller_owner; deallocframe }
+// Exceptional video-owner fallback. Enter the protected SGP0 bank, preserve
+// the fault frame, invoke the earlier frame capture entry, then restore the
+// interrupted thread's program counter, SSR mask and register pairs.
+.globl agent11_modem_rwe_video_owner_exception
+agent11_modem_rwe_video_owner_exception:
+MODEM_CTRL_SWAP_SGP0 9,1
+{ allocframe(#0) }
+{ memd(r9+#56) = r1:0 }
+MODEM_CTRL_SWAP_SGP0 9,1
+.set modem_ctrl_video_owner_save,agent11_modem_rwe_controller_entry+0x3f8
+{ call modem_ctrl_video_owner_save }
+MODEM_CTRL_SWAP_SGP0 9,3
+{ memd(r9+#56) = r1:0 }
+{ r1 = r0; r30 = memw(r9+#0) }
+{ r25:24 = memd(r30+#24) }
+MODEM_CTRL_SYS_WRITE 3,24,3
+{ p0 = tstbit(r25,#16); r0 = r30 }
+MODEM_CTRL_SWAP_SGP0 9,3
+{ r31:30 = memd(r0+#32); r29:28 = memd(r0+#40) }
+.set modem_ctrl_video_owner_done,agent11_modem_rwe_controller_entry+0x54c
+{ if (!p0) jump:nt modem_ctrl_video_owner_done; r27:26 = memd(r0+#192); r25:24 = memd(r0+#200) }
+MODEM_CTRL_SYS_READ 0,6,3
+{ r0 = setbit(r0,#16) }
+{ r0 = setbit(r0,#17) }
+MODEM_CTRL_SYS_WRITE 6,0,3
+modem_ctrl_video_owner_done:
+{ r0 = #8 }
+{ jump agent11_modem_rwe_restore_video_frame }
