@@ -1282,3 +1282,17 @@ python3 -S tools/adsp-agent20-rwe-next-controller-format-selector-prefix.py \
  --llvm-mc "$HEXAGON_LLVM_MC" --reference "$NABU_ADSP_REFERENCE" \
  --output /tmp/adsp-format-selector-prefix-52.bin
 ```
+
+## Checkpoint 76: initial format-specific controller cases `[0x126dc,0x12764)`
+
+- Added **136 source-assembled Hexagon V66 executable bytes** (34 words), file `[0x126dc,0x12764)`, physical `[0x8be0f6dc,0x8be0f764)`, SHA-256 `7d66ba2456d4b1f738cda688400df3bdc39c41d74324455d4e3f8950da66411c`.
+- This is the first five cases of the codec format selector: platform callback invocation, source-authored format-string addresses, predicate-guarded mode selection, and a nested indirect jump via the **external** `0xf000f9f4` handler table. All 34 words are assembled directly by LLVM6, without privileged substitutions or packet-marker correction.
+- Adjacent to the 52-byte selector entry, so the selector now has **188 exact source-built bytes** `[0x126a8,0x12764)` but the function is **not yet complete**. Next missing code at `0x12764`.
+- Cumulative independently source-built ADSP RWE executable code: **10,804 bytes across 20 disjoint intervals**. Original OEM authorization and unimplemented executable/data sections remain outside the generator.
+- With pinned source inputs configured, **160 Rust** and **311 Python** tests pass and the release build succeeds.
+
+```sh
+python3 -S tools/adsp-agent20-rwe-next-controller-format-selector-cases-a.py \
+ --llvm-mc "$HEXAGON_LLVM_MC" --reference "$NABU_ADSP_REFERENCE" \
+ --output /tmp/adsp-format-cases-a-136.bin
+```
