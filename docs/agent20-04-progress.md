@@ -315,3 +315,11 @@ git diff --check
 - Exact byte comparison to the pinned `venus.mbn`: **0 differences**. Independent Clang/LLVM A32 reconstruction verifies all 481 instructions and 31 words using nine manually classified `--data` ranges. The module does **not** copy opaque OEM instruction words or pad unknown bytes.
 - Combined contiguous Agent 04 region `[0x40a2c,0x57000)` now totals **91,604 exact bytes**. Reservation prefix `[0x40000,0x40a2c)` stays unimplemented; ownership ends before `0x68000`.
 - Offline **241 Rust tests**, **13 Python tests** pass; optimized release is built with `CARGO_PROFILE_RELEASE_OPT_LEVEL=0`, and this provisional branch retains older Agent 03 ancestry instead of checkpoint 50.
+
+## Checkpoint 37 — controller stream dimensions and class arithmetic
+
+- Exact standalone source reconstruction `[0x57000,0x58000)` = **4,096 bytes**, private pinned `venus.mbn` file `[0x5b000,0x5c000)`; **1,020 typed ARM32 instructions and four explicitly identified literal words**. The computed output has zero differences from the original.
+- Four PC-relative, branch-skipped diagnostic constants are explicitly modeled as data at `[0x57284,0x57288)` (`0x000ee57e`), `[0x57304,0x57308)` (`0x000ee5c3`), `[0x57480,0x57484)` (`0x000ee470`), and `[0x5765c,0x57660)` (`0x000ee5e6`). The conditional multiply at `0x57ccc` is actual executable A32, **not** a literal word.
+- Includes codec plane-size normalization, class arithmetic and controller command flag propagation; the surrounding function remains partial. Independent Clang/LLVM mnemonic reconstruction confirms all **1,020 instructions** and four data words, in addition to the complete generated-fragment comparison.
+- Total contiguous source-generated interval `[0x40a2c,0x58000)` is **95,700 exact bytes**; the uncovered reservation prefix `[0x40000,0x40a2c)` remains excluded, and Agent 04 must not emit at or above `0x68000`.
+- All **243 Rust tests**, **13 Python tests** and release build with `CARGO_PROFILE_RELEASE_OPT_LEVEL=0` pass. Git base remains provisional from older Agent 03 history, not checkpoint 50.
