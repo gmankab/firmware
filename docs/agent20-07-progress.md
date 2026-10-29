@@ -1311,3 +1311,17 @@ python3 -S tools/adsp-agent20-rwe-next-controller-format-selector-cases-b.py \
   --llvm-mc "$HEXAGON_LLVM_MC" --reference "$NABU_ADSP_REFERENCE" \
   --output /tmp/adsp-controller-format-cases-b-100.bin
 ```
+
+## Checkpoint 78: conditional codec mode paths and shared controller return `[0x127c8,0x1289c)`
+
+- Reconstructed **212 independently LLVM6-source-assembled, byte-identical Hexagon V66 executable bytes** (53 instruction words), ADSP file `[0x127c8,0x1289c)` and physical `[0x8be0f7c8,0x8be0f89c)`, SHA-256 `d552ae58f3ec66748b16d57343ac75364b3d851e21c5bf637661567d97c79343`.
+- Distinct codec-format branches dispatch through an external platform formatting callback; `p0.new` comparisons to `0x62`, `0x61`, `0x60`, and `0xbf` are preserved, including branch hints. The shared suffix calculates a `0xe0`-byte controller-record offset, publishes four fields to stack slots and returns via the original `dealloc_return`.
+- All 53 instructions **assemble directly with LLVM6** using Hexagon packet mnemonics: no privileged substitutions, bitfield patches, or original OEM machine-word arrays. Rizin V66 independently decodes all 53 source-built words. Combine this section with the prior `[0x126a8,0x127c8)` source to verify **500 contiguous exact bytes** through this return. The function has further original case bodies at `0x1289c` and later; not yet complete.
+- Cumulative independently source-rebuilt ADSP RWE executable code is **11,116 bytes in 20 disjoint intervals**. External handler tables, diagnostic strings, linker fill and original authentication are not part of these code counts.
+- Full validation: **160 Rust tests, 317 Python tests**, release build, exact pinned-reference comparisons, wrong-revision and deliberate-byte-corruption test, and independent Rizin disassembly pass.
+
+```sh
+python3 -S tools/adsp-agent20-rwe-next-controller-format-selector-cases-c.py \
+  --llvm-mc "$HEXAGON_LLVM_MC" --reference "$NABU_ADSP_REFERENCE" \
+  --output /tmp/adsp-controller-format-cases-c-212.bin
+```
