@@ -349,3 +349,25 @@ MODEM_CTRL_SYS_READ 19,9,1
 { r18 = #1; memd(r29+#0) = r19:18 }
 { r19 = and(r28,#255); memd(r9+#40) = r19:18 }
 MODEM_CTRL_SWAP_SGP0 9,3
+// Publish and sanitize any stale per-core saved frame pointers before
+// deciding whether the interrupted controller can resume immediately.
+.set modem_ctrl_pointer_checks_done,agent11_modem_rwe_controller_entry+0x3ac
+{ r0 = memw(##-1065076432) }
+{ p0 = cmp.eq(r0,#0); if (p0.new) jump:t modem_ctrl_pointer_checks_done; r0 = memw(##-1065067868) }
+{ p0 = cmp.eq(r0,#0); if (!p0.new) jump:nt modem_ctrl_pointer_checks_done; r0 = memw(##-1065265136) }
+{ p0 = cmp.eq(r0,#0); if (p0.new) jump:t modem_ctrl_pointer_checks_done }
+{ memw(r0+#36) = #0; memw(r0+#32) = #0 }
+{ memw(r0+#16) = #0; memw(r0+#20) = #0 }
+{ memw(r0+#4) = clrbit(#21) }
+modem_ctrl_pointer_checks_done:
+{ r1 = insert(r19,#8,#8) }
+{ r1 = insert(r18,#8,#16) }
+{ r0 = and(r28,#255) }
+{ p2 = tstbit(r28,#16); p1 = cmp.eq(r0,#3) }
+.set modem_ctrl_dispatch_recovery_frame,agent11_modem_rwe_controller_entry+0x3e8
+{ p3 = or(p1,!p2); if (p3.new) jump:nt modem_ctrl_dispatch_recovery_frame; r19:18 = memd(r29+#0) }
+{ r28 = memw(##-1065077624) }
+{ p0 = tstbit(r28,#29); if (p0.new) jump:nt modem_ctrl_dispatch_recovery_frame }
+{ p3:0 = r19; jump agent11_modem_rwe_controller_entry; deallocframe }
+modem_ctrl_dispatch_recovery_frame:
+{ p3:0 = r19; r0 = r18; jump agent11_modem_rwe_probe_controller_owner; deallocframe }

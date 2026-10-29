@@ -7,7 +7,7 @@ spec=importlib.util.spec_from_file_location('modem_rwe_controller',SCRIPT)
 mod=importlib.util.module_from_spec(spec);spec.loader.exec_module(mod)
 class ControllerTests(unittest.TestCase):
     def test_bounds_and_elf_addresses(self):
-        self.assertEqual((mod.FILE_START,mod.FILE_END),(0x39de8,0x3a164))
+        self.assertEqual((mod.FILE_START,mod.FILE_END),(0x39de8,0x3a1dc))
         self.assertEqual(mod.VIRTUAL_START-mod.FILE_START,0xc0808000)
         self.assertEqual(mod.PHYSICAL_START-mod.FILE_START,0x8e008000)
     def test_wrong_modem_reference_is_rejected(self):
@@ -25,7 +25,7 @@ class ControllerTests(unittest.TestCase):
         if not mc:self.skipTest('Set AGENT11_LLVM_MC to verify original LLVM6 source assembly')
         source=SCRIPT.parents[1]/'crates/firmware-tools/src/devices/xiaomi_nabu/modem_rwe_exception_controller.s'
         data=mod.assemble(Path(mc),source)
-        self.assertEqual(len(data),892)
+        self.assertEqual(len(data),1012)
         get=lambda i:struct.unpack_from('<I',data,i-mod.FILE_START)[0]
         self.assertEqual(get(0x39de8),0x6e800000|(3<<14)|29)
         self.assertEqual(get(0x39dec),0x5bff7f8e)
@@ -98,6 +98,14 @@ class ControllerTests(unittest.TestCase):
         self.assertEqual(get(0x3a128),0xa1c9de0a)  # save C31:30
         self.assertEqual(get(0x3a154),0x681a2a05)  # paired alloc/record
         self.assertEqual(get(0x3a160),0x6509c000)  # SGP0 exchange
+        self.assertEqual(get(0x3a16c),0x10006014)  # grouped pointer test/load
+        self.assertEqual(get(0x3a178),0x1040400e)  # next pointer test/load
+        self.assertEqual(get(0x3a188),0xf0091008)  # duplex descriptor reset
+        self.assertEqual(get(0x3a194),0x8f33c801)  # first inserted frame ID
+        self.assertEqual(get(0x3a1a8),0x6be24103)  # class predicate OR
+        self.assertEqual(get(0x3a1c8),0x59ff7e12)  # original controller return
+        self.assertEqual(get(0x3a1d4),0x172a4068)  # alternate return branch
+        self.assertEqual(get(0x3a1d8),0x901ec01e)  # saved frame deallocation
         ref=os.environ.get('AGENT11_MODEM_MBN')
         if ref:mod.verify(Path(ref).read_bytes(),data)
 if __name__=='__main__':unittest.main()
