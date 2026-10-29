@@ -1170,3 +1170,19 @@ only partly implemented; this disconnected routine is not falsely counted as
 extending any neighboring contiguous source span.
 Cumulative late-ADSP source-built coverage: **12,472 executable bytes in
 134 nonoverlapping verified fragments**.
+
+**Checkpoint 71 — packet-spanning atomic decrement / callback copy:**
+Recovered the previously missing **44 Hexagon instruction bytes**
+`[file 0x39464,0x39490)` through a 60-byte source-assembled packetized
+cluster `[file 0x39464,0x394a0)`; this replaces the earlier separately
+emitted 16-byte `copy-registry-slot` fragment, **not** an additional
+16-byte contribution. The decrement uses a 32-bit LL/SC retry loop and a
+predicate branch. The return at `0x3948c` is **not** an end-of-packet
+instruction: it shares a four-word packet with the indexed callback load
+and dependent store at `0x39490–0x3949c`. Source-assembling that
+original full packet reproduces all 60 bytes (`sha256`:
+`fc93165eb63cf884d54d433d15f46be6aeb732d0fb128d11bafa87bf6187cd38`).
+The prior standalone copy source remains as a cross-check but is no
+longer independently counted by the inventory; fragment count stays 134.
+**Cumulative independently generated executable coverage: 12,516 bytes
+in 134 nonoverlapping fragments**, excluding linker fill and OEM payload.

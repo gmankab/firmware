@@ -198,8 +198,8 @@ class ADSPExternalsAndCodeTests(unittest.TestCase):
     def test_complete_fragment_inventory_rejects_overlaps(self):
         manifest,regions=adsp.assembled_inventory(LLVM_MC,None)
         self.assertEqual(len(manifest['fragments']),134)
-        self.assertEqual(manifest['total_independently_assembled_executable_bytes'],12472)
-        self.assertEqual(sum(map(len,regions.values())),12472)
+        self.assertEqual(manifest['total_independently_assembled_executable_bytes'],12516)
+        self.assertEqual(sum(map(len,regions.values())),12516)
         self.assertEqual(manifest['gap_bytes_included_in_generated_executables'],0)
         self.assertFalse(manifest['complete_adsp_image'])
         self.assertEqual(manifest['external_original_code_bytes_in_output'],0)
@@ -209,7 +209,7 @@ class ADSPExternalsAndCodeTests(unittest.TestCase):
 
     @unittest.skipUnless(LLVM_MC,'Hexagon LLVM6 assembler required')
     def test_indexed_callback_copy_and_atomic_lock_loop(self):
-        for name,expected_size,pattern in [('copy-registry-slot',16,'r2.new'),
+        for name,expected_size,pattern in [('controller-atomic-decrement-and-copy',60,'r2.new'),
                                            ('atomic-add',20,'memw_locked')]:
             with self.subTest(fragment=name):
                 src,off,size=adsp.FRAGMENTS[name]
@@ -217,6 +217,17 @@ class ADSPExternalsAndCodeTests(unittest.TestCase):
                 self.assertIn(pattern,src.read_text())
                 rebuilt=adsp.compile_source(LLVM_MC,src,size)
                 self.assertEqual(len(rebuilt),size)
+        src,off,sz=adsp.FRAGMENTS['controller-atomic-decrement-and-copy']
+        self.assertEqual((off,sz),(0x39464,60))
+        self.assertIn('if (!p0) jump:nt retry',src.read_text())
+        self.assertIn('jumpr lr; immext(#4029459456)',src.read_text())
+        self.assertEqual(hashlib.sha256(adsp.compile_source(LLVM_MC,src,sz)).hexdigest(),
+                         'fc93165eb63cf884d54d433d15f46be6aeb732d0fb128d11bafa87bf6187cd38')
+        # The adjacent separately authored 16-byte copy remains independently
+        # checkable but must not appear twice in the emitted coverage ledger.
+        old = ROOT/'tools'/'adsp-late-copy-registry-slot.S'
+        self.assertEqual(adsp.compile_source(LLVM_MC,old,16),
+            adsp.compile_source(LLVM_MC,src,sz)[44:])
         src=adsp.FRAGMENTS['atomic-add'][0].read_text()
         self.assertIn('retry:',src)
         self.assertIn('if (!p0) jump:nt retry',src)
@@ -366,7 +377,7 @@ class ADSPExternalsAndCodeTests(unittest.TestCase):
     def test_inventory_every_fragment_uses_correct_original(self):
         inventory,_outputs=adsp.assembled_inventory(LLVM_MC,Path(REFERENCE).read_bytes())
         self.assertTrue(all(x['reference_byte_identical'] for x in inventory['fragments']))
-        self.assertEqual(inventory['total_independently_assembled_executable_bytes'],12472)
+        self.assertEqual(inventory['total_independently_assembled_executable_bytes'],12516)
 
     @unittest.skipUnless(LLVM_MC and REFERENCE,
                          'Hexagon LLVM6 and exact pinned ADSP reference required')
@@ -380,7 +391,7 @@ class ADSPExternalsAndCodeTests(unittest.TestCase):
                 adsp.verify_slice(built,original,off)
                 total+=len(built)
                 ranges.append((off,off+size))
-        self.assertEqual(total,12472)
+        self.assertEqual(total,12516)
         ranges.sort()
         self.assertEqual(ranges[0],(0x39000,0x39054))
         self.assertEqual(ranges[-1],(0x3640a8,0x3640f8))
@@ -2092,7 +2103,7 @@ class ADSPControllerBootstrapHandoffTests(unittest.TestCase):
     def test_handoff_source_is_symbolic_and_disjoint(self):
         src,off,size=adsp.FRAGMENTS['controller-bootstrap-handoff']
         self.assertEqual((off,size),(0x39448,28))
-        self.assertLess(off+size,adsp.FRAGMENTS['copy-registry-slot'][1])
+        self.assertEqual(off+size,adsp.FRAGMENTS['controller-atomic-decrement-and-copy'][1])
         code=src.read_text()
         for bad in ('.word ','.long ','.byte ','.incbin ','.fill '):
             self.assertNotIn(bad,code)

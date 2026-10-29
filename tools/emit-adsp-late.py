@@ -39,7 +39,7 @@ FRAGMENTS = {
     'registry-allocator': (TOOLS / 'adsp-late-registry-allocator.S', 0x39230, 0x98),
     'registry-probe': (TOOLS / 'adsp-late-registry-probe.S', 0x392C8, 0x50),
     'controller-bootstrap-handoff': (TOOLS / 'adsp-late-controller-bootstrap-handoff.S', 0x39448, 0x1C),
-    'copy-registry-slot': (TOOLS / 'adsp-late-copy-registry-slot.S', 0x39490, 0x10),
+    'controller-atomic-decrement-and-copy': (TOOLS / 'adsp-late-controller-atomic-decrement-and-copy.S', 0x39464, 0x3C),
     'atomic-add': (TOOLS / 'adsp-late-atomic-add.S', 0x394A0, 0x14),
     'buffer-handoff': (TOOLS / 'adsp-late-buffer-handoff.S', 0x394B8, 0x88),
     'buffer-publish': (TOOLS / 'adsp-late-buffer-publish.S', 0x39540, 0x28),
