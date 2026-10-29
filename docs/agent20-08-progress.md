@@ -1156,3 +1156,17 @@ setter, yielding **372 contiguous byte-identical executable bytes**
 `[0x3be9c,0x3c010)`, excluding no OEM padding and importing no vendor words.
 Agent 08 cumulative source-assembled coverage is now **12,444 executable
 bytes across 133 verified fragments**. This is not complete ADSP firmware.
+
+**Checkpoint 70 — symbolic ADSP bootstrap handoff:**
+Reconstructed the complete **28-byte** controller bootstrap adapter
+`[file 0x39448,0x39464)`. It makes a symbolic platform initialization call,
+passes one encoded controller pointer and startup flag, restores the temporary
+frame and tail-jumps to the dispatcher. All seven original Hexagon instruction
+words come from LLVM6 assembly with no OEM opcode literals or reference bytes
+in the output source. SHA-256
+`73f35b110bacff48bf4113123398f3ad8c33a166451070f44caa8133017b2f6d`,
+identical to the pinned ADSP revision. The surrounding controller code remains
+only partly implemented; this disconnected routine is not falsely counted as
+extending any neighboring contiguous source span.
+Cumulative late-ADSP source-built coverage: **12,472 executable bytes in
+134 nonoverlapping verified fragments**.

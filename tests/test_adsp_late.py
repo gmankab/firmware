@@ -197,9 +197,9 @@ class ADSPExternalsAndCodeTests(unittest.TestCase):
     @unittest.skipUnless(LLVM_MC,'Hexagon LLVM6 assembler required')
     def test_complete_fragment_inventory_rejects_overlaps(self):
         manifest,regions=adsp.assembled_inventory(LLVM_MC,None)
-        self.assertEqual(len(manifest['fragments']),133)
-        self.assertEqual(manifest['total_independently_assembled_executable_bytes'],12444)
-        self.assertEqual(sum(map(len,regions.values())),12444)
+        self.assertEqual(len(manifest['fragments']),134)
+        self.assertEqual(manifest['total_independently_assembled_executable_bytes'],12472)
+        self.assertEqual(sum(map(len,regions.values())),12472)
         self.assertEqual(manifest['gap_bytes_included_in_generated_executables'],0)
         self.assertFalse(manifest['complete_adsp_image'])
         self.assertEqual(manifest['external_original_code_bytes_in_output'],0)
@@ -366,7 +366,7 @@ class ADSPExternalsAndCodeTests(unittest.TestCase):
     def test_inventory_every_fragment_uses_correct_original(self):
         inventory,_outputs=adsp.assembled_inventory(LLVM_MC,Path(REFERENCE).read_bytes())
         self.assertTrue(all(x['reference_byte_identical'] for x in inventory['fragments']))
-        self.assertEqual(inventory['total_independently_assembled_executable_bytes'],12444)
+        self.assertEqual(inventory['total_independently_assembled_executable_bytes'],12472)
 
     @unittest.skipUnless(LLVM_MC and REFERENCE,
                          'Hexagon LLVM6 and exact pinned ADSP reference required')
@@ -380,7 +380,7 @@ class ADSPExternalsAndCodeTests(unittest.TestCase):
                 adsp.verify_slice(built,original,off)
                 total+=len(built)
                 ranges.append((off,off+size))
-        self.assertEqual(total,12444)
+        self.assertEqual(total,12472)
         ranges.sort()
         self.assertEqual(ranges[0],(0x39000,0x39054))
         self.assertEqual(ranges[-1],(0x3640a8,0x3640f8))
@@ -2085,3 +2085,25 @@ class ADSPControllerRecordFilterTests(unittest.TestCase):
         self.assertEqual(len(b''.join(chunks)),372)
         if REFERENCE:adsp.verify_slice(b''.join(chunks),
             Path(REFERENCE).read_bytes(),0x3be9c)
+
+class ADSPControllerBootstrapHandoffTests(unittest.TestCase):
+    """Source-assembled controller bootstrap and jump, no raw instruction bytes."""
+
+    def test_handoff_source_is_symbolic_and_disjoint(self):
+        src,off,size=adsp.FRAGMENTS['controller-bootstrap-handoff']
+        self.assertEqual((off,size),(0x39448,28))
+        self.assertLess(off+size,adsp.FRAGMENTS['copy-registry-slot'][1])
+        code=src.read_text()
+        for bad in ('.word ','.long ','.byte ','.incbin ','.fill '):
+            self.assertNotIn(bad,code)
+        for token in ('request_platform_init', 'controller_handoff',
+                      'r1:0 = combine(#1,##4028146288)', 'deallocframe'):
+            self.assertIn(token,code)
+
+    @unittest.skipUnless(LLVM_MC,'Hexagon LLVM6 assembler required')
+    def test_exact_28_byte_bootstrap(self):
+        src,off,size=adsp.FRAGMENTS['controller-bootstrap-handoff']
+        code=adsp.compile_source(LLVM_MC,src,size)
+        self.assertEqual(hashlib.sha256(code).hexdigest(),
+            '73f35b110bacff48bf4113123398f3ad8c33a166451070f44caa8133017b2f6d')
+        if REFERENCE:adsp.verify_slice(code,Path(REFERENCE).read_bytes(),off)
