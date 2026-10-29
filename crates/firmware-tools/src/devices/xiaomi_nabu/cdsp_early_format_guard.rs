@@ -35,7 +35,12 @@ pub(super) fn p0new_jump(packet_start:u32,target:u32,predicted_taken:bool,negate
     let half=(target-packet_start)/2;
     // Hexagon P0.new packet-relative branch with prediction and negation
     // in the separate opcode family fields. Verified by independent LLVM6.
-    let base=if negated {0x5c20_c800} else if predicted_taken {0x5c00_d800} else {0x5c00_c800};
+    let base=match (negated,predicted_taken) {
+        (true,true)=>0x5c20_d800,
+        (true,false)=>0x5c20_c800,
+        (false,true)=>0x5c00_d800,
+        (false,false)=>0x5c00_c800,
+    };
     Ok(base|((half&0x100)<<5)|(half&0xff))
 }
 pub(super) fn extended_compare_p0(src:Gpr,value:u32)->[u32;2]{

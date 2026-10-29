@@ -2,12 +2,28 @@
 //! CDSP partial reconstruction command. Reference bytes stay outside Git.
 use firmware_tools::devices::xiaomi_nabu::{cdsp_boot as cdsp, cdsp_privilege as privileged, cdsp_tlb as tlb, cdsp_tlb_extension as extension, cdsp_copyfast as cache_copy, cdsp_cache_controller as cache_ctl, cdsp_dma_copy as dma_copy};
 use firmware_tools::devices::xiaomi_nabu::{cdsp_early_icache_tags as icache_tags,cdsp_early_cache_helpers as cache_helpers};
-use firmware_tools::devices::xiaomi_nabu::{cdsp_early_format_guard as format_guard,cdsp_early_format_guard_tail as format_tail};
+use firmware_tools::devices::xiaomi_nabu::{cdsp_early_format_guard as format_guard,cdsp_early_format_guard_tail as format_tail,cdsp_early_format_guard_final as format_final};
 use std::{env, fs};
 
 fn run() -> Result<(), Box<dyn std::error::Error>> {
     let arguments: Vec<String> = env::args().skip(1).collect();
     match arguments.as_slice() {
+        [action, output] if action=="emit-format-classifier"=>{
+            fs::write(output,format_final::build_full_format_classifier()?)?;
+            println!("Emitted complete 1016-byte CDSP codec format classifier at file 0x5488..0x5880.");
+        }
+        [action, reference] if action=="verify-format-classifier"=>{
+            format_final::verify_reference(&fs::read(reference)?)?;
+            println!("Verified joined 1016-byte CDSP format classifier and all preceding source-built early CDSP fragments.");
+        }
+        [action, output] if action=="emit-format-guard-final"=>{
+            fs::write(output,format_final::build_format_guard_final()?)?;
+            println!("Emitted {} CDSP source-built final classifier bytes at file {:#x}..{:#x}.",format_final::FUNCTION_BYTES,format_final::FILE_OFFSET,format_final::REGION_END);
+        }
+        [action, reference] if action=="verify-format-guard-final"=>{
+            format_final::verify_reference(&fs::read(reference)?)?;
+            println!("Verified {} CDSP source-built classifier final bytes and earlier linked CDSP regions.",format_final::FUNCTION_BYTES);
+        }
         [action, output] if action=="emit-format-guard-tail"=>{
             fs::write(output,format_tail::build_format_guard_continuation()?)?;
             println!("Emitted {} CDSP codec guard continuation bytes, file {:#x}..{:#x}; partial function.",
