@@ -1212,3 +1212,17 @@ python3 -S tools/adsp-agent20-rwe-next-controller-slot-scan-prefix.py \
   --llvm-mc "$HEXAGON_LLVM_MC" --reference "$NABU_ADSP_REFERENCE" \
   --output /tmp/adsp-slot-scan-prefix-96.bin
 ```
+
+## Checkpoint 71: source-rebuilt controller slot scan and atomic update `[0x12220,0x12310)`
+
+- **240 exact Hexagon V66 executable bytes**, file `[0x12220,0x12310)`, physical `[0x8be0f220,0x8be0f310)`, SHA-256 `e68fe74776d9b7346dcb039af7eeb528f1078eef619ebc2a0d3b5b802d623d5b`.
+- Three *independently authored* assembly source sections encode descriptor setup (52 bytes), lock-free slot acquisition (64 bytes), and packed halfword tag verification (124 bytes). All **60 instruction words are assembled directly by LLVM6**, preserving `memw_locked` retries, `.new` register dependencies, instruction extenders and conditional calls. No OEM opcode-word substitutions are needed in this interval.
+- The preceding scanner prefix `[0x121c0,0x12220)` and these 240 bytes form **336 adjacent exact code bytes** `[0x121c0,0x12310)`, with direct reference comparison in focused tests. The function's bitmap walk and return remain unimplemented after `0x12310`.
+- Cumulative independent ADSP RWE code **9,708 bytes across 17 disjoint intervals**. The earlier four-byte linker fill `[0x121bc,0x121c0)` is excluded.
+- Source, mutation and revision tests passed; 160 Rust tests and 296 Python tests pass when the ADSP reference and LLVM6 are configured. Release build succeeds.
+
+```sh
+python3 -S tools/adsp-agent20-rwe-next-controller-slot-scan-operations.py \
+ --llvm-mc "$HEXAGON_LLVM_MC" --reference "$NABU_ADSP_REFERENCE" \
+ --output /tmp/adsp-slot-scan-operations-240.bin
+```
