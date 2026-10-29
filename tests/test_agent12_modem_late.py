@@ -44,6 +44,45 @@ class ModemLateTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError,'16 source-assembled bytes'):
             agent12.restore_aux_large_controller_phase13_gap_packet(bytes(12))
 
+    def test_phase28_branch_reordering_checks_instruction_semantics(self):
+        self.assertEqual((agent12.AUX_LARGE_CONTROLLER_PHASE28_START,
+                          agent12.AUX_LARGE_CONTROLLER_PHASE28_END),
+                         (0x448278, 0x4482CC))
+        source=agent12.AUX_LARGE_CONTROLLER_PHASE28_SOURCE.read_text()
+        for fragment in ('.word', '.byte', '.incbin'):
+            self.assertNotIn(fragment,source)
+        self.assertIn('if (!p0) jump:nt alternate_report',source)
+        self.assertIn('call alternate_callback',source)
+        self.assertIn('r18 = add(r18,#1)',source)
+        w=[0x7800C000]*21
+        w[4]=0x5C204010 # Valid LLVM6 branch with CONTINUE packet marker.
+        w[5]=0xF302C403 # Valid LLVM6 ADD with END packet marker.
+        result=agent12.restore_aux_large_controller_phase28_size_branch(struct.pack('<21I',*w))
+        actual=list(struct.unpack('<21I',result))
+        self.assertEqual(actual[4:6],[(w[5]&~agent12.MARKER_MASK)|agent12.CONTINUE_MARKER,
+                                       (w[4]&~agent12.MARKER_MASK)|agent12.END_MARKER])
+        for index, value, reason in [
+            (4,0x7C204010,'opcode classes'),
+            (5,0xA302C403,'opcode classes'),
+            (4,0x5C204014,'instruction operands'),
+            (5,0xF302C407,'instruction operands'),
+            (4,0x5C20C010,'packet markers'),
+            (5,0xF3024403,'packet markers'),
+        ]:
+            changed=w.copy();changed[index]=value
+            with self.assertRaisesRegex(ValueError,reason):
+                agent12.restore_aux_large_controller_phase28_size_branch(struct.pack('<21I',*changed))
+        with self.assertRaisesRegex(ValueError,'84 source-assembled bytes'):
+            agent12.restore_aux_large_controller_phase28_size_branch(bytes(80))
+        if os.getenv('NABU_HEXAGON_LLVM_MC'):
+            compiled=agent12.assemble(Path(os.environ['NABU_HEXAGON_LLVM_MC']),
+                                      agent12.AUX_LARGE_CONTROLLER_PHASE28_SOURCE)
+            rebuilt=agent12.restore_aux_large_controller_phase28_size_branch(compiled)
+            self.assertEqual(len(rebuilt),84)
+            if os.getenv('NABU_MODEM_REFERENCE'):
+                original=Path(os.environ['NABU_MODEM_REFERENCE']).read_bytes()
+                self.assertEqual(rebuilt,original[0x448278:0x4482cc])
+
     def test_phase27_callback_dispatch_preserves_symbolic_targets(self):
         self.assertEqual((agent12.AUX_LARGE_CONTROLLER_PHASE27_START,
                           agent12.AUX_LARGE_CONTROLLER_PHASE27_END),
@@ -1466,8 +1505,8 @@ class ModemLateTests(unittest.TestCase):
         a = agent12.output_fragments(Path(os.environ["NABU_HEXAGON_LLVM_MC"]))
         self.assertEqual({k: len(v) for k, v in a.items()},
                          {0x7C000:160, 0x7C2EC:452,
-                          0x446000:agent12.AUX_LARGE_CONTROLLER_PHASE27_END-agent12.AUX_START})
-        self.assertEqual(sum(map(len,a.values())),agent12.AUX_LARGE_CONTROLLER_PHASE27_END - agent12.AUX_START + 612)
+                          0x446000:agent12.AUX_LARGE_CONTROLLER_PHASE28_END-agent12.AUX_START})
+        self.assertEqual(sum(map(len,a.values())),agent12.AUX_LARGE_CONTROLLER_PHASE28_END - agent12.AUX_START + 612)
         self.assertEqual(a[0x446000][0x0d8:0x200],agent12.emit_auxiliary_elf_symbols())
         self.assertEqual(a[0x446000][0x254:0x260],bytes(12))
         self.assertEqual(a[0x446000][0x1448:0x1460],
