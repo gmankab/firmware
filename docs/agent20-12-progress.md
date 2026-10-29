@@ -1772,3 +1772,18 @@ Contiguous auxiliary prefix `[0x446000,0x448b34)` = **11,060 bytes**.
 Total generated later-modem coverage **11,672 bytes**, of which **11,364
 are executable**, **296 metadata**, **12 alignment**. Original modem OEM
 firmware and signing content remain incomplete.
+
+## Checkpoint 80 — Controller record type-4 guard and diagnostics
+
+Added **88 independently assembled Hexagon V60 bytes** at modem file
+`[0x448b34,0x448b8c)` (VMA `[0x1e402b34,0x1e402b8c)`). The original
+record parser checks byte 4 for a valid type, constructs a diagnostic record
+when invalid, and calls the installed error-reporting handler. A new-value
+store is kept in its source packet with the byte-mask producer; all byte
+encodings and original parse markers match directly under LLVM6 without
+postassembly changes. This is still only the beginning of a larger parser.
+
+Contiguous auxiliary prefix `[0x446000,0x448b8c)` = **11,148 bytes**.
+Total generated partial modem coverage **11,760 bytes**: **11,452 executable
+Hexagon bytes**, **296 structured ELF metadata**, **12 linker alignment**.
+The remaining modem code and original OEM authentication are not rebuilt.

@@ -94,6 +94,7 @@ AUX_LARGE_CONTROLLER_PHASE48_SOURCE = ROOT / "crates/firmware-tools/src/devices/
 AUX_LARGE_CONTROLLER_PHASE49_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_aux_large_controller_phase49.s"
 AUX_BUFFER_FACTORY_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_aux_buffer_factory.s"
 AUX_RECORD_GUARD_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_aux_record_guard.s"
+AUX_RECORD_TYPE4_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_aux_record_type4.s"
 AUX_DISPATCH_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_aux_dispatch_helpers.s"
 AUX_TYPE_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_aux_type_config.s"
 AUX_NOTIFY_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_aux_controller_notify.s"
@@ -307,6 +308,8 @@ AUX_BUFFER_FACTORY_START = AUX_LARGE_CONTROLLER_PHASE49_END
 AUX_BUFFER_FACTORY_END = 0x448AD0
 AUX_RECORD_GUARD_START = AUX_BUFFER_FACTORY_END
 AUX_RECORD_GUARD_END = 0x448B34
+AUX_RECORD_TYPE4_START = AUX_RECORD_GUARD_END
+AUX_RECORD_TYPE4_END = 0x448B8C
 MARKER_MASK = 3 << 14
 CONTINUE_MARKER = 1 << 14
 END_MARKER = 3 << 14
@@ -2586,6 +2589,7 @@ def output_fragments(llvm_mc: Path) -> dict[int, bytes]:
         assemble(llvm_mc,AUX_BUFFER_FACTORY_SOURCE))
     aux_record_guard=restore_aux_record_guard_header_packet(
         assemble(llvm_mc,AUX_RECORD_GUARD_SOURCE))
+    aux_record_type4=assemble(llvm_mc,AUX_RECORD_TYPE4_SOURCE)
     aux_dispatch = assemble(llvm_mc,AUX_DISPATCH_SOURCE)
     aux_type = restore_aux_type_return_packets(assemble(llvm_mc,AUX_TYPE_SOURCE))
     aux_notify = restore_aux_controller_notify_packets(assemble(llvm_mc,AUX_NOTIFY_SOURCE))
@@ -2688,6 +2692,7 @@ def output_fragments(llvm_mc: Path) -> dict[int, bytes]:
         (aux_large_controller_phase49,AUX_LARGE_CONTROLLER_PHASE49_START,AUX_LARGE_CONTROLLER_PHASE49_END,'controller terminal callback and restored V60 frame'),
         (aux_buffer_factory,AUX_BUFFER_FACTORY_START,AUX_BUFFER_FACTORY_END,'independent auxiliary buffer-object factory'),
         (aux_record_guard,AUX_RECORD_GUARD_START,AUX_RECORD_GUARD_END,'independent controller-record signature guard prefix'),
+        (aux_record_type4,AUX_RECORD_TYPE4_START,AUX_RECORD_TYPE4_END,'independent malformed record-byte type guard and callbacks'),
     ]:
         if len(fragment)!=end-start:
             raise ValueError(f"auxiliary {label} source length mismatch")
@@ -2784,7 +2789,8 @@ def output_fragments(llvm_mc: Path) -> dict[int, bytes]:
             AUX_LARGE_CONTROLLER_PHASE47_END==AUX_LARGE_CONTROLLER_PHASE48_START and
             AUX_LARGE_CONTROLLER_PHASE48_END==AUX_LARGE_CONTROLLER_PHASE49_START and
             AUX_LARGE_CONTROLLER_PHASE49_END==AUX_BUFFER_FACTORY_START and
-            AUX_BUFFER_FACTORY_END==AUX_RECORD_GUARD_START):
+            AUX_BUFFER_FACTORY_END==AUX_RECORD_GUARD_START and
+            AUX_RECORD_GUARD_END==AUX_RECORD_TYPE4_START):
         raise ValueError("controller phase13 gap was silently bridged")
     if AUX_LOOKUP_END!=AUX_REGISTRY_CORE_START or AUX_REGISTRY_CORE_END!=AUX_DISPATCH_START:
         raise ValueError("modem auxiliary registry source intervals have a gap")
@@ -2821,7 +2827,7 @@ def output_fragments(llvm_mc: Path) -> dict[int, bytes]:
                         aux_large_controller_phase44+aux_large_controller_phase45+
                         aux_large_controller_phase46+aux_large_controller_phase47+
                         aux_large_controller_phase48+aux_large_controller_phase49+
-                        aux_buffer_factory+aux_record_guard,
+                        aux_buffer_factory+aux_record_guard+aux_record_type4,
     }
 
 
