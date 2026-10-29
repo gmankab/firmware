@@ -71,6 +71,9 @@ FRAGMENTS = (
     ('session-error-paths', SOURCE_DIR / 'agent13-runtime-session-errors.S', 0x739c, 0x104),
     ('session-parameter-dispatch', SOURCE_DIR / 'agent13-runtime-session-parameter-dispatch.S', 0x74a0, 0xc0),
     ('session-parameter-report', SOURCE_DIR / 'agent13-runtime-session-parameter-report.S', 0x7560, 0x58),
+    ('session-state-prefix', SOURCE_DIR / 'agent13-runtime-session-state-prefix.S', 0x75b8, 0x28),
+    ('session-state-extended-duplex', SOURCE_DIR / 'agent13-runtime-session-state-extended-branch.S', 0x75e0, 0x08),
+    ('session-state-register-setup', SOURCE_DIR / 'agent13-runtime-session-state-setup.S', 0x75e8, 0x60),
 )
 
 
@@ -96,6 +99,11 @@ def validate_manifest(fragments=FRAGMENTS):
         if any(raw in source for raw in ('.incbin', '.byte', '.word', '.quad', '.long', '.fill')):
             raise ValueError(f'{name}: copying opaque original firmware bytes is prohibited')
         previous += size
+    duplex_source=SOURCE_DIR/'agent13-runtime-session-state-short-duplex.S'
+    if not duplex_source.is_file():
+        raise ValueError('missing independent duplex semantic source')
+    if any(raw in duplex_source.read_text() for raw in ('.incbin', '.byte', '.word', '.quad', '.long', '.fill')):
+        raise ValueError('duplex helper contains forbidden opaque firmware bytes')
     if previous + FILE_BASE > 0x100000:
         raise ValueError('Agent 13 attempted to cross the exclusive file 0x100000 boundary')
     return previous
@@ -172,6 +180,28 @@ def assemble_controller_loop_registers(parent, llvm6: str, source: Path) -> byte
     return raw[:4]+last.to_bytes(4,'little')
 
 
+def assemble_extended_duplex(parent, llvm6: str, extender_source: Path) -> bytes:
+    """Build the two-word Hexagon packet entirely from semantic source.
+
+    LLVM6 can encode the short jump/assignment as one duplex when assembled
+    alone, and emits the signed long-branch extender when assembled alone;
+    it cannot combine these two instruction forms inside one source packet.
+    Combine *only compiler generated parts*, never reference opcode bytes.
+    """
+    duplex_source=SOURCE_DIR/'agent13-runtime-session-state-short-duplex.S'
+    if 'jump ##0x4a0' not in extender_source.read_text():
+        raise ValueError('unexpected extended jump displacement semantics')
+    if 'r1 = #63; jump 0x80' not in duplex_source.read_text():
+        raise ValueError('unexpected duplex register-and-branch semantics')
+    extended = parent.assemble(extender_source, llvm6, 'hexagonv65', expected_length=8)
+    duplex = parent.assemble(duplex_source, llvm6, 'hexagonv65', expected_length=4)
+    e=int.from_bytes(extended[:4], 'little')
+    d=int.from_bytes(duplex, 'little')
+    if (e>>14)&3 != 1 or (d>>14)&3 != 3:
+        raise ValueError('invalid Hexagon extender/duplex packet ending')
+    return extended[:4]+duplex
+
+
 def build(llvm6: str):
     mod = load_parent()
     end = validate_manifest()
@@ -183,6 +213,8 @@ def build(llvm6: str):
             part = assemble_compound_branch(mod, llvm6, source)
         elif name == 'controller-loop-registers':
             part = assemble_controller_loop_registers(mod, llvm6, source)
+        elif name == 'session-state-extended-duplex':
+            part = assemble_extended_duplex(mod, llvm6, source)
         else:
             part = mod.assemble(source, llvm6, 'hexagonv65', expected_length=size)
         if len(part) != size:
@@ -207,7 +239,7 @@ def main():
         parent.check_reference(fragment,args.reference.read_bytes(),runtime_offset=START)
     args.output.parent.mkdir(parents=True,exist_ok=True)
     args.output.write_bytes(fragment)
-    report={'agent':13,'checkpoint':'48-disjoint',
+    report={'agent':13,'checkpoint':'49-disjoint',
             'source_base':'Agent 13 checkpoint 16 (7c730bf); checkpoint25 source unavailable',
             'is_checkpoint25_descendant':False,
             'file_start':FILE_BASE+START,'file_end':FILE_BASE+end,

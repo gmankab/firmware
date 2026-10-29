@@ -591,3 +591,29 @@ python3 tools/build-wlanmdsp-agent13.py /tmp/wlan-prefix-through-27a0.bin \
 - This remains a **checkpoint16-derived disjoint** contribution; absent
   checkpoint17–25 commits must be integrated before asserting a contiguous
   original WLAN prefix from file `0x40000`.
+
+## Checkpoint 49 (disjoint) — session-state initialization and extended duplex
+
+- Reconstructed **144 independently source-assembled Hexagon instruction bytes**
+  in WLAN file `[0x475b8,0x47648)` (VMA `[0xb00075b8,0xb0007648)`).
+  This is the entry and initial controller-state dispatch of an **incomplete**
+  larger function; its cases remain outside this checkpoint.
+- The first 40 bytes are the packet-framed state and optional callback guard.
+  The following packet combines a far jump immediate extender with the
+  one-word `r1=#63; jump` duplex instruction. LLVM6 can assemble each
+  source-defined semantic part separately, but cannot pair them directly.
+  The builder therefore combines *only* compiler-generated extender and
+  duplex encodings, checks their parse fields, and never imports OEM words.
+  The last 96 bytes initialize and report controller parameters; packet-
+  relative call/jump displacements are expressed as original semantics.
+- Total disjoint Agent 13 continuation `[file 0x4568c,0x47648)` now comprises
+  **8,124 instruction bytes**, SHA-256
+  `b15eb83323299877619468e54ba95ad83f6fd63976c10927e22d817d6a3ca308`.
+  Original pinned `wlanmdsp.mbn` SHA-256 verified, and direct complete-range
+  byte comparison reports **zero mismatches**.
+- Source-only build:
+  `python3 tools/build-wlanmdsp-agent13-forward.py --llvm6 /private/llvm6/bin/llvm-mc --reference /private/wlanmdsp.mbn --output /tmp/wlan-forward.bin`.
+- Still based on checkpoint16 `7c730bf` without the missing checkpoint17–25
+  branch ancestry; this **does not** establish a contiguous executable-layout
+  prefix from `0x40000`. No complete or authenticated WLAN firmware was built.
+- Next missing file offset is **`0x47648`** (VMA `0xb0007648`).

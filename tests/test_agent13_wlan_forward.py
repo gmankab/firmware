@@ -19,10 +19,10 @@ class SourceOnlyForwardTests(unittest.TestCase):
     def test_manifest_exact_boundaries(self):
         m=module()
         self.assertEqual(m.START,0x568c)
-        self.assertEqual(m.validate_manifest(),0x75b8)
+        self.assertEqual(m.validate_manifest(),0x7648)
         self.assertEqual(m.FILE_BASE+m.START,0x4568c)
-        self.assertEqual(m.FILE_BASE+m.validate_manifest(),0x475b8)
-        self.assertEqual(sum(length for _,_,_,length in m.FRAGMENTS),7980)
+        self.assertEqual(m.FILE_BASE+m.validate_manifest(),0x47648)
+        self.assertEqual(sum(length for _,_,_,length in m.FRAGMENTS),8124)
 
     def test_validator_forbids_opaque_data_and_layout_holes(self):
         m=module()
@@ -304,6 +304,16 @@ class SourceOnlyForwardTests(unittest.TestCase):
         self.assertIn('p1 = cmp.eq(r2,#1)',predicate)
         self.assertIn('r2 = r6; r0 = #-1',duplex)
         self.assertEqual(m.FRAGMENTS[4][3]+m.FRAGMENTS[5][3],12)
+
+    def test_session_extender_and_duplex_sources_are_separate(self):
+        m=module()
+        frags={name:(src,off,size) for name,src,off,size in m.FRAGMENTS}
+        src,off,size=frags['session-state-extended-duplex']
+        self.assertEqual((off,size),(0x75e0,8))
+        self.assertIn('jump ##0x4a0',src.read_text())
+        other=m.SOURCE_DIR/'agent13-runtime-session-state-short-duplex.S'
+        self.assertIn('r1 = #63; jump 0x80',other.read_text())
+        self.assertNotIn('.word',other.read_text())
 
 
 if __name__=='__main__':unittest.main()
