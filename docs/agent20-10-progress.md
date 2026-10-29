@@ -775,3 +775,20 @@ python3 tools/verify-agent20-10-cdsp-controller-init.py \
   --llvm-mc /path/to/llvm6/bin/llvm-mc --rz-asm /path/to/rz-asm \
   --generated /tmp/controller-36.bin --reference /private/cdsp.mbn
 ```
+
+## Checkpoint 40 — guarded controller input scan and packet return
+
+- Added **60 independently reconstructed executable bytes** in CDSP file `[0x56954,0x56990)` (physical `[0x96cc8954,0x96cc8990)`), continuing the source-built controller routine of checkpoint 39. Unique Agent 20-10 executable coverage now totals **3,592 bytes** (1,200 short controller + **2,392 RWE**).
+- The contiguous RWE file region `[0x56000,0x56990)` totals **2,448 exact bytes**, split into 2,392 independently generated executable and the same 56 separately accounted NOP/fill bytes. The 60 new bytes implement a null-item service-skip branch, call to physical `0x96ddf2c0`, compressed input-pointer duplex, cursor scan and backedge to `0x96cc8954`, guarded stack load, empty-buffer result clearing and conditional exit to `0x96cc8ad0`.
+- Independent LLVM6 fixture compiles these semantic operations with one extra word because it expands the `R1=FP+24; R0=R16` duplex and schedules some `.new` predicates differently. It preserves the service-call, both loop/exit targets and unchanged scalar operation fields. Rizin V66 independently decodes all **15 original Hexagon words** including original packet markers; `tools/verify-agent20-10-cdsp-controller-enumeration.py` checks this difference explicitly, rather than claiming byte-equal LLVM assembly.
+- Entire 96-byte controller-start prefix `0x56930–0x56990` is byte-identical to original `cdsp.mbn`; no reference bytes are imported into the Rust generator. The routine continues beyond `0x56990`, not yet reconstructed. The branch remains **provisional on Agent 05's old CDSP base**; checkpoint-50 integration is not available.
+
+Run:
+
+```sh
+cargo run --offline --locked --bin cdsp-late-controller-init -- verify-prefix /private/cdsp.mbn
+cargo run --offline --locked --bin cdsp-late-controller-init -- emit /tmp/controller-96.bin
+python3 tools/verify-agent20-10-cdsp-controller-enumeration.py \
+  --llvm-mc /path/to/llvm6/bin/llvm-mc --rz-asm /path/to/rizin/bin/rz-asm \
+  --generated /tmp/controller-96.bin --reference /private/cdsp.mbn
+```
