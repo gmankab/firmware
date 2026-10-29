@@ -468,3 +468,26 @@ python3 tools/build-wlanmdsp-agent13.py /tmp/wlan-prefix-through-27a0.bin \
 - **History remains disjoint:** this branch descends from checkpoint16; the
   unmerged checkpoint17–25 source commits must be integrated before claiming
   a continuous source-generated prefix from WLAN file `0x40000`.
+
+## Checkpoint 43 (disjoint) — guarded session-processing prefix
+
+- Added **140 source-assembled Hexagon instruction bytes** at WLAN file
+  `[0x47188,0x47214)` (runtime `[0xb0007188,0xb0007214)`). This begins the
+  session record-processing function with bounded length checks, address
+  normalization, conditional record-property update and traversal setup.
+- The 4-word packet at file `0x471c0–0x471d0` carries predicate
+  evaluation, conditional arithmetic, a predicated byte write and a predicated
+  word read. LLVM6 canonicalized the two memory instructions in a different
+  order without `:mem_noshuf`; the exact grouping is now explicit in source.
+  Five packet-relative branch displacements are authored from instruction
+  addresses, not copied from reference machine code. The function's later
+  record loop remains **unreconstructed**; no invented return is emitted.
+- The complete disjoint continuation `[0x4568c,0x47214)` now comprises
+  **7,048 genuine Hexagon source-assembled bytes** with SHA-256
+  `5a93bc4652620ff65e2d9c80f14f26480ecda207fff35d5549ff121d0bda9fdd`.
+  The full output and new 140-byte interval are exactly equal to the pinned
+  reference. No original firmware is committed to the Git history.
+- The next packet begins at file `0x47214` (runtime `0xb0007214`).
+- Branch is **still checkpoint16-derived**, missing the checkpoint17–25
+  commits; this cannot be presented as a continuous source-generated WLAN
+  prefix from file `0x40000` until that ancestry gap is integrated.

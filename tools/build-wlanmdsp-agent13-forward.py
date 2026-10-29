@@ -65,6 +65,7 @@ FRAGMENTS = (
     ('record-callback-thunk', SOURCE_DIR / 'agent13-runtime-record-callback-thunk.S', 0x7010, 0x18),
     ('record-state-clear', SOURCE_DIR / 'agent13-runtime-record-state-clear.S', 0x7028, 0x34),
     ('controller-record-validate', SOURCE_DIR / 'agent13-runtime-controller-record-validate.S', 0x705c, 0x12c),
+    ('session-process-prefix', SOURCE_DIR / 'agent13-runtime-session-process-prefix.S', 0x7188, 0x8c),
 )
 
 
@@ -201,7 +202,7 @@ def main():
         parent.check_reference(fragment,args.reference.read_bytes(),runtime_offset=START)
     args.output.parent.mkdir(parents=True,exist_ok=True)
     args.output.write_bytes(fragment)
-    report={'agent':13,'checkpoint':'42-disjoint',
+    report={'agent':13,'checkpoint':'43-disjoint',
             'source_base':'Agent 13 checkpoint 16 (7c730bf); checkpoint25 source unavailable',
             'is_checkpoint25_descendant':False,
             'file_start':FILE_BASE+START,'file_end':FILE_BASE+end,

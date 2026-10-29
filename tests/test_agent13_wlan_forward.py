@@ -19,10 +19,10 @@ class SourceOnlyForwardTests(unittest.TestCase):
     def test_manifest_exact_boundaries(self):
         m=module()
         self.assertEqual(m.START,0x568c)
-        self.assertEqual(m.validate_manifest(),0x7188)
+        self.assertEqual(m.validate_manifest(),0x7214)
         self.assertEqual(m.FILE_BASE+m.START,0x4568c)
-        self.assertEqual(m.FILE_BASE+m.validate_manifest(),0x47188)
-        self.assertEqual(sum(length for _,_,_,length in m.FRAGMENTS),6908)
+        self.assertEqual(m.FILE_BASE+m.validate_manifest(),0x47214)
+        self.assertEqual(sum(length for _,_,_,length in m.FRAGMENTS),7048)
 
     def test_validator_forbids_opaque_data_and_layout_holes(self):
         m=module()
@@ -104,6 +104,19 @@ class SourceOnlyForwardTests(unittest.TestCase):
         self.assertIn('allocframe(#128)',source)
         for opaque in ('.word','.byte','.incbin'):
             self.assertNotIn(opaque,source)
+
+    def test_session_process_prefix_preserves_predicated_memory_order(self):
+        m=module()
+        p,off,size={n:(path,off,size) for n,path,off,size in m.FRAGMENTS}['session-process-prefix']
+        self.assertEqual((off,size),(0x7188,0x8c))
+        text=p.read_text()
+        self.assertIn('}:mem_noshuf',text)
+        self.assertIn('if (p0.new) memb(r16+r18<<#0) = r17',text)
+        self.assertIn('if (p0.new) r2 = memw(r22+#12)',text)
+        self.assertLess(text.index('if (p0.new) memb'),text.index('if (p0.new) r2 = memw'))
+        self.assertIn('loop',m.FRAGMENTS[2][1].read_text())
+        self.assertNotIn('.word',text)
+        self.assertNotIn('.incbin',text)
 
     def test_controller_stage3_preserves_packet_order(self):
         m=module()
