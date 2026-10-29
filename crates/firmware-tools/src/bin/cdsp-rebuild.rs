@@ -1,12 +1,22 @@
 // SPDX-License-Identifier: GPL-3.0-only
 //! CDSP partial reconstruction command. Reference bytes stay outside Git.
 use firmware_tools::devices::xiaomi_nabu::{cdsp_boot as cdsp, cdsp_privilege as privileged, cdsp_tlb as tlb, cdsp_tlb_extension as extension, cdsp_copyfast as cache_copy, cdsp_cache_controller as cache_ctl, cdsp_dma_copy as dma_copy};
-use firmware_tools::devices::xiaomi_nabu::cdsp_early_icache_tags as icache_tags;
+use firmware_tools::devices::xiaomi_nabu::{cdsp_early_icache_tags as icache_tags,cdsp_early_cache_helpers as cache_helpers};
 use std::{env, fs};
 
 fn run() -> Result<(), Box<dyn std::error::Error>> {
     let arguments: Vec<String> = env::args().skip(1).collect();
     match arguments.as_slice() {
+        [action, output] if action == "emit-cache-helpers" => {
+            fs::write(output,cache_helpers::build_cache_helper_group()?)?;
+            println!("Emitted {} CDSP source-built helper bytes, file {:#x}..{:#x}.",
+                cache_helpers::FUNCTION_BYTES,cache_helpers::FILE_OFFSET,cache_helpers::REGION_END);
+        }
+        [action, original] if action == "verify-cache-helpers" => {
+            cache_helpers::verify_reference(&fs::read(original)?)?;
+            println!("Verified {} source-built helper bytes and all preceding joined CDSP regions.",
+                cache_helpers::FUNCTION_BYTES);
+        }
         [action, output] if action == "emit-icache-tags" => {
             fs::write(output,icache_tags::build_icache_tag_recovery()?)?;
             println!("Emitted {} source-encoded CDSP I-cache tag sweep bytes at {:#x}..{:#x}.",
