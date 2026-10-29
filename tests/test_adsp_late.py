@@ -197,9 +197,9 @@ class ADSPExternalsAndCodeTests(unittest.TestCase):
     @unittest.skipUnless(LLVM_MC,'Hexagon LLVM6 assembler required')
     def test_complete_fragment_inventory_rejects_overlaps(self):
         manifest,regions=adsp.assembled_inventory(LLVM_MC,None)
-        self.assertEqual(len(manifest['fragments']),128)
-        self.assertEqual(manifest['total_independently_assembled_executable_bytes'],11756)
-        self.assertEqual(sum(map(len,regions.values())),11756)
+        self.assertEqual(len(manifest['fragments']),129)
+        self.assertEqual(manifest['total_independently_assembled_executable_bytes'],11880)
+        self.assertEqual(sum(map(len,regions.values())),11880)
         self.assertEqual(manifest['gap_bytes_included_in_generated_executables'],0)
         self.assertFalse(manifest['complete_adsp_image'])
         self.assertEqual(manifest['external_original_code_bytes_in_output'],0)
@@ -366,7 +366,7 @@ class ADSPExternalsAndCodeTests(unittest.TestCase):
     def test_inventory_every_fragment_uses_correct_original(self):
         inventory,_outputs=adsp.assembled_inventory(LLVM_MC,Path(REFERENCE).read_bytes())
         self.assertTrue(all(x['reference_byte_identical'] for x in inventory['fragments']))
-        self.assertEqual(inventory['total_independently_assembled_executable_bytes'],11756)
+        self.assertEqual(inventory['total_independently_assembled_executable_bytes'],11880)
 
     @unittest.skipUnless(LLVM_MC and REFERENCE,
                          'Hexagon LLVM6 and exact pinned ADSP reference required')
@@ -380,7 +380,7 @@ class ADSPExternalsAndCodeTests(unittest.TestCase):
                 adsp.verify_slice(built,original,off)
                 total+=len(built)
                 ranges.append((off,off+size))
-        self.assertEqual(total,11756)
+        self.assertEqual(total,11880)
         ranges.sort()
         self.assertEqual(ranges[0],(0x39000,0x39054))
         self.assertEqual(ranges[-1],(0x3640a8,0x3640f8))
@@ -1950,3 +1950,32 @@ class ADSPControllerRangeSelectionTests(unittest.TestCase):
         region=value+adsp.compile_source(LLVM_MC,src2,n2)
         self.assertEqual(len(region),336)
         if REFERENCE:adsp.verify_slice(region,Path(REFERENCE).read_bytes(),off)
+
+class ADSPControllerCaseRouterTests(unittest.TestCase):
+    """Two fast command modes and signed, bounded fallback parameter forwarding."""
+
+    def test_case_router_source_is_auditable(self):
+        src,off,n=adsp.FRAGMENTS['controller-case-router']
+        self.assertEqual((off,n),(0x3bac0,124))
+        self.assertEqual(adsp.FRAGMENTS['buffer-bitfield'][1]+0x58,off)
+        data=src.read_text()
+        for directive in ('.word ', '.long ', '.byte ', '.incbin ', '.fill '):
+            self.assertNotIn(directive,data)
+        for token in ('p0 = cmp.eq(r2,#56)',
+                      'p0 = cmp.eq(r2,#55); if (!p0.new) jump:nt case_other;',
+                      'r7 = memw(r29+#36); r6 = memw(r29+#32)',
+                      'route_55', 'route_56',
+                      'case_other_platform', 'dealloc_return'):
+            self.assertIn(token,data)
+
+    @unittest.skipUnless(LLVM_MC,'Hexagon LLVM6 assembler required')
+    def test_case_router_reference_digest_and_packet_marker(self):
+        src,off,size=adsp.FRAGMENTS['controller-case-router']
+        output=adsp.compile_source(LLVM_MC,src,size)
+        self.assertEqual(hashlib.sha256(output).hexdigest(),
+            '05c4f0fb389517c9be1178c5acb8212becea78f8f9129946675d9551c44e3590')
+        # The original conditional branch is NOT end-of-packet: it shares
+        # the packet with the predicate test and register pair load.
+        self.assertEqual(output[0x10:0x14],bytes.fromhex('2248205c'))
+        if REFERENCE:
+            adsp.verify_slice(output,Path(REFERENCE).read_bytes(),off)

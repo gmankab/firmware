@@ -1091,3 +1091,18 @@ linked-list insertion and this routine is excluded from code counts.
 Total Agent 08 late-ADSP coverage: **11,756 source-generated executable bytes
 across 128 nonoverlapping fragments**, reference-identical, not a complete
 source-equivalent or newly signed ADSP firmware image.
+
+**Checkpoint 66 — bounded codec command-case routing:**
+Independently reassembled a complete **124-byte** controller command router
+`[file 0x3bac0,0x3bb3c)` with two fast modes (55 and 56), signed-result
+normalization, fallback stack-argument forwarding and three symbolic platform
+calls. The original `0x3bacc–0x3bad8` Hexagon packet keeps its conditional
+branch and pair load together; LLVM6 initially marked its middle branch as
+end-of-packet, so the authored source was regrouped and all bytes now match.
+Generated SHA-256:
+`05c4f0fb389517c9be1178c5acb8212becea78f8f9129946675d9551c44e3590`.
+The preceding independently rebuilt bitfield routine `[0x3ba68,0x3bac0)` is
+adjacent, giving **212 contiguous executable bytes `[0x3ba68,0x3bb3c)`**.
+The next four-byte alignment NOP `[0x3bb3c,0x3bb40)` remains excluded.
+Cumulative Agent 08 coverage: **11,880 source-generated executable bytes in
+129 nonoverlapping fragments**. No OEM instruction payload is imported.
