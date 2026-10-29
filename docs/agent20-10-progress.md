@@ -952,3 +952,23 @@ python3 tools/verify-agent20-10-cdsp-controller-bank-entry.py \
   --generated /tmp/cdsp-bank48.bin --prefix /tmp/cdsp-rwe-prefix-2864.bin \
   --reference /private/cdsp.mbn
 ```
+
+## Checkpoint 49 — controller bank-count guards, CDSP file `0x56b30–0x56b4c`
+
+- Reconstructed **28 more independently source-generated V66 executable bytes** (seven instruction words) at original CDSP `[0x56b30,0x56b4c)`, physical `[0x96cc8b30,0x96cc8b4c)`.
+- One fused `R18.new` zero-bank guard branches to `0x96cc8e70` (its producer is the preceding checkpoint's final LSR); a forced-extended `R3=memw(GP+##0xc028c0f8)` loads the global bank count, which is right-shifted into R16; the second `!cmp.gtu(R16.new,R18)` guard branches to `0x96cc8e80`. All extended immediate/branch offsets are checked from **packet starts**. The original seven words are explicitly typed, not copied from reference firmware.
+- Rizin V66 validates the **eight-word packet context**, including `R18=lsr` at `0x56b2c` from the previous checkpoint. Decoding the seven-word slice in isolation incorrectly flags the fused `.new` use as `invalid`; the verifier prepends that producer from the generated prefix before decoding. Both original branch targets are checked.
+- An independently authored LLVM 6 fixture assembles semantically equivalent `P0`/`P1` comparisons, the GP word load, normalized bank shifts and both branch targets. LLVM6 **does not** retain original `.new` or the forced extended-GP packet schedule, so exact binary identity is established against the original MBN by the typed Rust emitter, not claimed for LLVM output.
+- Full prefix `[file 0x56000,0x56b4c)` comprises **2,892 exact bytes**, **2,832 executable + 60 structural layout**. With the preceding separate complete 1,200-byte controller, total independently generated executable coverage is **4,032 distinct bytes**. Next missing address is `0x56b4c`; function continues. Older Agent05 Git ancestry remains provisional, not checkpoint-50-integrated.
+
+Reproducer (pinned original reference outside Git):
+
+```sh
+cargo run --offline --locked -p firmware-tools --bin cdsp-late-controller-bank-guards -- verify-prefix /private/cdsp.mbn
+cargo run --offline --locked -p firmware-tools --bin cdsp-late-controller-bank-guards -- emit /tmp/cdsp-bank-guards28.bin
+cargo run --offline --locked -p firmware-tools --bin cdsp-late-controller-bank-guards -- emit-prefix /tmp/cdsp-rwe-prefix-2892.bin
+python3 tools/verify-agent20-10-cdsp-controller-bank-guards.py \
+  --llvm-mc /private/llvm6/bin/llvm-mc --rz-asm /private/rz-asm \
+  --generated /tmp/cdsp-bank-guards28.bin --prefix /tmp/cdsp-rwe-prefix-2892.bin \
+  --reference /private/cdsp.mbn
+```
