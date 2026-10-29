@@ -1443,3 +1443,18 @@ python3 -S tools/adsp-agent20-rwe-next-controller-record-reset.py \
   --llvm-mc "$HEXAGON_LLVM_MC" --reference "$NABU_ADSP_REFERENCE" \
   --output /tmp/adsp-controller-record-reset-320.bin
 ```
+
+## Checkpoint 87: controller record snapshot and conditional lookup `[0x13390,0x13478)`
+
+- Independently rebuilt **232 byte-identical ADSP Hexagon V66 executable bytes** (58 instruction words), file offsets `[0x13390,0x13478)`, physical `[0x8be10390,0x8be10478)`, SHA-256 `88052358a9af55e97fd8e43d19e9dd770ffb4a42f35589b327ca738a9342c0e2`.
+- The routine checks a controller record's identifying pair, walks the linked list, handles four record-class variants and buffer-status fallbacks, and returns the selected identifier or an empty pair through the original `dealloc_return`.
+- LLVM6 independently assembles **57 instruction words**. The privileged V66 `R2=SGP0` at file `0x1339c` uses an existing checked register encoder after a verified source NOP placeholder. The `R17:16=combine(#0,#0)` at `0x133dc` requires a **single validated packet continuation marker** (`packet_continuation`) after LLVM6 assembly; its operand bits remain unchanged. No reference instruction bytes are imported.
+- Source code preserves the exact packet parse boundary around the following `immext`, GP-relative loads, and conditional `.new` branches. Rizin independently decodes the resulting 58 Hexagon V66 words. The whole `[0x13250,0x13478)` controller-record reset + snapshot span is now byte-identical, and the function ends at `0x13478`.
+- Cumulative ADSP RWE **source-derived executable bytes: 12,984** across **22 disjoint** intervals, plus the separate 148-byte source-generated controller handler *data table* from checkpoint 80; linker fill, diagnostic strings and original OEM authentication are excluded.
+- Exact pinned `adsp.mbn` SHA-256 `4b579e5dc1333d634e5bdc93f3314e357e0e30dab7140833f6cc7aef086b1c1e`. **160 Rust tests and 344 Python tests** pass with LLVM6 and reference configured. Release build, independently decoded Rizin output, corruption/wrong-revision rejection and Git bundle verification pass. This is executable instruction-byte reconstruction, not independent source-level behavioral proof or a complete/flashable ADSP image.
+
+```sh
+python3 -S tools/adsp-agent20-rwe-next-controller-record-snapshot.py \
+  --llvm-mc "$HEXAGON_LLVM_MC" --reference "$NABU_ADSP_REFERENCE" \
+  --output /tmp/adsp-controller-record-snapshot-232.bin
+```
