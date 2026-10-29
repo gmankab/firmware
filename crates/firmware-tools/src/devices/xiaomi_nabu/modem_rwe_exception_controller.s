@@ -371,3 +371,59 @@ modem_ctrl_pointer_checks_done:
 { p3:0 = r19; jump agent11_modem_rwe_controller_entry; deallocframe }
 modem_ctrl_dispatch_recovery_frame:
 { p3:0 = r19; r0 = r18; jump agent11_modem_rwe_probe_controller_owner; deallocframe }
+// Alternate exception mode: copy controller state back to its per-thread
+// frame and clear any stale system-configuration control bit before release.
+.globl agent11_modem_rwe_restore_video_frame
+agent11_modem_rwe_restore_video_frame:
+MODEM_CTRL_SWAP_SGP0 9,3
+{ memd(r9+#64) = r19:18; memd(r9+#72) = r29:28 }
+MODEM_CTRL_Y_READ 19,4,3
+MODEM_CTRL_SYS_READ 28,6,3
+{ p0 = tstbit(r28,#16); p1 = tstbit(r28,#19) }
+{ p2 = and(p0,!p1) }
+MODEM_CTRL_Y_WRITE 4,19,1
+.set modem_ctrl_skip_alternate_sync,agent11_modem_rwe_controller_entry+0x42c
+{ if (p2) jump:t modem_ctrl_skip_alternate_sync }
+MODEM_CTRL_SYS_READ 28,18,3
+{ r28 = clrbit(r28,#1) }
+MODEM_CTRL_SYS_WRITE 18,28,3
+{ isync }
+modem_ctrl_skip_alternate_sync:
+{ r18 = ##-1065077624; r29 = r9 }
+MODEM_CTRL_SYS_READ 1,8,1
+{ memd(r9+#80) = r31:30; memd(r9+#40) = r1:0 }
+MODEM_CTRL_SWAP_SGP0 9,3
+MODEM_CTRL_Y_READ 19,4,1
+{ r1 = setbit(r1,#30); allocframe(#8) }
+{ r19 = r0; memd(r29+#0) = r19:18 }
+{ r0 = and(r0,#255) }
+// Validate the alternate exception owner, erase stale metadata, then select
+// the video-recovery or original controller callback via saved predicates.
+.set modem_ctrl_video_pointer_checks_done,agent11_modem_rwe_controller_entry+0x490
+{ p0 = cmp.eq(r0,#5); r0 = memw(##-1065076432) }
+{ p1 = cmp.eq(r0,#0); if (p1.new) jump:t modem_ctrl_video_pointer_checks_done; r0 = memw(##-1065067868) }
+{ p1 = cmp.eq(r0,#0); if (!p1.new) jump:nt modem_ctrl_video_pointer_checks_done; r0 = memw(##-1065265136) }
+{ p1 = cmp.eq(r0,#0); if (p1.new) jump:t modem_ctrl_video_pointer_checks_done }
+{ memw(r0+#36) = #0; memw(r0+#32) = #0 }
+{ memw(r0+#16) = #0; memw(r0+#20) = #0 }
+{ memw(r0+#4) = clrbit(#21) }
+modem_ctrl_video_pointer_checks_done:
+.set modem_ctrl_video_id_ready,agent11_modem_rwe_controller_entry+0x4a4
+{ r0 = r19; if (p0) jump:nt modem_ctrl_video_id_ready }
+MODEM_CTRL_SYS_READ 28,6,3
+{ r28 = and(r28,#255) }
+{ r19 = insert(r28,#8,#8) }
+modem_ctrl_video_id_ready:
+{ r0 = asr(r19,#8) }
+{ r0 |= asl(r19,#8) }
+{ r0.h = #0 }
+MODEM_CTRL_SYS_READ 28,6,1
+{ r1 = insert(r0,#16,#8) }
+.set modem_ctrl_alt_frame_exit,agent11_modem_rwe_controller_entry+0x4e0
+{ p2 = tstbit(r28,#16) }
+{ if (!p2) jump:nt modem_ctrl_alt_frame_exit; r19:18 = memd(r29+#0) }
+{ r28 = memw(##-1065077624) }
+{ p0 = tstbit(r28,#29); if (p0.new) jump:nt modem_ctrl_alt_frame_exit }
+{ p3:0 = r19; jump agent11_modem_rwe_controller_entry; deallocframe }
+modem_ctrl_alt_frame_exit:
+{ p3:0 = r19; r0 = r18; jump ##agent11_modem_rwe_probe_controller_owner; deallocframe }

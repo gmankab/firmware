@@ -11,7 +11,7 @@ import argparse, hashlib, struct, subprocess, tempfile, runpy
 from pathlib import Path
 
 FILE_START = 0x39de8
-FILE_END = 0x3a1dc
+FILE_END = 0x3a2d8
 VIRTUAL_START = 0xc0841de8
 PHYSICAL_START = 0x8e041de8
 PINNED_SHA256 = '6f5cb32bc10e41abb40938d185805e788f5637a41d3ebcef278e4e169fc36782'
@@ -81,6 +81,37 @@ def normalize_v60_gp(source:bytes)->bytes:
     if words[k] != 0x5c00d20a:
         raise ValueError('Unexpected protected predicate-bank branch operands')
     words[k] += 2
+    # The alternate P3:0 bank write at 0x3a1fc is also a checked ISA macro.
+    # LLVM6 sees the next branch as a new packet and computes its PC delta
+    # one word too short. Validate its operands and adjust two halfwords.
+    k=(0x3a200-FILE_START)//4
+    if words[k] != 0x5c00d20a:
+        raise ValueError('Unexpected alternate predicate-bank branch')
+    words[k] += 2
+    # LLVM6 reverses this valid `r0=r19; if(p0)jump` producer/consumer
+    # packet. Check both instruction bodies and reconstruct the original
+    # two parse bits before restoring producer-first ordering.
+    k=(0x3a278-FILE_START)//4
+    if tuple(words[k:k+2]) != (0x5c00400a,0x7073c000):
+        raise ValueError('Unexpected video-ID predicate dispatch operands')
+    branch,move=words[k:k+2]
+    words[k:k+2]=[(move&~(3<<14))|(1<<14),
+                  (branch&~(3<<14))|(3<<14)]
+    # LLVM6 folds `r0=r18; deallocframe` into one compact word while the
+    # original legal packet folds `r0=r18; jump` and keeps deallocframe as
+    # the final opcode. Both are source-authored. Validate the extender and
+    # both class+operand words, then use the architectural compact register
+    # lane for r18 (upper lane 18-8=10), LLVM's own branch-displacement bits,
+    # and the independently LLVM-assembled deallocframe at 0x3a2c4.
+    k=(0x3a2d0-FILE_START)//4
+    if tuple(words[k-1:k+2]) != (0x0fff7fef,0x58004030,0x50a03f00):
+        raise ValueError('Unexpected compact mov/jump/deallocframe packet')
+    original_dealloc=words[(0x3a2c4-FILE_START)//4]
+    if original_dealloc!=0x901ec01e:
+        raise ValueError('Unexpected separately assembled deallocframe')
+    branch=words[k]
+    words[k]=(0x17000000|((18-8)<<16)|(branch&0xffff))
+    words[k+1]=original_dealloc
     return struct.pack('<'+'I'*len(words),*words)
 
 def assemble(llvm_mc:Path,source:Path)->bytes:
