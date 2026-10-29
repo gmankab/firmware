@@ -657,3 +657,27 @@ python3 tools/build-wlanmdsp-agent13.py /tmp/wlan-prefix-through-27a0.bin \
   function is still in progress; next missing packet begins at `0x47758`.
 - Branch ancestry still traces to checkpoint16, not missing checkpoints
   17–25; complete signed WLAN firmware and device execution are not claimed.
+
+## Checkpoint 52 (disjoint) — session loop, codec dispatch and status iteration
+
+- Added **568 source-assembled Hexagon instruction bytes** at WLAN file
+  `[0x47758,0x47990)` (VMA `[0xb0007758,0xb0007990)`) in ten adjacent
+  packet-level semantic assembly fragments. There are **zero byte mismatches**
+  against the pinned WLAN original, and the original packet framing is retained.
+- The source models guarded session state, record traversal, a branch table
+  decision and bounded status/bitmap iteration. An immediate-extended
+  conditional branch remains explicit; no reference opcode words are embedded.
+- LLVM6's decoder misleadingly prints one A-type duplex operation as
+  `r18=add(r10,#4)` whereas the re-encoded original word is generated from
+  `r18=add(r18,#4);r19=add(r19,#1)`. Both operand encodings and the
+  packet's original parse bits are validated by exact byte comparison.
+  Another compound `callr` packet required semantic source ordering to
+  reproduce its preferred duplex combination, and three branch displacements
+  needed packet-relative adjustments.
+- Total disjoint continuation `[0x4568c,0x47990)` now comprises
+  **8,964 source-generated matching instruction bytes**, SHA-256
+  `06cdb9c67f55ca471f5f2965625ae4daf238f30f05fb9fc2798c21a3f10d8a3a`.
+  Next missing file offset `0x47990`, VMA `0xb0007990`.
+- Git base is still checkpoint16, not the missing 17–25 history or the
+  checkpoint-50-integrated branch. This does not prove a contiguous whole
+  firmware executable prefix or any new OEM signature/hardware behavior.

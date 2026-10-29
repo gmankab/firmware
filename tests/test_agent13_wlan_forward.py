@@ -19,10 +19,10 @@ class SourceOnlyForwardTests(unittest.TestCase):
     def test_manifest_exact_boundaries(self):
         m=module()
         self.assertEqual(m.START,0x568c)
-        self.assertEqual(m.validate_manifest(),0x7758)
+        self.assertEqual(m.validate_manifest(),0x7990)
         self.assertEqual(m.FILE_BASE+m.START,0x4568c)
-        self.assertEqual(m.FILE_BASE+m.validate_manifest(),0x47758)
-        self.assertEqual(sum(length for _,_,_,length in m.FRAGMENTS),8396)
+        self.assertEqual(m.FILE_BASE+m.validate_manifest(),0x47990)
+        self.assertEqual(sum(length for _,_,_,length in m.FRAGMENTS),8964)
 
     def test_validator_forbids_opaque_data_and_layout_holes(self):
         m=module()
@@ -331,6 +331,25 @@ class SourceOnlyForwardTests(unittest.TestCase):
             for data in (src.read_text(),other.read_text()):
                 self.assertNotIn('.word',data)
                 self.assertNotIn('.incbin',data)
+
+    def test_controller_switch_duplex_and_loops_are_semantic(self):
+        m=module()
+        fragments={name:(src,off,size) for name,src,off,size in m.FRAGMENTS}
+        compound,off,size=fragments['session-case-1a0-1e4']
+        self.assertEqual((off,size),(0x7758,0x44))
+        text=compound.read_text()
+        self.assertIn('r18 = add(r18,#4)',text)
+        self.assertIn('r19 = add(r19,#1)',text)
+        self.assertIn('jump:nt ##0x330',text)
+        self.assertIn('jump:t -0x1c',text)
+        self.assertNotIn('.word',text)
+        loop,off,size=fragments['session-case-1f0-264']
+        self.assertEqual((off,size),(0x77a8,0x74))
+        body=loop.read_text()
+        self.assertIn('callr r27',body)
+        self.assertIn('jump:nt ##0x398',body)
+        self.assertIn('r0 = memw(r2+#36)',body)
+        self.assertNotIn('.incbin',body)
 
 
 if __name__=='__main__':unittest.main()
