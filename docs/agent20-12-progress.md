@@ -1583,3 +1583,19 @@ Total generated coverage **10,656 bytes** = **10,348 Hexagon executable**,
 **296 independently reconstructed ELF metadata**, and **12 explicit linker
 alignment** bytes. All match the pinned original `modem.mbn`, but the full
 firmware and OEM authentication remain incomplete.
+
+## Checkpoint 69 — Second controller-record diagnostic path
+
+Added **80 source-generated Hexagon V60 instruction bytes** in modem file
+`[0x44873c,0x44878c)`. The routine increments the controller frame count,
+checks the second message handler and emits callback diagnostics or fallback
+reporting with symbolic external call addresses. LLVM6 puts an independent
+predicated branch ahead of its extended register value; the fail-closed
+phase41 transformation validates opcode classes, register operands, the
+branch displacement and all packet markers before restoring source issue
+order. Negative tests reject modified instruction or packet fields.
+
+Contiguous auxiliary prefix `[0x446000,0x44878c)` = **10,124 bytes**.
+Total generated coverage **10,736 bytes**, including **10,428 source-encoded
+Hexagon executable**, **296 structured ELF32 metadata** and **12 alignment**.
+The original full modem image and OEM authentication remain unimplemented.
