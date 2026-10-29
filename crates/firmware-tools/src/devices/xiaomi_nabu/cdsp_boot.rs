@@ -294,7 +294,7 @@ impl ScalarPacket {
                 if width==0 || width>31 || offset>=32 || u16::from(width)+u16::from(offset)>32 {
                     return Err("Hexagon INSERT bitfield outside 32-bit register".into());
                 }
-                Ok(0x8f00_c000 | (u32::from(offset & 16) << 18)
+                Ok(0x8f00_c000 | (u32::from(offset & 0x18) << 18)
                     | (u32::from(src.number()) << 16)
                     | (u32::from(width) << 8)
                     | (u32::from(offset & 15) << 5) | u32::from(dst.number()))
@@ -829,6 +829,10 @@ mod tests {
         assert_eq!(LogicalShiftRight{dst:r(2),src:r(24),amount:11}.encode().unwrap(),0x8c18_cb22);
         assert_eq!(InsertBitField{dst:r(2),src:r(4),width:11,offset:21}.encode().unwrap(),0x8f44_cba2);
         assert_eq!(InsertBitField{dst:r(3),src:r(5),width:12,offset:20}.encode().unwrap(),0x8f45_cc83);
+        // Hexagon INSERT offset bit 3 is duplicated at architecture bit 21;
+        // independent LLVM6 samples confirm offsets 8..15 require it.
+        assert_eq!(InsertBitField{dst:r(7),src:r(3),width:21,offset:11}.encode().unwrap(),0x8f23_d567);
+        assert_eq!(InsertBitField{dst:r(7),src:r(3),width:5,offset:11}.encode().unwrap(),0x8f23_c567);
         assert_eq!(AssignUnsignedImmediate{dst:r(4),value:0x7c0}.encode().unwrap(),0x7803_f804);
         assert_eq!(AssignUnsignedImmediate{dst:r(5),value:0xc00}.encode().unwrap(),0x7806_c005);
         assert_eq!(CombineZeroPair{low:r(2)}.encode().unwrap(),0x7c00_c002);
