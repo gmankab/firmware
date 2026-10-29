@@ -137,6 +137,7 @@ FRAGMENTS = {
     'controller-publish-globals': (TOOLS / 'adsp-late-controller-publish-globals.S', 0x3F31C, 0x60),
     'controller-query-registers': (TOOLS / 'adsp-late-controller-query-registers.S', 0x3F37C, 0xE8),
     'controller-register-hooks': (TOOLS / 'adsp-late-controller-register-hooks.S', 0x3F468, 0x48),
+    'controller-init-extended': (TOOLS / 'adsp-late-controller-init-extended.S', 0x3F4D0, 0x17C),
     'controller-log-failure': (TOOLS / 'adsp-late-controller-log-failure.S', 0x3F4B0, 0x18),
     'controller-indirect-callback': (TOOLS / 'adsp-late-controller-indirect-callback.S', 0x3FA1C, 0x20),
     'controller-create-parameter': (TOOLS / 'adsp-late-controller-create-parameter.S', 0x3FA3C, 0x44),

@@ -197,9 +197,9 @@ class ADSPExternalsAndCodeTests(unittest.TestCase):
     @unittest.skipUnless(LLVM_MC,'Hexagon LLVM6 assembler required')
     def test_complete_fragment_inventory_rejects_overlaps(self):
         manifest,regions=adsp.assembled_inventory(LLVM_MC,None)
-        self.assertEqual(len(manifest['fragments']),136)
-        self.assertEqual(manifest['total_independently_assembled_executable_bytes'],12816)
-        self.assertEqual(sum(map(len,regions.values())),12816)
+        self.assertEqual(len(manifest['fragments']),137)
+        self.assertEqual(manifest['total_independently_assembled_executable_bytes'],13196)
+        self.assertEqual(sum(map(len,regions.values())),13196)
         self.assertEqual(manifest['gap_bytes_included_in_generated_executables'],0)
         self.assertFalse(manifest['complete_adsp_image'])
         self.assertEqual(manifest['external_original_code_bytes_in_output'],0)
@@ -377,7 +377,7 @@ class ADSPExternalsAndCodeTests(unittest.TestCase):
     def test_inventory_every_fragment_uses_correct_original(self):
         inventory,_outputs=adsp.assembled_inventory(LLVM_MC,Path(REFERENCE).read_bytes())
         self.assertTrue(all(x['reference_byte_identical'] for x in inventory['fragments']))
-        self.assertEqual(inventory['total_independently_assembled_executable_bytes'],12816)
+        self.assertEqual(inventory['total_independently_assembled_executable_bytes'],13196)
 
     @unittest.skipUnless(LLVM_MC and REFERENCE,
                          'Hexagon LLVM6 and exact pinned ADSP reference required')
@@ -391,7 +391,7 @@ class ADSPExternalsAndCodeTests(unittest.TestCase):
                 adsp.verify_slice(built,original,off)
                 total+=len(built)
                 ranges.append((off,off+size))
-        self.assertEqual(total,12816)
+        self.assertEqual(total,13196)
         ranges.sort()
         self.assertEqual(ranges[0],(0x39000,0x39054))
         self.assertEqual(ranges[-1],(0x3640a8,0x3640f8))
@@ -2159,3 +2159,47 @@ class ADSPRegistryRandomServiceTests(unittest.TestCase):
         self.assertEqual(hashlib.sha256(pieces[-1]).hexdigest(),
             'e038769b9d1239ee5328a660de1e6654d10dcc3c68eb151ed522a73237271a64')
         if REFERENCE:adsp.verify_slice(b''.join(pieces),Path(REFERENCE).read_bytes(),0x39320)
+
+
+class ADSPControllerExtendedInitializationTests(unittest.TestCase):
+    """Source-authored controller initialization and hardware-loop clearing."""
+
+    def test_controller_init_source_is_symbolic_and_alignment_excluded(self):
+        src,start,size=adsp.FRAGMENTS['controller-init-extended']
+        self.assertEqual((start,size),(0x3f4d0,380))
+        self.assertEqual(start-(0x3f4c8),8)  # two OEM NOPs excluded
+        assert src.name=='adsp-late-controller-init-extended.S'
+        text=src.read_text()
+        for token in ('loop0(loop_clear,#4)','memd(r2++#32) = r1:0',
+                      'memw(##4028651808) = r3.new','platform_register_buffer',
+                      'out_of_memory:', 'dealloc_return'):
+            self.assertIn(token,text)
+        for banned in ('.word ','.byte ','.long ','.incbin ','.fill '):
+            self.assertNotIn(banned,text)
+
+    @unittest.skipUnless(LLVM_MC,'Hexagon LLVM6 required')
+    def test_compiled_initialize_exact_and_joins_qurt_traps(self):
+        src,off,n=adsp.FRAGMENTS['controller-init-extended']
+        code=adsp.compile_source(LLVM_MC,src,n)
+        self.assertEqual(hashlib.sha256(code).hexdigest(),
+            '3a29849bfb2dc4a028e4fb61b10f9f4d0d9def03a1123b1b42d45a931469cefa')
+        if REFERENCE:adsp.verify_slice(code,Path(REFERENCE).read_bytes(),off)
+        self.assertEqual(off+n,adsp.FRAGMENTS['qurt-trap-103'][1])
+        # A 380-byte controller setup followed immediately by 164 bytes of
+        # previously reconstructed trap, stack and atomic helper functions.
+        names=['controller-init-extended','qurt-trap-103','qurt-io-marshall',
+               'qurt-trap-107','qurt-trap-12','qurt-trap-4',
+               'qurt-trap-105','qurt-trap-11','qurt-trap-126',
+               'qurt-atomic-word','qurt-atomic-context']
+        # The exact set of trap names is checked against observed locations;
+        # no NOPs are included in this particular span.
+        pieces=[]
+        for name in names:
+            src,start,length=adsp.FRAGMENTS[name]
+            pieces.append((start,start+length,adsp.compile_source(LLVM_MC,src,length)))
+        pieces.sort()
+        self.assertEqual(pieces[0][0],0x3f4d0)
+        self.assertEqual(pieces[-1][1],0x3f6f0)
+        for x,y in zip(pieces,pieces[1:]):self.assertEqual(x[1],y[0])
+        self.assertEqual(sum(len(x[2]) for x in pieces),0x220)
+        if REFERENCE:adsp.verify_slice(b''.join(x[2] for x in pieces),Path(REFERENCE).read_bytes(),0x3f4d0)

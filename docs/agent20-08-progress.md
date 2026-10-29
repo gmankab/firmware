@@ -1209,3 +1209,21 @@ contiguous verified executable bytes** `[0x39320,0x394b8)`.
 Only **300 new** executable bytes are counted (296+4). Cumulative
 **12,816 source-assembled executable bytes across 136 nonoverlapping
 fragments**, no OEM padding or reference slices imported into output.
+
+**Checkpoint 73 — controller startup and QuRT register-bank initialization:**
+Reconstructed the complete **380-byte** controller startup routine at
+`[0x3f4d0,0x3f64c)`, SHA-256
+`3a29849bfb2dc4a028e4fb61b10f9f4d0d9def03a1123b1b42d45a931469cefa`.
+The source creates a platform controller state, initializes four 32-byte
+records using Hexagon `loop0`, captures registry pointers, writes linked
+controller fields and follows separate allocation-failure reporting paths.
+Two hardware-decoder/assembler details mattered: the external platform
+call needed a correct symbolic relative target, and the register/extended
+literal store packet had to be authored in `(r19, immext, r1, store)` order.
+All 95 generated instruction words match the pinned ADSP reference. The
+preceding `[0x3f4c8,0x3f4d0)` is two alignment NOPs and is **excluded**.
+The routine touches the next previously source-built QuRT trap at `0x3f64c`,
+forming **544 contiguous source-assembled bytes** `[0x3f4d0,0x3f6f0)`
+without including any OEM filler. Cumulative **13,196 independently
+source-assembled executable bytes across 137 nonoverlapping fragments**;
+most ADSP image text and all new OEM authentication remain unfinished.
