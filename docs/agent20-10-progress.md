@@ -792,3 +792,23 @@ python3 tools/verify-agent20-10-cdsp-controller-enumeration.py \
   --llvm-mc /path/to/llvm6/bin/llvm-mc --rz-asm /path/to/rizin/bin/rz-asm \
   --generated /tmp/controller-96.bin --reference /private/cdsp.mbn
 ```
+
+## Checkpoint 41 — controller candidate selection at CDSP RWE 0x56990..0x569c0
+
+- Reconstructed **48 independently source-encoded Hexagon V66 executable bytes** in original `cdsp.mbn` file `[0x56990,0x569c0)` (physical `[0x96cc8990,0x96cc89c0)`). All **12 instruction words** compare byte-identically with the pinned original reference; no OEM instruction arrays are embedded in the generator.
+- The code computes `P0=!cmp.gt(R21,R19)` and `P1=cmp.eq(R21,0)`, builds a candidate index with `mux(P0,-1,0)`, selects an address with `R2=R20+160*R3`, calls the controller callback at physical `0x96ccfd00`, and branches to two missing-resource handlers at `0x96cc8adc` and `0x96cc8aec`. Checked Rust helpers reject unverified register/immediate/predicate choices and validate packet-relative call/branch displacements.
+- The contiguous RWE prefix `[0x56000,0x569c0)` is now **2,496 byte-identical file bytes**, of which **2,440 are independently source-generated executable code** and **56 are separately accounted layout NOPs/fill**. The completed short `R E` controller segment `[0x55000,0x554b0)` contains another **1,200 executable bytes**, bringing Agent 20-10's **disjoint executable total to 3,640 bytes**. The rest of CDSP remains incomplete; the next uncovered file offset is `0x569c0` (physical `0x96cc89c0`) inside a larger controller function.
+- The independent LLVM6 Hexagon semantic fixture `tools/agent20-10-cdsp-controller-selection-semantic.s` compiles all twelve operations, but schedules the `R1:0=combine(1,0)` and P1.new move in reverse order and places the multiply/call in a different packet. The call thus has a different displacement encoding **while preserving the same absolute physical destination**. `tools/verify-agent20-10-cdsp-controller-selection.py` checks the remaining instruction fields (ignoring only packet parse bits), Rizin V66 validates the actual original 12-word packet order and all branch/call targets, and the verifier checks the exact full RWE prefix. It does **not** claim that the LLVM6 output is raw byte-identical where scheduling differs.
+- Reproduce verification:
+
+  ```sh
+  cargo run --offline --locked -p firmware-tools --bin cdsp-late-controller-selection -- verify-prefix /private/cdsp.mbn
+  cargo run --offline --locked -p firmware-tools --bin cdsp-late-controller-selection -- emit /tmp/cdsp-controller-selector-48.bin
+  cargo run --offline --locked -p firmware-tools --bin cdsp-late-controller-selection -- emit-prefix /tmp/cdsp-rwe-prefix-2496.bin
+  python3 tools/verify-agent20-10-cdsp-controller-selection.py \
+    --llvm-mc /private/llvm6/bin/llvm-mc --rz-asm /private/rz-asm \
+    --generated /tmp/cdsp-controller-selector-48.bin --reference /private/cdsp.mbn \
+    --prefix /tmp/cdsp-rwe-prefix-2496.bin
+  ```
+
+- Tests: **267 offline Rust tests and 23 Python tests passed**, and the offline release build succeeded. This remains a **provisional branch rooted in Agent 05's older CDSP Git history**, not the unavailable checkpoint-50 integration; it is not a newly authenticated firmware image or an on-device behavior test.
