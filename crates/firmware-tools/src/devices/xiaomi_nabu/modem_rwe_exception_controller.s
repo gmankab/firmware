@@ -310,3 +310,42 @@ MODEM_CTRL_CONTROL_PAIR_READ 0,34,1
 { r3:2 = memd(##-1065082048) }
 MODEM_CTRL_PRIVILEGED_SELECT 0x40,3
 MODEM_CTRL_RETURN_FROM_EXCEPTION 3
+// Alternate exception return: publish controller C35:34, switch SGP0 and
+// locate the per-thread saved frame via its 32-bit HTID descriptor.
+.globl agent11_modem_rwe_publish_alternate_frame
+agent11_modem_rwe_publish_alternate_frame:
+{ r3:2 = memd(##-1065082048) }
+MODEM_CTRL_PRIVILEGED_SELECT 0x40,3
+MODEM_CTRL_CONTROL_PAIR_READ 0,34,3
+MODEM_CTRL_SWAP_SGP0 9,3
+MODEM_CTRL_SYS_READ 9,8,3
+{ r9 = asl(r9,#18) }
+{ r9.l = #22528 }
+{ r9 |= lsr(r9,#16) }
+{ r9.h = #49281 }
+{ r9 = memw(r9+#0) }
+{ memd(r9+#56) = r1:0; memd(r9+#72) = r29:28 }
+// Save the interrupted predicate bank and clear the system-configuration
+// return-in-progress flag unless the frame already holds that privilege.
+MODEM_CTRL_Y_READ 1,4,3
+MODEM_CTRL_SYS_READ 28,6,3
+{ p0 = tstbit(r28,#16); p1 = tstbit(r28,#19) }
+{ p2 = and(p0,!p1) }
+.set modem_ctrl_skip_extra_sync,agent11_modem_rwe_controller_entry+0x330
+MODEM_CTRL_Y_WRITE 4,1,1
+{ if (p2) jump:t modem_ctrl_skip_extra_sync }
+MODEM_CTRL_SYS_READ 28,18,3
+{ r28 = clrbit(r28,#1) }
+MODEM_CTRL_SYS_WRITE 18,28,3
+{ isync }
+modem_ctrl_skip_extra_sync:
+MODEM_CTRL_SYS_READ 1,6,3
+MODEM_CTRL_SYS_READ 28,8,1
+{ r0 = ##-1065077624; memd(r9+#80) = r31:30 }
+{ r29 = ##-1065082008; r1 = add(r28,#0); r28 = r1 }
+{ r29 = addasl(r29,r1,#5); memd(r9+#64) = r19:18 }
+{ r19 = p3:0; r1 = setbit(r1,#30); r18 = r0; allocframe(#8) }
+MODEM_CTRL_SYS_READ 19,9,1
+{ r18 = #1; memd(r29+#0) = r19:18 }
+{ r19 = and(r28,#255); memd(r9+#40) = r19:18 }
+MODEM_CTRL_SWAP_SGP0 9,3

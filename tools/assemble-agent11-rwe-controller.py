@@ -11,7 +11,7 @@ import argparse, hashlib, struct, subprocess, tempfile, runpy
 from pathlib import Path
 
 FILE_START = 0x39de8
-FILE_END = 0x3a0b8
+FILE_END = 0x3a164
 VIRTUAL_START = 0xc0841de8
 PHYSICAL_START = 0x8e041de8
 PINNED_SHA256 = '6f5cb32bc10e41abb40938d185805e788f5637a41d3ebcef278e4e169fc36782'
@@ -71,6 +71,16 @@ def normalize_v60_gp(source:bytes)->bytes:
     if tuple(words[k:k+2]) != (0x5c005812,0x75034010):
         raise ValueError('Unexpected controller status-mask predicate packet')
     words[k:k+2]=[words[k+1],words[k]]
+    # The architectural P3:0 bank-write at 0x3a100 is provided by a checked
+    # typed .word macro which LLVM6 cannot schedule with the following source
+    # branch. Its code-generation assumes a new packet at 0x3a104 and thus
+    # shortens the encoded PC-relative signed halfword displacement by 2.
+    # Validate the *entire* LLVM-authored instruction before repairing the
+    # offset; destination remains the original absolute 0x3a118.
+    k=(0x3a104-FILE_START)//4
+    if words[k] != 0x5c00d20a:
+        raise ValueError('Unexpected protected predicate-bank branch operands')
+    words[k] += 2
     return struct.pack('<'+'I'*len(words),*words)
 
 def assemble(llvm_mc:Path,source:Path)->bytes:

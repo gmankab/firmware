@@ -7,7 +7,7 @@ spec=importlib.util.spec_from_file_location('modem_rwe_controller',SCRIPT)
 mod=importlib.util.module_from_spec(spec);spec.loader.exec_module(mod)
 class ControllerTests(unittest.TestCase):
     def test_bounds_and_elf_addresses(self):
-        self.assertEqual((mod.FILE_START,mod.FILE_END),(0x39de8,0x3a0b8))
+        self.assertEqual((mod.FILE_START,mod.FILE_END),(0x39de8,0x3a164))
         self.assertEqual(mod.VIRTUAL_START-mod.FILE_START,0xc0808000)
         self.assertEqual(mod.PHYSICAL_START-mod.FILE_START,0x8e008000)
     def test_wrong_modem_reference_is_rejected(self):
@@ -25,7 +25,7 @@ class ControllerTests(unittest.TestCase):
         if not mc:self.skipTest('Set AGENT11_LLVM_MC to verify original LLVM6 source assembly')
         source=SCRIPT.parents[1]/'crates/firmware-tools/src/devices/xiaomi_nabu/modem_rwe_exception_controller.s'
         data=mod.assemble(Path(mc),source)
-        self.assertEqual(len(data),720)
+        self.assertEqual(len(data),892)
         get=lambda i:struct.unpack_from('<I',data,i-mod.FILE_START)[0]
         self.assertEqual(get(0x39de8),0x6e800000|(3<<14)|29)
         self.assertEqual(get(0x39dec),0x5bff7f8e)
@@ -87,6 +87,17 @@ class ControllerTests(unittest.TestCase):
         self.assertEqual(get(0x3a0a4),0x68224000)  # C35:34 -> r1:0
         self.assertEqual(get(0x3a0b0),0x6c20c040)  # protected frame-mode select
         self.assertEqual(get(0x3a0b4),0x57e0c000)  # architectural RTE
+        self.assertEqual(get(0x3a0b8),0x0c08508d)  # alternate frame pointer
+        self.assertEqual(get(0x3a0c4),0x6822c000)  # selected C35:34 read
+        self.assertEqual(get(0x3a0c8),0x6509c000)  # SGP0 exchange
+        self.assertEqual(get(0x3a0e4),0xa1c94007)  # saved exception pair
+        self.assertEqual(get(0x3a0ec),0x6a04c001)  # P3:0 read
+        self.assertEqual(get(0x3a100),0x62214004)  # predicate bank write
+        self.assertEqual(get(0x3a104),0x5c00d20c)  # absolute target 0x3a118
+        self.assertEqual(get(0x3a10c),0x8cdcc13c)  # protected status bit
+        self.assertEqual(get(0x3a128),0xa1c9de0a)  # save C31:30
+        self.assertEqual(get(0x3a154),0x681a2a05)  # paired alloc/record
+        self.assertEqual(get(0x3a160),0x6509c000)  # SGP0 exchange
         ref=os.environ.get('AGENT11_MODEM_MBN')
         if ref:mod.verify(Path(ref).read_bytes(),data)
 if __name__=='__main__':unittest.main()
