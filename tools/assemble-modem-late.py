@@ -88,6 +88,7 @@ AUX_LARGE_CONTROLLER_PHASE42_SOURCE = ROOT / "crates/firmware-tools/src/devices/
 AUX_LARGE_CONTROLLER_PHASE43_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_aux_large_controller_phase43.s"
 AUX_LARGE_CONTROLLER_PHASE44_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_aux_large_controller_phase44.s"
 AUX_LARGE_CONTROLLER_PHASE45_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_aux_large_controller_phase45.s"
+AUX_LARGE_CONTROLLER_PHASE46_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_aux_large_controller_phase46.s"
 AUX_DISPATCH_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_aux_dispatch_helpers.s"
 AUX_TYPE_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_aux_type_config.s"
 AUX_NOTIFY_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_aux_controller_notify.s"
@@ -289,6 +290,8 @@ AUX_LARGE_CONTROLLER_PHASE44_START = AUX_LARGE_CONTROLLER_PHASE43_END
 AUX_LARGE_CONTROLLER_PHASE44_END = 0x448888
 AUX_LARGE_CONTROLLER_PHASE45_START = AUX_LARGE_CONTROLLER_PHASE44_END
 AUX_LARGE_CONTROLLER_PHASE45_END = 0x4488CC
+AUX_LARGE_CONTROLLER_PHASE46_START = AUX_LARGE_CONTROLLER_PHASE45_END
+AUX_LARGE_CONTROLLER_PHASE46_END = 0x448938
 MARKER_MASK = 3 << 14
 CONTINUE_MARKER = 1 << 14
 END_MARKER = 3 << 14
@@ -2380,6 +2383,7 @@ def output_fragments(llvm_mc: Path) -> dict[int, bytes]:
     aux_large_controller_phase44=assemble(llvm_mc,AUX_LARGE_CONTROLLER_PHASE44_SOURCE)
     aux_large_controller_phase45=restore_aux_large_controller_phase45_signed_branch(
         assemble(llvm_mc,AUX_LARGE_CONTROLLER_PHASE45_SOURCE))
+    aux_large_controller_phase46=assemble(llvm_mc,AUX_LARGE_CONTROLLER_PHASE46_SOURCE)
     aux_dispatch = assemble(llvm_mc,AUX_DISPATCH_SOURCE)
     aux_type = restore_aux_type_return_packets(assemble(llvm_mc,AUX_TYPE_SOURCE))
     aux_notify = restore_aux_controller_notify_packets(assemble(llvm_mc,AUX_NOTIFY_SOURCE))
@@ -2476,6 +2480,7 @@ def output_fragments(llvm_mc: Path) -> dict[int, bytes]:
         (aux_large_controller_phase43,AUX_LARGE_CONTROLLER_PHASE43_START,AUX_LARGE_CONTROLLER_PHASE43_END,'controller fourth frame trace and callback'),
         (aux_large_controller_phase44,AUX_LARGE_CONTROLLER_PHASE44_START,AUX_LARGE_CONTROLLER_PHASE44_END,'controller optional callback result and scanner fallback'),
         (aux_large_controller_phase45,AUX_LARGE_CONTROLLER_PHASE45_START,AUX_LARGE_CONTROLLER_PHASE45_END,'controller signed-decrement callback and fallback packet'),
+        (aux_large_controller_phase46,AUX_LARGE_CONTROLLER_PHASE46_START,AUX_LARGE_CONTROLLER_PHASE46_END,'controller callback counters and scan result'),
     ]:
         if len(fragment)!=end-start:
             raise ValueError(f"auxiliary {label} source length mismatch")
@@ -2566,7 +2571,8 @@ def output_fragments(llvm_mc: Path) -> dict[int, bytes]:
             AUX_LARGE_CONTROLLER_PHASE41_END==AUX_LARGE_CONTROLLER_PHASE42_START and
             AUX_LARGE_CONTROLLER_PHASE42_END==AUX_LARGE_CONTROLLER_PHASE43_START and
             AUX_LARGE_CONTROLLER_PHASE43_END==AUX_LARGE_CONTROLLER_PHASE44_START and
-            AUX_LARGE_CONTROLLER_PHASE44_END==AUX_LARGE_CONTROLLER_PHASE45_START):
+            AUX_LARGE_CONTROLLER_PHASE44_END==AUX_LARGE_CONTROLLER_PHASE45_START and
+            AUX_LARGE_CONTROLLER_PHASE45_END==AUX_LARGE_CONTROLLER_PHASE46_START):
         raise ValueError("controller phase13 gap was silently bridged")
     if AUX_LOOKUP_END!=AUX_REGISTRY_CORE_START or AUX_REGISTRY_CORE_END!=AUX_DISPATCH_START:
         raise ValueError("modem auxiliary registry source intervals have a gap")
@@ -2600,7 +2606,8 @@ def output_fragments(llvm_mc: Path) -> dict[int, bytes]:
                         aux_large_controller_phase38+aux_large_controller_phase39+
                         aux_large_controller_phase40+aux_large_controller_phase41+
                         aux_large_controller_phase42+aux_large_controller_phase43+
-                        aux_large_controller_phase44+aux_large_controller_phase45,
+                        aux_large_controller_phase44+aux_large_controller_phase45+
+                        aux_large_controller_phase46,
     }
 
 
