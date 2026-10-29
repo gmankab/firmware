@@ -1268,3 +1268,17 @@ python3 -S tools/adsp-agent20-rwe-next-controller-global-query-complete.py \
  --llvm-mc "$HEXAGON_LLVM_MC" --reference "$NABU_ADSP_REFERENCE" \
  --output /tmp/adsp-global-controller-query-260.bin
 ```
+
+## Checkpoint 75: partial controller codec format selector `[0x126a8,0x126dc)`
+
+- Independently assembled **52 exact executable bytes**, file `[0x126a8,0x126dc)`, physical `[0x8be0f6a8,0x8be0f6dc)`, SHA-256 `2d3b8898a01a9c2307bbc99919af189358dd3599a50354cf20051b35be1c9c2f`.
+- The entry reads codec mode data through a GP-backed controller pointer and dispatches an indexed handler through the **external runtime table at `0xf000f9bc`**, not an inline embedded opcode table. All 13 instruction words are directly assembled from LLVM6 source; `:mem_noshuf` is necessary for the original memory-operand ordering. No privileged substitutions or parse-marker patches are used.
+- The preceding complete query `[0x125a0,0x126a4)` and this entry are separated by four original zero linker-fill bytes `[0x126a4,0x126a8)`, excluded from code counts. The downstream switch/case bodies **are not yet reconstructed**, so this is a partial function.
+- Cumulative source-built ADSP RWE code: **10,668 bytes in 20 disjoint intervals**. Next uncovered code starts at `0x126dc`. Full ADSP image, unrelated executable sections and OEM authentication remain incomplete.
+- 160 Rust tests and **308 Python tests** pass with LLVM6 and the pinned reference, along with the release build.
+
+```sh
+python3 -S tools/adsp-agent20-rwe-next-controller-format-selector-prefix.py \
+ --llvm-mc "$HEXAGON_LLVM_MC" --reference "$NABU_ADSP_REFERENCE" \
+ --output /tmp/adsp-format-selector-prefix-52.bin
+```
