@@ -1296,3 +1296,18 @@ python3 -S tools/adsp-agent20-rwe-next-controller-format-selector-cases-a.py \
  --llvm-mc "$HEXAGON_LLVM_MC" --reference "$NABU_ADSP_REFERENCE" \
  --output /tmp/adsp-format-cases-a-136.bin
 ```
+
+## Checkpoint 77: controller codec format table validation and return `[0x12764,0x127c8)`
+
+- Added **100 independently source-assembled, byte-identical Hexagon V66 executable bytes** (25 instruction words), original ADSP file `[0x12764,0x127c8)`, mapped RWE physical `[0x8be0f764,0x8be0f7c8)`, SHA-256 `02ee978612ea82dcc295b49f80db350d7fb44fbd5ec35c7e5933772a68c10e1d`.
+- The continuation handles two codec-specific platform dispatches and a bounded `R2=and(R3,#7)` index into the `0xe0`-byte controller record table, checks its magic identifier `0xbeefbeef`, logs and copies a field into the stack frame, and restores the caller's registers through the original `dealloc_return`.
+- All 25 words assemble **directly with LLVM6**: no original OEM opcodes, privileged substitutes, raw `.word` instructions, or packet-bit patching. Keeping `r2=and(r3,#7)` in the same packet as its extender and the immediate comparison value, and spelling `r2=add(r16,mpyi(#0xe0,r2))` with the immediate first, are required to match the reference's V66 packets. Both forms are verified by regression tests.
+- Adjacent to the previously reconstructed selector entry and five case paths: contiguous partial function now `[0x126a8,0x127c8)` = **288 exact executable bytes**. More external-table destinations after `0x127c8` remain unimplemented; this function is still partial, despite the completed return on one path.
+- Cumulative **10,904 source-assembled executable bytes** over 20 disjoint ADSP RWE regions. The firmware ELF layout, separate OEM signing chain, data and zero-fill regions are not counted as reconstructed code.
+- Full offline validation: **160 Rust tests and 314 Python tests pass**, full release build, independent Rizin V66 decoding, wrong-revision and corrupted-code rejection. Original ADSP reference checksum is pinned and verified.
+
+```sh
+python3 -S tools/adsp-agent20-rwe-next-controller-format-selector-cases-b.py \
+  --llvm-mc "$HEXAGON_LLVM_MC" --reference "$NABU_ADSP_REFERENCE" \
+  --output /tmp/adsp-controller-format-cases-b-100.bin
+```
