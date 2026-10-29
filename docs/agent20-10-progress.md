@@ -812,3 +812,23 @@ python3 tools/verify-agent20-10-cdsp-controller-enumeration.py \
   ```
 
 - Tests: **267 offline Rust tests and 23 Python tests passed**, and the offline release build succeeded. This remains a **provisional branch rooted in Agent 05's older CDSP Git history**, not the unavailable checkpoint-50 integration; it is not a newly authenticated firmware image or an on-device behavior test.
+
+## Checkpoint 42 — bounded controller byte scan through CDSP RWE 0x569fc
+
+- Added **60 independently constructed Hexagon V66 executable bytes** at file `[0x569c0,0x569fc)`, physical `[0x96cc89c0,0x96cc89fc)`, extending the controller candidate-selection routine. The checked Rust `build_controller_byte_scan()` emits **15 exact original instruction words** with no original firmware byte arrays in the generator.
+- The new section loads two buffer/stack descriptors as duplex instructions, invokes the controller trace helper at physical `0x96dc0bac`, initializes the byte counter and pointer, checks a 31-byte scan limit, scans signed input bytes until NUL, branches back to `0x96cc89dc` on a match, and otherwise continues to `0x96cc8a0c`.
+- LLVM 6 independently assembles the same operations from `tools/agent20-10-cdsp-controller-byte-scan-semantic.s`. Eleven original words match the independent output exactly, three differ **only in packet parse bits**, and the original fused `.new` byte-zero branch is expressed by LLVM as an equivalent explicit `P1` predicate. The independent fixture's branch targets are verified by Rizin V66, not falsely described as raw byte-identical where scheduling differs.
+- The full contiguous RWE prefix `[0x56000,0x569fc)` now matches **2,556 file bytes**, with **2,500 source-generated executable bytes and 56 original structural NOP/fill bytes** counted separately. Together with the complete 1,200-byte short controller `[0x55000,0x554b0)`, unique source-generated CDSP executable coverage is **3,700 bytes**. All data are disjoint; no unknown firmware, signed segments or reference payloads are copied into Git.
+- Verification:
+
+  ```sh
+  cargo run --offline --locked -p firmware-tools --bin cdsp-late-controller-byte-scan -- verify-prefix /private/cdsp.mbn
+  cargo run --offline --locked -p firmware-tools --bin cdsp-late-controller-byte-scan -- emit /tmp/cdsp-scan-60.bin
+  cargo run --offline --locked -p firmware-tools --bin cdsp-late-controller-byte-scan -- emit-prefix /tmp/cdsp-rwe-2556.bin
+  python3 tools/verify-agent20-10-cdsp-controller-byte-scan.py \
+    --llvm-mc /private/llvm6/bin/llvm-mc --rz-asm /private/rz-asm \
+    --generated /tmp/cdsp-scan-60.bin --reference /private/cdsp.mbn \
+    --prefix /tmp/cdsp-rwe-2556.bin
+  ```
+
+- **269 offline Rust and 23 Python tests passed**, and the offline release build succeeded; first missing file offset is **`0x569fc`** (physical `0x96cc89fc`), a continuation of this function. This is a **provisional Agent05-descended branch**, not checkpoint-50-integrated history. No new OEM authentication or hardware execution has been established.
