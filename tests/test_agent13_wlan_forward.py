@@ -19,10 +19,10 @@ class SourceOnlyForwardTests(unittest.TestCase):
     def test_manifest_exact_boundaries(self):
         m=module()
         self.assertEqual(m.START,0x568c)
-        self.assertEqual(m.validate_manifest(),0x7214)
+        self.assertEqual(m.validate_manifest(),0x72f8)
         self.assertEqual(m.FILE_BASE+m.START,0x4568c)
-        self.assertEqual(m.FILE_BASE+m.validate_manifest(),0x47214)
-        self.assertEqual(sum(length for _,_,_,length in m.FRAGMENTS),7048)
+        self.assertEqual(m.FILE_BASE+m.validate_manifest(),0x472f8)
+        self.assertEqual(sum(length for _,_,_,length in m.FRAGMENTS),7276)
 
     def test_validator_forbids_opaque_data_and_layout_holes(self):
         m=module()
@@ -117,6 +117,18 @@ class SourceOnlyForwardTests(unittest.TestCase):
         self.assertIn('loop',m.FRAGMENTS[2][1].read_text())
         self.assertNotIn('.word',text)
         self.assertNotIn('.incbin',text)
+
+    def test_session_record_loop_has_bounded_copy_and_packet_separation(self):
+        m=module()
+        path,off,size={n:(p,a,b) for n,p,a,b in m.FRAGMENTS}['session-record-loop']
+        self.assertEqual((off,size),(0x7214,0xe4))
+        text=path.read_text()
+        self.assertIn('r20 = add(r25,mpyi(#28,r19))\n}\n{\n    call -0x1bc',text)
+        self.assertIn('if (p0.new) jump:nt L_2f4',text)
+        self.assertIn('memw(r29+#64) = r2.new',text)
+        self.assertIn('memb(r29+#26) = r2.new',text)
+        for opaque in ('.incbin','.word','.byte'):
+            self.assertNotIn(opaque,text)
 
     def test_controller_stage3_preserves_packet_order(self):
         m=module()

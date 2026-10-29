@@ -491,3 +491,23 @@ python3 tools/build-wlanmdsp-agent13.py /tmp/wlan-prefix-through-27a0.bin \
 - Branch is **still checkpoint16-derived**, missing the checkpoint17–25
   commits; this cannot be presented as a continuous source-generated WLAN
   prefix from file `0x40000` until that ancestry gap is integrated.
+
+## Checkpoint 44 (disjoint) — variable-length record traversal
+
+- Added **228 source-assembled Hexagon instruction bytes** at file
+  `[0x47214,0x472f8)` (runtime `[0xb0007214,0xb00072f8)`). The code
+  traverses a descriptor list, copies bounded fields into a stack frame,
+  combines variable-length segments and updates the record stride.
+- One instruction `r20 = add(r25,mpyi(#28,r19))` must form its own packet;
+  grouping it with the following call changes only the packet parse bits.
+  A later two-operation `r2` calculation must be separated from the
+  dependent byte load/store to avoid two writes to `r2` in a single packet.
+  All source instructions are LLVM6 assembled; no reference opcode arrays.
+- Cumulative **7,276 exact source-generated instruction bytes** cover WLAN
+  file `[0x4568c,0x472f8)`, SHA-256
+  `789b3591aefdf44d75c8776b2ef03ae1e9f0d9eaa0c007e7e869d46cdb1e5c42`.
+  Full reference comparison reports **zero byte differences**. The session
+  processing routine continues beyond `0x472f8`; no return was invented.
+- Git history still derives from checkpoint16 and lacks checkpoint17–25.
+  Do not call this contiguous with the original Agent 7 prefix until those
+  source histories are incorporated into a checkpoint-50-rooted integration.
