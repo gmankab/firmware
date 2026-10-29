@@ -1129,6 +1129,56 @@
       "sha256": "cdc2f9fbfa45091aeceae867fe93c43b1180691ee4adc09d0ff8605cbaf6057c",
       "checkpoint": 33,
       "classification": "executable"
+    },
+    {
+      "name": "window-slot-bootstrap",
+      "file_start": 1078632,
+      "file_end": 1078680,
+      "source": "sources/xiaomi-nabu/wlanmdsp/agent14-late-window-slot-bootstrap.S",
+      "symbol": "agent14_late_window_slot_bootstrap",
+      "sha256": "cbd9c3f42417ce9dfb016f574581d557da321a9f56aed8264c1627f9b878c161",
+      "checkpoint": 34,
+      "classification": "executable"
+    },
+    {
+      "name": "window-slot-summary",
+      "file_start": 1078680,
+      "file_end": 1078724,
+      "source": "sources/xiaomi-nabu/wlanmdsp/agent14-late-window-slot-summary.S",
+      "symbol": "agent14_late_window_slot_summary",
+      "sha256": "25272ebcfcc7747cb9e82878d85a688367e3ad3912d0f1edda59d17b99d61310",
+      "checkpoint": 34,
+      "classification": "executable"
+    },
+    {
+      "name": "session-window-flush",
+      "file_start": 1078724,
+      "file_end": 1078836,
+      "source": "sources/xiaomi-nabu/wlanmdsp/agent14-late-session-window-flush.S",
+      "symbol": "agent14_late_session_window_flush",
+      "sha256": "4e2af84e881ca7f6cce4548333fa97e8b59246654529f03319ae81dc647c6aaa",
+      "checkpoint": 34,
+      "classification": "executable"
+    },
+    {
+      "name": "session-window-packet",
+      "file_start": 1078836,
+      "file_end": 1079012,
+      "source": "sources/xiaomi-nabu/wlanmdsp/agent14-late-session-window-packet.S",
+      "symbol": "agent14_late_session_window_packet",
+      "sha256": "1fc42235813be385f8fc87eb02516a2822a444ea0c394e89cee564d3ceab5b9d",
+      "checkpoint": 34,
+      "classification": "executable"
+    },
+    {
+      "name": "window-slot-reinit",
+      "file_start": 1079012,
+      "file_end": 1079056,
+      "source": "sources/xiaomi-nabu/wlanmdsp/agent14-late-window-slot-reinit.S",
+      "symbol": "agent14_late_window_slot_reinit",
+      "sha256": "83e0357f53b98ba5acf9ab422a5b9cd6fc221ea1db72c70b88ed77ccee513f28",
+      "checkpoint": 34,
+      "classification": "executable"
     }
   ]
 }

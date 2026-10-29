@@ -1318,3 +1318,30 @@ previously source-authored jump tables add **496 separate data bytes**, for
 **30,100 total source-derived bytes**. The next function starts at file
 `0x107568`. The initial Agent13 seam `[0x100000,0x1001c4)`, most of the
 agent's large owned executable range, and hardware behavior remain unresolved.
+
+## Checkpoint 34 — window slot initialization and session packets
+
+Five adjacent complete Hexagon functions, file `[0x107568,0x107710)`,
+VMA `[0xb00c7568,0xb00c7710)`, add **424 executable bytes**:
+
+- `0x107568–0x107598` (48): initialize two slot descriptors and submit a controller command.
+- `0x107598–0x1075c4` (44): initialize a slot summary and call the session queue helper.
+- `0x1075c4–0x107634` (112): publish queue/window state and tail-call timer acknowledgement.
+- `0x107634–0x1076e4` (176): build a bounded-index window command, including one `loop0` to fill a normalized byte array, then transfer control.
+- `0x1076e4–0x107710` (44): reset the local session-window slot and return.
+
+Three multi-operation packets needed legal source instruction reordering to
+recover the exact original duplex and store pairing; all branch offsets
+are expressed as source-level relative destinations rather than raw code words.
+All five functions independently assemble under LLVM 22/V66 and LLVM 6/V65
+with **zero original-reference byte mismatches**. The cumulative builder now
+emits `[0x1001c4,0x107710)` = **30,028 consecutive executable bytes**; two
+separately source-authored dispatch tables add **496 data bytes**, for **30,524
+source-derived bytes total**. No zero fill or external firmware payload is
+included. The Agent13 leading 452-byte seam `[0x100000,0x1001c4)` remains
+uncovered. Next function starts at `0x107710`. No on-device execution or
+new firmware authentication has been established.
+
+Validation: 160 Rust tests, 191 Python tests, release build, both assemblers,
+V66 decoder and complete cumulative reference comparison pass. Exact hashes
+and packet counts are recorded in `docs/evidence/agent20-14/checkpoint-34.json`.
