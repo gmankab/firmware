@@ -1408,3 +1408,22 @@ The auxiliary file prefix is **8,992 contiguous bytes**
 **296 original-file ELF metadata bytes generated from symbols**,
 and **12 explicit linker-alignment zeros**. This is a partial reconstruction
 of the original modem program, not a complete or newly signed firmware.
+
+## Checkpoint 59 — Conditional codec-format selection and helper lookup
+
+Reconstructed **116 additional Hexagon V60 bytes** at modem file offsets
+`[0x448320,0x448394)` (VMA `[0x1e402320,0x1e402394)`). The code
+classifies input format, branches to the shared controller registry lookup,
+and updates a record configuration byte with typed source-level logic.
+LLVM6 schedules the independent predicated register move after its
+conditional jump in two packets; checked transformations restore the
+original packet order and parse markers. Each transformation validates
+opcode classes, full register operands, branch displacement and original
+source-assembler packet markers; negative tests reject changed fields.
+
+Full auxiliary prefix is now **9,108 contiguous file bytes** from
+`0x446000` to `0x448394`. Independently generated late-modem coverage
+is **9,720 bytes**, consisting of **9,412 executable source bytes**,
+**296 ELF metadata bytes** and **12 linker alignment bytes**. All bytes
+match pinned original `modem.mbn`; this is not a full firmware rebuild
+or a newly valid OEM signature.
