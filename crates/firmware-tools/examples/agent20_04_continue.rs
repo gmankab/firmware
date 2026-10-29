@@ -10,13 +10,15 @@ use firmware_tools::devices::xiaomi_nabu::venus_agent20_04_controller_span_58000
 use firmware_tools::devices::xiaomi_nabu::venus_agent20_04_controller_span_59000 as continuation_59000;
 use firmware_tools::devices::xiaomi_nabu::venus_agent20_04_controller_span_5a000 as continuation_5a000;
 use firmware_tools::devices::xiaomi_nabu::venus_agent20_04_controller_span_5b000 as continuation_5b000;
+use firmware_tools::devices::xiaomi_nabu::venus_agent20_04_controller_span_5c000 as continuation_5c000;
+use firmware_tools::devices::xiaomi_nabu::venus_agent20_04_controller_span_5d000 as continuation_5d000;
 use std::{env,fs,error::Error};
 fn main()->Result<(),Box<dyn Error>> {
     let args:Vec<String>=env::args().skip(1).collect();
     if args.len()!=2 || !["emit","verify"].contains(&args[0].as_str()) {
       return Err("usage: agent20_04_continue <emit output.bin|verify /private/venus.mbn>".into());
     }
-    let intervals=[(initial::START,initial::fragment()?),(continuation_55800::START,continuation_55800::fragment()?),(continuation_56000::START,continuation_56000::fragment()?),(continuation_56800::START,continuation_56800::fragment()?),(continuation_57000::START,continuation_57000::fragment()?),(continuation_58000::START,continuation_58000::fragment()?),(continuation_59000::START,continuation_59000::fragment()?),(continuation_5a000::START,continuation_5a000::fragment()?),(continuation_5b000::START,continuation_5b000::fragment()?)];
+    let intervals=[(initial::START,initial::fragment()?),(continuation_55800::START,continuation_55800::fragment()?),(continuation_56000::START,continuation_56000::fragment()?),(continuation_56800::START,continuation_56800::fragment()?),(continuation_57000::START,continuation_57000::fragment()?),(continuation_58000::START,continuation_58000::fragment()?),(continuation_59000::START,continuation_59000::fragment()?),(continuation_5a000::START,continuation_5a000::fragment()?),(continuation_5b000::START,continuation_5b000::fragment()?),(continuation_5c000::START,continuation_5c000::fragment()?),(continuation_5d000::START,continuation_5d000::fragment()?)];
     let mut next=initial::START;
     for (start,bytes) in &intervals {
        if *start!=next {return Err(format!("continuation gap at 0x{next:x}").into());}
