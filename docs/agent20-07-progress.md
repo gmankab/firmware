@@ -1429,3 +1429,17 @@ python3 -S tools/adsp-agent20-rwe-next-controller-record-query-tail.py \
   --llvm-mc "$HEXAGON_LLVM_MC" --reference "$NABU_ADSP_REFERENCE" \
   --output /tmp/adsp-controller-record-query-tail-112.bin
 ```
+
+## Checkpoint 86: controller record reset and linked-descriptor cleanup `[0x13250,0x13390)`
+
+- Authored **320 byte-identical Hexagon V66 executable bytes** at ADSP file `[0x13250,0x13390)`, physical `[0x8be10250,0x8be10390)`, SHA-256 `ebeea99e92e22593b4713dc8ca981ddd693ce438cdb6c579264bc4b8d7517369`.
+- The routine validates a controller record ID, clears active record pointers, walks a linked list with field updates, sends deactivation/cleanup callbacks, and returns through the original `dealloc_return`. It continues directly after the prior indexed query and recovery routines; the source-built `[0x130d0,0x13390)` **704-byte interval** was checked as one artifact.
+- LLVM6 assembles 78 instruction words from explicit Hexagon packetized source, including the original `.new` predicates and branch targets. Two privileged V66-only words use named checked encoder operations (`R2=SGP0` at `0x1325c` and `k0lock` at `0x132f4`) after verifying independent assembler NOP sentinels; no OEM instruction words are imported.
+- **Total ADSP RWE source-derived executable: 12,752 bytes across 22 disjoint intervals**, plus 148 independently emitted **data**, not code, bytes for the codec pointer table. Large ADSP ELF segments and OEM-authenticated file contents remain unreconstructed.
+- Pinned SHA-256 reference comparison: zero byte mismatches; full offline Rust tests, Python tests and release build passed. Deliberately corrupted output and wrong reference revision are rejected.
+
+```sh
+python3 -S tools/adsp-agent20-rwe-next-controller-record-reset.py \
+  --llvm-mc "$HEXAGON_LLVM_MC" --reference "$NABU_ADSP_REFERENCE" \
+  --output /tmp/adsp-controller-record-reset-320.bin
+```
