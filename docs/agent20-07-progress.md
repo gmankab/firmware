@@ -1472,3 +1472,18 @@ python3 -S tools/adsp-agent20-rwe-next-controller-record-detach-prefix.py \
   --llvm-mc "$HEXAGON_LLVM_MC" --reference "$NABU_ADSP_REFERENCE" \
   --output /tmp/adsp-controller-record-detach-prefix-148.bin
 ```
+
+## Checkpoint 89: complete controller detach/list cleanup `[0x13514,0x13610)`
+
+- Reconstructed **252 byte-identical Hexagon V66 executable bytes**, 63 instruction words, physical `[0x8be10514,0x8be10610)`, SHA-256 `a7ed38a832b193b393c7459f9d0c9b318506c93cb9cdc82aa6db442dac426b77`.
+- The continuation checks the record class, unlinks it from its GP-backed list, clears its descriptor metadata, locks with K0 and walks a controller-linked list. It updates hardware-status words or invokes the deactivation callback as required, then returns through the original `dealloc_return` at file `0x1360c`.
+- LLVM6 emits 62 ordinary instruction words. One privileged `k0lock` at `0x13590` is inserted via the strictly checked `KernelZeroLock.LOCK` encoding after validating the original source NOP placeholder. One source-assembled jump at `0x13538` needs the Hexagon packet-continuation parse marker to match the original interleaving of list unlinking; operand bits are unchanged. No OEM machine instruction is copied into generated source.
+- Combined with checkpoint 88's independently emitted 148-byte prefix, the **complete 400-byte function `[0x13480,0x13610)` is byte-identical**. Its preceding 8-byte file-backed zero-fill remains excluded from code accounting. The next distinct routine begins at `0x13610`.
+- **Total independently reconstructed ADSP RWE executable code: 13,384 bytes across 23 disjoint intervals**, plus 148 bytes separately authored handler-pointer data. The rest of the ADSP executable and OEM-authenticated image remain incomplete.
+- Pinned-reference exact comparison, independent LLVM6 assembly/Rizin decoding, deliberate wrong-revision/corrupt output rejection, full Rust and Python regression suites and release build pass.
+
+```sh
+python3 -S tools/adsp-agent20-rwe-next-controller-record-detach-tail.py \
+  --llvm-mc "$HEXAGON_LLVM_MC" --reference "$NABU_ADSP_REFERENCE" \
+  --output /tmp/adsp-controller-record-detach-tail-252.bin
+```
