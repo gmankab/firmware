@@ -1029,3 +1029,22 @@ The branch still descends from Agent 05's **older provisional Git base**, not th
   ```
 
 - **Next uncovered CDSP file offset `0x56bb4`**, physical `0x96cc8bb4`, still within the controller-bank enumerator. Branch ancestry is still provisional on Agent 05's older CDSP Git history, not an integrated checkpoint-50 base. A complete, OEM-signed, flashable CDSP firmware is not produced.
+
+## Checkpoint 53 — bank bitmap scan and bit-index capacity guard, file `0x56bb4–0x56bd0`
+
+- Independently reconstructed **28 executable Hexagon V66 bytes** at pinned CDSP file `[0x56bb4,0x56bd0)`, physical `[0x96cc8bb4,0x96cc8bd0)`; this remains part of the bank enumerator function beginning at `0x56b00`.
+- Seven original words implement `R2=setbit(R0,#7)`, a register-pair equality compare of `R1:0` against `R23:22`, an early `P0.new` branch to `0x96cc8d4c`, `R3=ct0(R2)` with unsigned bit-index guard `>6` branching to `0x96cc8e30`, a one-bit arithmetic left shift, and `R16=lsl(#1,R3)`.
+- Typed register/immediate fields and checked original packet-start targets were verified independently with a semantic LLVM6 assembly whose seven words differ only in the **first setbit packet marker** and consequent **two-halfword decrease** of the `P0.new` branch displacement. Its other five words are byte-identical; Rizin V66 confirms the full original packet and branch target semantics. No claim of exact whole-block LLVM output: exactness is established with the checked source emitter compared against pinned `cdsp.mbn`.
+- Full emitted contiguous RWE prefix `[0x56000,0x56bd0)` has **3,024 byte-identical file bytes**: **2,964 generated executable bytes** and **60 explicitly excluded alignment/fill bytes**. With the separately completed 1,200-byte controller `[0x55000,0x554b0)`, **total independent executable coverage is 4,164 bytes** in two disjoint regions.
+- Reproducibility:
+
+  ```sh
+  cargo run --offline --locked -p firmware-tools --bin cdsp-late-controller-bank-bitset-scan -- verify-prefix /private/cdsp.mbn
+  cargo run --offline --locked -p firmware-tools --bin cdsp-late-controller-bank-bitset-scan -- emit /tmp/cdsp-bank-scan-28.bin
+  cargo run --offline --locked -p firmware-tools --bin cdsp-late-controller-bank-bitset-scan -- emit-prefix /tmp/cdsp-rwe-prefix-3024.bin
+  python3 tools/verify-agent20-10-cdsp-controller-bank-bitset-scan.py \
+    --generated /tmp/cdsp-bank-scan-28.bin --prefix /tmp/cdsp-rwe-prefix-3024.bin \
+    --reference /private/cdsp.mbn --llvm-mc /private/llvm6/bin/llvm-mc --rz-asm /private/rz-asm
+  ```
+
+- Next uncovered CDSP file byte: **`0x56bd0`** (physical `0x96cc8bd0`), continuing bank bitmap processing. Branch ancestry is still the **older Agent 05 provisional CDSP branch**, not checkpoint-50-integrated. CDSP firmware is neither fully source-generated nor OEM-signed/hardware-tested.
