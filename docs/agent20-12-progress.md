@@ -1815,3 +1815,23 @@ The contiguous auxiliary prefix `[0x446000,0x448c28)` now spans **11,304
 bytes**; total generated later-modem coverage **11,916 bytes**, including
 **11,608 source-assembled executable bytes**, **296 generated ELF metadata**
 and **12 alignment bytes**. Rest of modem and OEM auth remain incomplete.
+
+## Checkpoint 83 — Controller record word-five validation
+
+Added **68 independent Hexagon V60 executable bytes** in `modem.mbn`
+file `[0x448c28,0x448c6c)`, VMA `[0x1e402c28,0x1e402c6c)`.
+The function validates controller-record word at `r16+#20`, checks the
+installed callback pointer, reports invalid values, and preserves the
+original signed-error frame return. The accepted path continues at
+`0x448c6c` and has **not** been claimed yet. The symbolic `error_report`
+branch resolves to the previously reconstructed common callback; the routine
+assembles directly with LLVM6, without OEM instruction words or postassembler
+packet modifications. Test coverage checks source vocabulary, exact length,
+and optional pinned original comparison.
+
+Contiguous auxiliary `[0x446000,0x448c6c)` = **11,372 bytes**.
+Total reconstructed later-modem coverage **11,984 bytes**:
+**11,676 source-encoded executable** + **296 generated ELF metadata**
++ **12 explicit alignment**. Pinned `modem.mbn` SHA-256:
+`6f5cb32bc10e41abb40938d185805e788f5637a41d3ebcef278e4e169fc36782`.
+The remaining modem firmware and OEM authentication are not reconstructed.
