@@ -991,3 +991,21 @@ python3 tools/verify-agent20-10-cdsp-controller-bank-guards.py \
   ```
 
 - Checkpoint source still descends from Agent 05's older provisional branch, **not** the missing checkpoint-50-integrated history. No whole CDSP image, OEM signing or real hardware validation is claimed.
+
+## Checkpoint 51 — controller result predicates and callback, file 0x56b78–0x56b98
+
+- Added **32 independently generated executable bytes** (eight original V66 words) at CDSP `[0x56b78,0x56b98)`, physical `[0x96cc8b78,0x96cc8b98)`, extending the same bank enumerator function.
+- The result guard `P0=cmp.eq(R0,#0); if(!P0.new) jump:nt 0x96cc8e90`, predicate normalization, original one-word duplex `R0=#3; R1=memw(FP+28)`, service call `0x96cce768`, `R2=P0` and signed bank-count update are **source-emitted**. The final packet sets `R24=128` conditionally and jumps on `P0=cmp.gt(R0,-1)` to `0x96cc8ea0`. Branch offsets are checked against the **packet start**, not the consumer word address.
+- Independent LLVM 6 fixture matches the first fused branch exactly and verifies all semantic instructions, predicates and physical targets. LLVM **expands the original 32-bit duplex into two instructions, changes parse markers and reschedules the final predicate packet**; its binary is not claimed byte-identical. Rizin V66 independently decodes all eight original words, the `.new` producer and both targets with the original packet order. Checked Rust emitters reproduce the **exact** pinned original 32 bytes.
+- Generated full RWE prefix `[0x56000,0x56b98)` is **2,968 reference-exact file bytes**, split into **2,908 independently authored executable bytes** and **60 prior structural NOP/fill bytes**. Together with the distinct 1,200-byte controller `[0x55000,0x554b0)`, total independent executable coverage is **4,108 bytes**. Next missing file offset `0x56b98` (physical `0x96cc8b98`), still within the same function.
+
+```sh
+cargo run --offline --locked -p firmware-tools --bin cdsp-late-controller-bank-predicates -- verify-prefix /private/cdsp.mbn
+cargo run --offline --locked -p firmware-tools --bin cdsp-late-controller-bank-predicates -- emit /tmp/bank-predicates-32.bin
+cargo run --offline --locked -p firmware-tools --bin cdsp-late-controller-bank-predicates -- emit-prefix /tmp/cdsp-rwe-2968.bin
+python3 tools/verify-agent20-10-cdsp-controller-bank-predicates.py \
+  --generated /tmp/bank-predicates-32.bin --prefix /tmp/cdsp-rwe-2968.bin \
+  --reference /private/cdsp.mbn --llvm-mc /private/llvm6/bin/llvm-mc --rz-asm /private/rz-asm
+```
+
+The branch still descends from Agent 05's **older provisional Git base**, not the unavailable checkpoint-50 integrated repository. It does not produce a complete, signed or hardware-validated modem/CDSP image.
