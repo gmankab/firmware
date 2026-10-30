@@ -490,3 +490,19 @@ python3 tools/verify-agent20-09-dispatch-helpers.py \
   --rust-output /tmp/cdsp-dispatch-84.bin --reference /private/cdsp.mbn \
   --rz-asm /path/to/rz-asm --llvm-mc /path/to/llvm-mc
 ```
+
+## Checkpoint 54 — TLB invalidation and indexed TLB snapshot helpers `[0x5afc,0x5b6c)`
+
+- Added **112 byte-identical, typed V66 executable bytes** at CDSP file `[0x5afc,0x5b6c)` and physical `[0x96c02afc,0x96c02b6c)`. Original reference SHA-256 remains `febeae7b8e47bad4eeabc159a3c24b74cda26dfa12b384c31de5de30817e06ea`.
+- Two adjacent helpers implement `TLBLOCK`, privileged `TLBP` lookup, conditional `TLBR`/`TLBW` invalidation, an `ISYNC` barrier, and `TLBUNLOCK`, plus a fallback compact `R0=0; jumpr LR` return. Data-flow uses shifts, `INSERT`, predicate `TSTBIT` and 8-bit index extraction. Typed encoders enforce aligned 64-bit register pairs and bounded packet-relative branch destinations.
+- `tools/verify-agent20-09-tlb-utilities.py` checks **28/28 Hexagon instruction semantics under Rizin V66**, and **18/28 ordinary instruction opcode fields independently with LLVM6** (including the two entire packetized predicate branches). Ten privileged TLB operations are **Rizin/reference only**; LLVM6 does not implement them.
+- Corrected cumulative executable coverage: **6,296 independent instruction bytes** in the disjoint segments described under checkpoint 52 and the new `[0x5aa8,0x5b6c)` 196-byte continuation. Known **244 ELF linker padding bytes** remain accounted separately, not source code. The next executable starts at file `0x5b6c`, physical `0x96c02b6c`.
+- This remains a partial CDSP MBN, unauthenticated by new OEM signatures, and is not a checkpoint-50 integrated Git branch.
+
+```sh
+cargo run --offline --locked -p firmware-tools --bin cdsp-agent09-hvx -- emit-utilities /tmp/cdsp-tlb-utilities-112.bin
+cargo run --offline --locked -p firmware-tools --bin cdsp-agent09-hvx -- verify-utilities /private/cdsp.mbn
+python3 tools/verify-agent20-09-tlb-utilities.py \
+  --rust-output /tmp/cdsp-tlb-utilities-112.bin --reference /private/cdsp.mbn \
+  --rz-asm /path/to/rz-asm --llvm-mc /path/to/llvm-mc
+```
