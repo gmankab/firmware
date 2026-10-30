@@ -167,6 +167,7 @@ pub mod cdsp_early_cache_helpers;
 pub mod cdsp_early_format_guard;
 pub mod cdsp_early_format_guard_tail;
 pub mod cdsp_early_format_guard_final;
+pub mod cdsp_early_hvx_init;
 pub mod cdsp_early_worker_privileged_state;
 pub mod cdsp_early_worker_callbacks;
 pub mod cdsp_early_worker_command;
