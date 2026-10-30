@@ -1879,3 +1879,27 @@ Total generated coverage **12,272 bytes**, split into **11,964 Hexagon
 instruction bytes**, **296 independently generated ELF metadata** and
 **12 linker alignment bytes**. Original OEM modem firmware and signing
 remain incomplete.
+
+## Checkpoint 86 — Finish original controller record validator
+
+Completed the original controller record guard function with **164 new
+Hexagon V60 executable bytes**:
+
+- `[0x448d8c,0x448dd4)` (72 bytes): normalize the record width and check
+  that a five-bit-shifted allocation amount fits the controller's mapped
+  memory limit; preserve the optional error reporting path.
+- `[0x448dd4,0x448e1c)` (72 bytes): enforce a strict width below 16 and
+  report incorrect values via the configured callback.
+- `[0x448e1c,0x448e30)` (20 bytes): select a validated record pointer,
+  write it into the output slot and restore the original call frame.
+
+The entire parser (`[0x448ad0,0x448e30)`) now reaches its original
+success return; all new packet encodings assembled directly with LLVM6,
+without OEM instruction literals, and matched the pinned `modem.mbn`.
+**The next distinct function begins at `0x448e30`.**
+
+Contiguous auxiliary prefix `[0x446000,0x448e30)` = **11,824 bytes**;
+independently generated total **12,436 bytes**, of which **12,128 are
+source-assembled Hexagon code**, **296 ELF metadata** and **12 linker
+alignment**. The original modem image, signature and other program regions
+remain incomplete.

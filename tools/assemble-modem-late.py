@@ -102,6 +102,9 @@ AUX_RECORD_TYPE8_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/
 AUX_RECORD_TYPE9_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_aux_record_type9.s"
 AUX_RECORD_TYPE10_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_aux_record_type10.s"
 AUX_RECORD_TYPE11_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_aux_record_type11.s"
+AUX_RECORD_TYPE12_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_aux_record_type12.s"
+AUX_RECORD_TYPE13_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_aux_record_type13.s"
+AUX_RECORD_FINISH_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_aux_record_finish.s"
 AUX_DISPATCH_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_aux_dispatch_helpers.s"
 AUX_TYPE_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_aux_type_config.s"
 AUX_NOTIFY_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_aux_controller_notify.s"
@@ -331,6 +334,12 @@ AUX_RECORD_TYPE10_START = AUX_RECORD_TYPE9_END
 AUX_RECORD_TYPE10_END = 0x448D50
 AUX_RECORD_TYPE11_START = AUX_RECORD_TYPE10_END
 AUX_RECORD_TYPE11_END = 0x448D8C
+AUX_RECORD_TYPE12_START = AUX_RECORD_TYPE11_END
+AUX_RECORD_TYPE12_END = 0x448DD4
+AUX_RECORD_TYPE13_START = AUX_RECORD_TYPE12_END
+AUX_RECORD_TYPE13_END = 0x448E1C
+AUX_RECORD_FINISH_START = AUX_RECORD_TYPE13_END
+AUX_RECORD_FINISH_END = 0x448E30
 MARKER_MASK = 3 << 14
 CONTINUE_MARKER = 1 << 14
 END_MARKER = 3 << 14
@@ -2641,6 +2650,9 @@ def output_fragments(llvm_mc: Path) -> dict[int, bytes]:
     aux_record_type9=assemble(llvm_mc,AUX_RECORD_TYPE9_SOURCE)
     aux_record_type10=restore_aux_record_type10_predicate_order(assemble(llvm_mc,AUX_RECORD_TYPE10_SOURCE))
     aux_record_type11=assemble(llvm_mc,AUX_RECORD_TYPE11_SOURCE)
+    aux_record_type12=assemble(llvm_mc,AUX_RECORD_TYPE12_SOURCE)
+    aux_record_type13=assemble(llvm_mc,AUX_RECORD_TYPE13_SOURCE)
+    aux_record_finish=assemble(llvm_mc,AUX_RECORD_FINISH_SOURCE)
     aux_dispatch = assemble(llvm_mc,AUX_DISPATCH_SOURCE)
     aux_type = restore_aux_type_return_packets(assemble(llvm_mc,AUX_TYPE_SOURCE))
     aux_notify = restore_aux_controller_notify_packets(assemble(llvm_mc,AUX_NOTIFY_SOURCE))
@@ -2751,6 +2763,9 @@ def output_fragments(llvm_mc: Path) -> dict[int, bytes]:
         (aux_record_type9,AUX_RECORD_TYPE9_START,AUX_RECORD_TYPE9_END,'controller missing descriptor and conditional callback'),
         (aux_record_type10,AUX_RECORD_TYPE10_START,AUX_RECORD_TYPE10_END,'controller record class-32 halfword validation and error callback'),
         (aux_record_type11,AUX_RECORD_TYPE11_START,AUX_RECORD_TYPE11_END,'controller nonzero halfword validation and error callback'),
+        (aux_record_type12,AUX_RECORD_TYPE12_START,AUX_RECORD_TYPE12_END,'controller decoded record width and allocation ceiling'),
+        (aux_record_type13,AUX_RECORD_TYPE13_START,AUX_RECORD_TYPE13_END,'controller record width below sixteen with failure callback'),
+        (aux_record_finish,AUX_RECORD_FINISH_START,AUX_RECORD_FINISH_END,'controller selected record pointer and success return'),
     ]:
         if len(fragment)!=end-start:
             raise ValueError(f"auxiliary {label} source length mismatch")
@@ -2855,7 +2870,10 @@ def output_fragments(llvm_mc: Path) -> dict[int, bytes]:
             AUX_RECORD_TYPE7_END==AUX_RECORD_TYPE8_START and
             AUX_RECORD_TYPE8_END==AUX_RECORD_TYPE9_START and
             AUX_RECORD_TYPE9_END==AUX_RECORD_TYPE10_START and
-            AUX_RECORD_TYPE10_END==AUX_RECORD_TYPE11_START):
+            AUX_RECORD_TYPE10_END==AUX_RECORD_TYPE11_START and
+            AUX_RECORD_TYPE11_END==AUX_RECORD_TYPE12_START and
+            AUX_RECORD_TYPE12_END==AUX_RECORD_TYPE13_START and
+            AUX_RECORD_TYPE13_END==AUX_RECORD_FINISH_START):
         raise ValueError("controller phase13 gap was silently bridged")
     if AUX_LOOKUP_END!=AUX_REGISTRY_CORE_START or AUX_REGISTRY_CORE_END!=AUX_DISPATCH_START:
         raise ValueError("modem auxiliary registry source intervals have a gap")
@@ -2894,7 +2912,8 @@ def output_fragments(llvm_mc: Path) -> dict[int, bytes]:
                         aux_large_controller_phase48+aux_large_controller_phase49+
                         aux_buffer_factory+aux_record_guard+aux_record_type4+aux_record_type5+
                         aux_record_type6+aux_record_type7+aux_record_type8+aux_record_type9+
-                        aux_record_type10+aux_record_type11,
+                        aux_record_type10+aux_record_type11+aux_record_type12+
+                        aux_record_type13+aux_record_finish,
     }
 
 
