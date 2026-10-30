@@ -728,3 +728,17 @@ python3 tools/build-wlanmdsp-agent13.py /tmp/wlan-prefix-through-27a0.bin \
   function and not a signed WLAN firmware image.
 - Branch root is still checkpoint 16, with checkpoint 17–25 ancestry absent.
   The next unimplemented file byte begins at `0x47c1c`.
+
+## Checkpoint 56 (disjoint) — three predicate-driven session list walks
+
+- Added **188 source-assembled Hexagon instruction bytes** at WLAN file
+  `[0x47c1c,0x47cd8)` (VMA `[0xb0007c1c,0xb0007cd8)`).
+- Three matched packet-aligned variants implement guarded field copying,
+  session-count iteration, and state-specific reporting callbacks. Their
+  predicate/new-value store packet requires two separate Hexagon packets
+  to retain the original data dependency; no original instruction words
+  are embedded in source.
+- The full disjoint continuation is now **9,804 byte-identical bytes**
+  `[file 0x4568c,0x47cd8)`, zero reference byte mismatches.
+- Still based on checkpoint16 without checkpoints17–25; executable continues
+  beyond this boundary. Original OEM authentication is not reconstructed.

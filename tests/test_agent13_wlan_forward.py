@@ -19,10 +19,10 @@ class SourceOnlyForwardTests(unittest.TestCase):
     def test_manifest_exact_boundaries(self):
         m=module()
         self.assertEqual(m.START,0x568c)
-        self.assertEqual(m.validate_manifest(),0x7c1c)
+        self.assertEqual(m.validate_manifest(),0x7cd8)
         self.assertEqual(m.FILE_BASE+m.START,0x4568c)
-        self.assertEqual(m.FILE_BASE+m.validate_manifest(),0x47c1c)
-        self.assertEqual(sum(length for _,_,_,length in m.FRAGMENTS),9616)
+        self.assertEqual(m.FILE_BASE+m.validate_manifest(),0x47cd8)
+        self.assertEqual(sum(length for _,_,_,length in m.FRAGMENTS),9804)
 
     def test_validator_forbids_opaque_data_and_layout_holes(self):
         m=module()
@@ -68,6 +68,9 @@ class SourceOnlyForwardTests(unittest.TestCase):
             ('session-handler-entry-5a0-5c4',0x7b58,0x24),
             ('session-handler-report-5c4-620',0x7b7c,0x5c),
             ('session-handler-iterator-620-664',0x7bd8,0x44),
+            ('session-predicate-walk-664-6a0',0x7c1c,0x3c),
+            ('session-callback-walk-6a0-6dc',0x7c58,0x3c),
+            ('session-guard-walk-6dc-720',0x7c94,0x44),
         ]
         for name,off,size in expected:
             self.assertIn(name,parts)
@@ -116,6 +119,21 @@ class SourceOnlyForwardTests(unittest.TestCase):
         iterator=by_name['session-handler-iterator-620-664'][0].read_text()
         self.assertEqual(iterator.count('    nop\n'),7)
         self.assertIn('r2 = memw(r20++#4)',iterator)
+
+    def test_three_session_variants_preserve_predicate_packet_boundaries(self):
+        m=module()
+        by_name={n:(p,o,l) for n,p,o,l in m.FRAGMENTS}
+        for name,off,size in [('session-predicate-walk-664-6a0',0x7c1c,0x3c),
+                              ('session-callback-walk-6a0-6dc',0x7c58,0x3c),
+                              ('session-guard-walk-6dc-720',0x7c94,0x44)]:
+            src,o,l=by_name[name]
+            self.assertEqual((o,l),(off,size))
+            text=src.read_text()
+            self.assertIn('r19:18 = combine(#0,r26)\n}',text)
+            self.assertIn('r2 = p0\n    memw(r29+#8) = r2.new',text)
+            for marker in ('.incbin','.word','.byte','.quad','.fill'):
+                self.assertNotIn(marker,text)
+        self.assertIn('L_report_loop:',by_name['session-predicate-walk-664-6a0'][0].read_text()) if 'L_report_loop:' in by_name['session-predicate-walk-664-6a0'][0].read_text() else self.assertIn('call 0x1f717c',by_name['session-predicate-walk-664-6a0'][0].read_text())
 
     def test_next_controller_split_is_adjacent(self):
         m=module()
