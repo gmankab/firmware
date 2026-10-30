@@ -80,6 +80,60 @@ class ModemLateTests(unittest.TestCase):
                 ref=Path(os.environ['NABU_MODEM_REFERENCE']).read_bytes()
                 self.assertEqual(fixed,ref[0x4485f8:0x448628])
 
+    def test_session_builder_format_gate_and_hardware_loop0(self):
+        self.assertEqual((agent12.AUX_SESSION_BUILDER_VALIDITY_START,
+                          agent12.AUX_SESSION_BUILDER_SCAN_END),
+                         (0x44905c,0x4490e4))
+        validity=agent12.AUX_SESSION_BUILDER_VALIDITY_SOURCE.read_text()
+        scan=agent12.AUX_SESSION_BUILDER_SCAN_SOURCE.read_text()
+        for src in (validity,scan):
+            for forbidden in ('.word','.byte','.incbin'):
+                self.assertNotIn(forbidden,src)
+        for required in ('p0 = r2','jump:t reduced_log','call buffer_factory'):
+            self.assertIn(required,validity)
+        for required in ('memh(r17+#16)','cmp.eq(r2.new,#2)','loop0(loop_body,r6)',
+                         ':endloop0','mux(p0,r4,r2)'):
+            self.assertIn(required,scan)
+        w=[0x7800c000]*13
+        w[:4]=[0x85424000,0x5c205812,0x01e4441f,0x7e80e1e3]
+        fixed=struct.unpack('<13I',agent12.restore_aux_session_builder_validity_predicate_packet(
+            struct.pack('<13I',*w)))
+        self.assertEqual(fixed[1:4],(0x01e4441f,0x7e8061e3,0x5c20d812))
+        for pos,bad in [(0,0x85424001),(1,0x5c205813),(2,0x01e4441e),
+                        (3,0x7e80e1e2),(1,0x5c20d812)]:
+            mutated=w.copy();mutated[pos]=bad
+            with self.assertRaises(ValueError):
+                agent12.restore_aux_session_builder_validity_predicate_packet(
+                    struct.pack('<13I',*mutated))
+        with self.assertRaisesRegex(ValueError,'52 assembled bytes'):
+            agent12.restore_aux_session_builder_validity_predicate_packet(bytes(48))
+        words=[0x7800c000]*21
+        words[2:4]=[0x917142c3,0x3c50c181]
+        words[7:10]=[0xbfe3ffe6,0x75834021,0x48020794]
+        words[14]=0x5c20c10c
+        fixed=struct.unpack('<21I',agent12.restore_aux_session_builder_scan_packets(
+            struct.pack('<21I',*words)))
+        self.assertEqual(fixed[2:4],(0x3c504181,0x9171c2c3))
+        self.assertEqual((fixed[7],fixed[14]),(0xbfe37fe6,0x5c20410c))
+        for pos,bad in [(2,0x917142c2),(3,0x3c50c180),(7,0xbfe3ffe7),
+                        (8,0x75834020),(9,0x48020795),(14,0x5c20c10d)]:
+            mutated=words.copy();mutated[pos]=bad
+            with self.assertRaises(ValueError):
+                agent12.restore_aux_session_builder_scan_packets(
+                    struct.pack('<21I',*mutated))
+        with self.assertRaisesRegex(ValueError,'84 source-assembled'):
+            agent12.restore_aux_session_builder_scan_packets(bytes(80))
+        if os.getenv('NABU_HEXAGON_LLVM_MC'):
+            mc=Path(os.environ['NABU_HEXAGON_LLVM_MC'])
+            raw_valid=agent12.assemble(mc,agent12.AUX_SESSION_BUILDER_VALIDITY_SOURCE)
+            raw_scan=agent12.assemble(mc,agent12.AUX_SESSION_BUILDER_SCAN_SOURCE)
+            result=(agent12.restore_aux_session_builder_validity_predicate_packet(raw_valid)+
+                    agent12.restore_aux_session_builder_scan_packets(raw_scan))
+            self.assertEqual(len(result),136)
+            if os.getenv('NABU_MODEM_REFERENCE'):
+                orig=Path(os.environ['NABU_MODEM_REFERENCE']).read_bytes()
+                self.assertEqual(result,orig[0x44905c:0x4490e4])
+
     def test_session_builder_callback_and_checked_result(self):
         self.assertEqual((agent12.AUX_SESSION_BUILDER_CALLBACK_START,
                           agent12.AUX_SESSION_BUILDER_RESULT_END),
@@ -2513,8 +2567,8 @@ class ModemLateTests(unittest.TestCase):
         a = agent12.output_fragments(Path(os.environ["NABU_HEXAGON_LLVM_MC"]))
         self.assertEqual({k: len(v) for k, v in a.items()},
                          {0x7C000:160, 0x7C2EC:452,
-                          0x446000:agent12.AUX_SESSION_BUILDER_RESULT_END-agent12.AUX_START})
-        self.assertEqual(sum(map(len,a.values())),agent12.AUX_SESSION_BUILDER_RESULT_END - agent12.AUX_START + 612)
+                          0x446000:agent12.AUX_SESSION_BUILDER_SCAN_END-agent12.AUX_START})
+        self.assertEqual(sum(map(len,a.values())),agent12.AUX_SESSION_BUILDER_SCAN_END - agent12.AUX_START + 612)
         self.assertEqual(a[0x446000][0x0d8:0x200],agent12.emit_auxiliary_elf_symbols())
         self.assertEqual(a[0x446000][0x254:0x260],bytes(12))
         self.assertEqual(a[0x446000][0x1448:0x1460],

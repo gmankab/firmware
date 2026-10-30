@@ -1949,3 +1949,29 @@ Contiguous auxiliary prefix `[0x446000,0x44905c)` = **12,380 bytes**.
 Generated later-modem coverage **12,992 bytes** = **12,684 executable
 Hexagon bytes** + **296 source-generated ELF metadata** + **12 alignment**.
 The modem firmware as a whole and OEM authentication are incomplete.
+
+## Checkpoint 89 — Controller predicate and bounded record scanner
+
+Added **136 independently generated Hexagon V60 executable bytes**:
+
+- `[0x44905c,0x449090)` (52 bytes): evaluate a controller format
+  predicate and conditionally select the detailed/reduced diagnostic path.
+  LLVM6 schedules the extended predicated load after its branch, requiring
+  a checked reorder of three source-generated instruction words.
+- `[0x449090,0x4490e4)` (84 bytes): validate input record type `2`,
+  initialize controller plane fields, and count enabled records with the
+  original `loop0`/`:endloop0` packet sequence. The source contains the
+  actual original `cmp.eq(...,#2)` guard. Keeping the decrement in its
+  own source packet prevents LLVM6 from emitting an unintended duplex;
+  subsequent checked transformations restore one independent store/load
+  order and two exact packet markers.
+
+Negative tests reject changed opcode classes, register operands, parser
+fields, loop bounds and packet markers. The full emitted prefix exactly
+matches SHA-pinned `modem.mbn` without reference bytes in the generators.
+The session builder function continues at `0x4490e4`.
+
+Contiguous auxiliary prefix `[0x446000,0x4490e4)` = **12,516 bytes**;
+independently generated late-modem coverage **13,128 bytes**:
+**12,820 executable Hexagon**, **296 ELF metadata**, **12 linker alignment**.
+This is only a small subset of the complete signed modem firmware.
