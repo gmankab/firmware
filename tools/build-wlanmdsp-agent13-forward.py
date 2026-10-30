@@ -104,6 +104,9 @@ FRAGMENTS = (
     ('session-handler-callbacks-4a0-4d0', SOURCE_DIR / 'agent13-runtime-session-handler-callbacks-4a0-4d0.S', 0x7a58, 0x30),
     ('session-handler-tail-4d0-4f8', SOURCE_DIR / 'agent13-runtime-session-handler-tail-4d0-4f8.S', 0x7a88, 0x28),
     ('session-handler-next-4f8-5a0', SOURCE_DIR / 'agent13-runtime-session-handler-next-4f8-5a0.S', 0x7ab0, 0xa8),
+    ('session-handler-entry-5a0-5c4', SOURCE_DIR / 'agent13-runtime-session-entry-5a0-5c4.S', 0x7b58, 0x24),
+    ('session-handler-report-5c4-620', SOURCE_DIR / 'agent13-runtime-session-report-5c4-620.S', 0x7b7c, 0x5c),
+    ('session-handler-iterator-620-664', SOURCE_DIR / 'agent13-runtime-session-iterator-620-664.S', 0x7bd8, 0x44),
 )
 
 
@@ -298,7 +301,7 @@ def main():
         parent.check_reference(fragment,args.reference.read_bytes(),runtime_offset=START)
     args.output.parent.mkdir(parents=True,exist_ok=True)
     args.output.write_bytes(fragment)
-    report={'agent':13,'checkpoint':'54-disjoint',
+    report={'agent':13,'checkpoint':'55-disjoint',
             'source_base':'Agent 13 checkpoint 16 (7c730bf); checkpoint25 source unavailable',
             'is_checkpoint25_descendant':False,
             'file_start':FILE_BASE+START,'file_end':FILE_BASE+end,

@@ -19,10 +19,10 @@ class SourceOnlyForwardTests(unittest.TestCase):
     def test_manifest_exact_boundaries(self):
         m=module()
         self.assertEqual(m.START,0x568c)
-        self.assertEqual(m.validate_manifest(),0x7b58)
+        self.assertEqual(m.validate_manifest(),0x7c1c)
         self.assertEqual(m.FILE_BASE+m.START,0x4568c)
-        self.assertEqual(m.FILE_BASE+m.validate_manifest(),0x47b58)
-        self.assertEqual(sum(length for _,_,_,length in m.FRAGMENTS),9420)
+        self.assertEqual(m.FILE_BASE+m.validate_manifest(),0x47c1c)
+        self.assertEqual(sum(length for _,_,_,length in m.FRAGMENTS),9616)
 
     def test_validator_forbids_opaque_data_and_layout_holes(self):
         m=module()
@@ -65,6 +65,9 @@ class SourceOnlyForwardTests(unittest.TestCase):
             ('session-handler-callbacks-4a0-4d0',0x7a58,0x30),
             ('session-handler-tail-4d0-4f8',0x7a88,0x28),
             ('session-handler-next-4f8-5a0',0x7ab0,0xa8),
+            ('session-handler-entry-5a0-5c4',0x7b58,0x24),
+            ('session-handler-report-5c4-620',0x7b7c,0x5c),
+            ('session-handler-iterator-620-664',0x7bd8,0x44),
         ]
         for name,off,size in expected:
             self.assertIn(name,parts)
@@ -93,6 +96,26 @@ class SourceOnlyForwardTests(unittest.TestCase):
         self.assertIn('r3:2 = combine(##-1339397133,#4)',code)
         for forbidden in ('.word','.byte','.incbin'):
             self.assertNotIn(forbidden,code)
+
+    def test_event_report_and_iteration_packeting(self):
+        m=module()
+        by_name={n:(p,o,s) for n,p,o,s in m.FRAGMENTS}
+        for name,off,size in [('session-handler-entry-5a0-5c4',0x7b58,0x24),
+                              ('session-handler-report-5c4-620',0x7b7c,0x5c),
+                              ('session-handler-iterator-620-664',0x7bd8,0x44)]:
+            src,actual,length=by_name[name]
+            self.assertEqual((actual,length),(off,size))
+            text=src.read_text()
+            for marker in ('.word','.byte','.incbin','.fill'):
+                self.assertNotIn(marker,text)
+        entry=by_name['session-handler-entry-5a0-5c4'][0].read_text()
+        self.assertIn('call 0x2850\n    r4 = r20',entry)
+        report=by_name['session-handler-report-5c4-620'][0].read_text()
+        self.assertIn('L_report_loop:',report)
+        self.assertIn('jump:t L_report_loop',report)
+        iterator=by_name['session-handler-iterator-620-664'][0].read_text()
+        self.assertEqual(iterator.count('    nop\n'),7)
+        self.assertIn('r2 = memw(r20++#4)',iterator)
 
     def test_next_controller_split_is_adjacent(self):
         m=module()

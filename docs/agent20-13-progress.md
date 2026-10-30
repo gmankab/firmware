@@ -713,3 +713,18 @@ python3 tools/build-wlanmdsp-agent13.py /tmp/wlan-prefix-through-27a0.bin \
   `[file 0x4568c,0x47b58)`, with zero mismatching bytes.
 - Next unimplemented instruction begins at `0x47b58`. The branch still descends
   from checkpoint 16, not checkpoint 25, and is not a complete/flashable image.
+
+## Checkpoint 55 (disjoint) — record fallback, three-field reporting and iterator
+
+- Added **196 independently source-assembled Hexagon instruction bytes** in
+  WLAN file `[0x47b58,0x47c1c)` (VMA `[0xb0007b58,0xb0007c1c)`).
+- Three separate source functions implement a record-status callback, a
+  three-field extractor/reporter and a bounded record traversal. Original
+  packet boundaries and seven explicitly source-assembled NOP alignment words
+  are retained, not imported as reference opcode bytes.
+- The complete disjoint continuation `[0x4568c,0x47c1c)` now totals
+  **9,616 byte-identical instruction/layout bytes**, with strict original
+  SHA-256 and first-byte mismatch checks. This is a partial higher-level
+  function and not a signed WLAN firmware image.
+- Branch root is still checkpoint 16, with checkpoint 17–25 ancestry absent.
+  The next unimplemented file byte begins at `0x47c1c`.
