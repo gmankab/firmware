@@ -522,3 +522,20 @@ python3 tools/verify-agent20-09-tlb-encode.py \
   --rust-output /tmp/cdsp-tlb-entry-84.bin --reference /private/cdsp.mbn \
   --rz-asm /path/to/rz-asm --llvm-mc /path/to/llvm-mc
 ```
+
+## Checkpoint 56 — TLB probe, synchronized writer and indexed reader `[0x5bc0,0x5c14)`
+
+- **84 further source-encoded V66 executable bytes**, original CDSP file `[0x5bc0,0x5c14)` (physical `[0x96c02bc0,0x96c02c14)`), match exactly the pinned CDSP revision SHA-256 `febeae7b8e47bad4eeabc159a3c24b74cda26dfa12b384c31de5de30817e06ea`.
+- Three small routines: TLB address probe with `TSTBIT P0` and `.new` branch; 64-bit indexed TLB write with `TLBLOCK`, `TLBW`, `ISYNC`, `TLBUNLOCK`; and a corresponding `TLBR` indexed read. Errors use the original `R0=-1` sentinel and the original return instructions. Typed encoders validate register-pair parity and branch range.
+- **The next 44 file bytes `[0x5c14,0x5c40)` are verified zero linker alignment**, not independently reconstructed executable code. `verify-tlbcontrol` checks them separately and refuses nonzero fill.
+- Independent `tools/verify-agent20-09-tlb-control.py` verifies **21/21 Rizin V66 semantics**, **12/21 complete LLVM6-assembled ordinary instruction words** including the `.new` producer/consumer packet; nine privileged TLB operations are Rizin/reference-only.
+- Accurate cumulative **6,464 source-encoded executable bytes** with zero differences, and **288 linker-alignment bytes** tracked separately. Next actual instruction starts at file `0x5c40`, physical `0x96c02c40`.
+- No complete CDSP firmware image, new OEM signature, hardware execution, or checkpoint-50 merge is claimed.
+
+```sh
+cargo run --offline --locked -p firmware-tools --bin cdsp-agent09-hvx -- emit-tlbcontrol /tmp/cdsp-tlb-control-84.bin
+cargo run --offline --locked -p firmware-tools --bin cdsp-agent09-hvx -- verify-tlbcontrol /private/cdsp.mbn
+python3 tools/verify-agent20-09-tlb-control.py \
+  --rust-output /tmp/cdsp-tlb-control-84.bin --reference /private/cdsp.mbn \
+  --rz-asm /path/to/rz-asm --llvm-mc /path/to/llvm-mc
+```
