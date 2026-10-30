@@ -105,6 +105,10 @@ AUX_RECORD_TYPE11_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu
 AUX_RECORD_TYPE12_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_aux_record_type12.s"
 AUX_RECORD_TYPE13_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_aux_record_type13.s"
 AUX_RECORD_FINISH_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_aux_record_finish.s"
+AUX_SESSION_BUILDER_PREFIX_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_aux_session_builder_prefix.s"
+AUX_SESSION_BUILDER_ALLOC_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_aux_session_builder_allocation.s"
+AUX_SESSION_BUILDER_INIT_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_aux_session_builder_init.s"
+AUX_SESSION_BUILDER_DEBUG_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_aux_session_builder_debug.s"
 AUX_DISPATCH_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_aux_dispatch_helpers.s"
 AUX_TYPE_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_aux_type_config.s"
 AUX_NOTIFY_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_aux_controller_notify.s"
@@ -340,6 +344,14 @@ AUX_RECORD_TYPE13_START = AUX_RECORD_TYPE12_END
 AUX_RECORD_TYPE13_END = 0x448E1C
 AUX_RECORD_FINISH_START = AUX_RECORD_TYPE13_END
 AUX_RECORD_FINISH_END = 0x448E30
+AUX_SESSION_BUILDER_PREFIX_START = AUX_RECORD_FINISH_END
+AUX_SESSION_BUILDER_PREFIX_END = 0x448EA0
+AUX_SESSION_BUILDER_ALLOC_START = AUX_SESSION_BUILDER_PREFIX_END
+AUX_SESSION_BUILDER_ALLOC_END = 0x448EDC
+AUX_SESSION_BUILDER_INIT_START = AUX_SESSION_BUILDER_ALLOC_END
+AUX_SESSION_BUILDER_INIT_END = 0x448F64
+AUX_SESSION_BUILDER_DEBUG_START = AUX_SESSION_BUILDER_INIT_END
+AUX_SESSION_BUILDER_DEBUG_END = 0x448FA8
 MARKER_MASK = 3 << 14
 CONTINUE_MARKER = 1 << 14
 END_MARKER = 3 << 14
@@ -2653,6 +2665,10 @@ def output_fragments(llvm_mc: Path) -> dict[int, bytes]:
     aux_record_type12=assemble(llvm_mc,AUX_RECORD_TYPE12_SOURCE)
     aux_record_type13=assemble(llvm_mc,AUX_RECORD_TYPE13_SOURCE)
     aux_record_finish=assemble(llvm_mc,AUX_RECORD_FINISH_SOURCE)
+    aux_session_builder_prefix=assemble(llvm_mc,AUX_SESSION_BUILDER_PREFIX_SOURCE)
+    aux_session_builder_alloc=assemble(llvm_mc,AUX_SESSION_BUILDER_ALLOC_SOURCE)
+    aux_session_builder_init=assemble(llvm_mc,AUX_SESSION_BUILDER_INIT_SOURCE)
+    aux_session_builder_debug=assemble(llvm_mc,AUX_SESSION_BUILDER_DEBUG_SOURCE)
     aux_dispatch = assemble(llvm_mc,AUX_DISPATCH_SOURCE)
     aux_type = restore_aux_type_return_packets(assemble(llvm_mc,AUX_TYPE_SOURCE))
     aux_notify = restore_aux_controller_notify_packets(assemble(llvm_mc,AUX_NOTIFY_SOURCE))
@@ -2766,6 +2782,10 @@ def output_fragments(llvm_mc: Path) -> dict[int, bytes]:
         (aux_record_type12,AUX_RECORD_TYPE12_START,AUX_RECORD_TYPE12_END,'controller decoded record width and allocation ceiling'),
         (aux_record_type13,AUX_RECORD_TYPE13_START,AUX_RECORD_TYPE13_END,'controller record width below sixteen with failure callback'),
         (aux_record_finish,AUX_RECORD_FINISH_START,AUX_RECORD_FINISH_END,'controller selected record pointer and success return'),
+        (aux_session_builder_prefix,AUX_SESSION_BUILDER_PREFIX_START,AUX_SESSION_BUILDER_PREFIX_END,'session builder frame and optional allocation callback'),
+        (aux_session_builder_alloc,AUX_SESSION_BUILDER_ALLOC_START,AUX_SESSION_BUILDER_ALLOC_END,'session builder null allocation and diagnostic fallback'),
+        (aux_session_builder_init,AUX_SESSION_BUILDER_INIT_START,AUX_SESSION_BUILDER_INIT_END,'session builder descriptor initialization and allocator fallback'),
+        (aux_session_builder_debug,AUX_SESSION_BUILDER_DEBUG_START,AUX_SESSION_BUILDER_DEBUG_END,'session builder optional tracing switch and logging'),
     ]:
         if len(fragment)!=end-start:
             raise ValueError(f"auxiliary {label} source length mismatch")
@@ -2873,7 +2893,11 @@ def output_fragments(llvm_mc: Path) -> dict[int, bytes]:
             AUX_RECORD_TYPE10_END==AUX_RECORD_TYPE11_START and
             AUX_RECORD_TYPE11_END==AUX_RECORD_TYPE12_START and
             AUX_RECORD_TYPE12_END==AUX_RECORD_TYPE13_START and
-            AUX_RECORD_TYPE13_END==AUX_RECORD_FINISH_START):
+            AUX_RECORD_TYPE13_END==AUX_RECORD_FINISH_START and
+            AUX_RECORD_FINISH_END==AUX_SESSION_BUILDER_PREFIX_START and
+            AUX_SESSION_BUILDER_PREFIX_END==AUX_SESSION_BUILDER_ALLOC_START and
+            AUX_SESSION_BUILDER_ALLOC_END==AUX_SESSION_BUILDER_INIT_START and
+            AUX_SESSION_BUILDER_INIT_END==AUX_SESSION_BUILDER_DEBUG_START):
         raise ValueError("controller phase13 gap was silently bridged")
     if AUX_LOOKUP_END!=AUX_REGISTRY_CORE_START or AUX_REGISTRY_CORE_END!=AUX_DISPATCH_START:
         raise ValueError("modem auxiliary registry source intervals have a gap")
@@ -2913,7 +2937,8 @@ def output_fragments(llvm_mc: Path) -> dict[int, bytes]:
                         aux_buffer_factory+aux_record_guard+aux_record_type4+aux_record_type5+
                         aux_record_type6+aux_record_type7+aux_record_type8+aux_record_type9+
                         aux_record_type10+aux_record_type11+aux_record_type12+
-                        aux_record_type13+aux_record_finish,
+                        aux_record_type13+aux_record_finish+aux_session_builder_prefix+
+                        aux_session_builder_alloc+aux_session_builder_init+aux_session_builder_debug,
     }
 
 

@@ -80,6 +80,34 @@ class ModemLateTests(unittest.TestCase):
                 ref=Path(os.environ['NABU_MODEM_REFERENCE']).read_bytes()
                 self.assertEqual(fixed,ref[0x4485f8:0x448628])
 
+    def test_session_builder_prefix_and_allocation_fallback(self):
+        spans=[(agent12.AUX_SESSION_BUILDER_PREFIX_SOURCE,0x448e30,0x448ea0,
+                ('allocframe(#104)','r21:20 = combine(r0,r2)',
+                 'call error_report','jump shared_error_exit')),
+               (agent12.AUX_SESSION_BUILDER_ALLOC_SOURCE,0x448ea0,0x448edc,
+                ('callr r2','jump:t allocated_state','r17 = #-1')),
+               (agent12.AUX_SESSION_BUILDER_INIT_SOURCE,0x448edc,0x448f64,
+                ('call prepare_state','memw(r16+#180) = r2',
+                 'call destroy_state','jump shared_error_exit')),
+               (agent12.AUX_SESSION_BUILDER_DEBUG_SOURCE,0x448f64,0x448fa8,
+                ('p0 = cmp.eq(r2,#0)','call factory',
+                 'call alternate_log','memw(r29+#0) = r17'))]
+        self.assertEqual((agent12.AUX_SESSION_BUILDER_PREFIX_START,
+                          agent12.AUX_SESSION_BUILDER_DEBUG_END),
+                         (0x448e30,0x448fa8))
+        for src,begin,end,instructions in spans:
+            source=src.read_text()
+            for bad in ('.word','.byte','.incbin'):
+                self.assertNotIn(bad,source)
+            for value in instructions:
+                self.assertIn(value,source)
+            if os.getenv('NABU_HEXAGON_LLVM_MC'):
+                actual=agent12.assemble(Path(os.environ['NABU_HEXAGON_LLVM_MC']),src)
+                self.assertEqual(len(actual),end-begin)
+                if os.getenv('NABU_MODEM_REFERENCE'):
+                    pinned=Path(os.environ['NABU_MODEM_REFERENCE']).read_bytes()
+                    self.assertEqual(actual,pinned[begin:end])
+
     def test_remaining_record_width_guards_and_success_return(self):
         spans=[(agent12.AUX_RECORD_TYPE12_SOURCE,0x448d8c,0x448dd4,
                 ['zxth(r4)','addasl(r3,r5,#5)','cmp.gtu(r7.new,r6)',
@@ -2446,8 +2474,8 @@ class ModemLateTests(unittest.TestCase):
         a = agent12.output_fragments(Path(os.environ["NABU_HEXAGON_LLVM_MC"]))
         self.assertEqual({k: len(v) for k, v in a.items()},
                          {0x7C000:160, 0x7C2EC:452,
-                          0x446000:agent12.AUX_RECORD_FINISH_END-agent12.AUX_START})
-        self.assertEqual(sum(map(len,a.values())),agent12.AUX_RECORD_FINISH_END - agent12.AUX_START + 612)
+                          0x446000:agent12.AUX_SESSION_BUILDER_DEBUG_END-agent12.AUX_START})
+        self.assertEqual(sum(map(len,a.values())),agent12.AUX_SESSION_BUILDER_DEBUG_END - agent12.AUX_START + 612)
         self.assertEqual(a[0x446000][0x0d8:0x200],agent12.emit_auxiliary_elf_symbols())
         self.assertEqual(a[0x446000][0x254:0x260],bytes(12))
         self.assertEqual(a[0x446000][0x1448:0x1460],

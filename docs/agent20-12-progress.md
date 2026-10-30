@@ -1903,3 +1903,28 @@ independently generated total **12,436 bytes**, of which **12,128 are
 source-assembled Hexagon code**, **296 ELF metadata** and **12 linker
 alignment**. The original modem image, signature and other program regions
 remain incomplete.
+
+## Checkpoint 87 — Session builder allocation and trace prefix
+
+The next controller session builder is now **partially reconstructed**
+with **376 new source-generated Hexagon V60 instruction bytes**:
+
+- `[0x448e30,0x448ea0)` (112 bytes): allocframe 104 and caller-state saves,
+  optional session-allocator callback, checked null callback diagnostic.
+- `[0x448ea0,0x448edc)` (60 bytes): null allocation detection and
+  error-return dispatch to the prior shared cleanup routine.
+- `[0x448edc,0x448f64)` (136 bytes): initialize session fields and
+  counters, allocate the descriptor state and report failure.
+- `[0x448f64,0x448fa8)` (68 bytes): optional trace flag and diagnostic
+  routing; the success path continues at `0x448fa8` and remains incomplete.
+
+These fragments assemble **directly under LLVM6** from symbolic Hexagon
+instructions. Initial packet-marker differences were corrected by regrouping
+source into the original legal packets, rather than copying OEM words.
+All four fragment boundaries, packet endings and full binary are checked
+against pinned `modem.mbn` by the optional-reference verifier.
+
+The auxiliary prefix `[0x446000,0x448fa8)` is now **12,200 bytes**;
+independently generated late-modem total **12,812 bytes**:
+**12,504 executable code**, **296 ELF metadata** and **12 linker alignment**.
+The full modem remains far from source-recompiled or newly authenticated.
