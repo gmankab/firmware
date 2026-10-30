@@ -383,3 +383,25 @@ git diff --check
 - `[0x67000,0x68000)` contains **1,003 instructions and 21 classified non-instruction data words** across eight pools. The new checked helpers model `RRX` (rotate right with carry extension) at `0x676c0` and `ADC` forms rather than pasting original opcodes. Two distinct branch-skipped reciprocal constants `0x2aaaaaab` at `0x67780` and `0x67870`, and `0xfffff000` at `0x67400`, are data even when the linear disassembler prints misleading branch mnemonics. The source matches the OEM reference with no fabricated filler.
 - The entire contiguous `[0x40a2c,0x68000)` is now **161,236 byte-identical bytes**, while the separately assigned prefix `[0x40000,0x40a2c)` (2,604 bytes) is not yet in this aggregate. Address `0x68000` is the exclusive handoff to Agent 05. No source writes at or above it, and the last function may continue into Agent 05's range.
 - This branch remains provisional older-Agent-03 ancestry, not checkpoint-50-rooted. Byte identity is not a guarantee of original C source semantics or a signed, deployable MBN. Workspace tests and release-build results are recorded in checkpoint logs.
+
+## Checkpoint 46 — Full 0x40000–0x68000 reservation verified
+
+- **Agent 20-04's complete exclusive runtime range `[0x40000,0x68000)` now emits 163,840 exact bytes (0x28000)** without any implicit padding or copied OEM instruction array; original Venus MBN file offsets are `[0x44000,0x6c000)`.
+- Closed the last 2,604-byte missing prefix `[0x40000,0x40a2c)` using **644 typed ARM32 instructions and seven independently classified data words**. The region begins *inside* a function (prologue before `0x40000` belongs to Agent 03) and ends at the original function's return at `0x40a10` and six diagnostic/capability literals at `0x40a14–0x40a2c`. Another diagnostic word is branch-skipped at `0x405bc`.
+- The prefix source implements A32 condition codes, offset register load/stores, indexed `LDRH`/`LDRSH`, post-indexed signed halfword loads, controller packet writes, and eight-channel iteration using checked ARM architecture operand encodings. Its output has zero differing bytes against the pinned `venus.mbn`; independent Clang/LLVM mnemonic reassembly matches **all 644 instructions and seven data words**.
+- The previous checkpoint 45 source contributes the adjacent `[0x40a2c,0x68000)` 161,236 bytes. The new strict full-range verifier rejects gaps, overlaps, wrong prefix length, a missing middle module, an incorrectly sized upper continuation, or a truncated reference. Its four Python unit tests test these negative paths.
+- **Complete emitted 163,840-byte fragment SHA-256:** `27d028ac3ca4881a4cc129dae1a59ebcabfce413806f7fd1d4e8c9d33f5647cd` (also agrees with the pinned OEM reference slice). The original full MBN SHA-256 is `9d4af65d7ede845e900f1b29ff425b7a8e2947056e695e246e58a2091445a085`.
+- To reproduce without copying vendor firmware into the repository, provide the original file as a **read-only private input** and run:
+
+  ```sh
+  CARGO_BUILD_JOBS=1 CARGO_PROFILE_RELEASE_OPT_LEVEL=0 \
+      tools/verify-agent20-04-complete.sh /private/venus.mbn /tmp/venus-agent04-163840.bin
+  # Or manually emit with examples agent20_04_prefix,
+  # agent20_04_venus_middle and agent20_04_continue, then join with
+  # tools/agent20_04_full_range.py.
+  ```
+
+- This is **instruction-level byte-identical reconstruction**, not proof of independent high-level behavioral semantics, a complete executable Venus image, a modified OEM signature, or a hardware-bootable image. Agent 05 owns runtime addresses `>=0x68000` exclusively; this source writes no bytes there. The initial function began before `0x40000` in Agent 03's reservation and the final function may continue into Agent 05.
+- **Git provenance remains provisional.** The branch descends from older Agent 03 repository history rather than checkpoint 50 (`b7ed4b5`); the exact checkpoint-50 raw bundle is absent in the current uploaded materials. Integration should apply/rebase the Agent 04 source onto the actual checkpoint-50-derived merge and re-run all byte and test comparisons.
+
+- Final checkpoint 46 regression results: **277 Rust workspace tests passed** (`cargo test --workspace --offline --locked`), **17 Python tests passed**, no skipped tests, and a release-profile build of the **three fragment emitter examples** passes with `CARGO_PROFILE_RELEASE_OPT_LEVEL=0`, one compiler job, and debug info disabled. A separate full-workspace release build was **not** run at checkpoint 46. The packaged `tools/verify-agent20-04-complete.sh` also regenerates and verifies the exact 163,840-byte output from typed Rust source, with no proprietary payload embedded in the Git history.
