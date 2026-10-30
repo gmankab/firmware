@@ -473,3 +473,20 @@ python3 tools/verify-agent20-09-supervisor-dispatch.py \
   --rust-output /tmp/cdsp-supervisor-72.bin --reference /private/cdsp.mbn \
   --rz-asm /path/to/rz-asm --llvm-mc /path/to/llvm-mc
 ```
+
+## Checkpoint 53 — CDSP indexed command dispatch and supervisor snapshot `[0x5aa8,0x5afc)`
+
+- Built **84 additional source-encoded V66 instruction bytes**, file `[0x5aa8,0x5afc)`, physical `[0x96c02aa8,0x96c02afc)`, with zero differences against SHA-256-pinned original CDSP.
+- Three small helper paths include a compact `R0=-1; jumpr LR` return, a bounded command type dispatcher with `.new` load branch and a long-range external controller jump, a callback-table load through `R5<<2` with privileged SGP0 snapshot and an extended 64-bit context read.
+- Encoded all packet markers explicitly and used operand-checked constructors for predicate compares, physical addresses, `.new` memory branches and aligned doubleword loads. The initial comparison revealed one missing compare-immediate field and one extender packet marker; both were corrected before verification.
+- `tools/verify-agent20-09-dispatch-helpers.py` validates **21/21 words with Rizin V66**, and independently reassembles **20/21 words exactly with LLVM6**, preserving `.new` producer/consumer instruction packets. The one `R6=SGP0` privileged read is Rizin/reference validated only.
+- Exact cumulative **executable** coverage is now **6,184 bytes**, in intervals `[0x41e0,0x4418)` 568, `[0x4500,0x4bb8)` 1,720 and `[0x4bc0,0x5a5c)` 3,740, `[0x5a60,0x5afc)` 156 bytes. Separate known ELF linker padding remains **244 bytes** total, not executable source (see checkpoint 52 correction).
+- The next executable function starts at CDSP file `0x5afc`, physical `0x96c02afc`. This branch remains separate from checkpoint-50-based integration and does not provide the complete OEM-signed CDSP MBN.
+
+```sh
+cargo run --offline --locked -p firmware-tools --bin cdsp-agent09-hvx -- emit-helpers /tmp/cdsp-dispatch-84.bin
+cargo run --offline --locked -p firmware-tools --bin cdsp-agent09-hvx -- verify-helpers /private/cdsp.mbn
+python3 tools/verify-agent20-09-dispatch-helpers.py \
+  --rust-output /tmp/cdsp-dispatch-84.bin --reference /private/cdsp.mbn \
+  --rz-asm /path/to/rz-asm --llvm-mc /path/to/llvm-mc
+```
