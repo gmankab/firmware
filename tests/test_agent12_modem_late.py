@@ -80,6 +80,56 @@ class ModemLateTests(unittest.TestCase):
                 ref=Path(os.environ['NABU_MODEM_REFERENCE']).read_bytes()
                 self.assertEqual(fixed,ref[0x4485f8:0x448628])
 
+    def test_type10_class_32_halfword_checked_packet_order(self):
+        self.assertEqual((agent12.AUX_RECORD_TYPE10_START,agent12.AUX_RECORD_TYPE10_END),
+                         (0x448cfc,0x448d50))
+        source=agent12.AUX_RECORD_TYPE10_SOURCE.read_text()
+        for bad in ('.word','.byte','.incbin'):
+            self.assertNotIn(bad,source)
+        for expected in ('memh(r16+#42)','p0 = cmp.eq(r4,#32)',
+                         'jump:t valid_type10','zxth(r4)','call error_report'):
+            self.assertIn(expected,source)
+        words=[0x7800c000]*21
+        words[1:3]=[0x5c005828,0x7504c400]
+        raw=struct.pack('<21I',*words)
+        repaired=agent12.restore_aux_record_type10_predicate_order(raw)
+        vals=struct.unpack('<21I',repaired)
+        self.assertEqual(vals[1:3],(0x75044400,0x5c00d828))
+        for idx,bad,reason in [(1,0x5c005829,'displacement'),
+                               (1,0x5c00d828,'markers'),
+                               (2,0x7504c401,'operands'),
+                               (2,0x75044400,'markers')]:
+            corrupted=words.copy();corrupted[idx]=bad
+            with self.assertRaisesRegex(ValueError,reason):
+                agent12.restore_aux_record_type10_predicate_order(struct.pack('<21I',*corrupted))
+        with self.assertRaisesRegex(ValueError,'84 compiled bytes'):
+            agent12.restore_aux_record_type10_predicate_order(bytes(80))
+        if os.getenv('NABU_HEXAGON_LLVM_MC'):
+            generated=agent12.assemble(Path(os.environ['NABU_HEXAGON_LLVM_MC']),
+                                       agent12.AUX_RECORD_TYPE10_SOURCE)
+            self.assertEqual(len(generated),84)
+            rebuilt=agent12.restore_aux_record_type10_predicate_order(generated)
+            if os.getenv('NABU_MODEM_REFERENCE'):
+                orig=Path(os.environ['NABU_MODEM_REFERENCE']).read_bytes()
+                self.assertEqual(rebuilt,orig[0x448cfc:0x448d50])
+
+    def test_type11_nonzero_halfword_guard(self):
+        self.assertEqual((agent12.AUX_RECORD_TYPE11_START,agent12.AUX_RECORD_TYPE11_END),
+                         (0x448d50,0x448d8c))
+        source=agent12.AUX_RECORD_TYPE11_SOURCE.read_text()
+        for bad in ('.word','.byte','.incbin'):
+            self.assertNotIn(bad,source)
+        for expected in ('memh(r16+#44)','jump:t valid_type11',
+                         'callr r4','call error_report','dealloc_return'):
+            self.assertIn(expected,source)
+        if os.getenv('NABU_HEXAGON_LLVM_MC'):
+            generated=agent12.assemble(Path(os.environ['NABU_HEXAGON_LLVM_MC']),
+                                       agent12.AUX_RECORD_TYPE11_SOURCE)
+            self.assertEqual(len(generated),60)
+            if os.getenv('NABU_MODEM_REFERENCE'):
+                orig=Path(os.environ['NABU_MODEM_REFERENCE']).read_bytes()
+                self.assertEqual(generated,orig[0x448d50:0x448d8c])
+
     def test_type8_halfword_flags_and_error_path(self):
         self.assertEqual((agent12.AUX_RECORD_TYPE8_START,agent12.AUX_RECORD_TYPE8_END),
                          (0x448c6c,0x448cb4))
@@ -2368,8 +2418,8 @@ class ModemLateTests(unittest.TestCase):
         a = agent12.output_fragments(Path(os.environ["NABU_HEXAGON_LLVM_MC"]))
         self.assertEqual({k: len(v) for k, v in a.items()},
                          {0x7C000:160, 0x7C2EC:452,
-                          0x446000:agent12.AUX_RECORD_TYPE9_END-agent12.AUX_START})
-        self.assertEqual(sum(map(len,a.values())),agent12.AUX_RECORD_TYPE9_END - agent12.AUX_START + 612)
+                          0x446000:agent12.AUX_RECORD_TYPE11_END-agent12.AUX_START})
+        self.assertEqual(sum(map(len,a.values())),agent12.AUX_RECORD_TYPE11_END - agent12.AUX_START + 612)
         self.assertEqual(a[0x446000][0x0d8:0x200],agent12.emit_auxiliary_elf_symbols())
         self.assertEqual(a[0x446000][0x254:0x260],bytes(12))
         self.assertEqual(a[0x446000][0x1448:0x1460],

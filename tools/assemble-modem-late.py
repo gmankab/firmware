@@ -100,6 +100,8 @@ AUX_RECORD_TYPE6_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/
 AUX_RECORD_TYPE7_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_aux_record_type7.s"
 AUX_RECORD_TYPE8_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_aux_record_type8.s"
 AUX_RECORD_TYPE9_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_aux_record_type9.s"
+AUX_RECORD_TYPE10_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_aux_record_type10.s"
+AUX_RECORD_TYPE11_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_aux_record_type11.s"
 AUX_DISPATCH_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_aux_dispatch_helpers.s"
 AUX_TYPE_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_aux_type_config.s"
 AUX_NOTIFY_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_aux_controller_notify.s"
@@ -325,6 +327,10 @@ AUX_RECORD_TYPE8_START = AUX_RECORD_TYPE7_END
 AUX_RECORD_TYPE8_END = 0x448CB4
 AUX_RECORD_TYPE9_START = AUX_RECORD_TYPE8_END
 AUX_RECORD_TYPE9_END = 0x448CFC
+AUX_RECORD_TYPE10_START = AUX_RECORD_TYPE9_END
+AUX_RECORD_TYPE10_END = 0x448D50
+AUX_RECORD_TYPE11_START = AUX_RECORD_TYPE10_END
+AUX_RECORD_TYPE11_END = 0x448D8C
 MARKER_MASK = 3 << 14
 CONTINUE_MARKER = 1 << 14
 END_MARKER = 3 << 14
@@ -2496,6 +2502,29 @@ def restore_aux_record_guard_header_packet(assembled: bytes) -> bytes:
     return struct.pack('<25I',*words)
 
 
+def restore_aux_record_type10_predicate_order(assembled: bytes) -> bytes:
+    """Swap LLVM6's independent branch/predicate issue order, preserving ISA.
+
+    Source-compiled words must encode the exact signed-halfword comparison,
+    predicate register, relative branch target and original packet markers.
+    Only two source-generated instructions move, with their marker fields.
+    This never receives vendor firmware bytes or accepts arbitrary opcodes.
+    """
+    if len(assembled)!=AUX_RECORD_TYPE10_END-AUX_RECORD_TYPE10_START:
+        raise ValueError('type10 expects exactly 84 compiled bytes')
+    words=list(struct.unpack('<21I',assembled))
+    branch,predicate=words[1:3]
+    if (branch & ~MARKER_MASK)!=0x5c001828:
+        raise ValueError('type10 branch opcode, predicate or displacement changed')
+    if (predicate & ~MARKER_MASK)!=0x75040400:
+        raise ValueError('type10 halfword predicate opcode or operands changed')
+    if (branch & MARKER_MASK)!=CONTINUE_MARKER or (predicate & MARKER_MASK)!=END_MARKER:
+        raise ValueError('type10 source packet markers changed')
+    words[1:3]=[(predicate & ~MARKER_MASK)|CONTINUE_MARKER,
+                 (branch & ~MARKER_MASK)|END_MARKER]
+    return struct.pack('<21I',*words)
+
+
 def output_fragments(llvm_mc: Path) -> dict[int, bytes]:
     atomic = restore_atomic_packet_order(assemble(llvm_mc, ATOMIC_SOURCE))
     controller = restore_controller_packet_order(assemble(llvm_mc, CONTROL_SOURCE))
@@ -2610,6 +2639,8 @@ def output_fragments(llvm_mc: Path) -> dict[int, bytes]:
     aux_record_type7=assemble(llvm_mc,AUX_RECORD_TYPE7_SOURCE)
     aux_record_type8=assemble(llvm_mc,AUX_RECORD_TYPE8_SOURCE)
     aux_record_type9=assemble(llvm_mc,AUX_RECORD_TYPE9_SOURCE)
+    aux_record_type10=restore_aux_record_type10_predicate_order(assemble(llvm_mc,AUX_RECORD_TYPE10_SOURCE))
+    aux_record_type11=assemble(llvm_mc,AUX_RECORD_TYPE11_SOURCE)
     aux_dispatch = assemble(llvm_mc,AUX_DISPATCH_SOURCE)
     aux_type = restore_aux_type_return_packets(assemble(llvm_mc,AUX_TYPE_SOURCE))
     aux_notify = restore_aux_controller_notify_packets(assemble(llvm_mc,AUX_NOTIFY_SOURCE))
@@ -2718,6 +2749,8 @@ def output_fragments(llvm_mc: Path) -> dict[int, bytes]:
         (aux_record_type7,AUX_RECORD_TYPE7_START,AUX_RECORD_TYPE7_END,'controller record word-five validation and error callback'),
         (aux_record_type8,AUX_RECORD_TYPE8_START,AUX_RECORD_TYPE8_END,'controller record low-halfword mask and error callback'),
         (aux_record_type9,AUX_RECORD_TYPE9_START,AUX_RECORD_TYPE9_END,'controller missing descriptor and conditional callback'),
+        (aux_record_type10,AUX_RECORD_TYPE10_START,AUX_RECORD_TYPE10_END,'controller record class-32 halfword validation and error callback'),
+        (aux_record_type11,AUX_RECORD_TYPE11_START,AUX_RECORD_TYPE11_END,'controller nonzero halfword validation and error callback'),
     ]:
         if len(fragment)!=end-start:
             raise ValueError(f"auxiliary {label} source length mismatch")
@@ -2820,7 +2853,9 @@ def output_fragments(llvm_mc: Path) -> dict[int, bytes]:
             AUX_RECORD_TYPE5_END==AUX_RECORD_TYPE6_START and
             AUX_RECORD_TYPE6_END==AUX_RECORD_TYPE7_START and
             AUX_RECORD_TYPE7_END==AUX_RECORD_TYPE8_START and
-            AUX_RECORD_TYPE8_END==AUX_RECORD_TYPE9_START):
+            AUX_RECORD_TYPE8_END==AUX_RECORD_TYPE9_START and
+            AUX_RECORD_TYPE9_END==AUX_RECORD_TYPE10_START and
+            AUX_RECORD_TYPE10_END==AUX_RECORD_TYPE11_START):
         raise ValueError("controller phase13 gap was silently bridged")
     if AUX_LOOKUP_END!=AUX_REGISTRY_CORE_START or AUX_REGISTRY_CORE_END!=AUX_DISPATCH_START:
         raise ValueError("modem auxiliary registry source intervals have a gap")
@@ -2858,7 +2893,8 @@ def output_fragments(llvm_mc: Path) -> dict[int, bytes]:
                         aux_large_controller_phase46+aux_large_controller_phase47+
                         aux_large_controller_phase48+aux_large_controller_phase49+
                         aux_buffer_factory+aux_record_guard+aux_record_type4+aux_record_type5+
-                        aux_record_type6+aux_record_type7+aux_record_type8+aux_record_type9,
+                        aux_record_type6+aux_record_type7+aux_record_type8+aux_record_type9+
+                        aux_record_type10+aux_record_type11,
     }
 
 

@@ -1857,3 +1857,25 @@ The contiguous auxiliary interval `[0x446000,0x448cfc)` now covers
 **11,516 bytes**. Independently generated late-modem total **12,128 bytes**:
 **11,820 executable Hexagon code** + **296 ELF metadata** +
 **12 linker alignment**. The signed, larger modem image is still incomplete.
+
+## Checkpoint 85 — Controller record class-32 and nonzero-halfword guards
+
+Added **144 source-generated executable Hexagon V60 bytes** comprising:
+
+- **84-byte** record class-32 check `[0x448cfc,0x448d50)` for the signed
+  halfword at `r16+#42`, with unsigned diagnostic field conversion.
+  LLVM6 reverses a two-instruction predicate/branch packet; the exact
+  opcode fields, predicate, displacement and parse markers are checked
+  before switching the two independent source-generated instruction words.
+- **60-byte** required nonzero signed halfword `[0x448d50,0x448d8c)` for
+  `r16+#44`, directly reassembled with no corrections.
+
+Each fragment is checked against the pinned original revision; negative
+regression tests reject changed branch offsets, operands or packet markers.
+The accepted continuation begins at `0x448d8c` and is not included.
+
+Contiguous auxiliary prefix `[0x446000,0x448d8c)` = **11,660 bytes**.
+Total generated coverage **12,272 bytes**, split into **11,964 Hexagon
+instruction bytes**, **296 independently generated ELF metadata** and
+**12 linker alignment bytes**. Original OEM modem firmware and signing
+remain incomplete.
