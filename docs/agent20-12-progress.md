@@ -1835,3 +1835,25 @@ Total reconstructed later-modem coverage **11,984 bytes**:
 + **12 explicit alignment**. Pinned `modem.mbn` SHA-256:
 `6f5cb32bc10e41abb40938d185805e788f5637a41d3ebcef278e4e169fc36782`.
 The remaining modem firmware and OEM authentication are not reconstructed.
+
+## Checkpoint 84 — Controller halfword and missing-record guards
+
+Added two independently assembled Hexagon V60 controller guards:
+
+- **72 bytes** at original modem file `[0x448c6c,0x448cb4)`,
+  VMA `[0x1e402c6c,0x1e402cb4)`, validating the halfword at `r16+#16`
+  after setting bit zero; error calls and the return use original symbolic
+  targets and register layout.
+- **72 bytes** at `[0x448cb4,0x448cfc)`,
+  VMA `[0x1e402cb4,0x1e402cfc)`, validating a required pointer in
+  `r16+#28`, conditionally invoking the configured diagnostic callback.
+
+Both assemble directly under LLVM6 with **zero post-assembler changes**,
+no copied OEM instruction words, and a direct pinned-source comparison.
+The successful controller-record path continues at `0x448cfc` and is not
+included in this checkpoint.
+
+The contiguous auxiliary interval `[0x446000,0x448cfc)` now covers
+**11,516 bytes**. Independently generated late-modem total **12,128 bytes**:
+**11,820 executable Hexagon code** + **296 ELF metadata** +
+**12 linker alignment**. The signed, larger modem image is still incomplete.
