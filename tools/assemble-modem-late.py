@@ -113,6 +113,8 @@ AUX_SESSION_BUILDER_CALLBACK_SOURCE = ROOT / "crates/firmware-tools/src/devices/
 AUX_SESSION_BUILDER_RESULT_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_aux_session_builder_result.s"
 AUX_SESSION_BUILDER_VALIDITY_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_aux_session_builder_validity.s"
 AUX_SESSION_BUILDER_SCAN_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_aux_session_builder_scan.s"
+AUX_SESSION_BUILDER_PLANESIZE_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_aux_session_builder_planesize.s"
+AUX_SESSION_BUILDER_RECORDSIZE_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_aux_session_builder_recordsize.s"
 AUX_DISPATCH_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_aux_dispatch_helpers.s"
 AUX_TYPE_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_aux_type_config.s"
 AUX_NOTIFY_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_aux_controller_notify.s"
@@ -364,6 +366,10 @@ AUX_SESSION_BUILDER_VALIDITY_START = AUX_SESSION_BUILDER_RESULT_END
 AUX_SESSION_BUILDER_VALIDITY_END = 0x449090
 AUX_SESSION_BUILDER_SCAN_START = AUX_SESSION_BUILDER_VALIDITY_END
 AUX_SESSION_BUILDER_SCAN_END = 0x4490E4
+AUX_SESSION_BUILDER_PLANESIZE_START = AUX_SESSION_BUILDER_SCAN_END
+AUX_SESSION_BUILDER_PLANESIZE_END = 0x44912C
+AUX_SESSION_BUILDER_RECORDSIZE_START = AUX_SESSION_BUILDER_PLANESIZE_END
+AUX_SESSION_BUILDER_RECORDSIZE_END = 0x449178
 MARKER_MASK = 3 << 14
 CONTINUE_MARKER = 1 << 14
 END_MARKER = 3 << 14
@@ -2635,6 +2641,28 @@ def restore_aux_session_builder_scan_packets(assembled: bytes) -> bytes:
     return struct.pack('<21I',*w)
 
 
+def restore_aux_session_builder_recordsize_order(assembled: bytes) -> bytes:
+    """Restore one independent allocator record-count store/load packet.
+
+    LLVM6 assembles the correct two source instructions but issues the
+    register load before the descriptor count store. The OEM compiler
+    legally placed them in the inverse order with the end marker on the
+    load. Check every instruction field and marker before reordering; do
+    NOT import any reference image bytes into the generated output.
+    """
+    if len(assembled) != AUX_SESSION_BUILDER_RECORDSIZE_END-AUX_SESSION_BUILDER_RECORDSIZE_START:
+        raise ValueError('recordsize requires exactly 76 source-assembled bytes')
+    words=list(struct.unpack('<19I',assembled))
+    load,store=words[1:3]
+    if ((load & ~MARKER_MASK),(store & ~MARKER_MASK))!=(0x919a0122,0xa190120a):
+        raise ValueError('recordsize load/store opcode or register operands changed')
+    if ((load & MARKER_MASK),(store & MARKER_MASK))!=(CONTINUE_MARKER,END_MARKER):
+        raise ValueError('recordsize source packet marker changed')
+    words[1:3]=[(store & ~MARKER_MASK)|CONTINUE_MARKER,
+                (load & ~MARKER_MASK)|END_MARKER]
+    return struct.pack('<19I',*words)
+
+
 def output_fragments(llvm_mc: Path) -> dict[int, bytes]:
     atomic = restore_atomic_packet_order(assemble(llvm_mc, ATOMIC_SOURCE))
     controller = restore_controller_packet_order(assemble(llvm_mc, CONTROL_SOURCE))
@@ -2762,6 +2790,9 @@ def output_fragments(llvm_mc: Path) -> dict[int, bytes]:
     aux_session_builder_result=restore_aux_session_builder_result_call_marker(assemble(llvm_mc,AUX_SESSION_BUILDER_RESULT_SOURCE))
     aux_session_builder_validity=restore_aux_session_builder_validity_predicate_packet(assemble(llvm_mc,AUX_SESSION_BUILDER_VALIDITY_SOURCE))
     aux_session_builder_scan=restore_aux_session_builder_scan_packets(assemble(llvm_mc,AUX_SESSION_BUILDER_SCAN_SOURCE))
+    aux_session_builder_planesize=assemble(llvm_mc,AUX_SESSION_BUILDER_PLANESIZE_SOURCE)
+    aux_session_builder_recordsize=restore_aux_session_builder_recordsize_order(
+        assemble(llvm_mc,AUX_SESSION_BUILDER_RECORDSIZE_SOURCE))
     aux_dispatch = assemble(llvm_mc,AUX_DISPATCH_SOURCE)
     aux_type = restore_aux_type_return_packets(assemble(llvm_mc,AUX_TYPE_SOURCE))
     aux_notify = restore_aux_controller_notify_packets(assemble(llvm_mc,AUX_NOTIFY_SOURCE))
@@ -2883,6 +2914,8 @@ def output_fragments(llvm_mc: Path) -> dict[int, bytes]:
         (aux_session_builder_result,AUX_SESSION_BUILDER_RESULT_START,AUX_SESSION_BUILDER_RESULT_END,'session builder validated result and diagnostic dispatch'),
         (aux_session_builder_validity,AUX_SESSION_BUILDER_VALIDITY_START,AUX_SESSION_BUILDER_VALIDITY_END,'session builder optional format diagnostic and validation'),
         (aux_session_builder_scan,AUX_SESSION_BUILDER_SCAN_START,AUX_SESSION_BUILDER_SCAN_END,'session builder bounded codec records scan with Hexagon loop0'),
+        (aux_session_builder_planesize,AUX_SESSION_BUILDER_PLANESIZE_START,AUX_SESSION_BUILDER_PLANESIZE_END,'session builder plane-size allocator and error reporting'),
+        (aux_session_builder_recordsize,AUX_SESSION_BUILDER_RECORDSIZE_START,AUX_SESSION_BUILDER_RECORDSIZE_END,'session builder 28-byte record storage allocation'),
     ]:
         if len(fragment)!=end-start:
             raise ValueError(f"auxiliary {label} source length mismatch")
@@ -2998,7 +3031,9 @@ def output_fragments(llvm_mc: Path) -> dict[int, bytes]:
             AUX_SESSION_BUILDER_DEBUG_END==AUX_SESSION_BUILDER_CALLBACK_START and
             AUX_SESSION_BUILDER_CALLBACK_END==AUX_SESSION_BUILDER_RESULT_START and
             AUX_SESSION_BUILDER_RESULT_END==AUX_SESSION_BUILDER_VALIDITY_START and
-            AUX_SESSION_BUILDER_VALIDITY_END==AUX_SESSION_BUILDER_SCAN_START):
+            AUX_SESSION_BUILDER_VALIDITY_END==AUX_SESSION_BUILDER_SCAN_START and
+            AUX_SESSION_BUILDER_SCAN_END==AUX_SESSION_BUILDER_PLANESIZE_START and
+            AUX_SESSION_BUILDER_PLANESIZE_END==AUX_SESSION_BUILDER_RECORDSIZE_START):
         raise ValueError("controller phase13 gap was silently bridged")
     if AUX_LOOKUP_END!=AUX_REGISTRY_CORE_START or AUX_REGISTRY_CORE_END!=AUX_DISPATCH_START:
         raise ValueError("modem auxiliary registry source intervals have a gap")
@@ -3041,7 +3076,8 @@ def output_fragments(llvm_mc: Path) -> dict[int, bytes]:
                         aux_record_type13+aux_record_finish+aux_session_builder_prefix+
                         aux_session_builder_alloc+aux_session_builder_init+aux_session_builder_debug+
                         aux_session_builder_callback+aux_session_builder_result+
-                        aux_session_builder_validity+aux_session_builder_scan,
+                        aux_session_builder_validity+aux_session_builder_scan+
+                        aux_session_builder_planesize+aux_session_builder_recordsize,
     }
 
 

@@ -1975,3 +1975,28 @@ Contiguous auxiliary prefix `[0x446000,0x4490e4)` = **12,516 bytes**;
 independently generated late-modem coverage **13,128 bytes**:
 **12,820 executable Hexagon**, **296 ELF metadata**, **12 linker alignment**.
 This is only a small subset of the complete signed modem firmware.
+
+## Checkpoint 90 — Plane and record allocation
+
+Added **148 source-encoded Hexagon V60 executable bytes** in two contiguous
+fragments:
+
+- `[0x4490e4,0x44912c)` (72 bytes): compute active plane allocation length
+  with `asl(r18,#5)`, call the allocator, and handle null allocation via
+  the established error callback. This fragment assembles directly with LLVM6.
+- `[0x44912c,0x449178)` (76 bytes): allocate the controller's 28-byte
+  per-record descriptors using `mpyi(r18,#28)` and register the resulting
+  buffer. LLVM6 emits the same load and store in reversed legal packet order;
+  `restore_aux_session_builder_recordsize_order` verifies source instructions,
+  source parse markers, operand fields and exact fragment length before
+  restoring the original order/markers. Negative tests reject altered fields.
+
+All bytes match pinned SHA-256 reference `modem.mbn` in both intervals,
+including the entire generated auxiliary prefix. Totals now **13,276 bytes**
+independently generated across three disjoint fragments: **12,968 source
+executable**, **296 source-derived ELF dynamic metadata**, **12 linker
+alignment zeros**. Auxiliary contiguous prefix is **12,664 bytes** spanning
+file `[0x446000,0x449178)`. This session-builder function has not yet
+reached its return, and the remaining modem is not independently source built,
+signed or flashable. Git lineage remains provisional on Agent 06's branch,
+not the missing checkpoint-50-rooted integrated HEAD.
