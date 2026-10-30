@@ -1009,3 +1009,23 @@ python3 tools/verify-agent20-10-cdsp-controller-bank-predicates.py \
 ```
 
 The branch still descends from Agent 05's **older provisional Git base**, not the unavailable checkpoint-50 integrated repository. It does not produce a complete, signed or hardware-validated modem/CDSP image.
+
+## Checkpoint 52 — bank bitmap initialization and duplex cursor saves, file `0x56b98–0x56bb4`
+
+- Reconstructed **28 source-generated Hexagon V66 executable bytes** (seven instruction words) at pinned CDSP `[0x56b98,0x56bb4)`, physical `[0x96cc8b98,0x96cc8bb4)`. The sequence prepares a global bitmap pointer `0xc028c100` in `R27:26`, a controller descriptor-table pointer `0xc0364ae0` in R20, clears `R23:22`, saves R18/R19 to `FP+24` and `FP+20` in one original **duplex** word, then loads a 64-bit bitmap element into `R1:0`.
+- Typed, range-checked Rust constructors encode the two extended constants, the zero pair, the original duplex, and the aligned `memd` load. The 28-byte fragment and the **2,996-byte contiguous** emitted RWE prefix `[0x56000,0x56bb4)` independently compare equal to the pinned `cdsp.mbn`. The prefix contains **2,936 executable bytes** and **60 separately accounted linker-fill/alignment bytes**, no new fill in this checkpoint.
+- Original Rizin V66 decodes all seven words, including the one-word two-store duplex and its original packet markers. The independent LLVM 6 fixture encodes the same semantics but expands that duplex into *two* 32-bit memory-store instructions, and changes two parse markers. The verifier checks all five initial instruction operand fields after masking parse markers and checks that the LLVM `memd` matches the original shifted by one word. **LLVM 6 output is not claimed to be byte-identical.**
+- Including the separate original 1,200-byte controller segment `[0x55000,0x554b0)`, uniquely generated executable coverage reaches **4,136 bytes** across non-overlapping regions.
+- Tests: independent `tools/verify-agent20-10-cdsp-controller-bank-bitset-entry.py` verifies SHA, 28 direct bytes, 2,996 joined prefix bytes, original Rizin V66 decode and LLVM6 equivalence. All 289 Rust workspace tests and 23 Python tests pass in the actual checkpoint-52 run. The offline locked release build also succeeded.
+- Reproduce:
+
+  ```sh
+  cargo run --offline --locked -p firmware-tools --bin cdsp-late-controller-bank-bitset-entry -- verify-prefix /private/cdsp.mbn
+  cargo run --offline --locked -p firmware-tools --bin cdsp-late-controller-bank-bitset-entry -- emit /tmp/cdsp-bank-bitset-28.bin
+  cargo run --offline --locked -p firmware-tools --bin cdsp-late-controller-bank-bitset-entry -- emit-prefix /tmp/cdsp-rwe-prefix-2996.bin
+  python3 tools/verify-agent20-10-cdsp-controller-bank-bitset-entry.py \
+    --generated /tmp/cdsp-bank-bitset-28.bin --prefix /tmp/cdsp-rwe-prefix-2996.bin \
+    --reference /private/cdsp.mbn --llvm-mc /private/llvm6/bin/llvm-mc --rz-asm /private/rz-asm
+  ```
+
+- **Next uncovered CDSP file offset `0x56bb4`**, physical `0x96cc8bb4`, still within the controller-bank enumerator. Branch ancestry is still provisional on Agent 05's older CDSP Git history, not an integrated checkpoint-50 base. A complete, OEM-signed, flashable CDSP firmware is not produced.
