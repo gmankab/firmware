@@ -432,3 +432,19 @@ cargo run --offline --locked -p firmware-tools --bin cdsp-agent09-hvx -- verify-
 python3 tools/verify-agent20-09-tlb-state.py --rust-output /tmp/cdsp-tlb.bin \
   --reference /private/cdsp.mbn --rz-asm /path/to/rz-asm --llvm-mc /path/to/llvm-mc
 ```
+
+## Checkpoint 51 — CDSP supervisor state restore and worker bootstrap `[0x59f0,0x5a5c)`
+
+- **108 new byte-identical V66 executable bytes**, CDSP file `[0x59f0,0x5a5c)`, physical `[0x96c029f0,0x96c02a5c)`. The initial routine (`0x59f0–0x5a38`) restores SSR, SGP0, IMASK, CCR and USR, then performs the original extended jump to `0x96c08860`. The second routine (`0x5a38–0x5a5c`) restores worker input and stack, issues `start(R0)`, calls supervisor firmware and enters the original loop.
+- Independent byte comparison against SHA-256-pinned original `cdsp.mbn` passes **zero differing bytes**. All **27/27 words** independently decode with Rizin V66. LLVM6 assembler exactly confirms **six ordinary instruction/extender fields**; its different legal extended GP and long-jump encodings are *not* counted as identical, and privileged SGP0/IMASK/CCR/start forms are Rizin/reference-only.
+- **Next file word `0x5a5c–0x5a60` is four zero bytes** classified as ELF alignment, not executable instructions; do not add to the executable count. The next real function starts at `0x5a60`, physical `0x96c02a60`.
+- Independently source-generated executable totals **6,036 bytes** (`[0x41e0,0x4418)` = 568 plus `[0x4500,0x5a5c)` = 5,468). Existing non-code layout padding is 240 bytes, and the newly checked four bytes bring known verified alignment to **244 bytes**.
+- Partial CDSP firmware only, not a complete rebuilt MBN, not OEM-authenticated or hardware-tested, and not descended from the unavailable checkpoint-50 integration base.
+
+```sh
+cargo run --offline --locked -p firmware-tools --bin cdsp-agent09-hvx -- emit-controller /tmp/cdsp-controller-108.bin
+cargo run --offline --locked -p firmware-tools --bin cdsp-agent09-hvx -- verify-controller /private/cdsp.mbn
+python3 tools/verify-agent20-09-controller-restore.py \
+  --rust-output /tmp/cdsp-controller-108.bin --reference /private/cdsp.mbn \
+  --rz-asm /path/to/rz-asm --llvm-mc /path/to/llvm-mc
+```
