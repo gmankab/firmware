@@ -109,6 +109,8 @@ AUX_SESSION_BUILDER_PREFIX_SOURCE = ROOT / "crates/firmware-tools/src/devices/xi
 AUX_SESSION_BUILDER_ALLOC_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_aux_session_builder_allocation.s"
 AUX_SESSION_BUILDER_INIT_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_aux_session_builder_init.s"
 AUX_SESSION_BUILDER_DEBUG_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_aux_session_builder_debug.s"
+AUX_SESSION_BUILDER_CALLBACK_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_aux_session_builder_callback.s"
+AUX_SESSION_BUILDER_RESULT_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_aux_session_builder_result.s"
 AUX_DISPATCH_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_aux_dispatch_helpers.s"
 AUX_TYPE_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_aux_type_config.s"
 AUX_NOTIFY_SOURCE = ROOT / "crates/firmware-tools/src/devices/xiaomi_nabu/modem_late_aux_controller_notify.s"
@@ -352,6 +354,10 @@ AUX_SESSION_BUILDER_INIT_START = AUX_SESSION_BUILDER_ALLOC_END
 AUX_SESSION_BUILDER_INIT_END = 0x448F64
 AUX_SESSION_BUILDER_DEBUG_START = AUX_SESSION_BUILDER_INIT_END
 AUX_SESSION_BUILDER_DEBUG_END = 0x448FA8
+AUX_SESSION_BUILDER_CALLBACK_START = AUX_SESSION_BUILDER_DEBUG_END
+AUX_SESSION_BUILDER_CALLBACK_END = 0x44900C
+AUX_SESSION_BUILDER_RESULT_START = AUX_SESSION_BUILDER_CALLBACK_END
+AUX_SESSION_BUILDER_RESULT_END = 0x44905C
 MARKER_MASK = 3 << 14
 CONTINUE_MARKER = 1 << 14
 END_MARKER = 3 << 14
@@ -2546,6 +2552,29 @@ def restore_aux_record_type10_predicate_order(assembled: bytes) -> bytes:
     return struct.pack('<21I',*words)
 
 
+def restore_aux_session_builder_result_call_marker(assembled: bytes) -> bytes:
+    """Join the symbolic record-validator call with its following duplex.
+
+    LLVM6 emits the same register setup and relative call displacement,
+    but assigns an end-of-packet marker instead of the original continue
+    marker. The full-width call is source-assembled, checked against its
+    original target and the paired duplex; only its two marker bits change.
+    No vendor firmware bytes are imported.
+    """
+    if len(assembled)!=AUX_SESSION_BUILDER_RESULT_END-AUX_SESSION_BUILDER_RESULT_START:
+        raise ValueError('session result requires exactly 80 source-assembled bytes')
+    words=list(struct.unpack('<20I',assembled))
+    call=words[16]
+    if (call & ~MARKER_MASK)!=0x5bff3d42:
+        raise ValueError('session result call opcode/register/relative target changed')
+    if (call & MARKER_MASK)!=END_MARKER:
+        raise ValueError('session result call source packet marker changed')
+    if words[17]!=0x2cb13090:
+        raise ValueError('session result following duplex instruction changed')
+    words[16]=(call & ~MARKER_MASK)|CONTINUE_MARKER
+    return struct.pack('<20I',*words)
+
+
 def output_fragments(llvm_mc: Path) -> dict[int, bytes]:
     atomic = restore_atomic_packet_order(assemble(llvm_mc, ATOMIC_SOURCE))
     controller = restore_controller_packet_order(assemble(llvm_mc, CONTROL_SOURCE))
@@ -2669,6 +2698,8 @@ def output_fragments(llvm_mc: Path) -> dict[int, bytes]:
     aux_session_builder_alloc=assemble(llvm_mc,AUX_SESSION_BUILDER_ALLOC_SOURCE)
     aux_session_builder_init=assemble(llvm_mc,AUX_SESSION_BUILDER_INIT_SOURCE)
     aux_session_builder_debug=assemble(llvm_mc,AUX_SESSION_BUILDER_DEBUG_SOURCE)
+    aux_session_builder_callback=assemble(llvm_mc,AUX_SESSION_BUILDER_CALLBACK_SOURCE)
+    aux_session_builder_result=restore_aux_session_builder_result_call_marker(assemble(llvm_mc,AUX_SESSION_BUILDER_RESULT_SOURCE))
     aux_dispatch = assemble(llvm_mc,AUX_DISPATCH_SOURCE)
     aux_type = restore_aux_type_return_packets(assemble(llvm_mc,AUX_TYPE_SOURCE))
     aux_notify = restore_aux_controller_notify_packets(assemble(llvm_mc,AUX_NOTIFY_SOURCE))
@@ -2786,6 +2817,8 @@ def output_fragments(llvm_mc: Path) -> dict[int, bytes]:
         (aux_session_builder_alloc,AUX_SESSION_BUILDER_ALLOC_START,AUX_SESSION_BUILDER_ALLOC_END,'session builder null allocation and diagnostic fallback'),
         (aux_session_builder_init,AUX_SESSION_BUILDER_INIT_START,AUX_SESSION_BUILDER_INIT_END,'session builder descriptor initialization and allocator fallback'),
         (aux_session_builder_debug,AUX_SESSION_BUILDER_DEBUG_START,AUX_SESSION_BUILDER_DEBUG_END,'session builder optional tracing switch and logging'),
+        (aux_session_builder_callback,AUX_SESSION_BUILDER_CALLBACK_START,AUX_SESSION_BUILDER_CALLBACK_END,'session builder registered callback and mismatch cleanup'),
+        (aux_session_builder_result,AUX_SESSION_BUILDER_RESULT_START,AUX_SESSION_BUILDER_RESULT_END,'session builder validated result and diagnostic dispatch'),
     ]:
         if len(fragment)!=end-start:
             raise ValueError(f"auxiliary {label} source length mismatch")
@@ -2897,7 +2930,9 @@ def output_fragments(llvm_mc: Path) -> dict[int, bytes]:
             AUX_RECORD_FINISH_END==AUX_SESSION_BUILDER_PREFIX_START and
             AUX_SESSION_BUILDER_PREFIX_END==AUX_SESSION_BUILDER_ALLOC_START and
             AUX_SESSION_BUILDER_ALLOC_END==AUX_SESSION_BUILDER_INIT_START and
-            AUX_SESSION_BUILDER_INIT_END==AUX_SESSION_BUILDER_DEBUG_START):
+            AUX_SESSION_BUILDER_INIT_END==AUX_SESSION_BUILDER_DEBUG_START and
+            AUX_SESSION_BUILDER_DEBUG_END==AUX_SESSION_BUILDER_CALLBACK_START and
+            AUX_SESSION_BUILDER_CALLBACK_END==AUX_SESSION_BUILDER_RESULT_START):
         raise ValueError("controller phase13 gap was silently bridged")
     if AUX_LOOKUP_END!=AUX_REGISTRY_CORE_START or AUX_REGISTRY_CORE_END!=AUX_DISPATCH_START:
         raise ValueError("modem auxiliary registry source intervals have a gap")
@@ -2938,7 +2973,8 @@ def output_fragments(llvm_mc: Path) -> dict[int, bytes]:
                         aux_record_type6+aux_record_type7+aux_record_type8+aux_record_type9+
                         aux_record_type10+aux_record_type11+aux_record_type12+
                         aux_record_type13+aux_record_finish+aux_session_builder_prefix+
-                        aux_session_builder_alloc+aux_session_builder_init+aux_session_builder_debug,
+                        aux_session_builder_alloc+aux_session_builder_init+aux_session_builder_debug+
+                        aux_session_builder_callback+aux_session_builder_result,
     }
 
 

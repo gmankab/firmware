@@ -80,6 +80,45 @@ class ModemLateTests(unittest.TestCase):
                 ref=Path(os.environ['NABU_MODEM_REFERENCE']).read_bytes()
                 self.assertEqual(fixed,ref[0x4485f8:0x448628])
 
+    def test_session_builder_callback_and_checked_result(self):
+        self.assertEqual((agent12.AUX_SESSION_BUILDER_CALLBACK_START,
+                          agent12.AUX_SESSION_BUILDER_RESULT_END),
+                         (0x448fa8,0x44905c))
+        src1=agent12.AUX_SESSION_BUILDER_CALLBACK_SOURCE.read_text()
+        src2=agent12.AUX_SESSION_BUILDER_RESULT_SOURCE.read_text()
+        for source in (src1,src2):
+            for bad in ('.word','.byte','.incbin'):
+                self.assertNotIn(bad,source)
+        for op in ('callr r3','jump:t validated_handle','call error_report',
+                   'call destroy_state'):
+            self.assertIn(op,src1)
+        for op in ('p0 = r3','call record_guard','jump:t log_alternate',
+                   'call alternate_log','memw(r29+#40)'):
+            self.assertIn(op,src2)
+        words=[0x7800c000]*20
+        words[16]=0x5bfffd42
+        words[17]=0x2cb13090
+        fixed=agent12.restore_aux_session_builder_result_call_marker(struct.pack('<20I',*words))
+        self.assertEqual(struct.unpack('<20I',fixed)[16],0x5bff7d42)
+        for index,corrupt,error in [(16,0x5bfffd43,'relative target'),
+                                    (16,0x5bff7d42,'marker'),
+                                    (17,0x2cb13091,'following duplex')]:
+            altered=words.copy();altered[index]=corrupt
+            with self.assertRaisesRegex(ValueError,error):
+                agent12.restore_aux_session_builder_result_call_marker(
+                    struct.pack('<20I',*altered))
+        with self.assertRaisesRegex(ValueError,'80 source-assembled'):
+            agent12.restore_aux_session_builder_result_call_marker(bytes(76))
+        if os.getenv('NABU_HEXAGON_LLVM_MC'):
+            mc=Path(os.environ['NABU_HEXAGON_LLVM_MC'])
+            cb=agent12.assemble(mc,agent12.AUX_SESSION_BUILDER_CALLBACK_SOURCE)
+            result=agent12.restore_aux_session_builder_result_call_marker(
+                agent12.assemble(mc,agent12.AUX_SESSION_BUILDER_RESULT_SOURCE))
+            self.assertEqual((len(cb),len(result)),(100,80))
+            if os.getenv('NABU_MODEM_REFERENCE'):
+                original=Path(os.environ['NABU_MODEM_REFERENCE']).read_bytes()
+                self.assertEqual(cb+result,original[0x448fa8:0x44905c])
+
     def test_session_builder_prefix_and_allocation_fallback(self):
         spans=[(agent12.AUX_SESSION_BUILDER_PREFIX_SOURCE,0x448e30,0x448ea0,
                 ('allocframe(#104)','r21:20 = combine(r0,r2)',
@@ -2474,8 +2513,8 @@ class ModemLateTests(unittest.TestCase):
         a = agent12.output_fragments(Path(os.environ["NABU_HEXAGON_LLVM_MC"]))
         self.assertEqual({k: len(v) for k, v in a.items()},
                          {0x7C000:160, 0x7C2EC:452,
-                          0x446000:agent12.AUX_SESSION_BUILDER_DEBUG_END-agent12.AUX_START})
-        self.assertEqual(sum(map(len,a.values())),agent12.AUX_SESSION_BUILDER_DEBUG_END - agent12.AUX_START + 612)
+                          0x446000:agent12.AUX_SESSION_BUILDER_RESULT_END-agent12.AUX_START})
+        self.assertEqual(sum(map(len,a.values())),agent12.AUX_SESSION_BUILDER_RESULT_END - agent12.AUX_START + 612)
         self.assertEqual(a[0x446000][0x0d8:0x200],agent12.emit_auxiliary_elf_symbols())
         self.assertEqual(a[0x446000][0x254:0x260],bytes(12))
         self.assertEqual(a[0x446000][0x1448:0x1460],

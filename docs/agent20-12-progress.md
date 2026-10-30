@@ -1928,3 +1928,24 @@ The auxiliary prefix `[0x446000,0x448fa8)` is now **12,200 bytes**;
 independently generated late-modem total **12,812 bytes**:
 **12,504 executable code**, **296 ELF metadata** and **12 linker alignment**.
 The full modem remains far from source-recompiled or newly authenticated.
+
+## Checkpoint 88 — Session builder callback and result dispatch
+
+Added **180 source-generated Hexagon V60 executable bytes**:
+
+- `[0x448fa8,0x44900c)` (100 bytes): invoke the registered session
+  callback, validate returned handle, diagnose mismatch and release state.
+- `[0x44900c,0x44905c)` (80 bytes): select normal/alternate diagnostic
+  reports, invoke the previously reconstructed record validator, and test
+  its return code. A full-width call at `0x44904c` must share its packet
+  with the following Hexagon duplex at `0x449050`. LLVM6 leaves the call
+  in a separate packet, so a checked transform verifies opcode, relative
+  branch target and exact companion duplex before changing only the packet
+  marker. Negative tests reject changed branch fields/markers/duplex class.
+
+All emitted bytes match the SHA-256-pinned original. The success/error
+continuation is not yet complete beyond `0x44905c`.
+Contiguous auxiliary prefix `[0x446000,0x44905c)` = **12,380 bytes**.
+Generated later-modem coverage **12,992 bytes** = **12,684 executable
+Hexagon bytes** + **296 source-generated ELF metadata** + **12 alignment**.
+The modem firmware as a whole and OEM authentication are incomplete.
