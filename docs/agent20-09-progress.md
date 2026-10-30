@@ -506,3 +506,19 @@ python3 tools/verify-agent20-09-tlb-utilities.py \
   --rust-output /tmp/cdsp-tlb-utilities-112.bin --reference /private/cdsp.mbn \
   --rz-asm /path/to/rz-asm --llvm-mc /path/to/llvm-mc
 ```
+
+## Checkpoint 55 — construct and return packed 64-bit TLB descriptors `[0x5b6c,0x5bc0)`
+
+- Source-encoded **84 byte-identical Hexagon V66 instruction bytes**, CDSP file `[0x5b6c,0x5bc0)`, physical `[0x96c02b6c,0x96c02bc0)`. No vendor code words embedded as opcode arrays; original SHA-256 remains `febeae7b8e47bad4eeabc159a3c24b74cda26dfa12b384c31de5de30817e06ea`.
+- This independent function reads stack and caller-provided page attributes, combines a shifted page address and permission/size fields, handles the `-1` special case, and returns packed `R1:0`. Its 21-word Hexagon packet order is preserved, including the predicate `.new` branch.
+- `tools/verify-agent20-09-tlb-encode.py` independently verifies **all 21/21 semantic instruction words with Rizin V66 and all 21/21 instruction opcode fields with LLVM6**, with the compound branch also assembled byte-for-byte including packet parse bits. One initial packet continuation-bit discrepancy at `0x5b8c` was corrected before verification.
+- **Corrected cumulative independently encoded executable:** **6,380 bytes** in disjoint instruction regions, with **244 separately verified linker-alignment bytes** still excluded (see checkpoint 52 ledger). Next executable routine begins at file `0x5bc0`, physical `0x96c02bc0`.
+- No full signed firmware, hardware execution or checkpoint-50-based merged branch is implied.
+
+```sh
+cargo run --offline --locked -p firmware-tools --bin cdsp-agent09-hvx -- emit-tlbencode /tmp/cdsp-tlb-entry-84.bin
+cargo run --offline --locked -p firmware-tools --bin cdsp-agent09-hvx -- verify-tlbencode /private/cdsp.mbn
+python3 tools/verify-agent20-09-tlb-encode.py \
+  --rust-output /tmp/cdsp-tlb-entry-84.bin --reference /private/cdsp.mbn \
+  --rz-asm /path/to/rz-asm --llvm-mc /path/to/llvm-mc
+```

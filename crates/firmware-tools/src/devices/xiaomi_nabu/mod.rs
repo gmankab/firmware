@@ -173,6 +173,7 @@ pub mod cdsp_early_controller_restoration;
 pub mod cdsp_early_supervisor_dispatch;
 pub mod cdsp_early_dispatch_helpers;
 pub mod cdsp_early_tlb_utilities;
+pub mod cdsp_early_tlb_encode;
 pub mod cdsp_early_worker_privileged_state;
 pub mod cdsp_early_worker_callbacks;
 pub mod cdsp_early_worker_command;
