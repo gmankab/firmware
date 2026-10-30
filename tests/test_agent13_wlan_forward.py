@@ -19,10 +19,10 @@ class SourceOnlyForwardTests(unittest.TestCase):
     def test_manifest_exact_boundaries(self):
         m=module()
         self.assertEqual(m.START,0x568c)
-        self.assertEqual(m.validate_manifest(),0x7cd8)
+        self.assertEqual(m.validate_manifest(),0x7d58)
         self.assertEqual(m.FILE_BASE+m.START,0x4568c)
-        self.assertEqual(m.FILE_BASE+m.validate_manifest(),0x47cd8)
-        self.assertEqual(sum(length for _,_,_,length in m.FRAGMENTS),9804)
+        self.assertEqual(m.FILE_BASE+m.validate_manifest(),0x47d58)
+        self.assertEqual(sum(length for _,_,_,length in m.FRAGMENTS),9932)
 
     def test_validator_forbids_opaque_data_and_layout_holes(self):
         m=module()
@@ -71,6 +71,10 @@ class SourceOnlyForwardTests(unittest.TestCase):
             ('session-predicate-walk-664-6a0',0x7c1c,0x3c),
             ('session-callback-walk-6a0-6dc',0x7c58,0x3c),
             ('session-guard-walk-6dc-720',0x7c94,0x44),
+            ('session-record-status-720-77c',0x7cd8,0x5c),
+            ('session-setup-77c-790',0x7d34,0x14),
+            ('session-selector-790-798',0x7d48,0x08),
+            ('session-controller-entry-798-7a0',0x7d50,0x08),
         ]
         for name,off,size in expected:
             self.assertIn(name,parts)
@@ -134,6 +138,27 @@ class SourceOnlyForwardTests(unittest.TestCase):
             for marker in ('.incbin','.word','.byte','.quad','.fill'):
                 self.assertNotIn(marker,text)
         self.assertIn('L_report_loop:',by_name['session-predicate-walk-664-6a0'][0].read_text()) if 'L_report_loop:' in by_name['session-predicate-walk-664-6a0'][0].read_text() else self.assertIn('call 0x1f717c',by_name['session-predicate-walk-664-6a0'][0].read_text())
+
+    def test_session_status_and_new_controller_prologue(self):
+        m=module()
+        frags={n:(p,o,l) for n,p,o,l in m.FRAGMENTS}
+        expected=[('session-record-status-720-77c',0x7cd8,0x5c),
+                  ('session-setup-77c-790',0x7d34,0x14),
+                  ('session-selector-790-798',0x7d48,0x08),
+                  ('session-controller-entry-798-7a0',0x7d50,0x08)]
+        for name,off,sz in expected:
+            file,start,length=frags[name]
+            self.assertEqual((start,length),(off,sz))
+            text=file.read_text()
+            self.assertNotIn('.incbin',text)
+            self.assertNotIn('.word',text)
+        status=frags['session-record-status-720-77c'][0].read_text()
+        self.assertIn('L_record:',status)
+        self.assertIn('call 0x1f70cc',status)
+        selector=frags['session-selector-790-798'][0].read_text()
+        self.assertIn('r1 = #2; jump ##0x1f62a4',selector)
+        entry=frags['session-controller-entry-798-7a0'][0].read_text()
+        self.assertIn('call 0x29da28\n    allocframe(#64)',entry)
 
     def test_next_controller_split_is_adjacent(self):
         m=module()

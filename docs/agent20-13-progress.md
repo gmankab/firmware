@@ -742,3 +742,16 @@ python3 tools/build-wlanmdsp-agent13.py /tmp/wlan-prefix-through-27a0.bin \
   `[file 0x4568c,0x47cd8)`, zero reference byte mismatches.
 - Still based on checkpoint16 without checkpoints17–25; executable continues
   beyond this boundary. Original OEM authentication is not reconstructed.
+
+## Checkpoint 57 (disjoint) — record-state reporting and controller entry
+
+- Added **128 independently generated Hexagon bytes** at WLAN file
+  `[0x47cd8,0x47d58)` (VMA `[0xb0007cd8,0xb0007d58)`).
+- New source models conditional session-record callbacks and error handling,
+  an immediate-extended state 2 jump, and a new controller function's paired
+  call/stack-frame prologue. The preceding record-count loop and callback
+  packets remain Hexagon semantic assembly, not vendor raw word literals.
+- The full disjoint continuation now spans **9,932 byte-identical bytes**,
+  `[0x4568c,0x47d58)`; strict pinned reference check passes with zero mismatches.
+- Next packet begins at `0x47d58`; branch still starts at checkpoint 16,
+  missing checkpoint 17–25 ancestry remains unresolved.

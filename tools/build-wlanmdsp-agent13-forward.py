@@ -110,6 +110,10 @@ FRAGMENTS = (
     ('session-predicate-walk-664-6a0', SOURCE_DIR / 'agent13-runtime-session-predicate-walk-664-6a0.S', 0x7c1c, 0x3c),
     ('session-callback-walk-6a0-6dc', SOURCE_DIR / 'agent13-runtime-session-callback-walk-6a0-6dc.S', 0x7c58, 0x3c),
     ('session-guard-walk-6dc-720', SOURCE_DIR / 'agent13-runtime-session-guard-walk-6dc-720.S', 0x7c94, 0x44),
+    ('session-record-status-720-77c', SOURCE_DIR / 'agent13-runtime-session-record-status-720-77c.S', 0x7cd8, 0x5c),
+    ('session-setup-77c-790', SOURCE_DIR / 'agent13-runtime-session-setup-77c-790.S', 0x7d34, 0x14),
+    ('session-selector-790-798', SOURCE_DIR / 'agent13-runtime-session-selector-790-798.S', 0x7d48, 0x08),
+    ('session-controller-entry-798-7a0', SOURCE_DIR / 'agent13-runtime-session-controller-entry-798-7a0.S', 0x7d50, 0x08),
 )
 
 
@@ -304,7 +308,7 @@ def main():
         parent.check_reference(fragment,args.reference.read_bytes(),runtime_offset=START)
     args.output.parent.mkdir(parents=True,exist_ok=True)
     args.output.write_bytes(fragment)
-    report={'agent':13,'checkpoint':'56-disjoint',
+    report={'agent':13,'checkpoint':'57-disjoint',
             'source_base':'Agent 13 checkpoint 16 (7c730bf); checkpoint25 source unavailable',
             'is_checkpoint25_descendant':False,
             'file_start':FILE_BASE+START,'file_end':FILE_BASE+end,
