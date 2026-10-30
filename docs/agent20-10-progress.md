@@ -1087,3 +1087,22 @@ The branch still descends from Agent 05's **older provisional Git base**, not th
   ```
 
 - First uncovered CDSP file offset: **`0x56c10`** (physical `0x96cc8c10`), still inside controller bitmap record selection. The branch remains provisional on Agent05 older CDSP ancestry, **not** a checkpoint-50 integrated base. A complete signed or flashable CDSP image has not been produced.
+
+## Checkpoint 56 — bank bitmap packet arguments and compressed frame duplex, file `0x56c10–0x56c30`
+
+- Reconstructed **32 independently source-generated executable Hexagon V66 bytes** at `[0x56c10,0x56c30)`, physical `[0x96cc8c10,0x96cc8c30)`. The eight original words extract selected 64-bit fields from R7:6 into R25:24 and R23:22, load R1 from the controller table at R21, extract an upper 4-bit field from R2, form `R0=FP+28;R3=R16` using the original **single compact duplex word**, merge masked flags into R24 and R9, then compute R2=R5+24.
+- The source emitter uses separately checked pair-extraction bitfields, a width-checked scalar extraction, register-indexed memory load, exact but constrained compact frame-and-copy duplex and checked small-mask OR operations. The emitted 32 bytes and entire preceding RWE layout compare equal to the pinned CDSP MBN, not to an external OEM byte array inside the source.
+- Independent LLVM6 assembly reproduces all operations as nine words (it expands the original one-word duplex to two instructions) and differs in six source packet markers. Rizin V66 decodes all eight original words and confirms the compact duplex and 64-bit extract semantics. Exact LLVM byte equality is **not** claimed; the Rust emitter's byte equality is independently tested against the original reference.
+- The contiguous generated RWE prefix `[0x56000,0x56c30)` now covers **3,120 byte-identical file bytes**: **3,060 independently source-generated executable bytes** and **60 structural alignment/fill bytes**. The separate complete 1,200-byte controller `[0x55000,0x554b0)` raises unique executable coverage to **4,260 bytes**.
+- Independently cross-checked by `tools/verify-agent20-10-cdsp-controller-bank-bitset-args.py`, including pinned SHA-256, exact 32-byte fragment, complete 3,120-byte RWE prefix and the LLVM6/Rizin decoding differences.
+
+  ```sh
+  cargo run --offline --locked -p firmware-tools --bin cdsp-late-controller-bank-bitset-args -- verify-prefix /private/cdsp.mbn
+  cargo run --offline --locked -p firmware-tools --bin cdsp-late-controller-bank-bitset-args -- emit /tmp/bank-args-32.bin
+  cargo run --offline --locked -p firmware-tools --bin cdsp-late-controller-bank-bitset-args -- emit-prefix /tmp/rwe-prefix-3120.bin
+  python3 tools/verify-agent20-10-cdsp-controller-bank-bitset-args.py \
+    --generated /tmp/bank-args-32.bin --prefix /tmp/rwe-prefix-3120.bin \
+    --reference /private/cdsp.mbn --llvm-mc /private/llvm6/bin/llvm-mc --rz-asm /private/rz-asm
+  ```
+
+- Next unimplemented CDSP file byte **`0x56c30`**, physical `0x96cc8c30`, continues the current controller bitmap service-call setup. Branch remains provisional on Agent05 older CDSP Git history rather than checkpoint-50-integrated. No complete OEM-authenticated or hardware-validated firmware image is produced.
