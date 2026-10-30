@@ -1048,3 +1048,23 @@ The branch still descends from Agent 05's **older provisional Git base**, not th
   ```
 
 - Next uncovered CDSP file byte: **`0x56bd0`** (physical `0x96cc8bd0`), continuing bank bitmap processing. Branch ancestry is still the **older Agent 05 provisional CDSP branch**, not checkpoint-50-integrated. CDSP firmware is neither fully source-generated nor OEM-signed/hardware-tested.
+
+## Checkpoint 54 — bank bitmap capacity guards and masked extraction, file `0x56bd0–0x56bf0`
+
+- Reconstructed **32 independently source-generated Hexagon V66 executable bytes** (eight original words) at `[0x56bd0,0x56bf0)`, physical `[0x96cc8bd0,0x96cc8bf0)`, extending the same controller-bank enumerator function.
+- This sequence computes `R3 = 0-R16`, masks `R1` into R4, extracts the 20-bit plane width into R17, rejects `R17.new>R19`, combines `R16-1` into the running upper limit, rejects `R18>R4.new`, and extracts the next 23-bit field from R0. Both original fused `.new` guards target `0x96cc8d40`, calculated from their respective packet origins.
+- The independent LLVM6 fixture assembles the eight instruction operations and reproduces **seven of eight words byte-identically**. Its only difference is the parse marker on the final `R4=extractu(R0,#23,#1)` word, which LLVM closes as a singleton packet while the original continues into the next fragment. Rizin V66 confirms the original packet and both guards. The generated Rust emitter itself passes exact original-reference comparison.
+- Full generated RWE file prefix `[0x56000,0x56bf0)` now covers **3,056 reference-identical file bytes**, comprising **2,996 independently generated executable bytes** and **60 separately classified structural alignment/fill bytes**. With separate completed controller `[0x55000,0x554b0)` of 1,200 executable bytes, total independently generated executable coverage is **4,196 bytes** across two regions.
+- Independent script `tools/verify-agent20-10-cdsp-controller-bank-bitset-limits.py` validates the pinned reference SHA, every byte of the 32-byte fragment and 3,056-byte full prefix, LLVM instruction fields and Rizin branch/packet semantics.
+- Reproduce:
+
+  ```sh
+  cargo run --offline --locked -p firmware-tools --bin cdsp-late-controller-bank-bitset-limits -- verify-prefix /private/cdsp.mbn
+  cargo run --offline --locked -p firmware-tools --bin cdsp-late-controller-bank-bitset-limits -- emit /tmp/cdsp-bank-limits-32.bin
+  cargo run --offline --locked -p firmware-tools --bin cdsp-late-controller-bank-bitset-limits -- emit-prefix /tmp/cdsp-rwe-prefix-3056.bin
+  python3 tools/verify-agent20-10-cdsp-controller-bank-bitset-limits.py \
+    --generated /tmp/cdsp-bank-limits-32.bin --prefix /tmp/cdsp-rwe-prefix-3056.bin \
+    --reference /private/cdsp.mbn --llvm-mc /private/llvm6/bin/llvm-mc --rz-asm /private/rz-asm
+  ```
+
+- **Next uncovered file byte `0x56bf0`** (physical `0x96cc8bf0`) continues the bank enumerator. Branch provenance remains the old Agent 05 CDSP branch, not a checkpoint-50-integrated image. No complete OEM-authenticated or hardware-validated CDSP image has been produced.
