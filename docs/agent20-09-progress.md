@@ -448,3 +448,28 @@ python3 tools/verify-agent20-09-controller-restore.py \
   --rust-output /tmp/cdsp-controller-108.bin --reference /private/cdsp.mbn \
   --rz-asm /path/to/rz-asm --llvm-mc /path/to/llvm-mc
 ```
+
+## Checkpoint 52 — supervisor SIAD and indexed callback dispatch `[0x5a60,0x5aa8)`
+
+- Independently source-encoded **72 exact Hexagon V66 executable bytes** at CDSP file `[0x5a60,0x5aa8)`, physical `[0x96c02a60,0x96c02aa8)`. Original SHA-256 remains `febeae7b8e47bad4eeabc159a3c24b74cda26dfa12b384c31de5de30817e06ea`.
+- The routine begins after an independently verified four-byte zero linker-alignment word `[0x5a5c,0x5a60)`. It executes zero-frame setup, extended controller-state pointers, privileged SIAD, status notification and frame cleanup. The following conditional dispatch checks `R5 > 13`, loads a callback address via `memw(R5<<2 + ##0xfe024d28)` and jumps through `R8`; it preserves the original return path.
+- `tools/verify-agent20-09-supervisor-dispatch.py` verifies pinned original bytes, **18/18 Rizin V66 semantic instruction decodes**, and **13/18 LLVM6 independently assembled complete instruction words**, including both words of the indexed-table load. Privileged `SIAD` and four alternative extended immediate consumer opcode forms are only Rizin/reference-verified.
+- **Coverage accounting correction:** older progress reports summarized `[0x4500,latest)` as entirely executable, but the 8-byte linker-alignment word pair `[0x4bb8,0x4bc0)` lies inside that numerical interval. Recomputed disjoint *actual instruction* coverage after this checkpoint is:
+  - `[0x41e0,0x4418)` = 568 bytes;
+  - `[0x4500,0x4bb8)` = 1,720 bytes;
+  - `[0x4bc0,0x5a5c)` = 3,740 bytes;
+  - `[0x5a60,0x5aa8)` = 72 bytes;
+  - **6,100 independently encoded executable bytes total**, not the misleading 6,108 that would result from adding 72 to the previous 6,036-byte rounded span count.
+  - Excluded layout bytes are `[0x4418,0x4500)` (232), `[0x4bb8,0x4bc0)` (8), `[0x5a5c,0x5a60)` (4), exactly **244 non-executable zero bytes**. Combined coverage ledger is `6,100 + 244 = 6,344`, equal to `[0x41e0,0x5aa8)`.
+  - Unit tests now assert these coverage numbers and layout boundaries; **no verified firmware bytes changed** in this correction.
+- The CDSP image as a whole and next routine at file `0x5aa8` remain unreconstructed. This is neither a new OEM-signed firmware image nor a checkpoint-50-integrated branch.
+
+Reproduce checks with pinned original outside Git:
+
+```sh
+cargo run --offline --locked -p firmware-tools --bin cdsp-agent09-hvx -- emit-supervisor /tmp/cdsp-supervisor-72.bin
+cargo run --offline --locked -p firmware-tools --bin cdsp-agent09-hvx -- verify-supervisor /private/cdsp.mbn
+python3 tools/verify-agent20-09-supervisor-dispatch.py \
+  --rust-output /tmp/cdsp-supervisor-72.bin --reference /private/cdsp.mbn \
+  --rz-asm /path/to/rz-asm --llvm-mc /path/to/llvm-mc
+```
