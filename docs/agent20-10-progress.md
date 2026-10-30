@@ -972,3 +972,22 @@ python3 tools/verify-agent20-10-cdsp-controller-bank-guards.py \
   --generated /tmp/cdsp-bank-guards28.bin --prefix /tmp/cdsp-rwe-prefix-2892.bin \
   --reference /private/cdsp.mbn
 ```
+
+## Checkpoint 50 — controller bank parameter initialization, file 0x56b4c–0x56b78
+
+- Reconstructed **44 source-emitted executable bytes** (eleven V66 words) at pinned CDSP file `[0x56b4c,0x56b78)`, physical `[0x96cc8b4c,0x96cc8b78)`. The fragment normalizes R16 as the bank count, forms the controller helper's `SP+28` parameter address, loads the absolute parameter slot `0xc0367850` through a fused `R21=##absolute`/memory operation, subtracts the preceding shifted bank count, initializes the helper's signed/unsigned argument pair, writes three explicitly encoded stack arguments and directly calls controller service `0x96cceaf0`.
+- Original LLVM 6 **independent semantic assembly** (`tools/agent20-10-cdsp-controller-bank-initialize-semantic.s`) produces all eleven operand encodings; **7/11 words are byte-identical**, and the four differences are *only Hexagon parse markers* `0x4000/0xc000` on words 0, 4, 7 and 9. The checked Rust emitters preserve the source's original packet grouping. Rizin V66 independently decodes all eleven original words, including the fused absolute load, one-word duplex and helper target. No claim is made that LLVM6 produced an exact binary for the rescheduled packet markers.
+- The complete emitted RWE prefix `[0x56000,0x56b78)` is **2,936 byte-identical file bytes**, comprising **2,876 independently generated executable bytes** and the preceding **60 structural NOP/fill bytes**. Alongside the non-overlapping 1,200-byte controller at `[0x55000,0x554b0)`, unique reconstructed executable code totals **4,076 bytes**. Next uncovered file offset: **0x56b78**, still within the same enumerator function.
+- Reproduce from the original pinned CDSP reference outside Git (SHA-256 `febeae7b8e47bad4eeabc159a3c24b74cda26dfa12b384c31de5de30817e06ea`):
+
+  ```sh
+  cargo run --offline --locked -p firmware-tools --bin cdsp-late-controller-bank-initialize -- verify-prefix /private/cdsp.mbn
+  cargo run --offline --locked -p firmware-tools --bin cdsp-late-controller-bank-initialize -- emit /tmp/cdsp-bank-init-44.bin
+  cargo run --offline --locked -p firmware-tools --bin cdsp-late-controller-bank-initialize -- emit-prefix /tmp/cdsp-prefix-2936.bin
+  python3 tools/verify-agent20-10-cdsp-controller-bank-initialize.py \
+    --llvm-mc /private/llvm6/bin/llvm-mc --rz-asm /private/rz-asm \
+    --generated /tmp/cdsp-bank-init-44.bin --prefix /tmp/cdsp-prefix-2936.bin \
+    --reference /private/cdsp.mbn
+  ```
+
+- Checkpoint source still descends from Agent 05's older provisional branch, **not** the missing checkpoint-50-integrated history. No whole CDSP image, OEM signing or real hardware validation is claimed.
