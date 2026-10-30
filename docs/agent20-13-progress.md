@@ -699,3 +699,17 @@ python3 tools/build-wlanmdsp-agent13.py /tmp/wlan-prefix-through-27a0.bin \
 - This agent branch **still starts from checkpoint 16**, not checkpoint 25.
   No continuous WLAN code coverage from `0x40000`, full rebuilt image,
   OEM re-signing, or hardware execution is claimed.
+
+## Checkpoint 54 (disjoint) — session handler selection and controller reporting
+
+- Reconstructed **168 independently source-assembled Hexagon instruction bytes** at
+  `[file 0x47ab0,0x47b58)` (VMA `[0xb0007ab0,0xb0007b58)`).
+- The function selects a mode-specific status register and reports the selected
+  record class through platform callbacks. It preserves a conditional branch,
+  packet-local predicate changes, and a combined `call`/record-load packet.
+- Two compiler-generated packet displacements were normalized relative to the
+  fragment address; the original binary is used only for opt-in comparison.
+- The full disjoint continuation is now **9,420 exact instruction bytes**,
+  `[file 0x4568c,0x47b58)`, with zero mismatching bytes.
+- Next unimplemented instruction begins at `0x47b58`. The branch still descends
+  from checkpoint 16, not checkpoint 25, and is not a complete/flashable image.

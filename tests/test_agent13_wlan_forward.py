@@ -19,10 +19,10 @@ class SourceOnlyForwardTests(unittest.TestCase):
     def test_manifest_exact_boundaries(self):
         m=module()
         self.assertEqual(m.START,0x568c)
-        self.assertEqual(m.validate_manifest(),0x7ab0)
+        self.assertEqual(m.validate_manifest(),0x7b58)
         self.assertEqual(m.FILE_BASE+m.START,0x4568c)
-        self.assertEqual(m.FILE_BASE+m.validate_manifest(),0x47ab0)
-        self.assertEqual(sum(length for _,_,_,length in m.FRAGMENTS),9252)
+        self.assertEqual(m.FILE_BASE+m.validate_manifest(),0x47b58)
+        self.assertEqual(sum(length for _,_,_,length in m.FRAGMENTS),9420)
 
     def test_validator_forbids_opaque_data_and_layout_holes(self):
         m=module()
@@ -64,6 +64,7 @@ class SourceOnlyForwardTests(unittest.TestCase):
             ('session-handler-flags-474-4a0',0x7a2c,0x2c),
             ('session-handler-callbacks-4a0-4d0',0x7a58,0x30),
             ('session-handler-tail-4d0-4f8',0x7a88,0x28),
+            ('session-handler-next-4f8-5a0',0x7ab0,0xa8),
         ]
         for name,off,size in expected:
             self.assertIn(name,parts)
@@ -81,6 +82,17 @@ class SourceOnlyForwardTests(unittest.TestCase):
             asm=parts[name][0].read_text()
             for raw in ('.incbin','.byte','.word','.fill','.quad','.long'):
                 self.assertNotIn(raw,asm)
+
+    def test_session_handler_selection_preserves_packet_relative_calls(self):
+        m=module()
+        src,off,size={n:(s,o,l) for n,s,o,l in m.FRAGMENTS}['session-handler-next-4f8-5a0']
+        self.assertEqual((off,size),(0x7ab0,0xa8))
+        code=src.read_text()
+        self.assertIn('if (p0.new) jump:nt 0x4c',code)
+        self.assertIn('call 0x204fa4\n    r0 = memw(r6+#36)',code)
+        self.assertIn('r3:2 = combine(##-1339397133,#4)',code)
+        for forbidden in ('.word','.byte','.incbin'):
+            self.assertNotIn(forbidden,code)
 
     def test_next_controller_split_is_adjacent(self):
         m=module()
