@@ -12,7 +12,7 @@ import unittest
 
 ROOT = Path(__file__).resolve().parent.parent
 SPEC = importlib.util.spec_from_file_location(
-    "wlan_late_packets", ROOT / "tools/wlan_late_packets.py")
+    "wlan_late_packets", ROOT / "tools/wlanmdsp/late_packets.py")
 assert SPEC is not None and SPEC.loader is not None
 packet_module = importlib.util.module_from_spec(SPEC)
 sys.modules[SPEC.name] = packet_module

@@ -12,7 +12,7 @@ Every target is a defined .text symbol at a structurally valid packet start
 within its registered function. ELF32 symbols are parsed directly in Python;
 no disassembly text or target word array supplies the generated addresses.
 ELF symbol layout: https://gabi.xinuos.com/elf/05-symtab.html
-Packet framing is provided by wlan_late_packets.py and its primary sources.
+Packet framing is provided by tools/wlanmdsp/late_packets.py and its primary sources.
 """
 from __future__ import annotations
 

@@ -43,7 +43,7 @@ def _import(name: str, path: Path):
 
 
 startup = _import("agent14_wlan_startup", ROOT / "tools/wlanmdsp/build-wlanmdsp-startup.py")
-packets = _import("agent14_wlan_packets", ROOT / "tools/wlan_late_packets.py")
+packets = _import("wlan_late_packets", ROOT / "tools/wlanmdsp/late_packets.py")
 
 
 class BuildError(ValueError):
