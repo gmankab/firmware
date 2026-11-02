@@ -14,7 +14,7 @@ import unittest
 
 ROOT = Path(__file__).resolve().parents[1]
 SCRIPT = ROOT / "tools" / "emit-adsp-entry.py"
-ASM = ROOT / "tools" / "adsp-boot-vectors.S"
+ASM = ROOT / "sources/xiaomi-nabu/adsp/adsp-boot-vectors.S"
 
 spec = importlib.util.spec_from_file_location("adsp_boot", SCRIPT)
 assert spec is not None and spec.loader is not None

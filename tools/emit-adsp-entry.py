@@ -20,6 +20,7 @@ import tempfile
 # Source modules are imported lazily by the instruction encoders. Keep this
 # executable usable both as `python tools/emit-adsp-entry.py` and when a test
 # imports it by file path via importlib.util.spec_from_file_location.
+ADSP_ASM = pathlib.Path(__file__).resolve().parents[1] / 'sources/xiaomi-nabu/adsp'
 _TOOLS_DIR = str(pathlib.Path(__file__).resolve().parent)
 if _TOOLS_DIR not in sys.path:
     sys.path.insert(0, _TOOLS_DIR)
@@ -30,33 +31,33 @@ OEM_RUNTIME_VADDR = 0xF0000000
 OEM_PHYSICAL_ENTRY = 0x8BE00000
 GENERATED_LENGTH = 0x24
 REFERENCE_SHA256 = "4b579e5dc1333d634e5bdc93f3314e357e0e30dab7140833f6cc7aef086b1c1e"
-ASM_SOURCE = pathlib.Path(__file__).with_name("adsp-boot-vectors.S")
-CONTROLLER_SOURCE = pathlib.Path(__file__).with_name("adsp-counter-controller.S")
-TLB_MAP_SOURCE = pathlib.Path(__file__).with_name("adsp-tlb-map.S")
-TLB_FLUSH_SOURCE = pathlib.Path(__file__).with_name("adsp-tlb-flush.S")
-MEMORY_COPY_SOURCE = pathlib.Path(__file__).with_name("adsp-dsp-memory-copy.S")
-CACHELINE_COPY_SOURCE = pathlib.Path(__file__).with_name("adsp-cacheline-copy.S")
-TLB_RECONCILE_SOURCE = pathlib.Path(__file__).with_name("adsp-tlb-reconcile.S")
-CONTROLLER_BOOTSTRAP_SOURCE = pathlib.Path(__file__).with_name("adsp-controller-bootstrap.S")
-CONTROLLER_CACHE_COPY_SOURCE = pathlib.Path(__file__).with_name("adsp-controller-cache-copy.S")
-CONTROLLER_PHYSICAL_COPY_SOURCE = pathlib.Path(__file__).with_name("adsp-controller-physical-copy.S")
-CONTROLLER_PHYSICAL_COMPARE_SOURCE = pathlib.Path(__file__).with_name("adsp-controller-physical-compare.S")
-CONTROLLER_CFGBASE_SOURCE = pathlib.Path(__file__).with_name("adsp-controller-cfgbase.S")
-CONTROLLER_ALIGNMENT_SOURCE = pathlib.Path(__file__).with_name("adsp-controller-nop-padding.S")
-CONTROLLER_STARTUP_SOURCE = pathlib.Path(__file__).with_name("adsp-controller-startup.S")
-CONTROLLER_DEBUG_CHECK_SOURCE = pathlib.Path(__file__).with_name("adsp-controller-debug-check.S")
-CONTROLLER_VECTOR_HANDOFF_SOURCE = pathlib.Path(__file__).with_name("adsp-controller-vector-handoff.S")
-CONTROLLER_PRIVILEGED_RESTORE_SOURCE = pathlib.Path(__file__).with_name("adsp-controller-privileged-restore.S")
-CONTROLLER_RESTORE_PADDING_SOURCE = pathlib.Path(__file__).with_name("adsp-controller-restore-padding.S")
-CONTROLLER_CONTEXT_SAVE_SOURCE = pathlib.Path(__file__).with_name("adsp-controller-context-save.S")
-CONTROLLER_CONTEXT_CAPTURE_SOURCE = pathlib.Path(__file__).with_name("adsp-controller-context-capture.S")
-CONTROLLER_PROCESSOR_STARTUP_SOURCE = pathlib.Path(__file__).with_name("adsp-controller-processor-startup.S")
-CONTROLLER_STARTUP_POLL_SOURCE = pathlib.Path(__file__).with_name("adsp-controller-startup-poll.S")
-CONTROLLER_SYSCFG_UPDATE_SOURCE = pathlib.Path(__file__).with_name("adsp-controller-syscfg-update.S")
-CONTROLLER_SAVE_CONTROL_SOURCE = pathlib.Path(__file__).with_name("adsp-controller-save-control.S")
-CONTROLLER_L2_GLOBAL_SOURCE = pathlib.Path(__file__).with_name("adsp-controller-l2-global.S")
-CONTROLLER_PHYSICAL_TLB_COPY_SOURCE = pathlib.Path(__file__).with_name("adsp-controller-physical-tlb-copy.S")
-CONTROLLER_RESOURCE_RELEASE_SOURCE = pathlib.Path(__file__).with_name("adsp-controller-resource-release.S")
+ASM_SOURCE = ADSP_ASM / "adsp-boot-vectors.S"
+CONTROLLER_SOURCE = ADSP_ASM / "adsp-counter-controller.S"
+TLB_MAP_SOURCE = ADSP_ASM / "adsp-tlb-map.S"
+TLB_FLUSH_SOURCE = ADSP_ASM / "adsp-tlb-flush.S"
+MEMORY_COPY_SOURCE = ADSP_ASM / "adsp-dsp-memory-copy.S"
+CACHELINE_COPY_SOURCE = ADSP_ASM / "adsp-cacheline-copy.S"
+TLB_RECONCILE_SOURCE = ADSP_ASM / "adsp-tlb-reconcile.S"
+CONTROLLER_BOOTSTRAP_SOURCE = ADSP_ASM / "adsp-controller-bootstrap.S"
+CONTROLLER_CACHE_COPY_SOURCE = ADSP_ASM / "adsp-controller-cache-copy.S"
+CONTROLLER_PHYSICAL_COPY_SOURCE = ADSP_ASM / "adsp-controller-physical-copy.S"
+CONTROLLER_PHYSICAL_COMPARE_SOURCE = ADSP_ASM / "adsp-controller-physical-compare.S"
+CONTROLLER_CFGBASE_SOURCE = ADSP_ASM / "adsp-controller-cfgbase.S"
+CONTROLLER_ALIGNMENT_SOURCE = ADSP_ASM / "adsp-controller-nop-padding.S"
+CONTROLLER_STARTUP_SOURCE = ADSP_ASM / "adsp-controller-startup.S"
+CONTROLLER_DEBUG_CHECK_SOURCE = ADSP_ASM / "adsp-controller-debug-check.S"
+CONTROLLER_VECTOR_HANDOFF_SOURCE = ADSP_ASM / "adsp-controller-vector-handoff.S"
+CONTROLLER_PRIVILEGED_RESTORE_SOURCE = ADSP_ASM / "adsp-controller-privileged-restore.S"
+CONTROLLER_RESTORE_PADDING_SOURCE = ADSP_ASM / "adsp-controller-restore-padding.S"
+CONTROLLER_CONTEXT_SAVE_SOURCE = ADSP_ASM / "adsp-controller-context-save.S"
+CONTROLLER_CONTEXT_CAPTURE_SOURCE = ADSP_ASM / "adsp-controller-context-capture.S"
+CONTROLLER_PROCESSOR_STARTUP_SOURCE = ADSP_ASM / "adsp-controller-processor-startup.S"
+CONTROLLER_STARTUP_POLL_SOURCE = ADSP_ASM / "adsp-controller-startup-poll.S"
+CONTROLLER_SYSCFG_UPDATE_SOURCE = ADSP_ASM / "adsp-controller-syscfg-update.S"
+CONTROLLER_SAVE_CONTROL_SOURCE = ADSP_ASM / "adsp-controller-save-control.S"
+CONTROLLER_L2_GLOBAL_SOURCE = ADSP_ASM / "adsp-controller-l2-global.S"
+CONTROLLER_PHYSICAL_TLB_COPY_SOURCE = ADSP_ASM / "adsp-controller-physical-tlb-copy.S"
+CONTROLLER_RESOURCE_RELEASE_SOURCE = ADSP_ASM / "adsp-controller-resource-release.S"
 FRAGMENTS = {
     "vectors": (ASM_SOURCE, OEM_FILE_OFFSET, GENERATED_LENGTH),
     "boot-prefix": (ASM_SOURCE, OEM_FILE_OFFSET, 0x44),
