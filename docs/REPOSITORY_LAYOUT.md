@@ -26,6 +26,16 @@ instruction stream. `parts/manifest.json` records the exact original
 validates the inclusion order. All 64 Venus-tail unit tests and the direct
 124,332-byte reference comparison pass after the split.
 
+### Assembly and device metadata ownership
+
+The 140 Qualcomm modem `.s` fragments now live in
+`sources/xiaomi-nabu/modem/`, rather than among Rust module files. Their
+original filenames and bytes are unchanged. The Novatek DLM seed table is
+co-located with `novatek/dlm/novatek_dlm_seed_manifest.rs`, preserving the
+original `include_str!` lookup. The one-to-one source migration and SHA-256
+ledger is `docs/maintenance/assembly-paths.json`; the regression test
+`tests/test_firmware_assembly_sources.py` checks every original byte.
+
 Source is kept in the owning crate. The original A32 instruction encoders and
 source-derived data are not duplicated. Keep new APIs narrow and prefer
 `pub(crate)` for internal functions. Preserve the architecture's memory map,
