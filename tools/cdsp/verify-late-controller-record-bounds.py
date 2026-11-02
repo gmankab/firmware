@@ -10,6 +10,7 @@ those producer/consumer packets. The Rust builder and reference must be exact.
 from __future__ import annotations
 import argparse, importlib.util, os, subprocess, tempfile
 from pathlib import Path
+SOURCE_DIR=Path(__file__).resolve().parents[2]/'sources/xiaomi-nabu/cdsp/late'
 
 START=0x56a74
 END=0x56aa8
@@ -46,7 +47,7 @@ def verify(llvm:Path,rz:Path,generated:Path,ref:Path,prefix:Path|None):
         raise ValueError('52 source-encoded CDSP record bounds bytes do not match pinned reference')
     if prefix is not None and (prefix.read_bytes()!=original[0x56000:END] or prefix.stat().st_size!=2728):
         raise ValueError('contiguous 2728-byte RWE prefix differs from original')
-    asm=Path(__file__).with_name('late-controller-record-bounds-semantic.s')
+    asm=SOURCE_DIR / 'late-controller-record-bounds-semantic.s'
     with tempfile.TemporaryDirectory(prefix='cdsp-record-bounds-') as temp:
         obj=Path(temp)/'bounds.o'
         subprocess.run([str(llvm),'-triple=hexagon','-mcpu=hexagonv60',

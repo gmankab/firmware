@@ -9,6 +9,7 @@ exactly; all V66 words are independently decoded with Rizin.
 """
 import argparse,hashlib,importlib.util,os,subprocess,struct,tempfile
 from pathlib import Path
+SOURCE_DIR=Path(__file__).resolve().parents[2]/'sources/xiaomi-nabu/cdsp/late'
 OFF=0x56b30;END=0x56b4c;RWE=0x56000
 SHA='febeae7b8e47bad4eeabc159a3c24b74cda26dfa12b384c31de5de30817e06ea'
 
@@ -51,7 +52,7 @@ def main():
  with tempfile.TemporaryDirectory(prefix='cdsp-v66-bank-guards-') as tmp:
   obj=Path(tmp)/'semantic.o'
   subprocess.run([str(args.llvm_mc),'-triple=hexagon','-mcpu=hexagonv60',
-     '-filetype=obj',str(Path(__file__).with_name('late-controller-bank-guards-semantic.s')),
+     '-filetype=obj',str(SOURCE_DIR / 'late-controller-bank-guards-semantic.s'),
      '-o',str(obj)],capture_output=True,text=True,check=True)
   independent=text_section(obj.read_bytes())[0xb2c:0xb40]
  other=decode(args.rz_asm,independent,0x96cc8b2c)

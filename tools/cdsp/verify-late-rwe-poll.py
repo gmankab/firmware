@@ -13,6 +13,7 @@ import importlib.util
 import subprocess
 import tempfile
 from pathlib import Path
+SOURCE_DIR=Path(__file__).resolve().parents[2]/'sources/xiaomi-nabu/cdsp/late'
 
 OFF=0x56230
 N=152
@@ -35,7 +36,7 @@ def decode(llvm:Path,rz:Path,generated:Path,reference:Path,prefix:Path|None)->No
     with tempfile.TemporaryDirectory(prefix='nabu-agent20-10-poll-') as tmp:
         obj=Path(tmp)/'cdsp-callback-poll.o'
         cp=subprocess.run([str(llvm),'-triple=hexagon','-mcpu=hexagonv60',
-                           '-filetype=obj',str(Path(__file__).with_name('late-rwe-poll.s')),
+                           '-filetype=obj',str(SOURCE_DIR / 'late-rwe-poll.s'),
                            '-o',str(obj)],capture_output=True,text=True,check=True)
         independent=parse_text(obj.read_bytes())[0x230:]
     if len(independent)!=144:

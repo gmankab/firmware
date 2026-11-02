@@ -9,6 +9,7 @@ packet and fused load. No source firmware bytes are imported by the builder.
 """
 import argparse,hashlib,importlib.util,os,subprocess,struct,tempfile
 from pathlib import Path
+SOURCE_DIR=Path(__file__).resolve().parents[2]/'sources/xiaomi-nabu/cdsp/late'
 START=0x56b4c
 END=0x56b78
 RWE_START=0x56000
@@ -38,7 +39,7 @@ def main():
     with tempfile.TemporaryDirectory(prefix='cdsp-late-bank-init-') as td:
         obj=Path(td)/'independent.o'
         subprocess.run([str(a.llvm_mc),'-triple=hexagon','-mcpu=hexagonv60','-filetype=obj',
-            str(Path(__file__).with_name('late-controller-bank-initialize-semantic.s')),
+            str(SOURCE_DIR / 'late-controller-bank-initialize-semantic.s'),
             '-o',str(obj)],check=True,text=True,capture_output=True)
         llvm=parse_section(obj.read_bytes())[START-RWE_START:END-RWE_START]
     assert len(llvm)==len(generated)

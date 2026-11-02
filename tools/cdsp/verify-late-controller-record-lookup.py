@@ -8,6 +8,7 @@ physical destinations; the code asserts this and reports altered scheduling.
 """
 import argparse,importlib.util,subprocess,tempfile
 from pathlib import Path
+SOURCE_DIR=Path(__file__).resolve().parents[2]/'sources/xiaomi-nabu/cdsp/late'
 FILE=0x56a30
 END=0x56a74
 PHYSICAL=0x96cc8a30
@@ -39,7 +40,7 @@ def verify(llvm:Path,rz:Path,generated:Path,reference:Path,prefix:Path|None):
         b=prefix.read_bytes()
         if len(b)!=END-0x56000 or b!=orig[0x56000:END]:
             raise ValueError('2676-byte CDSP RWE prefix differs from pinned reference')
-    fixture=Path(__file__).with_name('late-controller-record-lookup-semantic.s')
+    fixture=SOURCE_DIR / 'late-controller-record-lookup-semantic.s'
     with tempfile.TemporaryDirectory(prefix='nabu-cdsp-lookup-') as temp:
         obj=Path(temp)/'lookup.o'
         subprocess.run([str(llvm),'-triple=hexagon','-mcpu=hexagonv60',

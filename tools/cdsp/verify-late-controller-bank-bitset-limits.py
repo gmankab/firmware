@@ -3,6 +3,7 @@
 """Independent LLVM6/Rizin validation of the bitmap limit check packets."""
 import argparse,hashlib,importlib.util,os,struct,subprocess,tempfile
 from pathlib import Path
+SOURCE_DIR=Path(__file__).resolve().parents[2]/'sources/xiaomi-nabu/cdsp/late'
 START=0x56bd0;END=0x56bf0;RWE=0x56000
 SHA='febeae7b8e47bad4eeabc159a3c24b74cda26dfa12b384c31de5de30817e06ea'
 def elf_text(raw):
@@ -30,7 +31,7 @@ def main():
     for k,needle in expectations.items():assert needle in original[k],f'original instruction {k}: {original[k]}'
     with tempfile.TemporaryDirectory(prefix='cdsp-bank-limits-') as td:
         obj=Path(td)/'limits.o'
-        subprocess.run([str(a.llvm_mc),'-triple=hexagon','-mcpu=hexagonv60','-filetype=obj',str(Path(__file__).with_name('late-controller-bank-bitset-limits-semantic.s')),'-o',str(obj)],check=True,capture_output=True,text=True)
+        subprocess.run([str(a.llvm_mc),'-triple=hexagon','-mcpu=hexagonv60','-filetype=obj',str(SOURCE_DIR / 'late-controller-bank-bitset-limits-semantic.s'),'-o',str(obj)],check=True,capture_output=True,text=True)
         llvm=elf_text(obj.read_bytes())[START-RWE:END-RWE]
     decoded=decode(a.rz_asm,llvm,0x96cc8bd0)
     orig_w=struct.unpack('<8I',gen);llvm_w=struct.unpack('<8I',llvm)

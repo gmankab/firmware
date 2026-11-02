@@ -11,6 +11,7 @@ from __future__ import annotations
 import argparse,importlib.util,re,subprocess,tempfile
 from collections import Counter
 from pathlib import Path
+SOURCE_DIR=Path(__file__).resolve().parents[2]/'sources/xiaomi-nabu/cdsp/late'
 START=0x566c0
 END=0x566d8
 PHYS=0x96cc86c0
@@ -42,7 +43,7 @@ def run(llvm:Path,rizin:Path,generated:Path,prefix:Path,reference:Path)->None:
     if len(joined)!=0x6d8 or joined!=original[RWE:END]:raise RuntimeError('full 1752-byte RWE prefix mismatch')
     with tempfile.TemporaryDirectory() as tmp:
         obj=Path(tmp)/'bitloop.o'
-        src=Path(__file__).with_name('late-rwe-controller-bitloop-prefix.s')
+        src=SOURCE_DIR / 'late-rwe-controller-bitloop-prefix.s'
         subprocess.run([str(llvm),'-triple=hexagon','-mcpu=hexagonv60','-filetype=obj',str(src),'-o',str(obj)],check=True,capture_output=True,text=True)
         independent=elf_text(obj.read_bytes())[0x6c0:0x6d8]
     if len(independent)!=24:raise RuntimeError('LLVM6 bitloop fixture length differs')

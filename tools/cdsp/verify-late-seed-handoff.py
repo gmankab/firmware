@@ -9,6 +9,7 @@ There is no claim that the LLVM6 produced binary is fully original-identical.
 from __future__ import annotations
 import argparse, importlib.util, subprocess, tempfile
 from pathlib import Path
+SOURCE_DIR=Path(__file__).resolve().parents[2]/'sources/xiaomi-nabu/cdsp/late'
 START=0x56448
 LENGTH=28
 RWE_START=0x56000
@@ -31,7 +32,7 @@ def verify(llvm:Path,rz:Path,gen:Path,reference:Path,prefix:Path|None)->None:
         if len(contents)!=RWE_END-RWE_START or contents!=ref[RWE_START:RWE_END]:
             raise ValueError('Joined 1124-byte CDSP prefix differs from pinned reference')
         if contents[-LENGTH:]!=actual:raise ValueError('Generated prefix tail diverges')
-    fixture=Path(__file__).with_name('late-rwe-seed-handoff.s')
+    fixture=SOURCE_DIR / 'late-rwe-seed-handoff.s'
     with tempfile.TemporaryDirectory(prefix='cdsp_seed_handoff_') as tmp:
         obj=Path(tmp)/'seed-handoff.o'
         subprocess.run([str(llvm),'-triple=hexagon','-mcpu=hexagonv60','-filetype=obj',str(fixture),'-o',str(obj)],capture_output=True,text=True,check=True)

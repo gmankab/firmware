@@ -4,6 +4,7 @@
 from __future__ import annotations
 import argparse,importlib.util,os,re,subprocess,tempfile
 from pathlib import Path
+SOURCE_DIR=Path(__file__).resolve().parents[2]/'sources/xiaomi-nabu/cdsp/late'
 START=0x5680c
 END=0x56848
 PHYSICAL=0x96cc880c
@@ -32,7 +33,7 @@ def verify(args):
         if required not in text:raise RuntimeError('Rizin decoded meaning lacks '+required)
     with tempfile.TemporaryDirectory(prefix='cdsp-secondary-capacity-') as td:
         obj=Path(td)/'capacity.o'
-        fixture=Path(__file__).with_name('late-controller-secondary-completion.s')
+        fixture=SOURCE_DIR / 'late-controller-secondary-completion.s'
         subprocess.run([str(args.llvm_mc),'-triple=hexagon','-mcpu=hexagonv60','-filetype=obj',str(fixture),'-o',str(obj)],check=True,capture_output=True,text=True)
         parser=Path(__file__).with_name('verify-cdsp-hexagon-entry.py')
         spec=importlib.util.spec_from_file_location('cdsp_elf_sections',parser)

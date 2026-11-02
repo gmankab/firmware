@@ -3,6 +3,7 @@
 """Compare independently authored LLVM6 prologue with checked V66 Rust output."""
 import argparse,hashlib,importlib.util,re,subprocess,tempfile
 from pathlib import Path
+SOURCE_DIR=Path(__file__).resolve().parents[2]/'sources/xiaomi-nabu/cdsp/late'
 START,END=0x568f0,0x56930
 PIN='febeae7b8e47bad4eeabc159a3c24b74cda26dfa12b384c31de5de30817e06ea'
 
@@ -21,7 +22,7 @@ def verify(a):
         for name in ('late-controller-frame-setup.s','late-controller-frame-duplex.s'):
             obj=Path(td)/(name+'.o')
             subprocess.run([str(a.llvm_mc),'-triple=hexagon','-mcpu=hexagonv60','-filetype=obj',
-                          str(Path(__file__).with_name(name)),'-o',str(obj)],check=True,capture_output=True,text=True)
+                          str(SOURCE_DIR / name),'-o',str(obj)],check=True,capture_output=True,text=True)
             files.append((obj,mod.parse_elf32_text(obj.read_bytes())))
         alt=files[0][1][0x8f0:0x930]
         semantic_ops=subprocess.run([str(a.llvm_objdump),'-d',str(files[0][0])],check=True,capture_output=True,text=True).stdout

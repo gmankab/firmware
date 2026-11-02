@@ -12,6 +12,7 @@ import importlib.util
 import subprocess
 import tempfile
 from pathlib import Path
+SOURCE_DIR=Path(__file__).resolve().parents[2]/'sources/xiaomi-nabu/cdsp/late'
 
 FILE_OFFSET=0x561e0
 SIZE=80
@@ -34,7 +35,7 @@ def check(llvm:Path,rz:Path,generated:Path,reference:Path,prefix:Path|None)->Non
     with tempfile.TemporaryDirectory(prefix='nabu-cdsp-sweeper-') as tmp:
         obj=Path(tmp)/'sweeper.o'
         subprocess.run([str(llvm),'-triple=hexagon','-mcpu=hexagonv60','-filetype=obj',
-                        str(Path(__file__).with_name('late-rwe-sweeper.s')),
+                        str(SOURCE_DIR / 'late-rwe-sweeper.s'),
                         '-o',str(obj)],capture_output=True,text=True,check=True)
         independent=parser_text(obj.read_bytes())[0x1e0:]
     if len(independent)!=72:

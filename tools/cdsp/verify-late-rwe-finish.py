@@ -11,6 +11,7 @@ an unchanged complete binary assembly result from LLVM6.
 """
 import argparse, importlib.util, os, subprocess, tempfile
 from pathlib import Path
+SOURCE_DIR=Path(__file__).resolve().parents[2]/'sources/xiaomi-nabu/cdsp/late'
 
 OFF=0x562c8
 LEN=80
@@ -36,7 +37,7 @@ def verify(llvm:Path,rz:Path,generated:Path,reference:Path,prefix:Path|None)->No
     with tempfile.TemporaryDirectory(prefix='cdsp-agent20-10-finish-') as tmp:
         dest=Path(tmp)/'callback_finish.o'
         subprocess.run([str(llvm),'-triple=hexagon','-mcpu=hexagonv60',
-                        '-filetype=obj',str(Path(__file__).with_name('late-rwe-callback-finish.s')),
+                        '-filetype=obj',str(SOURCE_DIR / 'late-rwe-callback-finish.s'),
                         '-o',str(dest)],check=True,capture_output=True,text=True)
         independent=load_text(dest.read_bytes())[0x2c8:]
     if len(independent)!=84:raise ValueError(f'Expected 84 LLVM6 semantic bytes, got {len(independent)}')

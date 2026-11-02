@@ -10,6 +10,7 @@ packet order and physical target. No exact LLVM6 binary claim is made.
 from __future__ import annotations
 import argparse, importlib.util, subprocess,tempfile
 from pathlib import Path
+SOURCE_DIR=Path(__file__).resolve().parents[2]/'sources/xiaomi-nabu/cdsp/late'
 FILE_START=0x56568
 FUNC_LEN=32
 FILL_LEN=8
@@ -40,7 +41,7 @@ def verify(llvm:Path,rz:Path,generated:Path,reference:Path,prefix:Path|None)->No
             raise ValueError('Full prefix generated inconsistent callback executable')
     with tempfile.TemporaryDirectory(prefix='cdsp_null_callback_') as tmp:
         obj=Path(tmp)/'null.o'
-        asm=Path(__file__).with_name('late-rwe-null-callback.s')
+        asm=SOURCE_DIR / 'late-rwe-null-callback.s'
         subprocess.run([str(llvm),'-triple=hexagon','-mcpu=hexagonv60','-filetype=obj',str(asm),'-o',str(obj)],check=True,capture_output=True,text=True)
         independent=elf_text(obj.read_bytes())[0x568:]
     if len(independent)!=40:raise ValueError('LLVM6 semantic program must be 40 bytes')

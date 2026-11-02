@@ -3,6 +3,7 @@
 """Require independent exact LLVM6 assembly of the two CDSP record diagnostics."""
 import argparse,hashlib,importlib.util,os,subprocess,tempfile
 from pathlib import Path
+SOURCE_DIR=Path(__file__).resolve().parents[2]/'sources/xiaomi-nabu/cdsp/late'
 START=0x56adc;END=0x56afc;LAYOUT_END=0x56b00;PHYS=0x96cc8adc
 EXPECTED='febeae7b8e47bad4eeabc159a3c24b74cda26dfa12b384c31de5de30817e06ea'
 
@@ -22,7 +23,7 @@ def check(a):
  with tempfile.TemporaryDirectory(prefix='cdsp-record-error-') as t:
   obj=Path(t)/'orig.o'
   subprocess.run([str(a.llvm_mc),'-triple=hexagon','-mcpu=hexagonv60','-filetype=obj',
-      str(Path(__file__).with_name('late-controller-record-diagnostics.s')),
+      str(SOURCE_DIR / 'late-controller-record-diagnostics.s'),
       '-o',str(obj)],check=True,stdout=subprocess.PIPE,stderr=subprocess.PIPE)
   reconstructed=section(obj.read_bytes())[0xadc:0xb00]
  if reconstructed!=gen+b'\x00\xc0\x00\x7f':raise ValueError('LLVM6 independent assembly differs from generated code and layout')

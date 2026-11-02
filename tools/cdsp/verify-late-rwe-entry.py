@@ -4,12 +4,13 @@
 from __future__ import annotations
 import argparse,importlib.util,subprocess,tempfile
 from pathlib import Path
+SOURCE_DIR=Path(__file__).resolve().parents[2]/'sources/xiaomi-nabu/cdsp/late'
 START=0x56000
 PHYSICAL=0x96cc8000
 SIZE=0x54
 
 def verify(llvm:Path,rz:Path,generated:Path,reference:Path|None):
-    source=Path(__file__).with_name('late-rwe-entry.s')
+    source=SOURCE_DIR / 'late-rwe-entry.s'
     with tempfile.TemporaryDirectory(prefix='cdsp-rwe-entry-') as tmp:
         obj=Path(tmp)/'entry.o'
         subprocess.run([str(llvm),'-triple=hexagon','-mcpu=hexagonv60','-filetype=obj',str(source),'-o',str(obj)],check=True)

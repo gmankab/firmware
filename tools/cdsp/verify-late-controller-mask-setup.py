@@ -6,6 +6,7 @@ Original executable words are never emitted by this verification script.
 """
 import argparse,importlib.util,os,subprocess,tempfile,re
 from pathlib import Path
+SOURCE_DIR=Path(__file__).resolve().parents[2]/'sources/xiaomi-nabu/cdsp/late'
 
 START,END=0x56734,0x56784
 PHYSICAL=0x96cc8734
@@ -40,7 +41,7 @@ def verify(llvm,rz,reference,generated,prefix):
                'r22=insert(r21,#0x14,#0x0)', 'r23=lsr(r21,#0xc)']:
         if op not in text:raise RuntimeError('missing Rizin independently decoded operation '+op)
     with tempfile.TemporaryDirectory(prefix='cdsp-mask-llvm6-') as d:
-        fixture=Path(__file__).with_name('late-controller-mask-setup.s')
+        fixture=SOURCE_DIR / 'late-controller-mask-setup.s'
         obj=Path(d)/'source.o'
         subprocess.run([str(llvm),'-triple=hexagon','-mcpu=hexagonv60', '-filetype=obj',str(fixture),'-o',str(obj)],
                        capture_output=True,text=True,check=True)

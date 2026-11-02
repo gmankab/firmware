@@ -10,6 +10,7 @@ firmware; LLVM6 reassembles the semantics with a shorter three-GP-load layout
 from __future__ import annotations
 import argparse,importlib.util,subprocess,tempfile
 from pathlib import Path
+SOURCE_DIR=Path(__file__).resolve().parents[2]/'sources/xiaomi-nabu/cdsp/late'
 FILE=0x56600; SIZE=80; PHYS=0x96cc8600;PREFIX=0x650
 
 def read_text(raw:bytes)->bytes:
@@ -32,7 +33,7 @@ def verify(llvm:Path,rz:Path,generated:Path,reference:Path,prefix:Path|None)->No
     with tempfile.TemporaryDirectory(prefix='nabu-cdsp-large-prologue-') as tmp:
         output=Path(tmp)/'asm.o'
         subprocess.run([str(llvm),'-triple=hexagon','-mcpu=hexagonv60','-filetype=obj',
-            str(Path(__file__).with_name('late-rwe-large-prologue.s')),
+            str(SOURCE_DIR / 'late-rwe-large-prologue.s'),
             '-o',str(output)],check=True,capture_output=True,text=True)
         comp=read_text(output.read_bytes())[0x600:0x644]
     orig=words(src);generated_words=words(comp)

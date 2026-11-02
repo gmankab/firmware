@@ -9,6 +9,7 @@ must match all 48 bytes, including that marker.
 """
 import argparse,hashlib,importlib.util,os,subprocess,tempfile,struct
 from pathlib import Path
+SOURCE_DIR=Path(__file__).resolve().parents[2]/'sources/xiaomi-nabu/cdsp/late'
 START=0x56b00;END=0x56b30;RWE=0x56000
 SHA='febeae7b8e47bad4eeabc159a3c24b74cda26dfa12b384c31de5de30817e06ea'
 
@@ -31,7 +32,7 @@ def main():
  with tempfile.TemporaryDirectory(prefix='cdsp-bank48-') as folder:
   obj=Path(folder)/'independent.o'
   subprocess.run([str(arg.llvm_mc),'-triple=hexagon','-mcpu=hexagonv60',
-     '-filetype=obj',str(Path(__file__).with_name('late-controller-bank-entry.s')),
+     '-filetype=obj',str(SOURCE_DIR / 'late-controller-bank-entry.s'),
      '-o',str(obj)],capture_output=True,text=True,check=True)
   llvm=parse_text(obj.read_bytes())[0xb00:0xb30]
  if len(llvm)!=len(gen):raise ValueError('LLVM6 did not assemble exactly 12 words')

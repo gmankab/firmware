@@ -9,6 +9,7 @@ comparison, altering four packet markers. Rizin V66 validates the OEM order.
 from __future__ import annotations
 import argparse,importlib.util,subprocess,tempfile
 from pathlib import Path
+SOURCE_DIR=Path(__file__).resolve().parents[2]/'sources/xiaomi-nabu/cdsp/late'
 FILE=0x565c0;PHYS=0x96cc85c0;CODE=60;PREFIX=1536;FILL=4
 
 def elf_text(raw:bytes)->bytes:
@@ -34,7 +35,7 @@ def verify(llvm:Path,rz:Path,generated:Path,reference:Path,prefix:Path|None)->No
     with tempfile.TemporaryDirectory(prefix='cdsp-copy-delegate-') as tmp:
         obj=Path(tmp)/'copy.o'
         subprocess.run([str(llvm),'-triple=hexagon','-mcpu=hexagonv60',
-                        '-filetype=obj',str(Path(__file__).with_name('late-rwe-copy-delegate.s')),
+                        '-filetype=obj',str(SOURCE_DIR / 'late-rwe-copy-delegate.s'),
                         '-o',str(obj)],capture_output=True,text=True,check=True)
         independently_assembled=elf_text(obj.read_bytes())[0x5c0:0x600]
     theirs=words(got);other=words(independently_assembled)

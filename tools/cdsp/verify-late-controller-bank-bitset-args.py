@@ -3,6 +3,7 @@
 """Independent LLVM6 and Rizin V66 check of bitmap packet arguments."""
 import argparse,hashlib,importlib.util,os,struct,subprocess,tempfile
 from pathlib import Path
+SOURCE_DIR=Path(__file__).resolve().parents[2]/'sources/xiaomi-nabu/cdsp/late'
 START=0x56c10;END=0x56c30;RWE=0x56000
 SHA='febeae7b8e47bad4eeabc159a3c24b74cda26dfa12b384c31de5de30817e06ea'
 def elf_text(b):
@@ -32,7 +33,7 @@ def main():
     for idx,needle in assertions.items():assert needle in orig[idx],f'bad original word {idx}: {orig[idx]}'
     with tempfile.TemporaryDirectory(prefix='cdsp-bitmap-args-') as td:
         obj=Path(td)/'fixture.o'
-        subprocess.run([str(a.llvm_mc),'-triple=hexagon','-mcpu=hexagonv60','-filetype=obj',str(Path(__file__).with_name('late-controller-bank-bitset-args-semantic.s')),'-o',str(obj)],check=True,capture_output=True,text=True)
+        subprocess.run([str(a.llvm_mc),'-triple=hexagon','-mcpu=hexagonv60','-filetype=obj',str(SOURCE_DIR / 'late-controller-bank-bitset-args-semantic.s'),'-o',str(obj)],check=True,capture_output=True,text=True)
         llvm=elf_text(obj.read_bytes())[START-RWE:END-RWE+4]
     indep=decode(a.rz_asm,llvm,0x96cc8c10,9)
     ow=struct.unpack('<8I',gen);lw=struct.unpack('<9I',llvm)

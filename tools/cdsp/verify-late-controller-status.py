@@ -9,6 +9,7 @@ fields using Rizin, never claiming full LLVM binary identity.
 """
 import argparse,importlib.util,subprocess,tempfile
 from pathlib import Path
+SOURCE_DIR=Path(__file__).resolve().parents[2]/'sources/xiaomi-nabu/cdsp/late'
 FILE=0x569fc
 END=0x56a30
 PHYSICAL=0x96cc89fc
@@ -41,7 +42,7 @@ def verify(llvm:Path,rz:Path,binary:Path,reference:Path,prefix:Path|None):
         layout=prefix.read_bytes()
         if len(layout)!=END-0x56000 or layout!=original[0x56000:END]:
             raise ValueError('CDSP RWE full 2608-byte prefix does not match pinned image')
-    source=Path(__file__).with_name('late-controller-status-semantic.s')
+    source=SOURCE_DIR / 'late-controller-status-semantic.s'
     with tempfile.TemporaryDirectory(prefix='nabu-cdsp-status-') as d:
         obj=Path(d)/'status.o'
         subprocess.run([str(llvm),'-triple=hexagon','-mcpu=hexagonv60',

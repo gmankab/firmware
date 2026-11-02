@@ -9,6 +9,7 @@ does NOT emit a byte-identical original, and the verifier does not claim so.
 from __future__ import annotations
 import argparse,importlib.util,subprocess,tempfile
 from pathlib import Path
+SOURCE_DIR=Path(__file__).resolve().parents[2]/'sources/xiaomi-nabu/cdsp/late'
 FILE_OFFSET=0x56540
 LEN=40
 PHYS=0x96cc8540
@@ -36,7 +37,7 @@ def verify(llvm:Path,rz:Path,gen:Path,ref:Path,prefix:Path|None)->None:
         if joined[-LEN:]!=ours:raise ValueError('RWE prefix does not contain 40-byte GP multiplier')
     with tempfile.TemporaryDirectory(prefix='cdsp_gp_multiplier_') as d:
         output=Path(d)/'semantics.o'
-        asm=Path(__file__).with_name('late-rwe-state-multiplier.s')
+        asm=SOURCE_DIR / 'late-rwe-state-multiplier.s'
         subprocess.run([str(llvm),'-triple=hexagon','-mcpu=hexagonv60',
                         '-filetype=obj',str(asm),'-o',str(output)],
                        capture_output=True,text=True,check=True)

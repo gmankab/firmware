@@ -9,6 +9,7 @@ verification; LLVM6 output is NOT represented as an exact rebuild here.
 """
 import argparse,importlib.util,os,subprocess,tempfile
 from pathlib import Path
+SOURCE_DIR=Path(__file__).resolve().parents[2]/'sources/xiaomi-nabu/cdsp/late'
 START=0x56aa8;END=0x56adc;PHYSICAL=0x96cc8aa8
 
 def words(b:bytes)->list[int]:
@@ -40,7 +41,7 @@ def verify(llvm:Path,rz:Path,generated:Path,reference:Path,prefix:Path|None):
  with tempfile.TemporaryDirectory(prefix='cdsp-record-cursor-') as t:
   obj=Path(t)/'cursor.o'
   subprocess.run([str(llvm),'-triple=hexagon','-mcpu=hexagonv60','-filetype=obj',
-    str(Path(__file__).with_name('late-controller-record-advance-semantic.s')),'-o',str(obj)],
+    str(SOURCE_DIR / 'late-controller-record-advance-semantic.s'),'-o',str(obj)],
     check=True,capture_output=True,text=True)
   independently=text_section(obj.read_bytes())[0x118:0x118+52]
  if len(independently)!=52:raise ValueError('independent LLVM fixture does not contain 13 words')

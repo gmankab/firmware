@@ -9,6 +9,7 @@ are compared to LLVM6, and all original words/branches are checked via Rizin.
 """
 import argparse,importlib.util,subprocess,tempfile
 from pathlib import Path
+SOURCE_DIR=Path(__file__).resolve().parents[2]/'sources/xiaomi-nabu/cdsp/late'
 START=0x564b8
 LENGTH=136
 PHYS=0x96cc84b8
@@ -36,7 +37,7 @@ def verify(llvm:Path,rz:Path,gen:Path,reference:Path,prefix:Path|None)->None:
         if full[-LENGTH:]!=actual:raise ValueError('Joined prefix disagrees with emitted broker')
     with tempfile.TemporaryDirectory(prefix='cdsp_broker_') as tmp:
         obj=Path(tmp)/'callback-broker.o'
-        asm=Path(__file__).with_name('late-rwe-callback-orchestrator.s')
+        asm=SOURCE_DIR / 'late-rwe-callback-orchestrator.s'
         subprocess.run([str(llvm),'-triple=hexagon','-mcpu=hexagonv60',
                         '-filetype=obj',str(asm),'-o',str(obj)],
                        check=True,text=True,capture_output=True)

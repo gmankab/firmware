@@ -8,6 +8,7 @@ the original instructions' semantic operation forms but not its byte order.
 Rizin validates every OEM word, packet and physical branch/call destination.
 """
 from pathlib import Path
+SOURCE_DIR=Path(__file__).resolve().parents[2]/'sources/xiaomi-nabu/cdsp/late'
 import argparse,subprocess,tempfile,importlib.util
 
 FILE=0x56954;START=0x56930;END=0x56990;PHYSICAL=0x96cc8954
@@ -36,7 +37,7 @@ def validate(llvm:Path,rz:Path,generated:Path,reference:Path,prefix:Path|None):
         if len(p)!=END-0x56000 or p!=firmware[0x56000:END]:
             raise ValueError('2448-byte RWE prefix mismatch')
     orig=b[FILE-START:]
-    fixture=Path(__file__).with_name('late-controller-enumeration-semantic.s')
+    fixture=SOURCE_DIR / 'late-controller-enumeration-semantic.s'
     with tempfile.TemporaryDirectory(prefix='nabu-cdsp-loop-') as tmp:
         o=Path(tmp)/'fixture.o'
         subprocess.run([str(llvm),'-triple=hexagon','-mcpu=hexagonv60',

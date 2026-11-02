@@ -8,6 +8,7 @@ not by inventing independent byte-equivalence for those changed packets.
 """
 import argparse,importlib.util,subprocess,tempfile
 from pathlib import Path
+SOURCE_DIR=Path(__file__).resolve().parents[2]/'sources/xiaomi-nabu/cdsp/late'
 FILE=0x56990
 END=0x569c0
 PHYSICAL=0x96cc8990
@@ -41,7 +42,7 @@ def verify(llvm:Path,rz:Path,generated:Path,reference:Path,prefix:Path|None):
         full=prefix.read_bytes()
         if len(full)!=END-0x56000 or full!=source[0x56000:END]:
             raise ValueError('joined CDSP RWE prefix differs from original firmware')
-    fixture=Path(__file__).with_name('late-controller-selection-semantic.s')
+    fixture=SOURCE_DIR / 'late-controller-selection-semantic.s'
     with tempfile.TemporaryDirectory(prefix='nabu-cdsp-selection-') as root:
         obj=Path(root)/'fixture.o'
         subprocess.run([str(llvm),'-triple=hexagon','-mcpu=hexagonv60',

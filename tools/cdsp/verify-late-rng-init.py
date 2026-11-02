@@ -9,6 +9,7 @@ and compares the entire source-generated interval to the pinned MBN.
 """
 import argparse,importlib.util,subprocess,tempfile
 from pathlib import Path
+SOURCE_DIR=Path(__file__).resolve().parents[2]/'sources/xiaomi-nabu/cdsp/late'
 OFFSET=0x56364
 SIZE=0x5c
 PHYS=0x96cc8364
@@ -31,7 +32,7 @@ def check(llvm:Path,rz:Path,generated:Path,reference:Path,prefix:Path|None)->Non
     with tempfile.TemporaryDirectory(prefix='cdsp_hexagon_seed_init_') as tmp:
         obj=Path(tmp)/'seed_init.o'
         subprocess.run([str(llvm),'-triple=hexagon','-mcpu=hexagonv60','-filetype=obj',
-                        str(Path(__file__).with_name('late-rwe-seed-init.s')),
+                        str(SOURCE_DIR / 'late-rwe-seed-init.s'),
                         '-o',str(obj)],text=True,capture_output=True,check=True)
         independent=elf_text(obj.read_bytes())[0x364:]
     if len(independent)!=84:

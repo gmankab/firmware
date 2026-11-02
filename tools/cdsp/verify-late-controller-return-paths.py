@@ -4,6 +4,7 @@
 from __future__ import annotations
 import argparse,importlib.util,os,re,subprocess,tempfile
 from pathlib import Path
+SOURCE_DIR=Path(__file__).resolve().parents[2]/'sources/xiaomi-nabu/cdsp/late'
 START,END,PHYS=0x56848,0x56890,0x96cc8848
 
 def decode(rz:Path,b:bytes):
@@ -33,7 +34,7 @@ def verify(args):
         if required not in joined:raise RuntimeError('Rizin did not confirm '+required)
     with tempfile.TemporaryDirectory(prefix='cdsp-return-llvm6-') as td:
         obj=Path(td)/'returns.o'
-        fixture=Path(__file__).with_name('late-controller-return-paths.s')
+        fixture=SOURCE_DIR / 'late-controller-return-paths.s'
         subprocess.run([str(args.llvm_mc),'-triple=hexagon','-mcpu=hexagonv60','-filetype=obj',str(fixture),'-o',str(obj)],check=True,capture_output=True,text=True)
         parser=Path(__file__).with_name('verify-cdsp-hexagon-entry.py')
         spec=importlib.util.spec_from_file_location('cdsp_elf_decoder',parser)

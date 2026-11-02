@@ -11,6 +11,7 @@ verified with Rizin V66, not assumed to be identical to LLVM6 output.
 from __future__ import annotations
 import argparse, importlib.util, re, subprocess, tempfile
 from pathlib import Path
+SOURCE_DIR=Path(__file__).resolve().parents[2]/'sources/xiaomi-nabu/cdsp/late'
 
 FILE_OFFSET=0x563c0
 FILE_SIZE=0x88
@@ -50,7 +51,7 @@ def verify(llvm:Path,rz:Path,generated:Path,reference:Path,
         # *not* an independently authored program. Do not count as code.
     with tempfile.TemporaryDirectory(prefix='hexagon_rng_update_') as d:
         obj=Path(d)/'rng-update.o'
-        fixture=Path(__file__).with_name('late-rwe-seed-update.s')
+        fixture=SOURCE_DIR / 'late-rwe-seed-update.s'
         subprocess.run([str(llvm),'-triple=hexagon','-mcpu=hexagonv60',
                         '-filetype=obj',str(fixture),'-o',str(obj)],
                        capture_output=True,text=True,check=True)

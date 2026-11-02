@@ -8,6 +8,7 @@ are independently byte-identical. The reference is never embedded in source.
 """
 import argparse,hashlib,importlib.util,os,struct,subprocess,tempfile
 from pathlib import Path
+SOURCE_DIR=Path(__file__).resolve().parents[2]/'sources/xiaomi-nabu/cdsp/late'
 START=0x56bb4;END=0x56bd0;RWE=0x56000
 SHA='febeae7b8e47bad4eeabc159a3c24b74cda26dfa12b384c31de5de30817e06ea'
 def elf_text(raw):
@@ -38,7 +39,7 @@ def main():
     with tempfile.TemporaryDirectory(prefix='cdsp-bankscan-') as d:
         obj=Path(d)/'fixture.o'
         subprocess.run([str(a.llvm_mc),'-triple=hexagon','-mcpu=hexagonv60','-filetype=obj',
-                        str(Path(__file__).with_name('late-controller-bank-bitset-scan-semantic.s')),
+                        str(SOURCE_DIR / 'late-controller-bank-bitset-scan-semantic.s'),
                         '-o',str(obj)],check=True,capture_output=True,text=True)
         llvm=elf_text(obj.read_bytes())[START-RWE:END-RWE]
     independent=decode(a.rz_asm,llvm,0x96cc8bb4)

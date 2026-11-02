@@ -10,6 +10,7 @@ by the Rizin V66 backend; no OEM instruction bytes are imported as source.
 from __future__ import annotations
 import argparse,importlib.util,subprocess,tempfile
 from pathlib import Path
+SOURCE_DIR=Path(__file__).resolve().parents[2]/'sources/xiaomi-nabu/cdsp/late'
 FILE=0x56590;PHYS=0x96cc8590;SIZE=48;PREFIX_LEN=0x5c0
 
 def text(blob:bytes)->bytes:
@@ -35,7 +36,7 @@ def verify(llvm:Path,rz:Path,generated:Path,reference:Path,prefix:Path|None)->No
     with tempfile.TemporaryDirectory(prefix='cdsp_bounded_compare_') as td:
         obj=Path(td)/'bounded.o'
         subprocess.run([str(llvm),'-triple=hexagon','-mcpu=hexagonv60',
-            '-filetype=obj',str(Path(__file__).with_name('late-rwe-bounded-compare.s')),
+            '-filetype=obj',str(SOURCE_DIR / 'late-rwe-bounded-compare.s'),
             '-o',str(obj)],check=True,capture_output=True,text=True)
         independent=text(obj.read_bytes())[0x590:0x5c0]
     original_words=words(ours);llvm_words=words(independent)

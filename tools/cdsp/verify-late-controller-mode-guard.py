@@ -3,6 +3,7 @@
 """Independent LLVM6/Rizin V66 audit of source-built controller guard bytes."""
 import argparse,importlib.util,os,re,subprocess,tempfile
 from pathlib import Path
+SOURCE_DIR=Path(__file__).resolve().parents[2]/'sources/xiaomi-nabu/cdsp/late'
 START,END,PHYS=0x56784,0x567b4,0x96cc8784
 
 def decode(rz:Path,code:bytes):
@@ -35,7 +36,7 @@ def verify(llvm:Path,rz:Path,generated:Path,prefix:Path,reference:Path):
         if text not in summary:raise RuntimeError('original reference lacks '+text)
     with tempfile.TemporaryDirectory(prefix='cdsp-guard-llvm6-') as td:
         obj=Path(td)/'llvm.o'
-        fixture=Path(__file__).with_name('late-controller-mode-guard.s')
+        fixture=SOURCE_DIR / 'late-controller-mode-guard.s'
         subprocess.run([str(llvm),'-triple=hexagon','-mcpu=hexagonv60','-filetype=obj',str(fixture),'-o',str(obj)],check=True,capture_output=True,text=True)
         parser=Path(__file__).with_name('verify-cdsp-hexagon-entry.py')
         spec=importlib.util.spec_from_file_location('verified_cdsp_elf',parser)

@@ -8,6 +8,7 @@ is an instruction semantic cross-check, not claimed exact LLVM reassembly.
 """
 import argparse,hashlib,importlib.util,os,subprocess,struct,tempfile
 from pathlib import Path
+SOURCE_DIR=Path(__file__).resolve().parents[2]/'sources/xiaomi-nabu/cdsp/late'
 START=0x56b98;END=0x56bb4;RWE=0x56000
 SHA='febeae7b8e47bad4eeabc159a3c24b74cda26dfa12b384c31de5de30817e06ea'
 def elf_text(b):
@@ -46,7 +47,7 @@ def main():
     with tempfile.TemporaryDirectory(prefix='cdsp-bank-bitset-') as td:
         obj=Path(td)/'independent.o'
         subprocess.run([str(a.llvm_mc),'-triple=hexagon','-mcpu=hexagonv60','-filetype=obj',
-           str(Path(__file__).with_name('late-controller-bank-bitset-entry-semantic.s')),
+           str(SOURCE_DIR / 'late-controller-bank-bitset-entry-semantic.s'),
            '-o',str(obj)],check=True,capture_output=True,text=True)
         llvm=elf_text(obj.read_bytes())[START-RWE:START-RWE+32]
     ilines=decode(a.rz_asm,llvm,0x96cc8b98)

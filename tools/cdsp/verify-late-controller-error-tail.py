@@ -7,6 +7,7 @@ words, then we require exact equality to the Rust emitter and pinned firmware.
 """
 import argparse, hashlib, importlib.util, re, subprocess, tempfile
 from pathlib import Path
+SOURCE_DIR=Path(__file__).resolve().parents[2]/'sources/xiaomi-nabu/cdsp/late'
 
 START,END,LAYOUT_END=0x56890,0x568e4,0x568f0
 VMA_BASE=0x96cc_8000
@@ -26,7 +27,7 @@ def verify(args):
         raise ValueError('Original trailing 12 bytes are not three source-encoded Hexagon NOPs')
     with tempfile.TemporaryDirectory(prefix='cdsp-error-tail-') as td:
         obj=Path(td)/'independent.o'
-        asm=Path(__file__).with_name('late-controller-error-tail.s')
+        asm=SOURCE_DIR / 'late-controller-error-tail.s'
         subprocess.run([str(args.llvm_mc),'-triple=hexagon','-mcpu=hexagonv60',
                        '-filetype=obj',str(asm),'-o',str(obj)],
                         check=True,capture_output=True,text=True)

@@ -10,6 +10,7 @@ from __future__ import annotations
 import argparse,importlib.util,re,subprocess,tempfile
 from collections import Counter
 from pathlib import Path
+SOURCE_DIR=Path(__file__).resolve().parents[2]/'sources/xiaomi-nabu/cdsp/late'
 
 START=0x56698
 END=0x566c0
@@ -51,7 +52,7 @@ def verify(llvm:Path,decoder:Path,generated:Path,reference:Path,prefix:Path|None
             raise RuntimeError('prefix does not contain independent transfer fragment')
     with tempfile.TemporaryDirectory(prefix='cdsp-transfer-crosscheck-') as tmp:
         obj=Path(tmp)/'controller-transfer.o'
-        assembly=Path(__file__).with_name('late-rwe-controller-transfer.s')
+        assembly=SOURCE_DIR / 'late-rwe-controller-transfer.s'
         subprocess.run([str(llvm),'-triple=hexagon','-mcpu=hexagonv60','-filetype=obj',str(assembly),'-o',str(obj)],check=True,capture_output=True,text=True)
         independent=elf_text(obj.read_bytes())[0x698:0x6c0]
     if len(independent)!=COUNT:raise RuntimeError('independent LLVM6 source has unexpected length')

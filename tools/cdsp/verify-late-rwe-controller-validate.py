@@ -12,6 +12,7 @@ import argparse
 from collections import Counter
 import importlib.util
 from pathlib import Path
+SOURCE_DIR=Path(__file__).resolve().parents[2]/'sources/xiaomi-nabu/cdsp/late'
 import re
 import subprocess
 import tempfile
@@ -63,7 +64,7 @@ def verify(llvm:Path,rizin:Path,generated:Path,reference:Path,prefix:Path|None)-
             raise ValueError('full RWE source/layout prefix does not match original firmware')
     with tempfile.TemporaryDirectory(prefix='cdsp-controller-range-') as tmp:
         obj=Path(tmp)/'cdsp-rwe-controller-validate.o'
-        assembly=Path(__file__).with_name('late-rwe-controller-validate.s')
+        assembly=SOURCE_DIR / 'late-rwe-controller-validate.s'
         subprocess.run([str(llvm),'-triple=hexagon','-mcpu=hexagonv60',
                         '-filetype=obj',str(assembly),'-o',str(obj)],check=True,capture_output=True,text=True)
         independent=parse_hexagon_elf_text(obj.read_bytes())[0x650:0x698]

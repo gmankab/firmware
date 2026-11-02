@@ -4,6 +4,7 @@
 from __future__ import annotations
 import argparse,importlib.util,os,re,subprocess,tempfile
 from pathlib import Path
+SOURCE_DIR=Path(__file__).resolve().parents[2]/'sources/xiaomi-nabu/cdsp/late'
 START,END,PHYS=0x567b4,0x5680c,0x96cc87b4
 PREFIX_START=0x56000
 WORD_COUNT=(END-START)//4
@@ -46,7 +47,7 @@ def verify(llvm:Path,rz:Path,generated:Path,prefix:Path,reference:Path):
         raise RuntimeError('unexpected Hexagon V66 packet markers')
     with tempfile.TemporaryDirectory(prefix='cdsp-secondary-llvm6-') as tmp:
         obj=Path(tmp)/'independent.o'
-        fixture=Path(__file__).with_name('late-controller-secondary-bitloop.s')
+        fixture=SOURCE_DIR / 'late-controller-secondary-bitloop.s'
         subprocess.run([str(llvm),'-triple=hexagon','-mcpu=hexagonv60','-filetype=obj',str(fixture),'-o',str(obj)],check=True,capture_output=True,text=True)
         parser=Path(__file__).with_name('verify-cdsp-hexagon-entry.py')
         spec=importlib.util.spec_from_file_location('hexagon_elf_parser',parser)

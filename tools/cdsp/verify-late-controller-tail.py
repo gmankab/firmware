@@ -4,6 +4,7 @@
 from __future__ import annotations
 import argparse,importlib.util,subprocess,tempfile
 from pathlib import Path
+SOURCE_DIR=Path(__file__).resolve().parents[2]/'sources/xiaomi-nabu/cdsp/late'
 
 START=0x55408
 PHYSICAL=0x96cc7408
@@ -15,7 +16,7 @@ def verify(llvm:Path,rz:Path,generated:Path,reference:Path|None)->None:
     if len(contents)==0x4b0:sub=contents[0x408:]
     elif len(contents)==NBYTES:sub=contents
     else:raise ValueError('Expected 168-byte controller tail or entire 1200-byte executable segment')
-    asm=Path(__file__).with_name('late-controller-tail.s')
+    asm=SOURCE_DIR / 'late-controller-tail.s'
     with tempfile.TemporaryDirectory(prefix='cdsp-tail-') as td:
         obj=Path(td)/'tail.o'
         subprocess.run([str(llvm),'-triple=hexagon','-mcpu=hexagonv60',

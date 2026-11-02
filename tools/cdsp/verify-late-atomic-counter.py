@@ -10,6 +10,7 @@ branch displacement and packet-marker bits. Exact raw LLVM byte equality is
 from __future__ import annotations
 import argparse, importlib.util, subprocess, tempfile
 from pathlib import Path
+SOURCE_DIR=Path(__file__).resolve().parents[2]/'sources/xiaomi-nabu/cdsp/late'
 START=0x56464
 SIZE=84
 PHYS=0x96cc8464
@@ -36,7 +37,7 @@ def verify(llvm:Path,rz:Path,generated:Path,reference:Path,prefix:Path|None)->No
         if joined[-SIZE:]!=source:raise ValueError('RWE prefix emitted a different atomic counter')
     with tempfile.TemporaryDirectory(prefix='cdsp_atomic_checker_') as tmp:
         obj=Path(tmp)/'cdsp-atomic.o'
-        asm=Path(__file__).with_name('late-rwe-atomic-semantics.s')
+        asm=SOURCE_DIR / 'late-rwe-atomic-semantics.s'
         subprocess.run([str(llvm),'-triple=hexagon','-mcpu=hexagonv60',
                         '-filetype=obj',str(asm),'-o',str(obj)],
                         check=True,capture_output=True,text=True)

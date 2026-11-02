@@ -10,6 +10,7 @@ with a byte-identical reference build.
 """
 import argparse,importlib.util,subprocess,tempfile
 from pathlib import Path
+SOURCE_DIR=Path(__file__).resolve().parents[2]/'sources/xiaomi-nabu/cdsp/late'
 START=0x56320
 LENGTH=68
 PHYS=0x96cc8320
@@ -33,7 +34,7 @@ def validate(llvm:Path,rz:Path,reference:Path,generated:Path,prefix:Path|None)->
     with tempfile.TemporaryDirectory(prefix='cdsp_rng_') as tmp:
         obj=Path(tmp)/'rng.o'
         subprocess.run([str(llvm),'-triple=hexagon','-mcpu=hexagonv60','-filetype=obj',
-                        str(Path(__file__).with_name('late-rwe-random-prefix.s')),
+                        str(SOURCE_DIR / 'late-rwe-random-prefix.s'),
                         '-o',str(obj)],check=True,capture_output=True,text=True)
         assembler=parse_section(obj.read_bytes())[0x320:]
     if len(assembler)!=64:

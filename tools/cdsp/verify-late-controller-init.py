@@ -8,6 +8,7 @@ physical calls and new-value consumer. This verifier never inserts OEM code
 into source generation.
 """
 from pathlib import Path
+SOURCE_DIR=Path(__file__).resolve().parents[2]/'sources/xiaomi-nabu/cdsp/late'
 import argparse,importlib.util,os,subprocess,tempfile
 FILE=0x56930
 LENGTH=36
@@ -32,7 +33,7 @@ def verify(llvm:Path,rz:Path,generated:Path,reference:Path,prefix:Path|None):
         p=prefix.read_bytes()
         if len(p)!=FILE+LENGTH-0x56000 or p!=firmware[0x56000:FILE+LENGTH]:
             raise ValueError('controller-init full RWE prefix comparison failed')
-    fixture=Path(__file__).with_name('late-controller-init-semantic.s')
+    fixture=SOURCE_DIR / 'late-controller-init-semantic.s'
     with tempfile.TemporaryDirectory(prefix='nabu-cdsp-init-') as temp:
         obj=Path(temp)/'controller.o'
         subprocess.run([str(llvm),'-triple=hexagon','-mcpu=hexagonv60',

@@ -9,6 +9,7 @@ identity; exact bytes are checked against pinned CDSP in the Rust emitter.
 """
 import argparse,hashlib,importlib.util,os,subprocess,struct,tempfile
 from pathlib import Path
+SOURCE_DIR=Path(__file__).resolve().parents[2]/'sources/xiaomi-nabu/cdsp/late'
 OFF=0x56b78;END=0x56b98;RWE=0x56000
 SHA='febeae7b8e47bad4eeabc159a3c24b74cda26dfa12b384c31de5de30817e06ea'
 def section(b):
@@ -49,7 +50,7 @@ def main():
     with tempfile.TemporaryDirectory(prefix='cdsp-late-bank-pred-') as td:
         obj=Path(td)/'llvm.o'
         subprocess.run([str(args.llvm_mc),'-triple=hexagon','-mcpu=hexagonv60','-filetype=obj',
-           str(Path(__file__).with_name('late-controller-bank-predicates-semantic.s')),
+           str(SOURCE_DIR / 'late-controller-bank-predicates-semantic.s'),
            '-o',str(obj)],check=True,text=True,capture_output=True)
         llvm=section(obj.read_bytes())[OFF-RWE:OFF-RWE+36]
     independent=decode(args.rz_asm,llvm,0x96cc8b78)
