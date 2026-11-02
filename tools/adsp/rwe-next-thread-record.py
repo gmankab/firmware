@@ -10,11 +10,13 @@ are built by narrowly checked Hexagon ISA encoders, never copied from OEM.
 from __future__ import annotations
 import argparse,hashlib,importlib.util,struct,sys
 from pathlib import Path
+import sys
 TOOLS=Path(__file__).resolve().parent
 if str(TOOLS) not in sys.path:sys.path.insert(0,str(TOOLS))
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from adsp_hexagon_v66 import (SystemRegister,read_system_register,
     read_system_register_pair,KernelZeroLock)
-SOURCE=TOOLS/'adsp-agent20-rwe-next-thread-record.S'
+SOURCE=TOOLS/'rwe-next-thread-record.S'
 FILE_START=0x10dc4
 FILE_END=0x10eb4
 SIZE=FILE_END-FILE_START
@@ -23,7 +25,7 @@ FILL_START=FILE_END
 FILL_END=0x10ec0
 
 def base():
-    s=importlib.util.spec_from_file_location('adsp_validated_llvm',TOOLS/'emit-adsp-entry.py')
+    s=importlib.util.spec_from_file_location('adsp_validated_llvm',TOOLS.parent/'emit-adsp-entry.py')
     if not s or not s.loader:raise RuntimeError('Missing ADSP assembler')
     m=importlib.util.module_from_spec(s);s.loader.exec_module(m)
     return m

@@ -9,13 +9,15 @@ eight zero bytes are structural alignment fill, not executable source code.
 from __future__ import annotations
 import argparse,hashlib,importlib.util,struct,sys
 from pathlib import Path
+import sys
 T=Path(__file__).resolve().parent
 if str(T) not in sys.path:sys.path.insert(0,str(T))
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from adsp_hexagon_v66 import read_system_register,SystemRegister
 START=0x11898;END=0x118b8;SIZE=END-START;PHYSICAL=0x8be0e898
 FOLLOWING_FILL=(0x118b8,0x118c0)
 REF_SHA='4b579e5dc1333d634e5bdc93f3314e357e0e30dab7140833f6cc7aef086b1c1e'
-SOURCE=T/'adsp-agent20-rwe-next-sram-state-publish-leaf.S'
+SOURCE=T/'rwe-next-sram-state-publish-leaf.S'
 SGP0_AT=0x118ac
 NOP=struct.pack('<I',0x7f00c000)
 

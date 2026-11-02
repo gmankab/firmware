@@ -11,7 +11,7 @@ import argparse,hashlib,importlib.util
 from pathlib import Path
 
 TOOLS=Path(__file__).resolve().parent
-SOURCE=TOOLS/'adsp-agent20-rwe-next-sram-state-cases.S'
+SOURCE=TOOLS/'rwe-next-sram-state-cases.S'
 START=0x11754
 END=0x11798
 SIZE=END-START
@@ -19,7 +19,7 @@ PHYSICAL=0x8be0e754
 EXPECTED_SHA='4b579e5dc1333d634e5bdc93f3314e357e0e30dab7140833f6cc7aef086b1c1e'
 
 def render(llvm_mc:str)->bytes:
-    spec=importlib.util.spec_from_file_location('adsp',TOOLS/'emit-adsp-entry.py')
+    spec=importlib.util.spec_from_file_location('adsp',TOOLS.parent/'emit-adsp-entry.py')
     if not spec or not spec.loader:raise RuntimeError('Missing ADSP source assembler')
     tool=importlib.util.module_from_spec(spec);spec.loader.exec_module(tool)
     return tool.assemble(llvm_mc,SOURCE,SIZE)

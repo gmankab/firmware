@@ -8,10 +8,12 @@ belong to linker layout and are never counted as independently authored code.
 from __future__ import annotations
 import argparse,hashlib,importlib.util,struct,sys
 from pathlib import Path
+import sys
 TOOLS=Path(__file__).resolve().parent
 if str(TOOLS) not in sys.path:sys.path.insert(0,str(TOOLS))
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from adsp_hexagon_v66 import SystemRegister,read_system_register,KernelZeroLock
-SOURCE=TOOLS/'adsp-agent20-rwe-next-locked-controller.S'
+SOURCE=TOOLS/'rwe-next-locked-controller.S'
 FILE_START=0x10fe8
 FILE_END=0x11088
 SIZE=FILE_END-FILE_START
@@ -30,7 +32,7 @@ REPLACEMENTS={
 }
 
 def base():
-    p=TOOLS/'emit-adsp-entry.py';spec=importlib.util.spec_from_file_location('adsp_encoder',p)
+    p=TOOLS.parent/'emit-adsp-entry.py';spec=importlib.util.spec_from_file_location('adsp_encoder',p)
     if not spec or not spec.loader:raise RuntimeError('Missing source assembler')
     m=importlib.util.module_from_spec(spec);spec.loader.exec_module(m);return m
 

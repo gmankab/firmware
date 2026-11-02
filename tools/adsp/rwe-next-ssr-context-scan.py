@@ -11,12 +11,14 @@ markers and packet boundaries are checked, not taken from proprietary code.
 from __future__ import annotations
 import argparse,hashlib,importlib.util,struct,subprocess,sys,tempfile
 from pathlib import Path
+import sys
 TOOLS=Path(__file__).resolve().parent
 if str(TOOLS) not in sys.path:sys.path.insert(0,str(TOOLS))
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from adsp_hexagon_v66 import SystemRegister,read_system_register
-SOURCE=TOOLS/'adsp-agent20-rwe-next-ssr-context-scan.S'
-NO_PAIR=TOOLS/'adsp-agent20-rwe-next-ssr-advance-nopair.S'
-LOOP_DUPLEX=TOOLS/'adsp-agent20-rwe-next-ssr-duplex.S'
+SOURCE=TOOLS/'rwe-next-ssr-context-scan.S'
+NO_PAIR=TOOLS/'rwe-next-ssr-advance-nopair.S'
+LOOP_DUPLEX=TOOLS/'rwe-next-ssr-duplex.S'
 FILE_START=0x11090
 FILE_END=0x11108
 SIZE=FILE_END-FILE_START
@@ -26,7 +28,7 @@ FILL_END=FILE_START
 REFERENCE_SHA256='4b579e5dc1333d634e5bdc93f3314e357e0e30dab7140833f6cc7aef086b1c1e'
 
 def base():
-    spec=importlib.util.spec_from_file_location('adsp_asm',TOOLS/'emit-adsp-entry.py')
+    spec=importlib.util.spec_from_file_location('adsp_asm',TOOLS.parent/'emit-adsp-entry.py')
     if not spec or not spec.loader:raise RuntimeError('Missing ADSP source assembler')
     m=importlib.util.module_from_spec(spec);spec.loader.exec_module(m)
     return m
