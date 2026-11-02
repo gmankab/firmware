@@ -4,7 +4,7 @@
 //! instruction. The overall calling function continues past this interval.
 //! This is instruction-level reconstruction, not a hardware-tested equivalent.
 use arm32::{Condition as C,DataOp as Op,Register as R,Shift,BlockMode};
-use super::venus_agent20_04_controller_packets::{load_halfword_register};
+use super::venus_controller_packets::{load_halfword_register};
 
 pub const START:usize=0x46000;
 pub const END:usize=0x46800;

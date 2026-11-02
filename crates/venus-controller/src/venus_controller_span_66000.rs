@@ -838,7 +838,7 @@ fn emit_smull(cond:C,lo:R,hi:R,rm:R,rs:R)->Result<u32,String>{
     // 0x66620: add lr, r1, #1024
     c.emit(arm32::data_immediate(C::Al,Op::Add,R::LR,R::R1,1024)?)?;
     // 0x66624: ldrsb r2, [r4, r2]
-    c.emit(super::venus_agent20_04_format_registers::signed_byte_register(C::Al,R::R2,R::new(4)?,R::R2)?)?;
+    c.emit(super::venus_controller_format_registers::signed_byte_register(C::Al,R::R2,R::new(4)?,R::R2)?)?;
     // 0x66628: ldr r3, [lr, r2, lsl #2]
     c.emit(arm32::transfer_word_register(C::Al,true,R::new(3)?,R::LR,R::R2,Shift::Lsl,2)?)?;
     // 0x6662c: add r7, r7, r2, lsl #24

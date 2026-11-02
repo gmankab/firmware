@@ -140,7 +140,7 @@ fn initialize_controller_format(c:&mut Code)->Result<(),String>{
     // 0x440c8: ldr	r7, [r10, #0xab8]
     c.emit(arm32::transfer_word(C::Al,true,R::new(7)?,R::new(10)?,2744)?)?;
     // 0x440cc: ldrsb	r9, [r7, r12]
-    c.emit(super::venus_agent20_04_format_registers::signed_byte_register(C::Al,R::new(9)?,R::new(7)?,R::R12)?)?;
+    c.emit(super::venus_controller_format_registers::signed_byte_register(C::Al,R::new(9)?,R::new(7)?,R::R12)?)?;
     // 0x440d0: cmp	r9, #1
     c.emit(arm32::data_immediate(C::Al,Op::Cmp,R::R0,R::new(9)?,1)?)?;
     // 0x440d4: movge	r6, #1073741824
@@ -435,7 +435,7 @@ fn derive_stream_metrics(c:&mut Code)->Result<(),String>{
     // 0x44308: ldrb	r3, [r1, #0x4f0]
     c.emit(arm32::transfer_byte(C::Al,true,R::new(3)?,R::R1,1264)?)?;
     // 0x4430c: ldrsb	r1, [r1, r12]
-    c.emit(super::venus_agent20_04_format_registers::signed_byte_register(C::Al,R::R1,R::R1,R::R12)?)?;
+    c.emit(super::venus_controller_format_registers::signed_byte_register(C::Al,R::R1,R::R1,R::R12)?)?;
     // 0x44310: mov	r12, #16646144
     c.emit(arm32::data_immediate(C::Al,Op::Mov,R::R12,R::R0,16646144)?)?;
     // 0x44314: orr	r12, r12, #-16777216
@@ -1829,7 +1829,7 @@ fn stage_output_layout(c:&mut Code)->Result<(),String>{
     // 0x44dd0: orr	r1, r1, #1024
     c.emit(arm32::data_immediate(C::Al,Op::Orr,R::R1,R::R1,1024)?)?;
     // 0x44dd4: ldrh	r1, [r0, r1]
-    c.emit(super::venus_agent20_04_controller_packets::load_halfword_register(C::Al,R::R1,R::R0,R::R1)?)?;
+    c.emit(super::venus_controller_packets::load_halfword_register(C::Al,R::R1,R::R0,R::R1)?)?;
     // 0x44dd8: ldr	r0, [r0, #0x4f4]
     c.emit(arm32::transfer_word(C::Al,true,R::R0,R::R0,1268)?)?;
     // 0x44ddc: orr	r0, r1, r0, lsl #16

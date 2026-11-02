@@ -4,7 +4,7 @@
 //! metadata. Two original words are branch-skipped literal DATA, not bogus
 //! SVC/halfword instructions inferred by a linear disassembler.
 use arm32::{Condition as C,DataOp as Op,Register as R,Shift};
-use super::venus_agent20_04_controller_packets::{load_halfword_register};
+use super::venus_controller_packets::{load_halfword_register};
 
 pub const START:usize=0x46800;
 pub const END:usize=0x47000;
@@ -32,7 +32,7 @@ impl Code{
 
 /// Serialize per-codec block widths, packed stream masks and optional
 /// component-table words. Earlier controller state is established in
-/// `venus_agent20_04_feature_extension.rs`, not regenerated here.
+/// `venus_controller_feature_extension.rs`, not regenerated here.
 fn encode_controller_packet_formats(c:&mut Code)->Result<(),String>{
     c.check(START)?;
     // 0x46800: tst r0, #31

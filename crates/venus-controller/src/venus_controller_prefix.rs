@@ -1420,7 +1420,7 @@ pub fn fragment()->Result<Vec<u8>,String>{
   let bytes=fragment().unwrap();
   assert_eq!(bytes.len(),END-START);
   assert_eq!(START,0x40000);
-  assert_eq!(END,super::super::venus_agent20_04_middle::FIRST_START);
+  assert_eq!(END,super::super::venus_controller_middle::FIRST_START);
   assert_eq!(INSTRUCTION_COUNT*4+DATA_WORD_COUNT*4,bytes.len());
  }
  #[test]fn branch_skipped_data_is_explicit(){

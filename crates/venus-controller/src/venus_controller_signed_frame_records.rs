@@ -176,9 +176,9 @@ fn serialize_signed_frame_records(c:&mut Code)->Result<(),String>{
     // 0x4d0ec: ldr r1, [r5, #0xab8]
     c.emit(arm32::transfer_word(C::Al,true,R::R1,R::new(5)?,2744)?)?;
     // 0x4d0f0: ldrh r2, [r1, r2]
-    c.emit(super::venus_agent20_04_controller_packets::load_halfword_register(C::Al,R::R2,R::R1,R::R2)?)?;
+    c.emit(super::venus_controller_packets::load_halfword_register(C::Al,R::R2,R::R1,R::R2)?)?;
     // 0x4d0f4: ldrh r1, [r1, r3]
-    c.emit(super::venus_agent20_04_controller_packets::load_halfword_register(C::Al,R::R1,R::R1,R::new(3)?)?)?;
+    c.emit(super::venus_controller_packets::load_halfword_register(C::Al,R::R1,R::R1,R::new(3)?)?)?;
     // 0x4d0f8: mov r3, #138
     c.emit(arm32::data_immediate(C::Al,Op::Mov,R::new(3)?,R::R0,138)?)?;
     // 0x4d0fc: orr r3, r3, #256
@@ -218,9 +218,9 @@ fn serialize_signed_frame_records(c:&mut Code)->Result<(),String>{
     // 0x4d140: ldr r1, [r5, #0xab8]
     c.emit(arm32::transfer_word(C::Al,true,R::R1,R::new(5)?,2744)?)?;
     // 0x4d144: ldrh r2, [r1, r2]
-    c.emit(super::venus_agent20_04_controller_packets::load_halfword_register(C::Al,R::R2,R::R1,R::R2)?)?;
+    c.emit(super::venus_controller_packets::load_halfword_register(C::Al,R::R2,R::R1,R::R2)?)?;
     // 0x4d148: ldrh r1, [r1, r3]
-    c.emit(super::venus_agent20_04_controller_packets::load_halfword_register(C::Al,R::R1,R::R1,R::new(3)?)?)?;
+    c.emit(super::venus_controller_packets::load_halfword_register(C::Al,R::R1,R::R1,R::new(3)?)?)?;
     // 0x4d14c: mov r3, #0
     c.emit(arm32::data_immediate(C::Al,Op::Mov,R::new(3)?,R::R0,0)?)?;
     // 0x4d150: and r2, r2, r6
@@ -564,7 +564,7 @@ fn serialize_signed_frame_records(c:&mut Code)->Result<(),String>{
     // 0x4d3f4: ldr r0, [r8, #0xab8]
     c.emit(arm32::transfer_word(C::Al,true,R::R0,R::new(8)?,2744)?)?;
     // 0x4d3f8: ldrsh r0, [r0, r4]
-    c.emit(super::venus_agent20_04_controller_packets::load_signed_halfword_register(C::Al,R::R0,R::R0,R::new(4)?)?)?;
+    c.emit(super::venus_controller_packets::load_signed_halfword_register(C::Al,R::R0,R::R0,R::new(4)?)?)?;
     // 0x4d3fc: cmp r0, #8
     c.emit(arm32::data_immediate(C::Al,Op::Cmp,R::R0,R::R0,8)?)?;
     // 0x4d400: blt 0x4d420 <entry+0x1420>  @ imm = #0x18
@@ -582,7 +582,7 @@ fn serialize_signed_frame_records(c:&mut Code)->Result<(),String>{
     // 0x4d418: ldr r0, [r8, #0xab8]
     c.emit(arm32::transfer_word(C::Al,true,R::R0,R::new(8)?,2744)?)?;
     // 0x4d41c: ldrh r0, [r0, r4]
-    c.emit(super::venus_agent20_04_controller_packets::load_halfword_register(C::Al,R::R0,R::R0,R::new(4)?)?)?;
+    c.emit(super::venus_controller_packets::load_halfword_register(C::Al,R::R0,R::R0,R::new(4)?)?)?;
     // 0x4d420: ldr r1, [pc, #0x938]        @ 0x1d60 <entry+0x1d60>
     c.literal(C::Al,R::R1,0x4dd60)?;
     // 0x4d424: lsl r0, r0, #16
@@ -852,7 +852,7 @@ fn serialize_signed_frame_records(c:&mut Code)->Result<(),String>{
     // 0x4d634: ldr r0, [r8, #0xab8]
     c.emit(arm32::transfer_word(C::Al,true,R::R0,R::new(8)?,2744)?)?;
     // 0x4d638: ldrsh r0, [r0, r4]
-    c.emit(super::venus_agent20_04_controller_packets::load_signed_halfword_register(C::Al,R::R0,R::R0,R::new(4)?)?)?;
+    c.emit(super::venus_controller_packets::load_signed_halfword_register(C::Al,R::R0,R::R0,R::new(4)?)?)?;
     // 0x4d63c: cmp r0, #8
     c.emit(arm32::data_immediate(C::Al,Op::Cmp,R::R0,R::R0,8)?)?;
     // 0x4d640: blt 0x4d660 <entry+0x1660>  @ imm = #0x18
@@ -870,7 +870,7 @@ fn serialize_signed_frame_records(c:&mut Code)->Result<(),String>{
     // 0x4d658: ldr r0, [r8, #0xab8]
     c.emit(arm32::transfer_word(C::Al,true,R::R0,R::new(8)?,2744)?)?;
     // 0x4d65c: ldrh r0, [r0, r4]
-    c.emit(super::venus_agent20_04_controller_packets::load_halfword_register(C::Al,R::R0,R::R0,R::new(4)?)?)?;
+    c.emit(super::venus_controller_packets::load_halfword_register(C::Al,R::R0,R::R0,R::new(4)?)?)?;
     // 0x4d660: ldr r1, [pc, #0x6f8]        @ 0x1d60 <entry+0x1d60>
     c.literal(C::Al,R::R1,0x4dd60)?;
     // 0x4d664: lsl r0, r0, #16

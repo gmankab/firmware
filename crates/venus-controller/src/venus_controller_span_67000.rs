@@ -1482,7 +1482,7 @@ fn emit_adc_immediate(cond:C,rd:R,rn:R,value:u32,flags:bool)->Result<u32,String>
     // 0x67b08: str r0, [r8, #0xc]
     c.emit(arm32::transfer_word(C::Al,false,R::R0,R::new(8)?,12)?)?;
     // 0x67b0c: ldrsb r1, [r9, r1]
-    c.emit(super::venus_agent20_04_format_registers::signed_byte_register(C::Al,R::R1,R::new(9)?,R::R1)?)?;
+    c.emit(super::venus_controller_format_registers::signed_byte_register(C::Al,R::R1,R::new(9)?,R::R1)?)?;
     // 0x67b10: and r5, r1, #255
     c.emit(arm32::data_immediate(C::Al,Op::And,R::new(5)?,R::R1,255)?)?;
     // 0x67b14: b 0x67b44 <entry+0x12344> @ imm = #0x28
