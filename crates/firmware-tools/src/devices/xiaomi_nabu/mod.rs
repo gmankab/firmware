@@ -21,8 +21,10 @@ pub mod a640_finalize;
 #[path = "a640/a640_container.rs"]
 pub mod a640_container;
 
+#[path = "venus/common/venus_boot.rs"]
 pub mod venus_boot;
 
+#[path = "venus/common/venus_runtime.rs"]
 pub mod venus_runtime;
 pub mod venus_runtime_forward;
 mod venus_runtime_tail;
@@ -101,6 +103,7 @@ mod venus_runtime_bridge_queue_release;
 mod venus_runtime_bridge_controller_queues;
 mod venus_runtime_bridge_service_link;
 pub mod venus_runtime_bridge;
+#[path = "venus/common/venus_plan.rs"]
 pub mod venus_plan;
 
 mod venus_runtime_mmio;
