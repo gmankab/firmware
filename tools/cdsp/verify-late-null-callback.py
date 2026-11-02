@@ -40,7 +40,7 @@ def verify(llvm:Path,rz:Path,generated:Path,reference:Path,prefix:Path|None)->No
             raise ValueError('Full prefix generated inconsistent callback executable')
     with tempfile.TemporaryDirectory(prefix='cdsp_null_callback_') as tmp:
         obj=Path(tmp)/'null.o'
-        asm=Path(__file__).with_name('agent20-10-cdsp-rwe-null-callback.s')
+        asm=Path(__file__).with_name('late-rwe-null-callback.s')
         subprocess.run([str(llvm),'-triple=hexagon','-mcpu=hexagonv60','-filetype=obj',str(asm),'-o',str(obj)],check=True,capture_output=True,text=True)
         independent=elf_text(obj.read_bytes())[0x568:]
     if len(independent)!=40:raise ValueError('LLVM6 semantic program must be 40 bytes')

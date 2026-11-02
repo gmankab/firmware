@@ -35,7 +35,7 @@ def decode(llvm:Path,rz:Path,generated:Path,reference:Path,prefix:Path|None)->No
     with tempfile.TemporaryDirectory(prefix='nabu-agent20-10-poll-') as tmp:
         obj=Path(tmp)/'cdsp-callback-poll.o'
         cp=subprocess.run([str(llvm),'-triple=hexagon','-mcpu=hexagonv60',
-                           '-filetype=obj',str(Path(__file__).with_name('agent20-10-cdsp-rwe-poll.s')),
+                           '-filetype=obj',str(Path(__file__).with_name('late-rwe-poll.s')),
                            '-o',str(obj)],capture_output=True,text=True,check=True)
         independent=parse_text(obj.read_bytes())[0x230:]
     if len(independent)!=144:

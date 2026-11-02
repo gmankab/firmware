@@ -24,13 +24,13 @@ def assemble(llvm:Path,source:Path)->bytes:
 def verify(llvm:Path,rz:Path,generated:Path,reference:Path|None)->None:
     data=generated.read_bytes()
     if len(data)!=SIZE:raise ValueError('Expected exactly 64 independent CDSP RWE bytes')
-    pic=assemble(llvm,Path(__file__).with_name('agent20-10-cdsp-rwe-pic.s'))[0xd4:]
+    pic=assemble(llvm,Path(__file__).with_name('late-rwe-pic.s'))[0xd4:]
     if len(pic)!=0x2c or pic!=data[:0x2c]:
         raise ValueError('LLVM6 PIC register stack/save instructions differ from typed Rust')
     # LLVM6 defaults to a shorter GP-relative store. Compare its semantics,
     # not the length, then verify the original V66 forced 32-bit extension via
     # a separate Rizin decoder and direct pinned-reference byte comparison.
-    gp=assemble(llvm,Path(__file__).with_name('agent20-10-cdsp-rwe-gp-semantic.s'))
+    gp=assemble(llvm,Path(__file__).with_name('late-rwe-gp-semantic.s'))
     if len(gp)!=0x10:raise ValueError('Expected LLVM6 compressed 16-byte GP-zero implementation')
     rzout=subprocess.run([str(rz),'-a','hexagon','-b','32','-o',hex(PHYSICAL),'-D',data.hex()],check=True,capture_output=True,text=True)
     lines=[x for x in rzout.stdout.splitlines() if x.startswith('0x')]

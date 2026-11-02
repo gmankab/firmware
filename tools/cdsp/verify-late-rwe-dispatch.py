@@ -41,7 +41,7 @@ def verify(llvm_mc: Path, rz_asm: Path, generated: Path, reference: Path,
     with tempfile.TemporaryDirectory(prefix='cdsp-v66-callback-dispatch-') as tmp:
         obj=Path(tmp)/'dispatch.o'
         subprocess.run([str(llvm_mc),'-triple=hexagon','-mcpu=hexagonv60',
-                        '-filetype=obj',str(Path(__file__).with_name('agent20-10-cdsp-rwe-dispatch.s')),
+                        '-filetype=obj',str(Path(__file__).with_name('late-rwe-dispatch.s')),
                         '-o',str(obj)],capture_output=True,text=True,check=True)
         assembled=elf_text(obj.read_bytes())[0x120:]
     if len(assembled)!=CODE_LEN:

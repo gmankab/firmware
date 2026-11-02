@@ -34,7 +34,7 @@ def check(llvm:Path,rz:Path,generated:Path,reference:Path,prefix:Path|None)->Non
     with tempfile.TemporaryDirectory(prefix='nabu-cdsp-sweeper-') as tmp:
         obj=Path(tmp)/'sweeper.o'
         subprocess.run([str(llvm),'-triple=hexagon','-mcpu=hexagonv60','-filetype=obj',
-                        str(Path(__file__).with_name('agent20-10-cdsp-rwe-sweeper.s')),
+                        str(Path(__file__).with_name('late-rwe-sweeper.s')),
                         '-o',str(obj)],capture_output=True,text=True,check=True)
         independent=parser_text(obj.read_bytes())[0x1e0:]
     if len(independent)!=72:

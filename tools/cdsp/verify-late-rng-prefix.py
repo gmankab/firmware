@@ -33,7 +33,7 @@ def validate(llvm:Path,rz:Path,reference:Path,generated:Path,prefix:Path|None)->
     with tempfile.TemporaryDirectory(prefix='cdsp_rng_') as tmp:
         obj=Path(tmp)/'rng.o'
         subprocess.run([str(llvm),'-triple=hexagon','-mcpu=hexagonv60','-filetype=obj',
-                        str(Path(__file__).with_name('agent20-10-cdsp-rwe-random-prefix.s')),
+                        str(Path(__file__).with_name('late-rwe-random-prefix.s')),
                         '-o',str(obj)],check=True,capture_output=True,text=True)
         assembler=parse_section(obj.read_bytes())[0x320:]
     if len(assembler)!=64:

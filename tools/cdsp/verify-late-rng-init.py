@@ -31,7 +31,7 @@ def check(llvm:Path,rz:Path,generated:Path,reference:Path,prefix:Path|None)->Non
     with tempfile.TemporaryDirectory(prefix='cdsp_hexagon_seed_init_') as tmp:
         obj=Path(tmp)/'seed_init.o'
         subprocess.run([str(llvm),'-triple=hexagon','-mcpu=hexagonv60','-filetype=obj',
-                        str(Path(__file__).with_name('agent20-10-cdsp-rwe-seed-init.s')),
+                        str(Path(__file__).with_name('late-rwe-seed-init.s')),
                         '-o',str(obj)],text=True,capture_output=True,check=True)
         independent=elf_text(obj.read_bytes())[0x364:]
     if len(independent)!=84:

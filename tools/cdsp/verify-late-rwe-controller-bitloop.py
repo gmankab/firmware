@@ -42,7 +42,7 @@ def run(llvm:Path,rizin:Path,generated:Path,prefix:Path,reference:Path)->None:
     if len(joined)!=0x6d8 or joined!=original[RWE:END]:raise RuntimeError('full 1752-byte RWE prefix mismatch')
     with tempfile.TemporaryDirectory() as tmp:
         obj=Path(tmp)/'bitloop.o'
-        src=Path(__file__).with_name('agent20-10-cdsp-rwe-controller-bitloop-prefix.s')
+        src=Path(__file__).with_name('late-rwe-controller-bitloop-prefix.s')
         subprocess.run([str(llvm),'-triple=hexagon','-mcpu=hexagonv60','-filetype=obj',str(src),'-o',str(obj)],check=True,capture_output=True,text=True)
         independent=elf_text(obj.read_bytes())[0x6c0:0x6d8]
     if len(independent)!=24:raise RuntimeError('LLVM6 bitloop fixture length differs')

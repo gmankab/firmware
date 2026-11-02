@@ -16,7 +16,7 @@ def verify(llvm:Path,rz:Path,generated:Path,reference:Path|None)->None:
     with tempfile.TemporaryDirectory(prefix='cdsp-rwe-callback-loader-') as tmp:
         obj=Path(tmp)/'loader.o'
         subprocess.run([str(llvm),'-triple=hexagon','-mcpu=hexagonv60','-filetype=obj',
-                        str(Path(__file__).with_name('agent20-10-cdsp-rwe-loader.s')),'-o',str(obj)],check=True)
+                        str(Path(__file__).with_name('late-rwe-loader.s')),'-o',str(obj)],check=True)
         dep=Path(__file__).with_name('verify-cdsp-hexagon-entry.py')
         spec=importlib.util.spec_from_file_location('cdsp_text_parser',dep)
         assert spec and spec.loader

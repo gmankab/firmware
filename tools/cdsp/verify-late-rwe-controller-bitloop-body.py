@@ -45,7 +45,7 @@ def run(llvm:Path,rizin:Path,generated:Path,prefix:Path,reference:Path)->None:
         raise RuntimeError('full RWE prefix (1844 = 1800 executable + 44 fill) mismatch')
     with tempfile.TemporaryDirectory(prefix='cdsp-bitloop-body-') as tmp:
         output=Path(tmp)/'bitloop.o'
-        fixture=Path(__file__).with_name('agent20-10-cdsp-rwe-controller-bitloop-body.s')
+        fixture=Path(__file__).with_name('late-rwe-controller-bitloop-body.s')
         subprocess.run([str(llvm),'-triple=hexagon','-mcpu=hexagonv60','-filetype=obj',str(fixture),'-o',str(output)],check=True,capture_output=True,text=True)
         independently_assembled=text_from_elf(output.read_bytes())[0x6d8:0x734]
     if len(independently_assembled)!=LENGTH:raise RuntimeError('independent LLVM6 body size mismatch')

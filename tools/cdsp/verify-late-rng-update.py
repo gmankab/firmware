@@ -50,7 +50,7 @@ def verify(llvm:Path,rz:Path,generated:Path,reference:Path,
         # *not* an independently authored program. Do not count as code.
     with tempfile.TemporaryDirectory(prefix='hexagon_rng_update_') as d:
         obj=Path(d)/'rng-update.o'
-        fixture=Path(__file__).with_name('agent20-10-cdsp-rwe-seed-update.s')
+        fixture=Path(__file__).with_name('late-rwe-seed-update.s')
         subprocess.run([str(llvm),'-triple=hexagon','-mcpu=hexagonv60',
                         '-filetype=obj',str(fixture),'-o',str(obj)],
                        capture_output=True,text=True,check=True)

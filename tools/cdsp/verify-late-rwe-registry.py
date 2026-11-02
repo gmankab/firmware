@@ -33,7 +33,7 @@ def verify(llvm_mc:Path,rz_asm:Path,generated:Path,reference:Path|None):
     with tempfile.TemporaryDirectory(prefix='cdsp-rwe-registry-') as directory:
         obj=Path(directory)/'semantic.o'
         subprocess.run([str(llvm_mc),'-triple=hexagon','-mcpu=hexagonv60',
-                        '-filetype=obj',str(Path(__file__).with_name('agent20-10-cdsp-rwe-registry.s')),
+                        '-filetype=obj',str(Path(__file__).with_name('late-rwe-registry.s')),
                         '-o',str(obj)],check=True)
         llvm=source_text_from_llvm(obj.read_bytes())[0x1a0:]
     if len(llvm)!=60:
