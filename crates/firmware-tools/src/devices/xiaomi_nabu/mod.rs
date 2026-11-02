@@ -123,12 +123,19 @@ mod venus_runtime_interface_lookup;
 // Agent 03: independently verified disjoint late-Venus A32 routines.
 pub mod venus_runtime_late;
 // Agent 05: separately reconstructed CDSP Hexagon routines.
+#[path = "cdsp/common/cdsp_boot.rs"]
 pub mod cdsp_boot;
+#[path = "cdsp/common/cdsp_privilege.rs"]
 pub mod cdsp_privilege;
+#[path = "cdsp/common/cdsp_tlb.rs"]
 pub mod cdsp_tlb;
+#[path = "cdsp/common/cdsp_tlb_extension.rs"]
 pub mod cdsp_tlb_extension;
+#[path = "cdsp/common/cdsp_copyfast.rs"]
 pub mod cdsp_copyfast;
+#[path = "cdsp/common/cdsp_cache_controller.rs"]
 pub mod cdsp_cache_controller;
+#[path = "cdsp/common/cdsp_dma_copy.rs"]
 pub mod cdsp_dma_copy;
 
 pub mod cdsp_early_tlb; // Agent 20-09: 0x41e0-forward continuation; integration-only registration
