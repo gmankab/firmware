@@ -8,7 +8,7 @@ import unittest
 ROOT = Path(__file__).resolve().parent.parent
 REGISTRY = ROOT / 'sources/xiaomi-nabu/wlanmdsp/late/regions.json'
 ASM = ROOT / 'sources/xiaomi-nabu/wlanmdsp/late/command-parser.S'
-S = importlib.util.spec_from_file_location('agent14_checkpoint09_late', ROOT / 'tools/build-wlanmdsp-late.py')
+S = importlib.util.spec_from_file_location('agent14_checkpoint09_late', ROOT / 'tools/wlanmdsp/build-wlanmdsp-late.py')
 assert S and S.loader
 import sys
 late = importlib.util.module_from_spec(S)

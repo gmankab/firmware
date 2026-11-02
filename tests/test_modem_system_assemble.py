@@ -5,7 +5,7 @@ from pathlib import Path
 import unittest
 
 ROOT = Path(__file__).resolve().parents[1]
-SCRIPT = ROOT / "tools/assemble-modem-system.py"
+SCRIPT = ROOT / "tools/modem/assemble-modem-system.py"
 SPEC = importlib.util.spec_from_file_location("modem_system_assembler", SCRIPT)
 modem_system = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(modem_system)

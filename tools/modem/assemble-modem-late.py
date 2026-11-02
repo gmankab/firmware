@@ -17,7 +17,7 @@ import sys
 import tempfile
 
 EXPECTED_REFERENCE_SHA256 = "6f5cb32bc10e41abb40938d185805e788f5637a41d3ebcef278e4e169fc36782"
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = Path(__file__).resolve().parents[2]
 ATOMIC_SOURCE = ROOT / "sources/xiaomi-nabu/modem/modem_late_atomic.s"
 AUX_SOURCE = ROOT / "sources/xiaomi-nabu/modem/modem_late_aux_boot.s"
 CONTROL_SOURCE = ROOT / "sources/xiaomi-nabu/modem/modem_late_control.s"

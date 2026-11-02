@@ -3,7 +3,7 @@
 import importlib.util,sys,unittest
 from pathlib import Path
 ROOT=Path(__file__).resolve().parent.parent
-SPEC=importlib.util.spec_from_file_location('wlan_cp28',ROOT/'tools/build-wlanmdsp-late.py')
+SPEC=importlib.util.spec_from_file_location('wlan_cp28',ROOT/'tools/wlanmdsp/build-wlanmdsp-late.py')
 assert SPEC and SPEC.loader
 late=importlib.util.module_from_spec(SPEC);sys.modules[SPEC.name]=late;SPEC.loader.exec_module(late)
 class CodecModeHelpers(unittest.TestCase):

@@ -28,9 +28,9 @@ import sys
 import tempfile
 
 
-ROOT = Path(__file__).resolve().parent.parent
+ROOT = Path(__file__).resolve().parents[2]
 _SPEC = importlib.util.spec_from_file_location(
-    "agent14_wlan_late_for_tables", ROOT / "tools/build-wlanmdsp-late.py")
+    "agent14_wlan_late_for_tables", ROOT / "tools/wlanmdsp/build-wlanmdsp-late.py")
 assert _SPEC is not None and _SPEC.loader is not None
 late = importlib.util.module_from_spec(_SPEC)
 sys.modules[_SPEC.name] = late

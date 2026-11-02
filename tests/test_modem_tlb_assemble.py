@@ -5,7 +5,7 @@ from pathlib import Path
 import struct
 import unittest
 
-FILE=Path(__file__).resolve().parents[1]/"tools/assemble-modem-tlb.py"
+FILE=Path(__file__).resolve().parents[1]/"tools/modem/assemble-modem-tlb.py"
 spec=importlib.util.spec_from_file_location("modem_tlb_assembler",FILE)
 mod=importlib.util.module_from_spec(spec)
 spec.loader.exec_module(mod)

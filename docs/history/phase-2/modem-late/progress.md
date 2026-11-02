@@ -50,7 +50,7 @@ uses checked Hexagon C2_tfrrcr architecture fields for the unsupported
 Deterministic generation and strict reference verification:
 
 ```sh
-python3 tools/assemble-modem-late.py \
+python3 tools/modem/assemble-modem-late.py \
   --llvm-mc /path/to/llvm6/bin/llvm-mc \
   --reference /private/modem.mbn \
   --output-dir /tmp/agent12-modem-late
@@ -678,7 +678,7 @@ chain, or whole-modem executable is reproduced by this checkpoint.
 Independent verification:
 
 ```sh
-python3 tools/assemble-modem-late.py \
+python3 tools/modem/assemble-modem-late.py \
   --llvm-mc /path/to/llvm6/bin/llvm-mc \
   --reference /private/modem.mbn
 NABU_HEXAGON_LLVM_MC=/path/to/llvm6/bin/llvm-mc \

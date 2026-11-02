@@ -92,7 +92,7 @@ def restore_predicate_order(data: bytes) -> bytes:
     return struct.pack('<'+'I'*len(words),*words)
 
 def assemble(llvm_mc: Path) -> bytes:
-    source = Path(__file__).resolve().parents[1]/'sources/xiaomi-nabu/modem/modem_boot_dispatch.s'
+    source = Path(__file__).resolve().parents[2]/'sources/xiaomi-nabu/modem/modem_boot_dispatch.s'
     with tempfile.TemporaryDirectory(prefix='modem-dispatch-') as tmp:
         obj = Path(tmp)/'dispatch.o'
         cmd=[str(llvm_mc),'-triple=hexagon','-mcpu=hexagonv60','-filetype=obj',str(source),'-o',str(obj)]

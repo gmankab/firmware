@@ -7,7 +7,7 @@ import struct
 import unittest
 
 ROOT = Path(__file__).resolve().parents[1]
-TOOL = ROOT / "tools" / "assemble-modem-late.py"
+TOOL = ROOT / "tools/modem" / "assemble-modem-late.py"
 spec = importlib.util.spec_from_file_location("assemble_modem_late", TOOL)
 assert spec and spec.loader
 agent12 = importlib.util.module_from_spec(spec)

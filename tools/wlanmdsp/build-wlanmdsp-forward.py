@@ -19,7 +19,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 SOURCE_DIR = ROOT / 'sources/xiaomi-nabu/wlanmdsp/early'
-BASE_BUILDER = ROOT / 'tools/build-wlanmdsp-startup.py'
+BASE_BUILDER = ROOT / 'tools/wlanmdsp/build-wlanmdsp-startup.py'
 FILE_BASE = 0x40000
 VADDR = 0xb0000000
 START = 0x568c

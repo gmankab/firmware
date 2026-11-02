@@ -86,7 +86,7 @@ def main(argv=None):
     parser.add_argument("--prefix", type=Path, help="1,280-byte typed modem layout from modem-rebuild emit-layout")
     parser.add_argument("--reference", type=Path, help="Private unmodified modem.mbn, for optional exact-byte comparison")
     opts=parser.parse_args(argv)
-    source=Path(__file__).resolve().parents[1]/"sources/xiaomi-nabu/modem/modem_tlb_init.s"
+    source=Path(__file__).resolve().parents[2]/"sources/xiaomi-nabu/modem/modem_tlb_init.s"
     with tempfile.TemporaryDirectory(prefix="hexagon-tlb-") as tmp:
         generated=Path(tmp)/"modem-tlb.o"
         proc=subprocess.run([str(opts.llvm_mc),"-triple=hexagon","-mcpu=hexagonv60", "-filetype=obj",str(source),"-o",str(generated)],capture_output=True,text=True)

@@ -3,7 +3,7 @@
 from pathlib import Path
 import importlib.util,sys,unittest
 ROOT=Path(__file__).resolve().parent.parent
-spec=importlib.util.spec_from_file_location('wlan_cp39',ROOT/'tools/build-wlanmdsp-late.py')
+spec=importlib.util.spec_from_file_location('wlan_cp39',ROOT/'tools/wlanmdsp/build-wlanmdsp-late.py')
 assert spec and spec.loader
 late=importlib.util.module_from_spec(spec);sys.modules[spec.name]=late;spec.loader.exec_module(late)
 class ControllerRecordHandler(unittest.TestCase):

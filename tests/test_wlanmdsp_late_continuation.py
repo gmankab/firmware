@@ -13,7 +13,7 @@ import unittest
 
 ROOT = Path(__file__).resolve().parent.parent
 REGISTRY = ROOT / "sources/xiaomi-nabu/wlanmdsp/late/regions.json"
-REGIONS = ROOT / "tools/build-wlanmdsp-late.py"
+REGIONS = ROOT / "tools/wlanmdsp/build-wlanmdsp-late.py"
 _spec = importlib.util.spec_from_file_location("agent14_wlan_late_05", REGIONS)
 assert _spec and _spec.loader
 late = importlib.util.module_from_spec(_spec)

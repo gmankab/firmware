@@ -9,7 +9,7 @@ import unittest
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-TOOL = ROOT / "tools/build-wlanmdsp-startup.py"
+TOOL = ROOT / "tools/wlanmdsp/build-wlanmdsp-startup.py"
 SPEC = importlib.util.spec_from_file_location("build_wlanmdsp_startup", TOOL)
 assert SPEC is not None and SPEC.loader is not None
 fw = importlib.util.module_from_spec(SPEC)
@@ -332,7 +332,7 @@ class WlanHexagonAssemblyTests(unittest.TestCase):
         import subprocess, json
         with tempfile.TemporaryDirectory() as work:
             output, manifest = Path(work) / "wlan-through-format.bin", Path(work) / "format.json"
-            cmd = [sys.executable, str(fw.ROOT / "tools/build-wlanmdsp-startup.py"),
+            cmd = [sys.executable, str(fw.ROOT / "tools/wlanmdsp/build-wlanmdsp-startup.py"),
                    str(output), "--with-runtime-format-handler",
                    "--llvm-mc", self.mc, "--llvm-mc-v66", mc_v66,
                    "--manifest", str(manifest)]
@@ -377,7 +377,7 @@ class WlanHexagonAssemblyTests(unittest.TestCase):
         import json, subprocess
         with tempfile.TemporaryDirectory() as d:
             output,manifest=Path(d)/"wlan-9364.bin",Path(d)/"manifest.json"
-            cmd=[sys.executable,str(fw.ROOT/"tools/build-wlanmdsp-startup.py"),
+            cmd=[sys.executable,str(fw.ROOT/"tools/wlanmdsp/build-wlanmdsp-startup.py"),
                  str(output),"--with-runtime-session-init","--llvm-mc",self.mc,
                  "--llvm-mc-v66",mc_v66,"--manifest",str(manifest)]
             reference=os.environ.get("WLANMDSP_REFERENCE")
@@ -418,7 +418,7 @@ class WlanHexagonAssemblyTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as work:
             artifact=Path(work)/"wlan-9632.bin"
             manifest=Path(work)/"wlan-report.json"
-            cmd=[sys.executable,str(fw.ROOT/"tools/build-wlanmdsp-startup.py"),
+            cmd=[sys.executable,str(fw.ROOT/"tools/wlanmdsp/build-wlanmdsp-startup.py"),
                  str(artifact),"--with-runtime-reporting", "--llvm-mc",self.mc,
                  "--llvm-mc-v66",v66,"--manifest",str(manifest)]
             ref=os.environ.get("WLANMDSP_REFERENCE")
@@ -458,7 +458,7 @@ class WlanHexagonAssemblyTests(unittest.TestCase):
         import json,subprocess
         with tempfile.TemporaryDirectory() as temp:
             out,manifest=Path(temp)/"wlan-9992.bin",Path(temp)/"manifest.json"
-            cmd=[sys.executable,str(fw.ROOT/"tools/build-wlanmdsp-startup.py"),
+            cmd=[sys.executable,str(fw.ROOT/"tools/wlanmdsp/build-wlanmdsp-startup.py"),
                  str(out),"--with-runtime-registration","--llvm-mc",self.mc,
                  "--llvm-mc-v66",v66,"--manifest",str(manifest)]
             ref=os.environ.get("WLANMDSP_REFERENCE")

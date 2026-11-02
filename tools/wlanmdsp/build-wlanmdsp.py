@@ -19,7 +19,7 @@ import sys
 
 ROOT = Path(__file__).resolve().parents[2]
 WLAN_SRC = ROOT / "sources/xiaomi-nabu/wlanmdsp/early"
-PARENT_BUILDER = ROOT / "tools/build-wlanmdsp-startup.py"
+PARENT_BUILDER = ROOT / "tools/wlanmdsp/build-wlanmdsp-startup.py"
 FILE_OFFSET = 0x40000
 BASE_VADDR = 0xB0000000
 START = 0x2708

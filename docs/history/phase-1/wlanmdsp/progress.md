@@ -25,7 +25,7 @@ The supplied LLVM 6.0.1 `llvm-mc` (Hexagon target) can independently **decode** 
 Build without OEM reference using:
 
 ```sh
-python3 tools/build-wlanmdsp-startup.py /tmp/wlan-startup.bin \
+python3 tools/wlanmdsp/build-wlanmdsp-startup.py /tmp/wlan-startup.bin \
   --llvm-mc /path/to/llvm6/bin/llvm-mc
 ```
 
@@ -62,7 +62,7 @@ rule models this observation; it is **not counted as executable logic**. Use
 `--emit-plt-assembly /tmp/wlan-plt.S` to inspect the generated PLT source.
 
 ```sh
-python3 tools/build-wlanmdsp-startup.py /tmp/wlan-through-plt.bin   --with-plt --llvm-mc /path/to/llvm6/bin/llvm-mc   --reference /private/wlanmdsp.mbn
+python3 tools/wlanmdsp/build-wlanmdsp-startup.py /tmp/wlan-through-plt.bin   --with-plt --llvm-mc /path/to/llvm6/bin/llvm-mc   --reference /private/wlanmdsp.mbn
 ```
 
 - File `[0x40000,0x41b80)`, vaddr `[0xb0000000,0xb0001b80)`: **7,040/7,040**
@@ -96,7 +96,7 @@ manifest-hash-matching private ELF reference with zero differences. Both
 `hexagonv62` and `hexagonv65` LLVM6 assemblers emit identical instructions.
 
 ```sh
-python3 tools/build-wlanmdsp-startup.py /tmp/wlan-through-hooks.bin \
+python3 tools/wlanmdsp/build-wlanmdsp-startup.py /tmp/wlan-through-hooks.bin \
   --with-loader-hooks --llvm-mc /path/to/llvm6/bin/llvm-mc \
   --reference /private/wlanmdsp.mbn --manifest /tmp/through-hooks.json
 ```
@@ -130,7 +130,7 @@ reconstructed executable instructions total **3,520 bytes**. The other
 strict whole-ELF-SHA verified byte comparison when the reference is supplied.
 
 ```sh
-python3 tools/build-wlanmdsp-startup.py /tmp/wlan-through-lookup.bin \
+python3 tools/wlanmdsp/build-wlanmdsp-startup.py /tmp/wlan-through-lookup.bin \
   --with-config-lookup --llvm-mc /path/to/llvm6/bin/llvm-mc \
   --reference /private/wlanmdsp.mbn --manifest /tmp/through-lookup.json
 ```
@@ -164,7 +164,7 @@ reference can be supplied strictly for verification, but is never copied
 into the generated artifact at build time.
 
 ```sh
-python3 tools/build-wlanmdsp-startup.py /tmp/wlan-through-consumer-prefix.bin \
+python3 tools/wlanmdsp/build-wlanmdsp-startup.py /tmp/wlan-through-consumer-prefix.bin \
   --with-record-prefix --llvm-mc /path/to/llvm6/bin/llvm-mc \
   --reference /private/wlanmdsp.mbn --manifest /tmp/consumer-prefix.json
 ```
@@ -199,7 +199,7 @@ code; zero differences. Test builds with LLVM6 `hexagonv62` and `hexagonv65`
 agree byte-for-byte. Next unimplemented runtime address: `0xb0001dac`.
 
 ```sh
-python3 tools/build-wlanmdsp-startup.py /tmp/wlan-through-record-prefix.bin \
+python3 tools/wlanmdsp/build-wlanmdsp-startup.py /tmp/wlan-through-record-prefix.bin \
   --with-record-prefix --llvm-mc /path/to/llvm6/bin/llvm-mc \
   --reference /private/wlanmdsp.mbn --manifest /tmp/wlan-record-prefix.json
 ```
@@ -228,7 +228,7 @@ now supports an explicitly bounded `runtime_offset` within the executable
 checks for all callers:
 
 ```sh
-python3 tools/build-wlanmdsp-startup.py /tmp/wlan-import-aliases.bin \
+python3 tools/wlanmdsp/build-wlanmdsp-startup.py /tmp/wlan-import-aliases.bin \
   --import-aliases-only --llvm-mc /path/to/llvm6/bin/llvm-mc \
   --reference /private/wlanmdsp.mbn --manifest /tmp/wlan-aliases.json
 ```
@@ -262,7 +262,7 @@ identified linker fill/alignment. Separately covered executable bytes now
 measure **104**, including 24 import aliases and 80 retry/comparator bytes.
 
 ```sh
-python3 tools/build-wlanmdsp-startup.py /tmp/alias-through-compare.bin \
+python3 tools/wlanmdsp/build-wlanmdsp-startup.py /tmp/alias-through-compare.bin \
   --import-aliases-with-compare --llvm-mc /private/llvm6/bin/llvm-mc \
   --reference /private/wlanmdsp.mbn --manifest /tmp/alias-compare-manifest.json
 ```
@@ -291,7 +291,7 @@ instruction byte arrays. The LLVM6 `hexagonv62` and `hexagonv65` encodings
 are identical to the exact hash-verified reference at `[0x42010,0x42138)`.
 
 ```sh
-python3 tools/build-wlanmdsp-startup.py /tmp/imports-and-array-compare.bin \
+python3 tools/wlanmdsp/build-wlanmdsp-startup.py /tmp/imports-and-array-compare.bin \
   --import-aliases-with-array-compare --llvm-mc /private/llvm6/bin/llvm-mc \
   --reference /private/wlanmdsp.mbn --manifest /tmp/wlan-array-compare.json
 ```
@@ -324,7 +324,7 @@ rather than implying v62 equivalence for all later code. The comparison
 wrapper and IRQ-state guard still round-trip identically on v62/v65.
 
 ```sh
-python3 tools/build-wlanmdsp-startup.py /tmp/imports-through-runtime-helpers.bin \
+python3 tools/wlanmdsp/build-wlanmdsp-startup.py /tmp/imports-through-runtime-helpers.bin \
   --import-aliases-with-runtime-helpers \
   --llvm-mc /private/llvm6/bin/llvm-mc \
   --reference /private/wlanmdsp.mbn --manifest /tmp/wlan-runtime-helpers.json
@@ -371,7 +371,7 @@ and `libunwind` runtime libraries in `LD_LIBRARY_PATH`.
 
 ```sh
 LD_LIBRARY_PATH=/private/nabu-next-toolchain/ubuntu-runtime/flat \
-python3 tools/build-wlanmdsp-startup.py /tmp/wlan-contiguous-prefix.bin \
+python3 tools/wlanmdsp/build-wlanmdsp-startup.py /tmp/wlan-contiguous-prefix.bin \
   --with-full-initial-region \
   --llvm-mc /private/nabu-next-toolchain/llvm6/bin/llvm-mc \
   --llvm-mc-v66 /private/clang-llvm22/bin/llvm-mc \
@@ -404,7 +404,7 @@ and the source-level assembler byte comparison show **zero differences**.
 
 ```sh
 LD_LIBRARY_PATH=/private/nabu-runtime/flat \
-python3 tools/build-wlanmdsp-startup.py /tmp/wlan-9024.bin \
+python3 tools/wlanmdsp/build-wlanmdsp-startup.py /tmp/wlan-9024.bin \
   --with-runtime-format-handler \
   --llvm-mc /private/llvm6/bin/llvm-mc \
   --llvm-mc-v66 /private/llvm22/bin/llvm-mc \
@@ -437,7 +437,7 @@ Command (requires external Hexagon-capable LLVM6 and LLVM22 tools):
 
 ```sh
 LD_LIBRARY_PATH=/private/nabu-runtime/flat \
-python3 tools/build-wlanmdsp-startup.py /tmp/wlan-9364.bin \
+python3 tools/wlanmdsp/build-wlanmdsp-startup.py /tmp/wlan-9364.bin \
   --with-runtime-session-init \
   --llvm-mc /private/llvm6/bin/llvm-mc \
   --llvm-mc-v66 /private/llvm22/bin/llvm-mc \
@@ -468,7 +468,7 @@ three instruction words, without raw opcode injection. The entire new
 
 ```sh
 LD_LIBRARY_PATH=/private/nabu-runtime/flat \
-python3 tools/build-wlanmdsp-startup.py /tmp/wlan-9632.bin \
+python3 tools/wlanmdsp/build-wlanmdsp-startup.py /tmp/wlan-9632.bin \
   --with-runtime-reporting \
   --llvm-mc /private/llvm6/bin/llvm-mc \
   --llvm-mc-v66 /private/llvm22/bin/llvm-mc \
@@ -499,7 +499,7 @@ SHA-256-pinned reference, including the final branch to existing helper code.
 
 ```sh
 LD_LIBRARY_PATH=/private/nabu-runtime/flat \
-python3 tools/build-wlanmdsp-startup.py /tmp/wlan-9992.bin \
+python3 tools/wlanmdsp/build-wlanmdsp-startup.py /tmp/wlan-9992.bin \
   --with-runtime-registration --llvm-mc /private/llvm6/bin/llvm-mc \
   --llvm-mc-v66 /private/llvm22/bin/llvm-mc \
   --reference /private/wlanmdsp.mbn --manifest /tmp/wlan-9992.json

@@ -161,7 +161,7 @@ Set `WLAN_LATE_LLVM_MC` to a Hexagon-capable `llvm-mc` with V66 support,
 provided through `LD_LIBRARY_PATH`. The scripts do not download dependencies.
 
 ```sh
-python3 tools/build-wlanmdsp-late.py /tmp/wlan-late.bin \
+python3 tools/wlanmdsp/build-wlanmdsp-late.py /tmp/wlan-late.bin \
   --llvm-mc "$WLAN_LATE_LLVM_MC" \
   --independent-llvm-mc "$WLAN_LATE_SECOND_LLVM_MC" \
   --independent-cpu hexagonv65 \
@@ -367,7 +367,7 @@ that contract has been performed.
 
 The two dispatch-table dependencies identified in checkpoint 03 are now
 reconstructed as **496 data bytes**, emitted by
-`tools/build-wlanmdsp-late-tables.py`. The 5,472-byte executable fragment is
+`tools/wlanmdsp/build-wlanmdsp-late-tables.py`. The 5,472-byte executable fragment is
 unchanged. Two assembly header comments now describe the separate table
 builder; their source-file hashes change, but their encoded bytes do not.
 
@@ -441,7 +441,7 @@ f33f4dae122e666e9eefcfd539eb2405bc967d4928e96a72b3897907144f7390
 ### Reproduce the separate table artifact
 
 ```sh
-python3 tools/build-wlanmdsp-late-tables.py /tmp/wlan-late-tables.bin \
+python3 tools/wlanmdsp/build-wlanmdsp-late-tables.py /tmp/wlan-late-tables.bin \
   --llvm-mc "$WLAN_LATE_LLVM_MC" \
   --independent-llvm-mc "$WLAN_LATE_SECOND_LLVM_MC" \
   --reference "$WLANMDSP_REFERENCE" \
@@ -488,7 +488,7 @@ locations, and V66 decode counts are in
 Build commands (the compiler files and reference remain outside Git):
 
 ```sh
-python3 -S tools/build-wlanmdsp-late.py /tmp/agent20-14-code.bin \
+python3 -S tools/wlanmdsp/build-wlanmdsp-late.py /tmp/agent20-14-code.bin \
   --llvm-mc "$LLVM18_MC" --cpu hexagonv66 \
   --independent-llvm-mc "$LLVM6_MC" --independent-cpu hexagonv65 \
   --llvm-objdump "$LLVM18_OBJDUMP" \
@@ -624,7 +624,7 @@ encoding equivalences; on-device behavior and high-level source semantics
 are not proven.
 
 ```
-python3 tools/build-wlanmdsp-late.py /tmp/wlan-late-code.bin   --llvm-mc "$WLAN_LATE_LLVM_MC" --cpu hexagonv66   --independent-llvm-mc "$WLAN_LATE_SECOND_LLVM_MC"   --independent-cpu hexagonv65   --llvm-objdump "$WLAN_LATE_LLVM_OBJDUMP"   --reference "$WLANMDSP_REFERENCE" --through-checkpoint 9   --manifest /tmp/wlan-late-cp09.json
+python3 tools/wlanmdsp/build-wlanmdsp-late.py /tmp/wlan-late-code.bin   --llvm-mc "$WLAN_LATE_LLVM_MC" --cpu hexagonv66   --independent-llvm-mc "$WLAN_LATE_SECOND_LLVM_MC"   --independent-cpu hexagonv65   --llvm-objdump "$WLAN_LATE_LLVM_OBJDUMP"   --reference "$WLANMDSP_REFERENCE" --through-checkpoint 9   --manifest /tmp/wlan-late-cp09.json
 ```
 
 Rust workspace: **160 passed**. Python discovery: **125 discovered,

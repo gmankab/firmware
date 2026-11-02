@@ -5,7 +5,7 @@ import importlib.util
 import unittest
 
 ROOT=Path(__file__).resolve().parents[1]
-SPEC=importlib.util.spec_from_file_location('modem_dispatch', ROOT/'tools/assemble-modem-dispatch.py')
+SPEC=importlib.util.spec_from_file_location('modem_dispatch', ROOT/'tools/modem/assemble-modem-dispatch.py')
 modem=importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(modem)
 

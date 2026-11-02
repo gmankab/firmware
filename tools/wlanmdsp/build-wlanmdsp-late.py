@@ -22,7 +22,7 @@ import sys
 import tempfile
 
 
-ROOT = Path(__file__).resolve().parent.parent
+ROOT = Path(__file__).resolve().parents[2]
 REGISTRY = ROOT / "sources/xiaomi-nabu/wlanmdsp/late/regions.json"
 OWNED_FILE_START = 0x100000
 OWNED_FILE_END = 0x353D38
@@ -42,7 +42,7 @@ def _import(name: str, path: Path):
     return module
 
 
-startup = _import("agent14_wlan_startup", ROOT / "tools/build-wlanmdsp-startup.py")
+startup = _import("agent14_wlan_startup", ROOT / "tools/wlanmdsp/build-wlanmdsp-startup.py")
 packets = _import("agent14_wlan_packets", ROOT / "tools/wlan_late_packets.py")
 
 

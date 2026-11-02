@@ -16,7 +16,7 @@ import subprocess
 import tempfile
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parent.parent
+ROOT = Path(__file__).resolve().parents[2]
 SOURCE = ROOT / "sources/xiaomi-nabu/wlanmdsp/wlan-startup.S"
 HOOK_SOURCE = ROOT / "sources/xiaomi-nabu/wlanmdsp/wlan-loader-hooks.S"
 LOOKUP_SOURCE = ROOT / "sources/xiaomi-nabu/wlanmdsp/wlan-config-lookup.S"

@@ -5,7 +5,7 @@ from pathlib import Path
 import sys
 import unittest
 ROOT=Path(__file__).resolve().parent.parent
-SPEC=importlib.util.spec_from_file_location('agent14_cp11', ROOT/'tools/build-wlanmdsp-late.py')
+SPEC=importlib.util.spec_from_file_location('agent14_cp11', ROOT/'tools/wlanmdsp/build-wlanmdsp-late.py')
 assert SPEC and SPEC.loader
 late=importlib.util.module_from_spec(SPEC)
 sys.modules[SPEC.name]=late
