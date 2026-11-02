@@ -93,15 +93,25 @@ mod venus_runtime_device_release;
 mod venus_runtime_bitmap;
 mod venus_runtime_bitmap_controls;
 
+#[path = "venus/runtime/bridge/venus_runtime_bridge_lookup.rs"]
 mod venus_runtime_bridge_lookup;
+#[path = "venus/runtime/bridge/venus_runtime_bridge_records.rs"]
 mod venus_runtime_bridge_records;
+#[path = "venus/runtime/bridge/venus_runtime_bridge_state.rs"]
 mod venus_runtime_bridge_state;
+#[path = "venus/runtime/bridge/venus_runtime_bridge_slots.rs"]
 mod venus_runtime_bridge_slots;
+#[path = "venus/runtime/bridge/venus_runtime_bridge_irq_ready.rs"]
 mod venus_runtime_bridge_irq_ready;
+#[path = "venus/runtime/bridge/venus_runtime_bridge_resource.rs"]
 mod venus_runtime_bridge_resource;
+#[path = "venus/runtime/bridge/venus_runtime_bridge_queue_release.rs"]
 mod venus_runtime_bridge_queue_release;
+#[path = "venus/runtime/bridge/venus_runtime_bridge_controller_queues.rs"]
 mod venus_runtime_bridge_controller_queues;
+#[path = "venus/runtime/bridge/venus_runtime_bridge_service_link.rs"]
 mod venus_runtime_bridge_service_link;
+#[path = "venus/runtime/bridge/venus_runtime_bridge.rs"]
 pub mod venus_runtime_bridge;
 #[path = "venus/common/venus_plan.rs"]
 pub mod venus_plan;
