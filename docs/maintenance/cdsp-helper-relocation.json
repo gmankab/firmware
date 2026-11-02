@@ -1,0 +1,30 @@
+{
+  "moved_files": 15,
+  "sha256": {
+    "verify-cdsp-cache-controller.py": "9f18a01770fccbe7265c7ed5ab4cd6318d34f35a80a9f49e3a0cc10ef2fd82b9",
+    "verify-cdsp-cache-maintenance.py": "5d9addf792d9fc93983b294f84e1e33dae1409a779a6f6b8b891de24e756f482",
+    "verify-cdsp-conditional-tlb.py": "301ca04ba0022fa783c3a15106b186688dd731ba763f555f1d7b8d0b9c889ada",
+    "verify-cdsp-controller-complete.py": "9e8e421405c91688878291de9f61ff128bac2ed9d3e319b958195b59d746ec18",
+    "verify-cdsp-controller-first-descriptor.py": "b1ada0b0fd29e37b1ec6c95764caf01dcd171518af5be702ad4a5803e8156d7f",
+    "verify-cdsp-controller-table.py": "b502d33128240721a19848b6d930ecc29e8ddb68f2cd89771af794db1786415f",
+    "verify-cdsp-copyfast.py": "b6de7ea08c491976b8f599cd4ee855a23bcf4d4b209913cd576b13aded54f521",
+    "verify-cdsp-dma-copy.py": "8d5d4a82a9463233e06ef6598052e2a1a6f199391e6d76d8b8c814eef8daa9a5",
+    "verify-cdsp-hexagon-entry.py": "3083ac40b52860b3c8b52507a79bf48c5f62037532956ec9fa3749a0006e2819",
+    "verify-cdsp-supervisor-bridge.py": "cc630a4d755d12c94b4f4cc308394828081aa3c0822a207cd4c834fa207b3012",
+    "verify-cdsp-tlb-extension.py": "aacd0b364aa20862c02931739120085d4615e2cc4f57eb7de919b83e121b5d6d",
+    "verify-cdsp-tlb-tables.py": "2b0eb039699b902205c98df2567db36ada5d44f4463f9c40aa8fa3a37409ecc1",
+    "verify-cdsp-tlb-walk.py": "7e0c2eb6377cc61f421d1eca568497f5eefcef1defcc08914227910fe47d2501",
+    "verify-cdsp-tlb.py": "66209f6a0d32a7d0375b2ebdc7641ae2dd1e052529799bbbf549a46cae018104",
+    "verify-cdsp-v66-init.py": "040c8565f10b62bab2d75865b4449edfec61b5f933d12816bb58da5b8713c207"
+  },
+  "updated_callers": [
+    "tests/test_cdsp_entry_llvm.py",
+    "tests/test_cdsp_tlb.py",
+    "tests/test_cdsp_supervisor_bridge.py",
+    "tests/test_cdsp_v66_decoder.py",
+    "tests/test_cdsp_tlb_walk.py",
+    "tests/test_cdsp_conditional_tlb.py",
+    "docs/history/phase-1/cdsp/progress.md"
+  ],
+  "path_map_updates": 0
+}

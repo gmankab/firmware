@@ -31,7 +31,7 @@ cargo run --offline --locked -p firmware-tools --bin cdsp-rebuild -- \
   verify-entry /private/qcom/sm8150/Xiaomi/nabu/cdsp.mbn
 
 # Independent Hexagon assembler round-trip of the same nine named operations:
-python3 tools/verify-cdsp-hexagon-entry.py \
+python3 tools/cdsp/verify-cdsp-hexagon-entry.py \
   --llvm-mc /path/to/llvm6/bin/llvm-mc \
   --rust-output /tmp/cdsp-entry.bin \
   --reference /private/qcom/sm8150/Xiaomi/nabu/cdsp.mbn
@@ -54,7 +54,7 @@ The LLVM 6 Hexagon `llvm-mc -mcpu=hexagonv60` provides independent encoding veri
 
 An additional eight **typed** four-byte packets reconstruct file offsets `0x3024–0x3044`, extending the independently generated CDSP prefix to **68 consecutive bytes** (`0x3000–0x3044`). The instructions are `SSR=R0`, `R0=SYSCFG`, two `setbit` operations, `SYSCFG=R0`, `dckill`, `ickill`, and a direct branch to runtime physical address `0x96c00144`. The prefix SHA-256 is `860bcbbac78fe0282fe36b704c621acddd2bdeb66623b3720c2c5a784cd15715`.
 
-The two V66 special-register forms are reconstructed from checked system-register selector and general-register fields. LLVM 6 assembles the first nine packets and the two `setbit` instructions but **cannot assemble/decode all special-register or cache-operation forms**. The separately supplied Rizin Hexagon V6 decoder identifies **all seventeen packets**, their privilege/cache semantics, packet flags and exact branch targets; see `tools/verify-cdsp-v66-init.py`. This is decoder corroboration, **not an independent second-assembler round-trip for all 68 bytes**. Comparing the typed Rust output directly to the private original verifies all 68 bytes without copying reference instructions into the emitter.
+The two V66 special-register forms are reconstructed from checked system-register selector and general-register fields. LLVM 6 assembles the first nine packets and the two `setbit` instructions but **cannot assemble/decode all special-register or cache-operation forms**. The separately supplied Rizin Hexagon V6 decoder identifies **all seventeen packets**, their privilege/cache semantics, packet flags and exact branch targets; see `tools/cdsp/verify-cdsp-v66-init.py`. This is decoder corroboration, **not an independent second-assembler round-trip for all 68 bytes**. Comparing the typed Rust output directly to the private original verifies all 68 bytes without copying reference instructions into the emitter.
 
 Reproduction:
 
@@ -66,7 +66,7 @@ cargo run --offline --locked -p firmware-tools --bin cdsp-rebuild -- \
 
 # Set LD_LIBRARY_PATH if using the staged Ubuntu 24 Rizin runtime:
 # export LD_LIBRARY_PATH=/path/to/ubuntu-runtime/usr/lib/x86_64-linux-gnu
-python3 tools/verify-cdsp-v66-init.py \
+python3 tools/cdsp/verify-cdsp-v66-init.py \
   --rz-asm /path/to/rizin-staged/opt/nabu-rizin/bin/rz-asm \
   --rust-output /tmp/cdsp-init-prefix.bin \
   --reference /private/qcom/sm8150/Xiaomi/nabu/cdsp.mbn
@@ -86,7 +86,7 @@ cargo run --offline --locked -p firmware-tools --bin cdsp-rebuild -- \
 cargo run --offline --locked -p firmware-tools --bin cdsp-rebuild -- \
   verify-syscfg-reset /private/qcom/sm8150/Xiaomi/nabu/cdsp.mbn
 
-python3 tools/verify-cdsp-v66-init.py --profile syscfg-reset \
+python3 tools/cdsp/verify-cdsp-v66-init.py --profile syscfg-reset \
   --rz-asm /path/to/rizin-staged/opt/nabu-rizin/bin/rz-asm \
   --rust-output /tmp/cdsp-syscfg-reset.bin \
   --reference /private/qcom/sm8150/Xiaomi/nabu/cdsp.mbn
@@ -112,7 +112,7 @@ Checkpoint 50 Git object remains unavailable; all commits are based on
 ```sh
 cargo run --offline --locked -p firmware-tools --bin cdsp-rebuild -- emit-syscfg-disable /tmp/cdsp-syscfg-disable.bin
 cargo run --offline --locked -p firmware-tools --bin cdsp-rebuild -- verify-syscfg-disable /private/cdsp.mbn
-python3 tools/verify-cdsp-v66-init.py --profile syscfg-disable --rz-asm /path/to/rz-asm \
+python3 tools/cdsp/verify-cdsp-v66-init.py --profile syscfg-disable --rz-asm /path/to/rz-asm \
   --rust-output /tmp/cdsp-syscfg-disable.bin --reference /private/cdsp.mbn
 ```
 
@@ -151,7 +151,7 @@ cargo run --offline --locked -p firmware-tools --bin cdsp-rebuild -- \
   emit-supervisor-span /tmp/cdsp-supervisor.bin
 cargo run --offline --locked -p firmware-tools --bin cdsp-rebuild -- \
   verify-supervisor-span /private/cdsp.mbn
-python3 tools/verify-cdsp-supervisor-bridge.py \
+python3 tools/cdsp/verify-cdsp-supervisor-bridge.py \
   --llvm-mc /path/to/llvm-mc --rust-output /tmp/cdsp-relocator.bin \
   --reference /private/cdsp.mbn
 ```
@@ -166,7 +166,7 @@ sets `R3:2 = combine(#0,#0)`, executes `tlbw`, synchronizes and returns.
 Hexagon packet markers are preserved explicitly, using typed register fields
 and checked immediate/range constraints; **no private opcode arrays are copied**.
 
-`tools/verify-cdsp-tlb.py` independently assembles the 13 non-TLB instructions
+`tools/cdsp/verify-cdsp-tlb.py` independently assembles the 13 non-TLB instructions
 (52 bytes) with LLVM6 and uses Rizin V66 to decode **all 15 instructions**.
 Rizin corroborates the two V66 `tlbw` encodings, but does not independently
 *assemble* them; this distinction matters. The 60 emitted bytes match the
@@ -188,7 +188,7 @@ cargo run --offline --locked -p firmware-tools --bin cdsp-rebuild -- \
   emit-tlb-maintenance /tmp/cdsp-tlb-maintenance.bin
 cargo run --offline --locked -p firmware-tools --bin cdsp-rebuild -- \
   verify-tlb-maintenance /private/cdsp.mbn
-python3 tools/verify-cdsp-tlb.py \
+python3 tools/cdsp/verify-cdsp-tlb.py \
   --llvm-mc /path/to/llvm6/bin/llvm-mc --rz-asm /path/to/rz-asm \
   --rust-output /tmp/cdsp-tlb-maintenance.bin --reference /private/cdsp.mbn
 ```
@@ -204,7 +204,7 @@ Combined with checkpoint 06, this forms **112 contiguous exact bytes** at
 `[0x3dc8,0x3e38)` (physical `[0x96c00dc8,0x96c00e38)`).
 
 The new typed predicate/branch encodings preserve the packet's parse markers.
-`tools/verify-cdsp-conditional-tlb.py` independently assembles 40 exact
+`tools/cdsp/verify-cdsp-conditional-tlb.py` independently assembles 40 exact
 non-TLB instruction bytes with LLVM, confirms the 8 re-scheduled predicate
 and branch instruction bitfields independently with LLVM (which reverses
 these two source instructions), and verifies all 13 decoded instruction
@@ -226,7 +226,7 @@ cargo run --offline --locked -p firmware-tools --bin cdsp-rebuild -- \
   emit-tlb-full /tmp/cdsp-tlb-full.bin
 cargo run --offline --locked -p firmware-tools --bin cdsp-rebuild -- \
   verify-tlb-full /private/cdsp.mbn
-python3 tools/verify-cdsp-conditional-tlb.py --llvm-mc /path/to/llvm6/bin/llvm-mc \
+python3 tools/cdsp/verify-cdsp-conditional-tlb.py --llvm-mc /path/to/llvm6/bin/llvm-mc \
   --rz-asm /path/to/rz-asm --rust-output /tmp/cdsp-conditional-tlb-52.bin \
   --reference /private/cdsp.mbn
 ```
@@ -261,7 +261,7 @@ cargo run --offline --locked -p firmware-tools --bin cdsp-rebuild -- \
   emit-tlb-cluster /tmp/cdsp-tlb-cluster.bin
 cargo run --offline --locked -p firmware-tools --bin cdsp-rebuild -- \
   verify-tlb-cluster /private/cdsp.mbn
-python3 tools/verify-cdsp-tlb-walk.py --llvm-mc /path/to/llvm-mc \
+python3 tools/cdsp/verify-cdsp-tlb-walk.py --llvm-mc /path/to/llvm-mc \
   --rz-asm /path/to/rz-asm --rust-output /tmp/cdsp-tlb-walk-52.bin \
   --reference /private/cdsp.mbn
 ```
@@ -309,7 +309,7 @@ cargo run --offline --locked -p firmware-tools --bin cdsp-rebuild -- \
   verify-tlb-extended /private/cdsp.mbn
 dd if=/tmp/cdsp-tlb-extended-312.bin of=/tmp/cdsp-tlb-extension-64.bin \
   bs=1 skip=248 count=64 status=none
-python3 tools/verify-cdsp-tlb-extension.py \
+python3 tools/cdsp/verify-cdsp-tlb-extension.py \
   --llvm-mc /path/to/llvm-mc --rz-asm /path/to/rz-asm \
   --rust-output /tmp/cdsp-tlb-extension-64.bin --reference /private/cdsp.mbn
 ```
@@ -350,7 +350,7 @@ cargo run --offline --locked -p firmware-tools --bin cdsp-rebuild -- \
   emit-tlb-extended /tmp/cdsp-tlb-cluster-376.bin
 cargo run --offline --locked -p firmware-tools --bin cdsp-rebuild -- \
   verify-tlb-extended /private/cdsp.mbn
-python3 tools/verify-cdsp-tlb-tables.py \
+python3 tools/cdsp/verify-cdsp-tlb-tables.py \
   --llvm-mc /path/to/llvm-mc --rz-asm /path/to/rz-asm \
   --rust-output /tmp/cdsp-tlb-tables-64.bin --reference /private/cdsp.mbn
 ```
@@ -391,7 +391,7 @@ cargo run --offline --locked -p firmware-tools --bin cdsp-rebuild -- \
   emit-cluster-with-copyfast /tmp/cdsp-tlb-cache-484.bin
 cargo run --offline --locked -p firmware-tools --bin cdsp-rebuild -- \
   verify-cluster-with-copyfast /private/cdsp.mbn
-python3 tools/verify-cdsp-copyfast.py \
+python3 tools/cdsp/verify-cdsp-copyfast.py \
   --llvm-mc /path/to/llvm-mc --rz-asm /path/to/rz-asm \
   --rust-output /tmp/cdsp-copyfast-108.bin --reference /private/cdsp.mbn
 ```
@@ -427,7 +427,7 @@ cargo run --offline --locked -p firmware-tools --bin cdsp-rebuild -- \
   emit-cache-controller-prefix /tmp/cdsp-cfgbase-80.bin
 cargo run --offline --locked -p firmware-tools --bin cdsp-rebuild -- \
   verify-cluster-with-cache-controller /private/cdsp.mbn
-python3 tools/verify-cdsp-cache-controller.py \
+python3 tools/cdsp/verify-cdsp-cache-controller.py \
   --llvm-mc /path/to/llvm-mc --rz-asm /path/to/rz-asm \
   --rust-output /tmp/cdsp-cfgbase-80.bin --reference /private/cdsp.mbn
 ```
@@ -466,7 +466,7 @@ cargo run --offline --locked -p firmware-tools --bin cdsp-rebuild -- \
   emit-cache-maintenance /tmp/cdsp-cache-maintenance-88.bin
 cargo run --offline --locked -p firmware-tools --bin cdsp-rebuild -- \
   verify-cluster-with-cache-maintenance /private/cdsp.mbn
-python3 tools/verify-cdsp-cache-maintenance.py \
+python3 tools/cdsp/verify-cdsp-cache-maintenance.py \
   --llvm-mc /path/to/llvm-mc --rz-asm /path/to/rz-asm \
   --rust-output /tmp/cdsp-cache-maintenance-88.bin --reference /private/cdsp.mbn
 ```
@@ -495,7 +495,7 @@ cargo run --offline --locked -p firmware-tools --bin cdsp-rebuild -- \
   emit-cluster-with-table-clear /tmp/cdsp-cache-cluster-684.bin
 cargo run --offline --locked -p firmware-tools --bin cdsp-rebuild -- \
   verify-cluster-with-table-clear /private/cdsp.mbn
-python3 tools/verify-cdsp-controller-table.py \
+python3 tools/cdsp/verify-cdsp-controller-table.py \
   --llvm-mc /path/to/llvm-mc --rz-asm /path/to/rz-asm \
   --rust-output /tmp/cdsp-table-clear-32.bin --reference /private/cdsp.mbn
 ```
@@ -524,7 +524,7 @@ cargo run --offline --locked -p firmware-tools --bin cdsp-rebuild -- \
   emit-cluster-with-first-descriptor /tmp/cdsp-cluster-792.bin
 cargo run --offline --locked -p firmware-tools --bin cdsp-rebuild -- \
   verify-cluster-with-first-descriptor /private/cdsp.mbn
-python3 tools/verify-cdsp-controller-first-descriptor.py \
+python3 tools/cdsp/verify-cdsp-controller-first-descriptor.py \
   --llvm-mc /path/to/llvm-mc --rz-asm /path/to/rz-asm \
   --rust-output /tmp/first-controller-descriptor-108.bin \
   --reference /private/cdsp.mbn
@@ -565,7 +565,7 @@ cargo run --offline --locked -p firmware-tools --bin cdsp-rebuild -- \
   emit-cluster-with-controller-return /tmp/cdsp-cluster-1108.bin
 cargo run --offline --locked -p firmware-tools --bin cdsp-rebuild -- \
   verify-cluster-with-controller-return /private/cdsp.mbn
-python3 tools/verify-cdsp-controller-complete.py \
+python3 tools/cdsp/verify-cdsp-controller-complete.py \
   --llvm-mc /path/to/llvm-mc --rz-asm /path/to/rz-asm \
   --rust-output /tmp/cdsp-remaining-controller-316.bin \
   --reference /private/cdsp.mbn
@@ -591,7 +591,7 @@ The additional entry-prefix fragment `[0x3000,0x3044)` has 68 executable
 bytes, so the current *source-rebuilt executable total is 1,240 bytes in two
 non-adjacent spans*. This is not complete firmware or a flashable image.
 
-`tools/verify-cdsp-dma-copy.py` independently assembles the semantic
+`tools/cdsp/verify-cdsp-dma-copy.py` independently assembles the semantic
 sequence using LLVM6, compares all 16 source instruction encodings and checks
 Rizin's original V66 packet interpretations. LLVM independently reorders
 one predicate packet and chooses one differing parse marker; those scheduling
@@ -610,7 +610,7 @@ cargo run --offline --locked -p firmware-tools --bin cdsp-rebuild -- \
   emit-cluster-with-dma-copy /tmp/cdsp-cluster-1184.bin
 cargo run --offline --locked -p firmware-tools --bin cdsp-rebuild -- \
   verify-cluster-with-dma-copy /private/cdsp.mbn
-python3 tools/verify-cdsp-dma-copy.py \
+python3 tools/cdsp/verify-cdsp-dma-copy.py \
   --llvm-mc /path/to/llvm-mc --rz-asm /path/to/rz-asm \
   --rust-output /tmp/cdsp-copy-64.bin --reference /private/cdsp.mbn
 ```

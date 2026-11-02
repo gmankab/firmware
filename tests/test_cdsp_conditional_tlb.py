@@ -4,7 +4,7 @@ from pathlib import Path
 import unittest
 
 ROOT=Path(__file__).resolve().parents[1]
-SPEC=importlib.util.spec_from_file_location('ct',ROOT/'tools'/'verify-cdsp-conditional-tlb.py')
+SPEC=importlib.util.spec_from_file_location('ct',ROOT/'tools/cdsp'/'verify-cdsp-conditional-tlb.py')
 M=importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(M)
 

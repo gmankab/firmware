@@ -4,7 +4,7 @@ from pathlib import Path
 import unittest
 
 ROOT=Path(__file__).resolve().parents[1]
-spec=importlib.util.spec_from_file_location('cdsp_v66_decoder',ROOT/'tools'/'verify-cdsp-v66-init.py')
+spec=importlib.util.spec_from_file_location('cdsp_v66_decoder',ROOT/'tools/cdsp'/'verify-cdsp-v66-init.py')
 cdsp=importlib.util.module_from_spec(spec)
 assert spec.loader is not None
 spec.loader.exec_module(cdsp)
