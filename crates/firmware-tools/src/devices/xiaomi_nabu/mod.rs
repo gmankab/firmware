@@ -218,6 +218,7 @@ mod venus_runtime_registers_secondary;
 mod venus_runtime_interface_lookup;
 
 // Agent 03: independently verified disjoint late-Venus A32 routines.
+#[path = "venus/runtime/late/venus_runtime_late.rs"]
 pub mod venus_runtime_late;
 // Agent 05: separately reconstructed CDSP Hexagon routines.
 #[path = "cdsp/common/cdsp_boot.rs"]
