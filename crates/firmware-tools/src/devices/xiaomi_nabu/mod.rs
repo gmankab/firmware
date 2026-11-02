@@ -17,7 +17,7 @@ pub mod a640_container;
 pub mod venus_boot;
 
 pub mod venus_runtime;
-pub mod venus_agent01_forward;
+pub mod venus_runtime_forward;
 mod venus_runtime_tail;
 mod venus_runtime_init;
 mod venus_runtime_services;
@@ -183,4 +183,4 @@ pub mod cdsp_early_worker_lock; // Agent20-09 variable-width memory selector // 
 
 // Own large A32 generator groups in independent, low-memory Rust crates.
 pub use venus_controller::*;
-pub use venus_tail::venus_runtime_tail_agent20_06;
+pub use venus_tail::venus_tail_program;
