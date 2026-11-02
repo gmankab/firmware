@@ -26,71 +26,137 @@ pub mod venus_boot;
 
 #[path = "venus/common/venus_runtime.rs"]
 pub mod venus_runtime;
+#[path = "venus/runtime/core/venus_runtime_forward.rs"]
 pub mod venus_runtime_forward;
+#[path = "venus/runtime/core/venus_runtime_tail.rs"]
 mod venus_runtime_tail;
+#[path = "venus/runtime/core/venus_runtime_init.rs"]
 mod venus_runtime_init;
+#[path = "venus/runtime/core/venus_runtime_services.rs"]
 mod venus_runtime_services;
+#[path = "venus/runtime/core/venus_runtime_services_next.rs"]
 mod venus_runtime_services_next;
+#[path = "venus/runtime/core/venus_runtime_dispatch.rs"]
 mod venus_runtime_dispatch;
+#[path = "venus/runtime/core/venus_runtime_queue.rs"]
 mod venus_runtime_queue;
+#[path = "venus/runtime/core/venus_runtime_allocator.rs"]
 mod venus_runtime_allocator;
+#[path = "venus/runtime/core/venus_runtime_mask.rs"]
 mod venus_runtime_mask;
+#[path = "venus/runtime/core/venus_runtime_wrappers.rs"]
 mod venus_runtime_wrappers;
+#[path = "venus/runtime/core/venus_runtime_setup.rs"]
 mod venus_runtime_setup;
+#[path = "venus/runtime/core/venus_runtime_object.rs"]
 mod venus_runtime_object;
+#[path = "venus/runtime/core/venus_runtime_object_ext.rs"]
 mod venus_runtime_object_ext;
+#[path = "venus/runtime/core/venus_runtime_eventmask.rs"]
 mod venus_runtime_eventmask;
+#[path = "venus/runtime/core/venus_runtime_alloc_aligned.rs"]
 mod venus_runtime_alloc_aligned;
+#[path = "venus/runtime/core/venus_runtime_alloc_variable.rs"]
 mod venus_runtime_alloc_variable;
+#[path = "venus/runtime/core/venus_runtime_callbacks.rs"]
 mod venus_runtime_callbacks;
+#[path = "venus/runtime/core/venus_runtime_ctors.rs"]
 mod venus_runtime_ctors;
+#[path = "venus/runtime/core/venus_runtime_memfill.rs"]
 mod venus_runtime_memfill;
+#[path = "venus/runtime/core/venus_runtime_strings.rs"]
 mod venus_runtime_strings;
+#[path = "venus/runtime/core/venus_runtime_exit.rs"]
 mod venus_runtime_exit;
+#[path = "venus/runtime/core/venus_runtime_resource_update.rs"]
 mod venus_runtime_resource_update;
+#[path = "venus/runtime/core/venus_runtime_formatter.rs"]
 mod venus_runtime_formatter;
+#[path = "venus/runtime/core/venus_runtime_format_dispatch.rs"]
 mod venus_runtime_format_dispatch;
+#[path = "venus/runtime/core/venus_runtime_format_numbers.rs"]
 mod venus_runtime_format_numbers;
+#[path = "venus/runtime/core/venus_runtime_format_output.rs"]
 mod venus_runtime_format_output;
+#[path = "venus/runtime/core/venus_runtime_format_strings.rs"]
 mod venus_runtime_format_strings;
+#[path = "venus/runtime/core/venus_runtime_format_finish.rs"]
 mod venus_runtime_format_finish;
+#[path = "venus/runtime/core/venus_runtime_format_small.rs"]
 mod venus_runtime_format_small;
+#[path = "venus/runtime/core/venus_runtime_format_helpers.rs"]
 mod venus_runtime_format_helpers;
+#[path = "venus/runtime/core/venus_runtime_format_args.rs"]
 mod venus_runtime_format_args;
+#[path = "venus/runtime/core/venus_runtime_diag_write.rs"]
 mod venus_runtime_diag_write;
+#[path = "venus/runtime/core/venus_runtime_diag_buffer.rs"]
 mod venus_runtime_diag_buffer;
+#[path = "venus/runtime/core/venus_runtime_diag_memory.rs"]
 mod venus_runtime_diag_memory;
+#[path = "venus/runtime/core/venus_runtime_memscan.rs"]
 mod venus_runtime_memscan;
+#[path = "venus/runtime/core/venus_runtime_memcpy.rs"]
 mod venus_runtime_memcpy;
+#[path = "venus/runtime/core/venus_runtime_memcpy_unaligned.rs"]
 mod venus_runtime_memcpy_unaligned;
+#[path = "venus/runtime/core/venus_runtime_memcpy_tail.rs"]
 mod venus_runtime_memcpy_tail;
+#[path = "venus/runtime/core/venus_runtime_errors.rs"]
 mod venus_runtime_errors;
+#[path = "venus/runtime/core/venus_runtime_stream_state.rs"]
 mod venus_runtime_stream_state;
+#[path = "venus/runtime/core/venus_runtime_utf8.rs"]
 mod venus_runtime_utf8;
+#[path = "venus/runtime/core/venus_runtime_flush.rs"]
 mod venus_runtime_flush;
+#[path = "venus/runtime/core/venus_runtime_lifecycle.rs"]
 mod venus_runtime_lifecycle;
+#[path = "venus/runtime/core/venus_runtime_ring.rs"]
 mod venus_runtime_ring;
+#[path = "venus/runtime/core/venus_runtime_service_handles.rs"]
 mod venus_runtime_service_handles;
+#[path = "venus/runtime/core/venus_runtime_service_init.rs"]
 mod venus_runtime_service_init;
+#[path = "venus/runtime/core/venus_runtime_resources.rs"]
 mod venus_runtime_resources;
+#[path = "venus/runtime/core/venus_runtime_state.rs"]
 mod venus_runtime_state;
+#[path = "venus/runtime/core/venus_runtime_diagnostics.rs"]
 mod venus_runtime_diagnostics;
+#[path = "venus/runtime/core/venus_runtime_events.rs"]
 mod venus_runtime_events;
+#[path = "venus/runtime/core/venus_runtime_event_loop.rs"]
 mod venus_runtime_event_loop;
+#[path = "venus/runtime/core/venus_runtime_event_setup.rs"]
 mod venus_runtime_event_setup;
+#[path = "venus/runtime/core/venus_runtime_event_links.rs"]
 mod venus_runtime_event_links;
+#[path = "venus/runtime/core/venus_runtime_event_teardown.rs"]
 mod venus_runtime_event_teardown;
+#[path = "venus/runtime/core/venus_runtime_device_setup.rs"]
 mod venus_runtime_device_setup;
+#[path = "venus/runtime/core/venus_runtime_device_init.rs"]
 mod venus_runtime_device_init;
+#[path = "venus/runtime/core/venus_runtime_device_access.rs"]
 mod venus_runtime_device_access;
+#[path = "venus/runtime/core/venus_runtime_device_commands.rs"]
 mod venus_runtime_device_commands;
+#[path = "venus/runtime/core/venus_runtime_device_registration.rs"]
 mod venus_runtime_device_registration;
+#[path = "venus/runtime/core/venus_runtime_device_properties.rs"]
 mod venus_runtime_device_properties;
+#[path = "venus/runtime/core/venus_runtime_device_cleanup.rs"]
 mod venus_runtime_device_cleanup;
+#[path = "venus/runtime/core/venus_runtime_device_alloc_begin.rs"]
 mod venus_runtime_device_alloc_begin;
+#[path = "venus/runtime/core/venus_runtime_device_alloc_finish.rs"]
 mod venus_runtime_device_alloc_finish;
+#[path = "venus/runtime/core/venus_runtime_device_release.rs"]
 mod venus_runtime_device_release;
+#[path = "venus/runtime/core/venus_runtime_bitmap.rs"]
 mod venus_runtime_bitmap;
+#[path = "venus/runtime/core/venus_runtime_bitmap_controls.rs"]
 mod venus_runtime_bitmap_controls;
 
 #[path = "venus/runtime/bridge/venus_runtime_bridge_lookup.rs"]
@@ -116,22 +182,39 @@ pub mod venus_runtime_bridge;
 #[path = "venus/common/venus_plan.rs"]
 pub mod venus_plan;
 
+#[path = "venus/runtime/core/venus_runtime_mmio.rs"]
 mod venus_runtime_mmio;
+#[path = "venus/runtime/core/venus_runtime_platform.rs"]
 mod venus_runtime_platform;
+#[path = "venus/runtime/core/venus_runtime_controller.rs"]
 mod venus_runtime_controller;
+#[path = "venus/runtime/core/venus_runtime_modes.rs"]
 mod venus_runtime_modes;
+#[path = "venus/runtime/core/venus_runtime_service_link.rs"]
 mod venus_runtime_service_link;
+#[path = "venus/runtime/core/venus_runtime_descriptors.rs"]
 mod venus_runtime_descriptors;
+#[path = "venus/runtime/core/venus_runtime_resource_ops.rs"]
 mod venus_runtime_resource_ops;
+#[path = "venus/runtime/core/venus_runtime_resource_table.rs"]
 mod venus_runtime_resource_table;
+#[path = "venus/runtime/core/venus_runtime_keys.rs"]
 mod venus_runtime_keys;
+#[path = "venus/runtime/core/venus_runtime_bits.rs"]
 mod venus_runtime_bits;
+#[path = "venus/runtime/core/venus_runtime_controller_state.rs"]
 mod venus_runtime_controller_state;
+#[path = "venus/runtime/core/venus_runtime_service_controller.rs"]
 mod venus_runtime_service_controller;
+#[path = "venus/runtime/core/venus_runtime_service_frontends.rs"]
 mod venus_runtime_service_frontends;
+#[path = "venus/runtime/core/venus_runtime_controller_io.rs"]
 mod venus_runtime_controller_io;
+#[path = "venus/runtime/core/venus_runtime_registers.rs"]
 mod venus_runtime_registers;
+#[path = "venus/runtime/core/venus_runtime_registers_secondary.rs"]
 mod venus_runtime_registers_secondary;
+#[path = "venus/runtime/core/venus_runtime_interface_lookup.rs"]
 mod venus_runtime_interface_lookup;
 
 // Agent 03: independently verified disjoint late-Venus A32 routines.
@@ -362,4 +445,5 @@ pub mod cdsp_late_runtime_more;
 #[path = "cdsp/late/cdsp_late_seed_handoff.rs"]
 pub mod cdsp_late_seed_handoff;
 pub mod venus_runtime_mid;
+#[path = "venus/runtime/core/venus_runtime_seam.rs"]
 pub mod venus_runtime_seam;
