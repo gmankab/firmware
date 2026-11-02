@@ -6197,16 +6197,7 @@ fn encode_codec_channel_command_queue(c:&mut Code)->Result<(),String>{
     c.emit(arm32::transfer_multiple(C::Al,true,R::SP,R::new(4)?.bit()|R::new(5)?.bit()|R::new(6)?.bit()|R::new(7)?.bit()|R::new(8)?.bit()|R::new(9)?.bit()|R::new(10)?.bit()|R::R11.bit()|R::PC.bit(),arm32::BlockMode::IncrementAfter,true)?)?;
     c.check(0xab030)
 }
-
-const CODEC_CHANNEL_LITERALS:[u32;7]=[
-    0x000f_83fb, // controller format diagnostics
-    0x000e_2788, // common log prefix
-    0x0010_dd7c, // callback/global record
-    0x000f_842b, // linked configuration strings
-    0x000f_8479,
-    0x000f_6700,
-    0x000f_662e,
-];
+include!("parts/section_010.rs");
 include!("parts/section_011.rs");
 include!("parts/section_012.rs");
 include!("parts/section_013.rs");
