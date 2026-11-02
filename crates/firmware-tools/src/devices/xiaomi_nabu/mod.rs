@@ -1,7 +1,10 @@
 // SPDX-License-Identifier: GPL-3.0-only
 //! Xiaomi Pad 5 (`nabu`) reference image metadata and build settings.
+#[path = "a640/a640_shader.rs"]
 pub mod a640_shader;
+#[path = "a640/a640_launch.rs"]
 pub mod a640_launch;
+#[path = "a640/a640_plan.rs"]
 pub mod a640_plan;
 pub mod elf_specs;
 pub mod modemuw;
@@ -10,8 +13,11 @@ pub mod modemuw;
 pub const A640_FAMILY: u16 = 0x6ff;
 /// OEM reference firmware revision (non-executable metadata).
 pub const A640_REVISION: u16 = 0x020;
+#[path = "a640/a640_pipeline.rs"]
 pub mod a640_pipeline;
+#[path = "a640/a640_finalize.rs"]
 pub mod a640_finalize;
+#[path = "a640/a640_container.rs"]
 pub mod a640_container;
 
 pub mod venus_boot;
