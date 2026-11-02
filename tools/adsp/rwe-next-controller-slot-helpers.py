@@ -19,7 +19,7 @@ INTERVALS=((0x11d68,0x11d90,'lookup'),(0x11d90,0x11df8,'clear'),
            (0x11df8,0x11e64,'set'),(0x11e64,0x11e6c,'sentinel'))
 
 def render(llvm_mc:str)->bytes:
-    spec=importlib.util.spec_from_file_location('a',T.parent / 'emit-adsp-entry.py')
+    spec=importlib.util.spec_from_file_location('a',T / 'emit-adsp-entry.py')
     if not spec or not spec.loader:raise RuntimeError('LLVM6 Hexagon assembler is required')
     m=importlib.util.module_from_spec(spec);spec.loader.exec_module(m)
     return m.assemble(llvm_mc,SOURCE,SIZE)

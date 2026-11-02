@@ -20,7 +20,7 @@ SOURCE=ASSEMBLY_DIR / 'rwe-next-controller-slot-deactivate.S'
 REFERENCE_SHA='4b579e5dc1333d634e5bdc93f3314e357e0e30dab7140833f6cc7aef086b1c1e'
 
 def render(llvm_mc:str)->bytes:
-    sp=importlib.util.spec_from_file_location('adsp_assembler',T.parent / 'emit-adsp-entry.py')
+    sp=importlib.util.spec_from_file_location('adsp_assembler',T / 'emit-adsp-entry.py')
     if not sp or not sp.loader:raise RuntimeError('Missing Hexagon assembler')
     mod=importlib.util.module_from_spec(sp);sp.loader.exec_module(mod)
     return mod.assemble(llvm_mc,SOURCE,SIZE)

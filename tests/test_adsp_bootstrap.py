@@ -13,7 +13,7 @@ import tempfile
 import unittest
 
 ROOT = Path(__file__).resolve().parents[1]
-SCRIPT = ROOT / "tools" / "emit-adsp-entry.py"
+SCRIPT = ROOT / "tools/adsp" / "emit-adsp-entry.py"
 ASM = ROOT / "sources/xiaomi-nabu/adsp/adsp-boot-vectors.S"
 
 spec = importlib.util.spec_from_file_location("adsp_boot", SCRIPT)
@@ -711,7 +711,7 @@ class ADSPBootstrapTests(unittest.TestCase):
     def test_combined_v66_boot_prefix(self) -> None:
         # The first nine instructions are compiled by LLVM; the following
         # system/cache operations use checked, typed V66 encoders.
-        sys.path.insert(0, str(ROOT / "tools"))
+        sys.path.insert(0, str(ROOT / "tools/adsp"))
         try:
             from adsp_hexagon_v66 import boot_special_code
             generated = adsp.assemble(LLVM_MC) + boot_special_code()

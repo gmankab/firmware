@@ -29,9 +29,9 @@ class ADSPAssemblySourceTests(unittest.TestCase):
     def test_assembly_source_is_not_in_executable_tool_root(self):
         self.assertEqual(list((ROOT / 'tools').glob('*.S')), [])
         self.assertEqual(len(list((ROOT / 'sources/xiaomi-nabu/adsp').glob('*.S'))), 168)
-        text = (ROOT / 'tools/emit-adsp-late.py').read_text()
+        text = (ROOT / 'tools/adsp/emit-adsp-late.py').read_text()
         self.assertIn("ADSP_ASM = ROOT / 'sources/xiaomi-nabu/adsp'", text)
-        self.assertTrue((ROOT / 'tools/emit-adsp-entry.py').is_file())
+        self.assertTrue((ROOT / 'tools/adsp/emit-adsp-entry.py').is_file())
 
 
 if __name__ == '__main__':

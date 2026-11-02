@@ -54,7 +54,7 @@ NEXT_FILL_START=FILE_END
 NEXT_FILL_END=0x106e8
 
 def base():
-    spec=importlib.util.spec_from_file_location('adsp_original_encoder',TOOLS.parent/'emit-adsp-entry.py')
+    spec=importlib.util.spec_from_file_location('adsp_original_encoder',TOOLS/'emit-adsp-entry.py')
     if not spec or not spec.loader:raise RuntimeError('missing verified ELF/Hexagon assembler')
     module=importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)

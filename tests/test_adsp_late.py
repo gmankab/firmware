@@ -13,7 +13,7 @@ import unittest
 
 ROOT = Path(__file__).resolve().parents[1]
 SOURCE = ROOT / 'sources/xiaomi-nabu/adsp/adsp-late-callback-drain.S'
-SCRIPT = ROOT / 'tools' / 'emit-adsp-late.py'
+SCRIPT = ROOT / 'tools/adsp' / 'emit-adsp-late.py'
 
 spec = importlib.util.spec_from_file_location('adsp_late', SCRIPT)
 assert spec is not None and spec.loader is not None

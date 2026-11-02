@@ -27,7 +27,7 @@ ZERO_SCALAR=ASSEMBLY_DIR / 'rwe-next-r2-zero.S'
 RESTORE_DUPLEX=ASSEMBLY_DIR / 'rwe-next-error-duplex.S'
 
 def previous():
-    p=TOOLS.parent/'emit-adsp-entry.py'
+    p=TOOLS/'emit-adsp-entry.py'
     s=importlib.util.spec_from_file_location('adsp_bootstrap_emit',p)
     if not s or not s.loader:raise RuntimeError('Missing Hexagon source compiler')
     m=importlib.util.module_from_spec(s);s.loader.exec_module(m)

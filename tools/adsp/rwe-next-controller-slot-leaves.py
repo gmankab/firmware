@@ -23,7 +23,7 @@ NOP=struct.pack('<I',0x7f00c000)
 FUNCTIONS=((0x12118,0x12140),(0x12140,0x12168),(0x12168,0x121a0),(0x121a0,0x121bc))
 
 def render(llvm_mc:str)->bytes:
-    sp=importlib.util.spec_from_file_location('assembly',T.parent / 'emit-adsp-entry.py')
+    sp=importlib.util.spec_from_file_location('assembly',T / 'emit-adsp-entry.py')
     if not sp or not sp.loader:raise RuntimeError('Hexagon LLVM6 unavailable')
     module=importlib.util.module_from_spec(sp);sp.loader.exec_module(module)
     b=bytearray(module.assemble(llvm_mc,SOURCE,SIZE))

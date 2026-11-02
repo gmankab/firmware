@@ -19,7 +19,7 @@ SOURCE=ASSEMBLY_DIR / 'rwe-next-early-controller.S'
 REFERENCE_SHA256='4b579e5dc1333d634e5bdc93f3314e357e0e30dab7140833f6cc7aef086b1c1e'
 
 def tool():
-    s=importlib.util.spec_from_file_location('emit_adsp_entry',TOOLS.parent/'emit-adsp-entry.py')
+    s=importlib.util.spec_from_file_location('emit_adsp_entry',TOOLS/'emit-adsp-entry.py')
     if not s or not s.loader:raise RuntimeError('ADSP emitter unavailable')
     m=importlib.util.module_from_spec(s);s.loader.exec_module(m)
     return m

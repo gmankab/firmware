@@ -24,7 +24,7 @@ PARTS=(
 )
 
 def render(llvm_mc:str)->bytes:
-    spec=importlib.util.spec_from_file_location('adsp_entry',T.parent / 'emit-adsp-entry.py')
+    spec=importlib.util.spec_from_file_location('adsp_entry',T / 'emit-adsp-entry.py')
     if not spec or not spec.loader:raise RuntimeError('Missing Hexagon LLVM6 emitter')
     m=importlib.util.module_from_spec(spec);spec.loader.exec_module(m)
     result=b''.join(m.assemble(llvm_mc,ASSEMBLY_DIR/name,length) for name,length in PARTS)

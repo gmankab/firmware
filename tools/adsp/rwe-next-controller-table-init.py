@@ -24,7 +24,7 @@ PACKET_END=0x0000c000
 PACKET_CONTINUE=0x00004000
 
 def render(llvm_mc:str)->bytes:
-    spec=importlib.util.spec_from_file_location('adsp_emit',TOOLS.parent/'emit-adsp-entry.py')
+    spec=importlib.util.spec_from_file_location('adsp_emit',TOOLS/'emit-adsp-entry.py')
     if not spec or not spec.loader:raise RuntimeError('Missing Hexagon LLVM source assembler')
     emitter=importlib.util.module_from_spec(spec);spec.loader.exec_module(emitter)
     out=bytearray(emitter.assemble(llvm_mc,SOURCE,SIZE))

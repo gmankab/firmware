@@ -36,7 +36,7 @@ MERGED_PACKET_WORDS = (0x121cc, 0x121d0)
 
 
 def render(llvm_mc: str) -> bytes:
-    spec = importlib.util.spec_from_file_location('adsp_emit', T.parent / 'emit-adsp-entry.py')
+    spec = importlib.util.spec_from_file_location('adsp_emit', T / 'emit-adsp-entry.py')
     if not spec or not spec.loader:
         raise RuntimeError('Missing standalone LLVM6 source assembler')
     emitter = importlib.util.module_from_spec(spec)

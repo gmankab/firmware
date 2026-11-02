@@ -27,7 +27,7 @@ SOURCE=ASSEMBLY_DIR / 'rwe-next-icache-snapshot.S'
 REFERENCE_SHA256='4b579e5dc1333d634e5bdc93f3314e357e0e30dab7140833f6cc7aef086b1c1e'
 
 def base():
-    spec=importlib.util.spec_from_file_location('adsp_validated_mc',TOOLS.parent/'emit-adsp-entry.py')
+    spec=importlib.util.spec_from_file_location('adsp_validated_mc',TOOLS/'emit-adsp-entry.py')
     if not spec or not spec.loader:raise RuntimeError('Cannot find the ADSP source assembler')
     m=importlib.util.module_from_spec(spec)
     spec.loader.exec_module(m)

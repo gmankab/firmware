@@ -26,7 +26,7 @@ FILL_START=FILE_END
 FILL_END=0x10ec0
 
 def base():
-    s=importlib.util.spec_from_file_location('adsp_validated_llvm',TOOLS.parent/'emit-adsp-entry.py')
+    s=importlib.util.spec_from_file_location('adsp_validated_llvm',TOOLS/'emit-adsp-entry.py')
     if not s or not s.loader:raise RuntimeError('Missing ADSP assembler')
     m=importlib.util.module_from_spec(s);s.loader.exec_module(m)
     return m

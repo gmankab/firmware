@@ -25,7 +25,7 @@ PHYSICAL_START=0x8be0e170
 REFERENCE_SHA256='4b579e5dc1333d634e5bdc93f3314e357e0e30dab7140833f6cc7aef086b1c1e'
 
 def base():
-    spec=importlib.util.spec_from_file_location('adsp_encoder',TOOLS.parent/'emit-adsp-entry.py')
+    spec=importlib.util.spec_from_file_location('adsp_encoder',TOOLS/'emit-adsp-entry.py')
     if not spec or not spec.loader:raise RuntimeError('Missing ADSP Hexagon source assembler')
     m=importlib.util.module_from_spec(spec);spec.loader.exec_module(m)
     return m

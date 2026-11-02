@@ -98,7 +98,7 @@ TLB_READBACK_SIZE=0x3c
 
 
 def baseline():
-    spec=importlib.util.spec_from_file_location('adsp_previous_emitter',TOOLS.parent/'emit-adsp-entry.py')
+    spec=importlib.util.spec_from_file_location('adsp_previous_emitter',TOOLS/'emit-adsp-entry.py')
     if spec is None or spec.loader is None:
         raise RuntimeError('cannot load checked section assembler')
     mod=importlib.util.module_from_spec(spec)

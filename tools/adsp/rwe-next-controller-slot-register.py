@@ -23,7 +23,7 @@ READ_SGP0_AT=0x11bb0
 NOP=struct.pack('<I',0x7f00c000)
 
 def render(llvm_mc:str)->bytes:
-    spec=importlib.util.spec_from_file_location('adsp_llvm',TOOLS.parent/'emit-adsp-entry.py')
+    spec=importlib.util.spec_from_file_location('adsp_llvm',TOOLS/'emit-adsp-entry.py')
     if not spec or not spec.loader:raise RuntimeError('Missing LLVM6 source assembler')
     m=importlib.util.module_from_spec(spec);spec.loader.exec_module(m)
     out=bytearray(m.assemble(llvm_mc,SOURCE,SIZE))

@@ -28,7 +28,7 @@ PACKET_AT=0x11ffc
 NOP=struct.pack('<I',0x7f00c000)
 
 def render(llvm_mc:str)->bytes:
-    sp=importlib.util.spec_from_file_location('adsp_source',T.parent / 'emit-adsp-entry.py')
+    sp=importlib.util.spec_from_file_location('adsp_source',T / 'emit-adsp-entry.py')
     if not sp or not sp.loader:raise RuntimeError('Hexagon source assembler unavailable')
     m=importlib.util.module_from_spec(sp);sp.loader.exec_module(m)
     out=bytearray(m.assemble(llvm_mc,SOURCE,SIZE))

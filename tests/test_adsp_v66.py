@@ -10,7 +10,7 @@ import sys
 import unittest
 
 ROOT = Path(__file__).resolve().parents[1]
-ENCODER = ROOT / "tools" / "adsp_hexagon_v66.py"
+ENCODER = ROOT / "tools/adsp" / "adsp_hexagon_v66.py"
 spec = importlib.util.spec_from_file_location("adsp_v66", ENCODER)
 assert spec and spec.loader
 v66 = importlib.util.module_from_spec(spec)

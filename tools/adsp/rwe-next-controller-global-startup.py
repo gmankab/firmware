@@ -31,7 +31,7 @@ REPLACEMENTS={
 }
 
 def assembler():
-    spec=importlib.util.spec_from_file_location('adsp_entry',TOOLS.parent/'emit-adsp-entry.py')
+    spec=importlib.util.spec_from_file_location('adsp_entry',TOOLS/'emit-adsp-entry.py')
     if not spec or not spec.loader:raise RuntimeError('Missing ADSP assembler')
     module=importlib.util.module_from_spec(spec);spec.loader.exec_module(module)
     return module

@@ -31,7 +31,7 @@ SYSTEM_READS={0x116f0:read_system_register(2,SystemRegister.SYSCFG),
 NOP=struct.pack('<I',0x7f00c000)
 
 def render(llvm_mc:str)->bytes:
-    spec=importlib.util.spec_from_file_location('adsp_entry',T.parent / 'emit-adsp-entry.py')
+    spec=importlib.util.spec_from_file_location('adsp_entry',T / 'emit-adsp-entry.py')
     if not spec or not spec.loader:raise RuntimeError('Missing source assembler')
     a=importlib.util.module_from_spec(spec);spec.loader.exec_module(a)
     data=bytearray(a.assemble(llvm_mc,SOURCE,SIZE))

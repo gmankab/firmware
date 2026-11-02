@@ -29,7 +29,7 @@ PARTS=(
 )
 
 def _import_script(name:str):
-    spec=importlib.util.spec_from_file_location(name.replace('-','_').replace('.','_'),(T.parent if name=='emit-adsp-entry.py' else T)/name)
+    spec=importlib.util.spec_from_file_location(name.replace('-','_').replace('.','_'),T/name)
     if not spec or not spec.loader:raise RuntimeError('Missing source assembler')
     mod=importlib.util.module_from_spec(spec);spec.loader.exec_module(mod)
     return mod

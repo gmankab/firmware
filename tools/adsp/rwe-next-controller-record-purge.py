@@ -26,7 +26,7 @@ V66_OPS={0x13624:read_system_register(2,SystemRegister.SGP0),
          0x13704:int(KernelZeroLock.LOCK)}
 
 def render(llvm_mc:str)->bytes:
- spec=importlib.util.spec_from_file_location('adsp_llvm',T.parent / 'emit-adsp-entry.py')
+ spec=importlib.util.spec_from_file_location('adsp_llvm',T / 'emit-adsp-entry.py')
  if not spec or not spec.loader:raise RuntimeError('Missing original source assembler')
  em=importlib.util.module_from_spec(spec);spec.loader.exec_module(em)
  b=bytearray(em.assemble(llvm_mc,SOURCE,SIZE))

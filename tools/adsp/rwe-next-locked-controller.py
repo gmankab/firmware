@@ -33,7 +33,7 @@ REPLACEMENTS={
 }
 
 def base():
-    p=TOOLS.parent/'emit-adsp-entry.py';spec=importlib.util.spec_from_file_location('adsp_encoder',p)
+    p=TOOLS/'emit-adsp-entry.py';spec=importlib.util.spec_from_file_location('adsp_encoder',p)
     if not spec or not spec.loader:raise RuntimeError('Missing source assembler')
     m=importlib.util.module_from_spec(spec);spec.loader.exec_module(m);return m
 
