@@ -7,6 +7,7 @@ pub mod a640_launch;
 #[path = "a640/a640_plan.rs"]
 pub mod a640_plan;
 pub mod elf_specs;
+#[path = "modem/common/modemuw.rs"]
 pub mod modemuw;
 
 /// GPU-family identifier stored in the reference A640 SQE/ZAP microcode.
