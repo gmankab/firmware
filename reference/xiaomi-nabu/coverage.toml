@@ -1,0 +1,135 @@
+# SPDX-License-Identifier: GPL-3.0-only
+# All counts are coverage claims, NOT proof of executable decompilation or OEM trust.
+schema_version = 1
+reference_hash_file = "reference/xiaomi-nabu/firmware.sha256"
+
+[[images]]
+name = "modemuw.jsn"
+size = 713
+sha256 = "e75d94b61df3e86c5b3f7a976d93f726cb85f2b897a8ea80a0924b9bb9c1a3bf"
+credit_bytes = 713
+credit_kind = "source"
+complete_source = true
+
+[[images]]
+name = "a640_zap.mbn"
+size = 14256
+sha256 = "bb1b61bae977aab5e5a68bd88848f4479c8d156911d96c7de73f7195b674db06"
+credit_bytes = 7856
+credit_kind = "source_and_layout"
+external_authentication_bytes = 6400
+
+[[images]]
+name = "venus.mbn"
+size = 1159200
+sha256 = "9d4af65d7ede845e900f1b29ff425b7a8e2947056e695e246e58a2091445a085"
+credit_bytes = 529056
+credit_kind = "reported_source_and_literal_data"
+
+[images.executable_load]
+file_base = 0x4000
+runtime_end = 0x1029f4
+
+[[images.regions]]
+start = 0x0
+end = 0xaa0c
+provenance = "reported_reconstructed"
+label = "boot and bridge"
+
+[[images.regions]]
+start = 0x12e5c
+end = 0x18000
+provenance = "reported_reconstructed"
+label = "codec forward"
+
+[[images.regions]]
+start = 0x18000
+end = 0x183e0
+provenance = "reported_reconstructed"
+label = "codec seam"
+
+[[images.regions]]
+start = 0x183e0
+end = 0x21c78
+provenance = "reported_reconstructed"
+label = "late service"
+
+[[images.regions]]
+start = 0x21c78
+end = 0x40000
+provenance = "reported_reconstructed"
+label = "middle runtime"
+
+[[images.regions]]
+start = 0x40000
+end = 0x68000
+provenance = "reported_reconstructed"
+label = "controller"
+
+[[images.regions]]
+start = 0x69b80
+end = 0x69e44
+provenance = "reported_reconstructed"
+label = "upper fragment A"
+
+[[images.regions]]
+start = 0x6b860
+end = 0x6b990
+provenance = "reported_reconstructed"
+label = "upper fragment B"
+
+[[images.regions]]
+start = 0x710c0
+end = 0x73e10
+provenance = "reported_reconstructed"
+label = "upper fragment C"
+
+[[images.regions]]
+start = 0xa8000
+end = 0xc65ac
+provenance = "reported_reconstructed"
+label = "tail runtime"
+
+[[images]]
+name = "adsp.mbn"
+size = 14430684
+sha256 = "4b579e5dc1333d634e5bdc93f3314e357e0e30dab7140833f6cc7aef086b1c1e"
+credit_bytes = 31608
+credit_kind = "reported_executable_fragments"
+
+[[images]]
+name = "cdsp.mbn"
+size = 9455252
+sha256 = "febeae7b8e47bad4eeabc159a3c24b74cda26dfa12b384c31de5de30817e06ea"
+credit_bytes = 11964
+credit_kind = "reported_executable_fragments"
+
+[[images]]
+name = "modem.mbn"
+size = 5101612
+sha256 = "6f5cb32bc10e41abb40938d185805e788f5637a41d3ebcef278e4e169fc36782"
+credit_bytes = 19528
+credit_kind = "reported_executable_fragments_lower_bound"
+
+[[images]]
+name = "wlanmdsp.mbn"
+size = 4331136
+sha256 = "87c2c7bb1fe97eaf007a947832feba0898644b4d6626ac8ef49d8b94dd82604b"
+credit_bytes = 52836
+credit_kind = "reported_fragments_and_layout_lower_bound"
+
+[[images]]
+name = "cs35l41-dsp1-spk-prot.wmfw"
+size = 34236
+sha256 = "d1bea27e41001024eb3878276292b5bcc0cda4484ffced0880e12c03ec9bac2c"
+credit_bytes = 10488
+credit_kind = "structural_and_reference_observed"
+external_dsp_payload_bytes = 23748
+
+[[images]]
+name = "novatek_nt36523_fw.bin"
+size = 196608
+sha256 = "8b845514621ebfd95759a0919f3aa3d825314abb478a7cad1c3fb4c6872b70b5"
+credit_bytes = 149097
+credit_kind = "reported_ilm_dlm_and_layout"
+reference_revision = "postmarketos"
