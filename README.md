@@ -56,5 +56,9 @@ command.
 - `docs/` — current status, building/decompilation guides, historical
   checkpoints and audit evidence.
 
+For large firmware sources, use `python3 tools/analysis/bounded-inspect.py`
+(`sizes`, `lines`, `bytes`) to cap reads and output. See the inspection and
+memory guidelines in the repository organization guide.
+
 See [repository organization](docs/REPOSITORY_LAYOUT.md) and
 [current generated status](docs/STATUS.md).

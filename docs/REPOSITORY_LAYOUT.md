@@ -36,6 +36,38 @@ original `include_str!` lookup. The one-to-one source migration and SHA-256
 ledger is `docs/maintenance/assembly-paths.json`; the regression test
 `tests/test_firmware_assembly_sources.py` checks every original byte.
 
+### ADSP and CDSP semantic assembly sources
+
+Source-authored ADSP RWE assembly now lives at
+`sources/xiaomi-nabu/adsp/rwe/` (121 files) and CDSP late-controller
+assembly at `sources/xiaomi-nabu/cdsp/late/` (51 files). The runnable
+assemblers and verifiers remain under `tools/adsp/` and `tools/cdsp/`.
+All 172 assembly files were renamed without changing their content; SHA-256
+checks are recorded in `docs/maintenance/{adsp,cdsp}-assembly-relocation.json`
+and enforced by `tests/test_assembly_source_ownership.py`.
+Never add symlinks or duplicate firmware source into executable tool directories.
+
+### Avoiding unbounded reads and compilation freezes
+
+For large A32 generators and reference binaries, inspect metadata before
+reading content. Use the bounded helper instead of `cat`, whole-file regex
+replacement or copying decompiler listings into a tool response:
+
+```sh
+python3 tools/analysis/bounded-inspect.py sizes path/to/large.rs
+python3 tools/analysis/bounded-inspect.py lines path/to/large.rs 1200 60
+python3 tools/analysis/bounded-inspect.py bytes /private/venus.mbn 0x4000 0x100
+```
+
+The helper reads at most 120 source lines or 4 KiB of binary data per call,
+with a strict 64 KiB output cap. Use `rg -l` and `rg -n` with a targeted
+file glob, and record large test/build output in bounded log files rather than
+printing megabytes to the terminal. For multipart `.zst` archives stream the
+parts into `tar -I zstd`, extracting only needed entries; never load the
+compressed archive into Python memory. Keep Cargo to one job using
+`tools/low-memory-build.sh`, disable debug information/incremental builds,
+and do not overlap competing cargo/rustc processes under the 4 GiB cgroup.
+
 Source is kept in the owning crate. The original A32 instruction encoders and
 source-derived data are not duplicated. Keep new APIs narrow and prefer
 `pub(crate)` for internal functions. Preserve the architecture's memory map,
