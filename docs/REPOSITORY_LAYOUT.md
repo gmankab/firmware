@@ -15,6 +15,17 @@ Contributor names and checkpoint numbers are not implementation identifiers.
 | Regression tests | `tests/test_<firmware>_<function>.py` |
 | Historical reports/evidence | `docs/history`, `docs/evidence`, `verification` |
 
+### Function-bounded Venus tail source
+
+`crates/venus-tail/src/venus_tail_program.rs` keeps the public module namespace
+and common ARM32 emitter. Its 92 ordered `include!` sections in `parts/` are
+split at complete Rust item boundaries, without changing the emitted firmware
+instruction stream. `parts/manifest.json` records the exact original
+63,602-line source SHA-256 and each chunk SHA-256. The regression test
+`tests/test_venus_tail_slices.py` reconstructs the original source bytes and
+validates the inclusion order. All 64 Venus-tail unit tests and the direct
+124,332-byte reference comparison pass after the split.
+
 Source is kept in the owning crate. The original A32 instruction encoders and
 source-derived data are not duplicated. Keep new APIs narrow and prefer
 `pub(crate)` for internal functions. Preserve the architecture's memory map,
