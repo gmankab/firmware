@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: GPL-3.0-only
 //! Agent 06 standalone modem executable fragment generator/verifier.
-#[path = "../devices/xiaomi_nabu/modem_hexagon.rs"]
+#[path = "../devices/xiaomi_nabu/modem/common/modem_hexagon.rs"]
 mod modem_hexagon;
-#[path = "../devices/xiaomi_nabu/modem_bootstrap.rs"]
+#[path = "../devices/xiaomi_nabu/modem/common/modem_bootstrap.rs"]
 mod modem_bootstrap;
-#[path = "../devices/xiaomi_nabu/modem_boot_manifest.rs"]
+#[path = "../devices/xiaomi_nabu/modem/common/modem_boot_manifest.rs"]
 mod modem_boot_manifest;
-#[path = "../devices/xiaomi_nabu/modem_tlb_tail.rs"]
+#[path = "../devices/xiaomi_nabu/modem/common/modem_tlb_tail.rs"]
 mod modem_tlb_tail;
 use std::{env, fs};
 

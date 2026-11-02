@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // Standalone optional-reference tests: no OEM firmware is committed.
-#[path = "../src/devices/xiaomi_nabu/venus_upper.rs"]
+#[path = "../src/devices/xiaomi_nabu/venus/upper/venus_upper.rs"]
 mod upper;
 
 #[test]
@@ -18,7 +18,7 @@ fn scaled_dimensions_rebuild_and_optional_reference() {
     }
 }
 
-#[path = "../src/devices/xiaomi_nabu/venus_upper_control_flags.rs"]
+#[path = "../src/devices/xiaomi_nabu/venus/upper/venus_upper_control_flags.rs"]
 mod control_flags;
 
 #[test]
@@ -32,7 +32,7 @@ fn control_flags_fragment_matches_optional_reference(){
     }
 }
 
-#[path = "../src/devices/xiaomi_nabu/venus_upper_color_unpack.rs"]
+#[path = "../src/devices/xiaomi_nabu/venus/upper/venus_upper_color_unpack.rs"]
 mod color_unpack;
 #[test]
 fn color_unpack_matches_optional_reference(){
@@ -45,7 +45,7 @@ fn color_unpack_matches_optional_reference(){
     }
 }
 
-#[path = "../src/devices/xiaomi_nabu/venus_upper_quality.rs"]
+#[path = "../src/devices/xiaomi_nabu/venus/upper/venus_upper_quality.rs"]
 mod quality;
 #[test]
 fn quality_tier_and_allocators_match_optional_reference(){
@@ -58,7 +58,7 @@ fn quality_tier_and_allocators_match_optional_reference(){
     }
 }
 
-#[path = "../src/devices/xiaomi_nabu/venus_upper_record_metrics.rs"]
+#[path = "../src/devices/xiaomi_nabu/venus/upper/venus_upper_record_metrics.rs"]
 mod record_metrics;
 #[test]
 fn rolling_record_metrics_matches_optional_reference(){
@@ -71,7 +71,7 @@ fn rolling_record_metrics_matches_optional_reference(){
     }
 }
 
-#[path = "../src/devices/xiaomi_nabu/venus_upper_magnitude.rs"]
+#[path = "../src/devices/xiaomi_nabu/venus/upper/venus_upper_magnitude.rs"]
 mod magnitude;
 #[test]
 fn magnitude_bucket_matches_optional_reference(){
@@ -83,7 +83,7 @@ fn magnitude_bucket_matches_optional_reference(){
     }
 }
 
-#[path="../src/devices/xiaomi_nabu/venus_upper_alt_occupancy.rs"]
+#[path="../src/devices/xiaomi_nabu/venus/upper/venus_upper_alt_occupancy.rs"]
 mod alt_occupancy;
 #[test]
 fn alternate_occupancy_matches_optional_reference(){
@@ -96,7 +96,7 @@ fn alternate_occupancy_matches_optional_reference(){
     }
 }
 
-#[path="../src/devices/xiaomi_nabu/venus_upper_occupancy_commit.rs"]
+#[path="../src/devices/xiaomi_nabu/venus/upper/venus_upper_occupancy_commit.rs"]
 mod occupancy_commit;
 #[test]
 fn committed_occupancy_matches_optional_reference(){
@@ -109,7 +109,7 @@ fn committed_occupancy_matches_optional_reference(){
     }
 }
 
-#[path="../src/devices/xiaomi_nabu/venus_upper_record_append.rs"]
+#[path="../src/devices/xiaomi_nabu/venus/upper/venus_upper_record_append.rs"]
 mod record_append;
 #[test]fn record_append_matches_optional_reference(){
     let bytes=record_append::fragment().unwrap();
@@ -120,7 +120,7 @@ mod record_append;
     }
 }
 
-#[path="../src/devices/xiaomi_nabu/venus_upper_record_select.rs"]
+#[path="../src/devices/xiaomi_nabu/venus/upper/venus_upper_record_select.rs"]
 mod record_select;
 #[test]fn controller_record_selection_matches_optional_reference(){
     let b=record_select::fragment().unwrap();assert_eq!(b.len(),record_select::END-record_select::START);
@@ -166,7 +166,7 @@ fn merged_controller_interval_is_strictly_gapless(){
     }
 }
 
-#[path="../src/devices/xiaomi_nabu/venus_upper_controller_limits.rs"]
+#[path="../src/devices/xiaomi_nabu/venus/upper/venus_upper_controller_limits.rs"]
 mod controller_limits;
 #[test]fn controller_limits_prefix_matches_optional_reference(){
     let p=controller_limits::fragment().unwrap();
@@ -178,17 +178,17 @@ mod controller_limits;
     }
 }
 
-#[path="../src/devices/xiaomi_nabu/venus_upper_controller_limits_tail.rs"]
+#[path="../src/devices/xiaomi_nabu/venus/upper/venus_upper_controller_limits_tail.rs"]
 mod controller_limits_tail;
-#[path="../src/devices/xiaomi_nabu/venus_upper_throughput_tiers.rs"]
+#[path="../src/devices/xiaomi_nabu/venus/upper/venus_upper_throughput_tiers.rs"]
 mod throughput_tiers;
-#[path="../src/devices/xiaomi_nabu/venus_upper_controller_alloc.rs"]
+#[path="../src/devices/xiaomi_nabu/venus/upper/venus_upper_controller_alloc.rs"]
 mod controller_alloc;
-#[path="../src/devices/xiaomi_nabu/venus_upper_controller_run_prefix.rs"]
+#[path="../src/devices/xiaomi_nabu/venus/upper/venus_upper_controller_run_prefix.rs"]
 mod controller_run_prefix;
-#[path="../src/devices/xiaomi_nabu/venus_upper_controller_run_tail.rs"]
+#[path="../src/devices/xiaomi_nabu/venus/upper/venus_upper_controller_run_tail.rs"]
 mod controller_run_tail;
-#[path="../src/devices/xiaomi_nabu/venus_upper_controller_small_helpers.rs"]
+#[path="../src/devices/xiaomi_nabu/venus/upper/venus_upper_controller_small_helpers.rs"]
 mod controller_small_helpers;
 #[test]fn controller_limits_tail_matches_optional_reference(){
     let b=controller_limits_tail::fragment().unwrap();

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-only
-#[path = "../src/devices/xiaomi_nabu/venus_upper.rs"]
+#[path = "../src/devices/xiaomi_nabu/venus/upper/venus_upper.rs"]
 mod upper;
 fn main() -> Result<(),Box<dyn std::error::Error>> {
     let path=std::env::args().nth(1).ok_or("usage: venus_upper_emit OUTPUT [ORIGINAL_VENUS_MBN]")?;

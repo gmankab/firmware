@@ -1,23 +1,23 @@
 // SPDX-License-Identifier: GPL-3.0-only
 //! Isolated Agent 20-18 emitter; no shared module or CLI registration required.
 
-#[path = "../devices/xiaomi_nabu/novatek_upper_isa.rs"]
+#[path = "../devices/xiaomi_nabu/novatek/ilm/novatek_upper_isa.rs"]
 mod novatek_upper_isa;
-#[path = "../devices/xiaomi_nabu/novatek_upper_ilm.rs"]
+#[path = "../devices/xiaomi_nabu/novatek/ilm/novatek_upper_ilm.rs"]
 mod novatek_upper_ilm;
-#[path = "../devices/xiaomi_nabu/novatek_upper_ex9.rs"]
+#[path = "../devices/xiaomi_nabu/novatek/ilm/novatek_upper_ex9.rs"]
 mod novatek_upper_ex9;
-#[path = "../devices/xiaomi_nabu/novatek_upper_log_data.rs"]
+#[path = "../devices/xiaomi_nabu/novatek/ilm/novatek_upper_log_data.rs"]
 mod novatek_upper_log_data;
-#[path = "../devices/xiaomi_nabu/novatek_upper_math_data.rs"]
+#[path = "../devices/xiaomi_nabu/novatek/ilm/novatek_upper_math_data.rs"]
 mod novatek_upper_math_data;
-#[path = "../devices/xiaomi_nabu/novatek_upper_allocations.rs"]
+#[path = "../devices/xiaomi_nabu/novatek/ilm/novatek_upper_allocations.rs"]
 mod novatek_upper_allocations;
-#[path = "../devices/xiaomi_nabu/novatek_upper_boundary.rs"]
+#[path = "../devices/xiaomi_nabu/novatek/ilm/novatek_upper_boundary.rs"]
 mod novatek_upper_boundary;
-#[path = "../devices/xiaomi_nabu/novatek_upper_aux_tables.rs"]
+#[path = "../devices/xiaomi_nabu/novatek/ilm/novatek_upper_aux_tables.rs"]
 mod novatek_upper_aux_tables;
-#[path = "../devices/xiaomi_nabu/novatek_upper_catalog.rs"]
+#[path = "../devices/xiaomi_nabu/novatek/ilm/novatek_upper_catalog.rs"]
 mod novatek_upper_catalog;
 
 use std::{env, fs, process};

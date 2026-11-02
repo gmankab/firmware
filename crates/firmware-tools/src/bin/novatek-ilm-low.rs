@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-only
 //! Isolated Agent17 CLI: no central registry or Cargo manifest changes.
-#[path="../devices/xiaomi_nabu/novatek_ilmlow.rs"]
+#[path="../devices/xiaomi_nabu/novatek/ilm/novatek_ilmlow.rs"]
 mod lower;
 use std::{env,fs,process};
 fn run()->Result<(),String>{

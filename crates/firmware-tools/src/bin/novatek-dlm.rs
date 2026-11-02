@@ -2,30 +2,30 @@
 //! Agent 20-19 standalone data emitter and envelope/provenance verifier.
 //! Auto-discovered Cargo bin; no central module or CLI registration required.
 #![allow(dead_code)]
-#[path = "../devices/xiaomi_nabu/novatek_layout.rs"] mod novatek_layout;
-#[path = "../devices/xiaomi_nabu/novatek_vector.rs"] mod novatek_vector;
-#[path = "../devices/xiaomi_nabu/novatek_crc.rs"] mod novatek_crc;
-#[path = "../devices/xiaomi_nabu/novatek_nds32.rs"] mod novatek_nds32;
-#[path = "../devices/xiaomi_nabu/novatek_dlm.rs"] mod novatek_dlm;
-#[path = "../devices/xiaomi_nabu/novatek_dlm_gaussian.rs"] mod novatek_dlm_gaussian;
-#[path = "../devices/xiaomi_nabu/novatek_dlm_schedule_links.rs"] mod novatek_dlm_schedule_links;
-#[path = "../devices/xiaomi_nabu/novatek_dlm_state_defaults.rs"] mod novatek_dlm_state_defaults;
-#[path = "../devices/xiaomi_nabu/novatek_dlm_bank_transform.rs"] mod novatek_dlm_bank_transform;
-#[path = "../devices/xiaomi_nabu/novatek_dlm_control_candidates.rs"] mod novatek_dlm_control_candidates;
-#[path = "../devices/xiaomi_nabu/novatek_dlm_calibration_alias.rs"] mod novatek_dlm_calibration_alias;
-#[path = "../devices/xiaomi_nabu/novatek_dlm_bank_aliases.rs"] mod novatek_dlm_bank_aliases;
-#[path = "../devices/xiaomi_nabu/novatek_dlm_staging_extensions.rs"] mod novatek_dlm_staging_extensions;
-#[path = "../devices/xiaomi_nabu/novatek_dlm_descriptor_geometry.rs"] mod novatek_dlm_descriptor_geometry;
-#[path = "../devices/xiaomi_nabu/novatek_dlm_envelope.rs"] mod novatek_dlm_envelope;
-#[path = "../devices/xiaomi_nabu/novatek_dlm_provenance.rs"] mod novatek_dlm_provenance;
-#[path = "../devices/xiaomi_nabu/novatek_dlm_sparse.rs"] mod novatek_dlm_sparse;
-#[path = "../devices/xiaomi_nabu/novatek_dlm_seed_manifest.rs"] mod novatek_dlm_seed_manifest;
+#[path = "../devices/xiaomi_nabu/novatek/common/novatek_layout.rs"] mod novatek_layout;
+#[path = "../devices/xiaomi_nabu/novatek/common/novatek_vector.rs"] mod novatek_vector;
+#[path = "../devices/xiaomi_nabu/novatek/common/novatek_crc.rs"] mod novatek_crc;
+#[path = "../devices/xiaomi_nabu/novatek/common/novatek_nds32.rs"] mod novatek_nds32;
+#[path = "../devices/xiaomi_nabu/novatek/dlm/novatek_dlm.rs"] mod novatek_dlm;
+#[path = "../devices/xiaomi_nabu/novatek/dlm/novatek_dlm_gaussian.rs"] mod novatek_dlm_gaussian;
+#[path = "../devices/xiaomi_nabu/novatek/dlm/novatek_dlm_schedule_links.rs"] mod novatek_dlm_schedule_links;
+#[path = "../devices/xiaomi_nabu/novatek/dlm/novatek_dlm_state_defaults.rs"] mod novatek_dlm_state_defaults;
+#[path = "../devices/xiaomi_nabu/novatek/dlm/novatek_dlm_bank_transform.rs"] mod novatek_dlm_bank_transform;
+#[path = "../devices/xiaomi_nabu/novatek/dlm/novatek_dlm_control_candidates.rs"] mod novatek_dlm_control_candidates;
+#[path = "../devices/xiaomi_nabu/novatek/dlm/novatek_dlm_calibration_alias.rs"] mod novatek_dlm_calibration_alias;
+#[path = "../devices/xiaomi_nabu/novatek/dlm/novatek_dlm_bank_aliases.rs"] mod novatek_dlm_bank_aliases;
+#[path = "../devices/xiaomi_nabu/novatek/dlm/novatek_dlm_staging_extensions.rs"] mod novatek_dlm_staging_extensions;
+#[path = "../devices/xiaomi_nabu/novatek/dlm/novatek_dlm_descriptor_geometry.rs"] mod novatek_dlm_descriptor_geometry;
+#[path = "../devices/xiaomi_nabu/novatek/dlm/novatek_dlm_envelope.rs"] mod novatek_dlm_envelope;
+#[path = "../devices/xiaomi_nabu/novatek/dlm/novatek_dlm_provenance.rs"] mod novatek_dlm_provenance;
+#[path = "../devices/xiaomi_nabu/novatek/dlm/novatek_dlm_sparse.rs"] mod novatek_dlm_sparse;
+#[path = "../devices/xiaomi_nabu/novatek/dlm/novatek_dlm_seed_manifest.rs"] mod novatek_dlm_seed_manifest;
 #[path = "../wmfw_sha256.rs"] mod wmfw_sha256;
-#[path = "../devices/xiaomi_nabu/novatek_dlm_record_suffix.rs"] mod novatek_dlm_record_suffix;
-#[path = "../devices/xiaomi_nabu/novatek_dlm_small_records.rs"] mod novatek_dlm_small_records;
-#[path = "../devices/xiaomi_nabu/novatek_dlm_small_relocations.rs"] mod novatek_dlm_small_relocations;
-#[path = "../devices/xiaomi_nabu/novatek_dlm_narrow_bank_relocation.rs"] mod novatek_dlm_narrow_bank_relocation;
-#[path = "../devices/xiaomi_nabu/novatek_dlm_zero_bank_aliases.rs"] mod novatek_dlm_zero_bank_aliases;
+#[path = "../devices/xiaomi_nabu/novatek/dlm/novatek_dlm_record_suffix.rs"] mod novatek_dlm_record_suffix;
+#[path = "../devices/xiaomi_nabu/novatek/dlm/novatek_dlm_small_records.rs"] mod novatek_dlm_small_records;
+#[path = "../devices/xiaomi_nabu/novatek/dlm/novatek_dlm_small_relocations.rs"] mod novatek_dlm_small_relocations;
+#[path = "../devices/xiaomi_nabu/novatek/dlm/novatek_dlm_narrow_bank_relocation.rs"] mod novatek_dlm_narrow_bank_relocation;
+#[path = "../devices/xiaomi_nabu/novatek/dlm/novatek_dlm_zero_bank_aliases.rs"] mod novatek_dlm_zero_bank_aliases;
 
 use firmware_tools::wmfw_sha256::hex_digest;
 use novatek_dlm::DataFragment;

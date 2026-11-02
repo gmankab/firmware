@@ -2,15 +2,15 @@
 //! Standalone agent-09 inspector. This bin references an agent-owned module
 //! directly, so it can be cherry-picked onto checkpoint 50 without touching
 //! central device `mod.rs` or unrelated firmware subcommands.
-#[path = "../devices/xiaomi_nabu/novatek_layout.rs"]
+#[path = "../devices/xiaomi_nabu/novatek/common/novatek_layout.rs"]
 mod novatek_layout;
-#[path = "../devices/xiaomi_nabu/novatek_reassemble.rs"]
+#[path = "../devices/xiaomi_nabu/novatek/common/novatek_reassemble.rs"]
 mod novatek_reassemble;
-#[path = "../devices/xiaomi_nabu/novatek_vector.rs"]
+#[path = "../devices/xiaomi_nabu/novatek/common/novatek_vector.rs"]
 mod novatek_vector;
-#[path = "../devices/xiaomi_nabu/novatek_crc.rs"]
+#[path = "../devices/xiaomi_nabu/novatek/common/novatek_crc.rs"]
 mod novatek_crc;
-#[path = "../devices/xiaomi_nabu/novatek_nds32.rs"]
+#[path = "../devices/xiaomi_nabu/novatek/common/novatek_nds32.rs"]
 mod novatek_nds32;
 
 use novatek_layout::{NabuNovatekLayout, HEADER_BYTES, IMAGE_LENGTH, RESERVED_TAIL_START, END_MARKER_OFFSET, DLM_FILE_END, POST_DLM_PADDING_END};

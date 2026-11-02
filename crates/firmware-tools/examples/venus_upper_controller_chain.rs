@@ -1,21 +1,21 @@
 // SPDX-License-Identifier: GPL-3.0-only
 //! Source-authored, independently reconstructed 6,156-byte Venus controller
 //! cluster. Every constituent function has its own strict address verifier.
-#[path="../src/devices/xiaomi_nabu/venus_upper_quality.rs"]mod quality;
-#[path="../src/devices/xiaomi_nabu/venus_upper_record_metrics.rs"]mod record_metrics;
-#[path="../src/devices/xiaomi_nabu/venus_upper_magnitude.rs"]mod magnitude;
-#[path="../src/devices/xiaomi_nabu/venus_upper_alt_occupancy.rs"]mod alt_occupancy;
-#[path="../src/devices/xiaomi_nabu/venus_upper_occupancy_commit.rs"]mod occupancy_commit;
-#[path="../src/devices/xiaomi_nabu/venus_upper_record_append.rs"]mod record_append;
-#[path="../src/devices/xiaomi_nabu/venus_upper_record_select.rs"]mod record_select;
-#[path="../src/devices/xiaomi_nabu/venus_upper_color_unpack.rs"]mod color_unpack;
-#[path="../src/devices/xiaomi_nabu/venus_upper_controller_limits.rs"]mod controller_limits;
-#[path="../src/devices/xiaomi_nabu/venus_upper_controller_limits_tail.rs"]mod controller_limits_tail;
-#[path="../src/devices/xiaomi_nabu/venus_upper_throughput_tiers.rs"]mod throughput_tiers;
-#[path="../src/devices/xiaomi_nabu/venus_upper_controller_alloc.rs"]mod controller_alloc;
-#[path="../src/devices/xiaomi_nabu/venus_upper_controller_run_prefix.rs"]mod controller_run_prefix;
-#[path="../src/devices/xiaomi_nabu/venus_upper_controller_run_tail.rs"]mod controller_run_tail;
-#[path="../src/devices/xiaomi_nabu/venus_upper_controller_small_helpers.rs"]mod controller_small_helpers;
+#[path="../src/devices/xiaomi_nabu/venus/upper/venus_upper_quality.rs"]mod quality;
+#[path="../src/devices/xiaomi_nabu/venus/upper/venus_upper_record_metrics.rs"]mod record_metrics;
+#[path="../src/devices/xiaomi_nabu/venus/upper/venus_upper_magnitude.rs"]mod magnitude;
+#[path="../src/devices/xiaomi_nabu/venus/upper/venus_upper_alt_occupancy.rs"]mod alt_occupancy;
+#[path="../src/devices/xiaomi_nabu/venus/upper/venus_upper_occupancy_commit.rs"]mod occupancy_commit;
+#[path="../src/devices/xiaomi_nabu/venus/upper/venus_upper_record_append.rs"]mod record_append;
+#[path="../src/devices/xiaomi_nabu/venus/upper/venus_upper_record_select.rs"]mod record_select;
+#[path="../src/devices/xiaomi_nabu/venus/upper/venus_upper_color_unpack.rs"]mod color_unpack;
+#[path="../src/devices/xiaomi_nabu/venus/upper/venus_upper_controller_limits.rs"]mod controller_limits;
+#[path="../src/devices/xiaomi_nabu/venus/upper/venus_upper_controller_limits_tail.rs"]mod controller_limits_tail;
+#[path="../src/devices/xiaomi_nabu/venus/upper/venus_upper_throughput_tiers.rs"]mod throughput_tiers;
+#[path="../src/devices/xiaomi_nabu/venus/upper/venus_upper_controller_alloc.rs"]mod controller_alloc;
+#[path="../src/devices/xiaomi_nabu/venus/upper/venus_upper_controller_run_prefix.rs"]mod controller_run_prefix;
+#[path="../src/devices/xiaomi_nabu/venus/upper/venus_upper_controller_run_tail.rs"]mod controller_run_tail;
+#[path="../src/devices/xiaomi_nabu/venus/upper/venus_upper_controller_small_helpers.rs"]mod controller_small_helpers;
 fn main()->Result<(),Box<dyn std::error::Error>>{
     let out=std::env::args().nth(1).ok_or("usage: venus_upper_controller_chain OUTPUT [PRIVATE_VENUS_MBN]")?;
     let pieces: [(usize,usize,fn()->Result<Vec<u8>,String>);15] = [
