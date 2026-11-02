@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // Synthetic operands independently checked with GNU assembly.
 #![allow(dead_code, unused_assignments)]
-#[path="../../../crates/firmware-tools/src/devices/xiaomi_nabu/novatek_upper_isa.rs"] mod isa;
+#[path="../../../crates/firmware-tools/src/devices/xiaomi_nabu/novatek/ilm/novatek_upper_isa.rs"] mod isa;
 use isa::{Gpr::*,Instruction::*};
 fn main(){let mut at:u32=0x10000;let mut b=Vec::new();
 {let i=Push25(R10,24);let x=i.encode(at).expect("Push25");at+=x.len() as u32;b.extend(x);}

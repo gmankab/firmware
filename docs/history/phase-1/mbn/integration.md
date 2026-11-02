@@ -22,7 +22,7 @@ DSP program implementations. Nothing in this branch is a new OEM signature.
 - Shared APIs: `crates/firmware-tools/src/image_plan.rs`, `lib.rs`, `main.rs`,
   `qcom_mbn_validation.rs`, plus new `elf_file_coverage.rs`,
   `mbn_source_builder.rs`, `qcom_mbn_profiles.rs`, `mbn_coverage_manifest.rs`.
-- A640 specialization: `crates/firmware-tools/src/devices/xiaomi_nabu/a640_container.rs`.
+- A640 specialization: `crates/firmware-tools/src/devices/xiaomi_nabu/a640/a640_container.rs`.
 - Validation: `tools/verify-xiaomi-nabu.sh`, `tools/assemble-a640-exact.py`,
   `tools/audit-nabu-mbn-sources.py`, plus the two agent-only Python test files.
 - Agent-only notes: `docs/history/phase-1/mbn/progress.md` and this document.

@@ -59,7 +59,7 @@ source; no numerical values were transcribed from the OEM byte stream.
 
 Implementation
 --------------
-crates/firmware-tools/src/devices/xiaomi_nabu/novatek_upper_log_data.rs
+crates/firmware-tools/src/devices/xiaomi_nabu/novatek/ilm/novatek_upper_log_data.rs
 
 All constants are typed f64 decimal literals, each accompanied by the original
 hexadecimal float from the public C source. Python float.fromhex plus shortest
@@ -88,7 +88,7 @@ Three isolated Rust tests pass:
 
 Reproducible isolated test command from repository root:
 rustc --edition=2021 --test \
-  crates/firmware-tools/src/devices/xiaomi_nabu/novatek_upper_log_data.rs \
+  crates/firmware-tools/src/devices/xiaomi_nabu/novatek/ilm/novatek_upper_log_data.rs \
   -o /tmp/novatek-upper-log-data-tests
 /tmp/novatek-upper-log-data-tests
 

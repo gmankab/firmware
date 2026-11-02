@@ -1,6 +1,6 @@
 {
   "schema": "agent18.upper-math-data.v1",
-  "module": "crates/firmware-tools/src/devices/xiaomi_nabu/novatek_upper_math_data.rs",
+  "module": "crates/firmware-tools/src/devices/xiaomi_nabu/novatek/ilm/novatek_upper_math_data.rs",
   "reference_sha256": "8b845514621ebfd95759a0919f3aa3d825314abb478a7cad1c3fb4c6872b70b5",
   "source_data_bytes": 1056,
   "alignment_bytes": 8,
