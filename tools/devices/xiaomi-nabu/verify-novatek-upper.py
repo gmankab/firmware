@@ -95,7 +95,7 @@ def validate_manifest(manifest):
 
 
 def data_validator():
-    path = Path(__file__).with_name("verify_agent20_18_data.py")
+    path = Path(__file__).with_name("verify_novatek-upper_data.py")
     spec = importlib.util.spec_from_file_location("agent18_independent_data", path)
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
@@ -147,7 +147,7 @@ def main():
                 raise ValueError(f"unexpected audited span digest at {start:#x}")
             generated[start]=content
             digest_list.append(dict(fragment,sha256=digest,byte_mismatches=0))
-        sources=root/"reference/xiaomi-nabu/agent20-18"
+        sources=root/"reference/xiaomi-nabu/novatek/ilm-upper"
         gnu_bytes=0
         if not args.source_only:
             gnu_main=assemble(args,sources/"upper-ilm-main.S",0xfe16,"agent18_upper_start",temp,"main")
@@ -156,19 +156,19 @@ def main():
             compare(generated[0x17dc0],gnu_ex9,"GNU EX9",0x17dc0)
             gnu_bytes=len(gnu_main)+len(gnu_ex9)
         independent=data_validator().independent_fragments(root)
-        path=Path(__file__).with_name("verify_agent20_18_allocations.py")
+        path=Path(__file__).with_name("verify_novatek-upper_allocations.py")
         spec=importlib.util.spec_from_file_location("agent18_reference_decoded_allocations",path)
         module=importlib.util.module_from_spec(spec)
         spec.loader.exec_module(module)
         allocation_bytes=module.serialize()
         compare(generated[0x185c0],allocation_bytes,"decoded controller allocation address structure",0x185c0)
-        seam_path=Path(__file__).with_name("verify_agent20_18_boundary.py")
+        seam_path=Path(__file__).with_name("verify_novatek-upper_boundary.py")
         spec=importlib.util.spec_from_file_location("agent18_independent_seam",seam_path)
         boundary_module=importlib.util.module_from_spec(spec)
         spec.loader.exec_module(boundary_module)
         seam_bytes=boundary_module.emit()
         compare(generated[0x10000],seam_bytes,"independent NDS32 bitfield suffix",0x10000)
-        auxiliary_path = Path(__file__).with_name("verify_agent20_18_aux_tables.py")
+        auxiliary_path = Path(__file__).with_name("verify_novatek-upper_aux_tables.py")
         spec = importlib.util.spec_from_file_location("agent18_independent_auxiliary_tables",auxiliary_path)
         auxiliary_module = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(auxiliary_module)

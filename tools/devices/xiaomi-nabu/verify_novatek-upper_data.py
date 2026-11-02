@@ -13,7 +13,7 @@ The logarithm data is parsed from unchanged, hash-pinned Arm C source. Its
 physical field order is obtained separately from the bundled, hash-pinned
 math_config.h declaration. The selected configuration is N=128, polynomial
 orders 6 and 12, without fast FMA. The C source retains its original license;
-see reference/xiaomi-nabu/agent20-18/arm-log-data-provenance.txt.
+see reference/xiaomi-nabu/novatek/ilm-upper/arm-log-data-provenance.txt.
 
 The CLI emits JSON accounting. If --reference is supplied, the exact original
 image SHA-256 and length are required before its fragment bytes are compared.
@@ -37,7 +37,7 @@ DECIMAL_PRECISION = 96
 LOG_SOURCE_SHA256 = "327cf1819870930486eecb5491c68d5887a712b954e5ec82f3f70bfd9e46fdd3"
 LOG_HEADER_SHA256 = "8fcde1b1c5f64f7a624b398639b33215f5e76c1ab5be55e3d26b011e51c3bfb1"
 LOG_OUTPUT_SHA256 = "c26af2ad9c57bf0b64d2d1b93b1e911170e63c39d7bf69bfe423b9e8770a8f4c"
-REFERENCE_DIRECTORY = Path("reference/xiaomi-nabu/agent20-18")
+REFERENCE_DIRECTORY = Path("reference/xiaomi-nabu/novatek/ilm-upper")
 LOG_FIELD_ORDER = ("ln2hi", "ln2lo", "poly", "poly1", "tab", "tab2")
 LOG_FIELD_COUNTS = {"ln2hi": 1, "ln2lo": 1, "poly": 5,
                     "poly1": 11, "tab": 256, "tab2": 256}
