@@ -9,10 +9,12 @@ EVB register transfer, never copied from the private ADSP reference.
 from __future__ import annotations
 import argparse,hashlib,importlib.util,struct,sys
 from pathlib import Path
+import sys
 TOOLS=Path(__file__).resolve().parent
 if str(TOOLS) not in sys.path:sys.path.insert(0,str(TOOLS))
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from adsp_hexagon_v66 import SystemRegister,read_system_register
-SOURCE=TOOLS/'adsp-agent20-rwe-next-icache-relocation-prefix.S'
+SOURCE=TOOLS/'rwe-next-icache-relocation-prefix.S'
 FILE_START=0x11170
 FILE_END=0x111dc
 SIZE=FILE_END-FILE_START
@@ -22,7 +24,7 @@ PHYSICAL_START=0x8be0e170
 REFERENCE_SHA256='4b579e5dc1333d634e5bdc93f3314e357e0e30dab7140833f6cc7aef086b1c1e'
 
 def base():
-    spec=importlib.util.spec_from_file_location('adsp_encoder',TOOLS/'emit-adsp-entry.py')
+    spec=importlib.util.spec_from_file_location('adsp_encoder',TOOLS.parent/'emit-adsp-entry.py')
     if not spec or not spec.loader:raise RuntimeError('Missing ADSP Hexagon source assembler')
     m=importlib.util.module_from_spec(spec);spec.loader.exec_module(m)
     return m

@@ -11,9 +11,9 @@ import argparse,hashlib,importlib.util,json,sys
 from pathlib import Path
 T=Path(__file__).resolve().parent
 PARTS={
- 'dispatch-stub':(0x113f0,0x113f8,T/'adsp-agent20-rwe-next-dispatch-stub.S'),
- 'flag-window':(0x11400,0x11428,T/'adsp-agent20-rwe-next-flag-window.S'),
- 'flag-sync':(0x11430,0x11450,T/'adsp-agent20-rwe-next-flag-sync.S'),
+ 'dispatch-stub':(0x113f0,0x113f8,T/'rwe-next-dispatch-stub.S'),
+ 'flag-window':(0x11400,0x11428,T/'rwe-next-flag-window.S'),
+ 'flag-sync':(0x11430,0x11450,T/'rwe-next-flag-sync.S'),
 }
 REQUIRED_ZERO_FILL=((0x113f8,0x11400),(0x11428,0x11430))
 DATA_START=0x11394

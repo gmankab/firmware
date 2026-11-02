@@ -12,7 +12,7 @@ from pathlib import Path
 T=Path(__file__).resolve().parent
 if str(T) not in sys.path:sys.path.insert(0,str(T))
 START=0x11e6c;END=0x11ed0;SIZE=END-START;PHYSICAL=0x8be0ee6c
-SOURCE=T/'adsp-agent20-rwe-next-controller-slot-status.S'
+SOURCE=T/'rwe-next-controller-slot-status.S'
 REFERENCE_SHA='4b579e5dc1333d634e5bdc93f3314e357e0e30dab7140833f6cc7aef086b1c1e'
 
 def render(llvm_mc:str)->bytes:

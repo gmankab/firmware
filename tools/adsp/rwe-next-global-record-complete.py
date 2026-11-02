@@ -10,11 +10,13 @@ when --reference explicitly requests strict verification.
 from __future__ import annotations
 import argparse,hashlib,importlib.util,struct,sys
 from pathlib import Path
+import sys
 T=Path(__file__).resolve().parent
 if str(T) not in sys.path:sys.path.insert(0,str(T))
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from adsp_hexagon_v66 import KernelZeroLock
 START=0x11928;END=0x119c0;SIZE=END-START;PHYSICAL=0x8be0e928
-SOURCE=T/'adsp-agent20-rwe-next-global-record-complete.S'
+SOURCE=T/'rwe-next-global-record-complete.S'
 REFERENCE_SHA='4b579e5dc1333d634e5bdc93f3314e357e0e30dab7140833f6cc7aef086b1c1e'
 UNLOCK_AT=0x1198c
 NOP=struct.pack('<I',0x7f00c000)

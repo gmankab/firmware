@@ -9,11 +9,13 @@ fields. Source emits no unknown OEM code or alignment padding.
 from __future__ import annotations
 import argparse,hashlib,importlib.util,struct,sys
 from pathlib import Path
+import sys
 T=Path(__file__).resolve().parent
 if str(T) not in sys.path:sys.path.insert(0,str(T))
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from adsp_hexagon_v66 import SystemRegister,ControlRegister,read_system_register,read_control_register
 START=0x118c0;END=0x11928;SIZE=END-START;PHYSICAL=0x8be0e8c0
-SOURCE=T/'adsp-agent20-rwe-next-global-record-prefix.S'
+SOURCE=T/'rwe-next-global-record-prefix.S'
 REFERENCE_SHA='4b579e5dc1333d634e5bdc93f3314e357e0e30dab7140833f6cc7aef086b1c1e'
 PRIVILEGED={
     0x118c4:read_system_register(2,SystemRegister.SGP0),

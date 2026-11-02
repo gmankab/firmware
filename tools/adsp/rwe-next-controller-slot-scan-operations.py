@@ -19,9 +19,9 @@ END=0x12310
 SIZE=END-START
 PHYSICAL=0x8be0f220
 PARTS=(
- ('adsp-agent20-rwe-next-controller-slot-scan-setup.S',0x34),
- ('adsp-agent20-rwe-next-controller-slot-scan-atomic.S',0x40),
- ('adsp-agent20-rwe-next-controller-slot-scan-tag.S',0x7c),
+ ('rwe-next-controller-slot-scan-setup.S',0x34),
+ ('rwe-next-controller-slot-scan-atomic.S',0x40),
+ ('rwe-next-controller-slot-scan-tag.S',0x7c),
 )
 REFERENCE_SHA='4b579e5dc1333d634e5bdc93f3314e357e0e30dab7140833f6cc7aef086b1c1e'
 

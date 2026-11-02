@@ -10,21 +10,23 @@ No proprietary instructions or OEM bytes are copied into generated output.
 from __future__ import annotations
 import argparse, hashlib, importlib.util, struct, sys
 from pathlib import Path
+import sys
 
 TOOLS=Path(__file__).resolve().parent
 if str(TOOLS) not in sys.path:sys.path.insert(0,str(TOOLS))
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from adsp_hexagon_v66 import packet_continuation
 FILE_START=0x10f64
 FILE_END=0x10fe8
 SIZE=FILE_END-FILE_START
 PHYSICAL_START=0x8be0df64
 REFERENCE_SHA256='4b579e5dc1333d634e5bdc93f3314e357e0e30dab7140833f6cc7aef086b1c1e'
-SOURCE=TOOLS/'adsp-agent20-rwe-next-controller-state.S'
-ZERO_SCALAR=TOOLS/'adsp-agent20-rwe-next-r2-zero.S'
-RESTORE_DUPLEX=TOOLS/'adsp-agent20-rwe-next-error-duplex.S'
+SOURCE=TOOLS/'rwe-next-controller-state.S'
+ZERO_SCALAR=TOOLS/'rwe-next-r2-zero.S'
+RESTORE_DUPLEX=TOOLS/'rwe-next-error-duplex.S'
 
 def previous():
-    p=TOOLS/'emit-adsp-entry.py'
+    p=TOOLS.parent/'emit-adsp-entry.py'
     s=importlib.util.spec_from_file_location('adsp_bootstrap_emit',p)
     if not s or not s.loader:raise RuntimeError('Missing Hexagon source compiler')
     m=importlib.util.module_from_spec(s);s.loader.exec_module(m)

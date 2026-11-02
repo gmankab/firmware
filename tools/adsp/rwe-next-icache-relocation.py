@@ -18,12 +18,12 @@ DATA_START=FILE_END
 DATA_END=0x113f0
 PHYSICAL_START=0x8be0e170
 REFERENCE_SHA256='4b579e5dc1333d634e5bdc93f3314e357e0e30dab7140833f6cc7aef086b1c1e'
-PARTS=((0x111dc,0x1121c,'adsp-agent20-rwe-next-icache-relocation-tail-a.S'),
-       (0x1121c,0x112d4,'adsp-agent20-rwe-next-icache-relocation-tail-b.S'),
-       (0x112d4,0x11394,'adsp-agent20-rwe-next-icache-relocation-tail-c.S'))
+PARTS=((0x111dc,0x1121c,'rwe-next-icache-relocation-tail-a.S'),
+       (0x1121c,0x112d4,'rwe-next-icache-relocation-tail-b.S'),
+       (0x112d4,0x11394,'rwe-next-icache-relocation-tail-c.S'))
 
 def earlier():
-    spec=importlib.util.spec_from_file_location('adsp_cache_prefix',T/'adsp-agent20-rwe-next-icache-relocation-prefix.py')
+    spec=importlib.util.spec_from_file_location('adsp_cache_prefix',T/'rwe-next-icache-relocation-prefix.py')
     if not spec or not spec.loader:raise RuntimeError('Missing source-built cache prefix')
     p=importlib.util.module_from_spec(spec);spec.loader.exec_module(p)
     return p
