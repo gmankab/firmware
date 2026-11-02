@@ -1,0 +1,39 @@
+{
+  "moves": [
+    {
+      "before": "tools/elf-byte-budget.py",
+      "after": "tools/analysis/elf-byte-budget.py",
+      "source_sha256": "d0d54ad573ce9ddb2eb2196f6b5bb1b9c809b953950a1993602f96f4bdb9ff8f",
+      "installed_sha256": "d0d54ad573ce9ddb2eb2196f6b5bb1b9c809b953950a1993602f96f4bdb9ff8f",
+      "content_changed": false
+    },
+    {
+      "before": "tools/elf-segment-view.py",
+      "after": "tools/analysis/elf-segment-view.py",
+      "source_sha256": "6dbbf063843093ccec647e05c295ae0f535b65ced625df7e53abd9b0508b8bb7",
+      "installed_sha256": "6dbbf063843093ccec647e05c295ae0f535b65ced625df7e53abd9b0508b8bb7",
+      "content_changed": false
+    },
+    {
+      "before": "tools/mbn-reproducibility.py",
+      "after": "tools/analysis/mbn-reproducibility.py",
+      "source_sha256": "a9c61175d033b7d32bec8078c3b36d500e57408daa30cc2c4518e8637111458c",
+      "installed_sha256": "1bc934457aac8116452bc71e557e4ac75b8c621220871f1994e1092ebb55050d",
+      "content_changed": true
+    },
+    {
+      "before": "tools/assemble-a640-exact.py",
+      "after": "tools/build/assemble-a640-exact.py",
+      "source_sha256": "3123882f6878466695cad1a34b1c3ec105bb3b2b20b00565648f178e502538fa",
+      "installed_sha256": "b04cfe8d8a87cc9b3410ada4f64fbf177139856d666f715e63725e75759b8eff",
+      "content_changed": true
+    },
+    {
+      "before": "tools/generate-elf-specs.py",
+      "after": "tools/build/generate-elf-specs.py",
+      "source_sha256": "684fcffd36f41a264ff175e85f18124bf2e76a6574ff335effcbea25ab11cd24",
+      "installed_sha256": "1cbaf60744940886927f34f36dbe815909f7d7234b2205456d2c20496d666a60",
+      "content_changed": true
+    }
+  ]
+}

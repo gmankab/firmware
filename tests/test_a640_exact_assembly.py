@@ -9,7 +9,7 @@ from types import SimpleNamespace
 from unittest import mock
 import unittest
 
-SCRIPT = Path(__file__).resolve().parents[1] / "tools" / "assemble-a640-exact.py"
+SCRIPT = Path(__file__).resolve().parents[1] / "tools/build/assemble-a640-exact.py"
 SPEC = importlib.util.spec_from_file_location("a640_exact", SCRIPT)
 MODULE = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(MODULE)

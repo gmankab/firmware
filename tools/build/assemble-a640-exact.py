@@ -22,7 +22,7 @@ REFERENCE_SHA256 = "bb1b61bae977aab5e5a68bd88848f4479c8d156911d96c7de73f7195b674
 REFERENCE_EMBEDDED_ROOT_SHA256 = "c924a35f39ce1cdd1b8d5a9f3b8e3c51317930431d7a9dd5a55028cf6965fe65"
 EXTERNAL_AUTH_SIZE = 0x1900
 OUTPUT_SIZE = 0x37B0
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = Path(__file__).resolve().parents[2]
 
 
 def validate_external_authentication(auth: bytes):

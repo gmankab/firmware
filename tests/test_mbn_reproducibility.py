@@ -15,7 +15,7 @@ from unittest import mock
 
 
 ROOT = Path(__file__).resolve().parents[1]
-SPEC = importlib.util.spec_from_file_location("mbn_reproducibility", ROOT / "tools" / "mbn-reproducibility.py")
+SPEC = importlib.util.spec_from_file_location("mbn_reproducibility", ROOT / "tools/analysis/mbn-reproducibility.py")
 MODULE = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(MODULE)
 

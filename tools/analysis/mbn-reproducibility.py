@@ -35,7 +35,7 @@ import tarfile
 import tempfile
 
 
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = Path(__file__).resolve().parents[2]
 IMAGES = ("a640_zap.mbn", "adsp.mbn", "cdsp.mbn", "modem.mbn", "venus.mbn", "wlanmdsp.mbn")
 FILE_BYTES = {
     "a640_zap.mbn": 14_256,
@@ -174,8 +174,8 @@ def source_identity(root):
     tree = run(["git", "rev-parse", "HEAD^{tree}"], cwd=root).strip()
     epoch = int(run(["git", "show", "-s", "--format=%ct", "HEAD"], cwd=root).strip())
     # Prevent an untracked/modified harness from attributing its behavior to HEAD.
-    committed = run(["git", "show", "HEAD:tools/mbn-reproducibility.py"], cwd=root, binary=True)
-    if committed != (root / "tools" / "mbn-reproducibility.py").read_bytes():
+    committed = run(["git", "show", "HEAD:tools/analysis/mbn-reproducibility.py"], cwd=root, binary=True)
+    if committed != (root / "tools/analysis/mbn-reproducibility.py").read_bytes():
         raise ReproducibilityError("running reproducibility harness differs from the committed source")
     return {"commit": commit, "tree": tree, "commit_epoch": epoch,
             "harness_sha256": sha256(committed), "tracked_tree_clean": True,
