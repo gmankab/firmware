@@ -167,7 +167,7 @@ fn controller_command_mode_init(c:&mut Code)->Result<(),String>{
         c.emit(arm32::data_immediate(C::Al,Op::Add,R::R2,R::R0,8)?)?;
         c.emit(arm32::transfer_word(C::Al,false,R::R2,R::new(6)?,0)?)?;
         c.emit(arm32::data_immediate(C::Al,Op::Tst,R::R0,R::R2,31)?)?;
-        c.emit(super::venus_agent20_04_controller_packets::load_halfword_register(C::Al,R::new(3)?,R::new(9)?,R::new(3)?)?)?;
+        c.emit(super::venus_controller_packets::load_halfword_register(C::Al,R::new(3)?,R::new(9)?,R::new(3)?)?)?;
         c.emit(arm32::transfer_word(C::Al,true,R::new(7)?,R::new(9)?,2652)?)?;
         c.emit(arm32::data_register(C::Al,Op::Orr,R::new(3)?,R::new(3)?,R::new(7)?,Shift::Lsl,16,false)?)?;
         c.emit(arm32::transfer_word(C::Eq,true,R::new(7)?,R::R2,0)?)?;
@@ -677,7 +677,7 @@ fn controller_command_scalars(c:&mut Code)->Result<(),String>{
         c.emit(arm32::data_immediate(C::Al,Op::Mov,R::R0,R::R0,984)?)?;
         c.emit(arm32::transfer_word(C::Al,true,R::R1,R::new(9)?,2744)?)?;
         c.emit(arm32::data_immediate(C::Al,Op::Mov,R::new(7)?,R::R0,4096)?)?;
-        c.emit(super::venus_agent20_04_controller_packets::load_halfword_register(C::Al,R::R0,R::R2,R::R0)?)?;
+        c.emit(super::venus_controller_packets::load_halfword_register(C::Al,R::R0,R::R2,R::R0)?)?;
         c.emit(arm32::transfer_byte(C::Al,true,R::LR,R::R2,466)?)?;
         c.emit(arm32::transfer_byte(C::Al,true,R::R12,R::R1,1248)?)?;
         c.emit(arm32::transfer_word(C::Al,false,R::R0,R::R11,-36)?)?;
@@ -1077,7 +1077,7 @@ fn controller_followup_layout(c:&mut Code)->Result<(),String>{
         c.emit(arm32::data_immediate(C::Al,Op::Add,R::R2,R::R0,8)?)?;
         c.emit(arm32::transfer_word(C::Al,false,R::R2,R::new(4)?,0)?)?;
         c.emit(arm32::data_immediate(C::Al,Op::Tst,R::R0,R::R2,31)?)?;
-        c.emit(super::venus_agent20_04_controller_packets::load_halfword_register(C::Al,R::new(3)?,R::new(9)?,R::new(3)?)?)?;
+        c.emit(super::venus_controller_packets::load_halfword_register(C::Al,R::new(3)?,R::new(9)?,R::new(3)?)?)?;
         c.emit(arm32::transfer_word(C::Al,true,R::new(7)?,R::new(9)?,2652)?)?;
  c.check(0x4f000)?;
  Ok(())

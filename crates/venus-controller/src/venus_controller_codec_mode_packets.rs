@@ -5,8 +5,8 @@
 //! rather than copying original opcode bytes. The function returns using
 //! original `pop {...,pc}` at `0x43170`.
 use arm32::{Condition as C,DataOp as Op,Register as R,Shift,BlockMode};
-use super::venus_agent20_04_format_registers::signed_byte_register;
-use super::venus_agent20_04_controller_packets::{load_halfword_register,load_signed_halfword_register};
+use super::venus_controller_format_registers::signed_byte_register;
+use super::venus_controller_packets::{load_halfword_register,load_signed_halfword_register};
 
 pub const START:usize=0x4272c;
 pub const CODE_END:usize=0x43174;

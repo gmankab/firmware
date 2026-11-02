@@ -4,7 +4,7 @@
 //! a complete return. Architecture A32 instruction fields are synthesized
 //! from typed operands; private original bytes remain outside source control.
 use arm32::{Condition as C,DataOp as Op,Register as R,Shift};
-use super::venus_agent20_04_format_registers::signed_byte_register as load_signed_byte_register;
+use super::venus_controller_format_registers::signed_byte_register as load_signed_byte_register;
 pub const START:usize=0x54cfc;
 pub const END:usize=0x55400;
 pub const FILE_OFFSET:usize=0x4000+START;

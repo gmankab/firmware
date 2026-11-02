@@ -8,7 +8,7 @@
 //! condition, shift, memory and DSP encodings. These are original instruction
 //! *semantics* at the architecture level, not a proven high-level C rewrite.
 use arm32::{Condition as C,DataOp as Op,Register as R,Shift,BlockMode};
-use super::venus_agent20_04_codec_controller::signed_long_multiply;
+use super::venus_controller_codec_controller::signed_long_multiply;
 
 pub const START:usize=0x416c0;
 pub const JUMP_TABLE_START:usize=0x41cb4;

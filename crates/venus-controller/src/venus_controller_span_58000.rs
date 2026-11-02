@@ -1597,7 +1597,7 @@ fn emit_smull(cond:C,lo:R,hi:R,rm:R,rs:R)->Result<u32,String>{
     // 0x58c4c: mov r5, r1
     c.emit(arm32::mov_register(C::Al,R::new(5)?,R::R1))?;
     // 0x58c50: ldrsb r3, [r4, r0]
-    c.emit(super::venus_agent20_04_format_registers::signed_byte_register(C::Al,R::new(3)?,R::new(4)?,R::R0)?)?;
+    c.emit(super::venus_controller_format_registers::signed_byte_register(C::Al,R::new(3)?,R::new(4)?,R::R0)?)?;
     // 0x58c54: ldr r2, [r4, #0x118]
     c.emit(arm32::transfer_word(C::Al,true,R::R2,R::new(4)?,280)?)?;
     // 0x58c58: add r0, r4, #296

@@ -467,7 +467,7 @@ fn serialize_controller_properties(c:&mut Code)->Result<(),String>{
     // 0x55750: mov r1, #3648
     c.emit(arm32::data_immediate(C::Al,Op::Mov,R::R1,R::R0,3648)?)?;
     // 0x55754: ldrsb r1, [r4, r1]
-    c.emit(super::venus_agent20_04_format_registers::signed_byte_register(C::Al,R::R1,R::new(4)?,R::R1)?)?;
+    c.emit(super::venus_controller_format_registers::signed_byte_register(C::Al,R::R1,R::new(4)?,R::R1)?)?;
     // 0x55758: cmp r1, #0
     c.emit(arm32::data_immediate(C::Al,Op::Cmp,R::R0,R::R1,0)?)?;
     // 0x5575c: bgt 0x55784 <entry+0x384>   @ imm = #0x20

@@ -3,7 +3,7 @@
 //! 0x47000–0x47800. Two branch-skipped mask words are not ARM instructions.
 //! The larger controller routine continues into the following interval.
 use arm32::{Condition as C,DataOp as Op,Register as R,Shift};
-use super::venus_agent20_04_controller_packets::load_halfword_register;
+use super::venus_controller_packets::load_halfword_register;
 
 pub const START:usize=0x47000;
 pub const END:usize=0x47800;

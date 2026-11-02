@@ -1809,7 +1809,7 @@ fn emit_umull(cond:C,lo:R,hi:R,rm:R,rs:R)->Result<u32,String>{
     // 0x57dbc: mov r7, #256
     c.emit(arm32::data_immediate(C::Al,Op::Mov,R::new(7)?,R::R0,256)?)?;
     // 0x57dc0: ldrsb r0, [r4, r0]
-    c.emit(super::venus_agent20_04_format_registers::signed_byte_register(C::Al,R::R0,R::new(4)?,R::R0)?)?;
+    c.emit(super::venus_controller_format_registers::signed_byte_register(C::Al,R::R0,R::new(4)?,R::R0)?)?;
     // 0x57dc4: add r0, r1, r0, lsl #1
     c.emit(arm32::data_register(C::Al,Op::Add,R::R0,R::R1,R::R0,Shift::Lsl,1,false)?)?;
     // 0x57dc8: ldr r1, [r4, #0xa60]

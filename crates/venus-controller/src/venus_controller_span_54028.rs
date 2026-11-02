@@ -4,7 +4,7 @@
 //! ARM A32 operations are independently derived from typed register operands;
 //! the trailing mask belongs to a literal slot after a real function return.
 use arm32::{Condition as C,DataOp as Op,Register as R,Shift};
-use super::venus_agent20_04_format_registers::signed_byte_register as load_signed_byte_register;
+use super::venus_controller_format_registers::signed_byte_register as load_signed_byte_register;
 
 pub const START:usize=0x54028;
 pub const END:usize=0x54854;

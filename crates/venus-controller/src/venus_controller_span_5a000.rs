@@ -261,7 +261,7 @@ fn emit_smull(cond:C,lo:R,hi:R,rm:R,rs:R)->Result<u32,String>{
     // 0x5a1bc: add r5, r5, #1
     c.emit(arm32::data_immediate(C::Al,Op::Add,R::new(5)?,R::new(5)?,1)?)?;
     // 0x5a1c0: ldrsb r0, [r9, r1]
-    c.emit(super::venus_agent20_04_format_registers::signed_byte_register(C::Al,R::R0,R::new(9)?,R::R1)?)?;
+    c.emit(super::venus_controller_format_registers::signed_byte_register(C::Al,R::R0,R::new(9)?,R::R1)?)?;
     // 0x5a1c4: cmp r5, r0
     c.emit(arm32::data_register(C::Al,Op::Cmp,R::R0,R::new(5)?,R::R0,Shift::Lsl,0,false)?)?;
     // 0x5a1c8: blo 0x5a188 <entry+0x4988>  @ imm = #-0x48
@@ -313,7 +313,7 @@ fn emit_smull(cond:C,lo:R,hi:R,rm:R,rs:R)->Result<u32,String>{
     // 0x5a224: add r6, r6, #1
     c.emit(arm32::data_immediate(C::Al,Op::Add,R::new(6)?,R::new(6)?,1)?)?;
     // 0x5a228: ldrsb r0, [r9, r0]
-    c.emit(super::venus_agent20_04_format_registers::signed_byte_register(C::Al,R::R0,R::new(9)?,R::R0)?)?;
+    c.emit(super::venus_controller_format_registers::signed_byte_register(C::Al,R::R0,R::new(9)?,R::R0)?)?;
     // 0x5a22c: cmp r6, r0
     c.emit(arm32::data_register(C::Al,Op::Cmp,R::R0,R::new(6)?,R::R0,Shift::Lsl,0,false)?)?;
     // 0x5a230: blo 0x5a1e4 <entry+0x49e4>  @ imm = #-0x54

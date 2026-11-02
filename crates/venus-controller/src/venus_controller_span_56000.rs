@@ -829,7 +829,7 @@ fn emit_halfword_register(cond:C,load:bool,rd:R,base:R,index:R,writeback:bool)->
     // 0x56640: mov r0, #920
     c.emit(arm32::data_immediate(C::Al,Op::Mov,R::R0,R::R0,920)?)?;
     // 0x56644: ldrsb r0, [r4, r0]
-    c.emit(super::venus_agent20_04_format_registers::signed_byte_register(C::Al,R::R0,R::new(4)?,R::R0)?)?;
+    c.emit(super::venus_controller_format_registers::signed_byte_register(C::Al,R::R0,R::new(4)?,R::R0)?)?;
     // 0x56648: add r0, r0, #1
     c.emit(arm32::data_immediate(C::Al,Op::Add,R::R0,R::R0,1)?)?;
     // 0x5664c: add r0, r1, r0, asr #1

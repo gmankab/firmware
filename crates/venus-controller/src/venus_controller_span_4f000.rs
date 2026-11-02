@@ -529,7 +529,7 @@ impl Code {
         c.emit(arm32::transfer_word(C::Al,true,R::R1,R::new(6)?,2744)?)?;
         c.emit(arm32::transfer_byte(C::Al,true,R::LR,R::new(5)?,466)?)?;
         c.emit(arm32::data_immediate(C::Al,Op::Mov,R::new(6)?,R::R0,4096)?)?;
-        c.emit(super::venus_agent20_04_controller_packets::load_halfword_register(C::Al,R::R0,R::new(5)?,R::R0)?)?;
+        c.emit(super::venus_controller_packets::load_halfword_register(C::Al,R::R0,R::new(5)?,R::R0)?)?;
         c.emit(arm32::transfer_byte(C::Al,true,R::R12,R::R1,1248)?)?;
         c.emit(arm32::data_immediate(C::Al,Op::Cmp,R::R0,R::LR,0)?)?;
         c.emit(arm32::transfer_word(C::Al,false,R::R0,R::SP,36)?)?;
@@ -1075,7 +1075,7 @@ impl Code {
         c.emit(arm32::data_immediate(C::Eq,Op::Cmp,R::R0,R::R1,80)?)?;
         c.emit(arm32::branch(C::Ne,c.at as u32,0x50014,false)?)?;
         c.emit(arm32::data_immediate(C::Al,Op::Mov,R::R1,R::R0,408)?)?;
-        c.emit(super::venus_agent20_04_controller_packets::load_signed_halfword_register(C::Al,R::R1,R::R0,R::R1)?)?;
+        c.emit(super::venus_controller_packets::load_signed_halfword_register(C::Al,R::R1,R::R0,R::R1)?)?;
  c.check(0x50000)?;
  Ok(())
 }
