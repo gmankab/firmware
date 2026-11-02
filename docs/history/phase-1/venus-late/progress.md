@@ -31,9 +31,9 @@ The one literal word at `0x18574` is named `CODEC_RUNTIME_DIAGNOSTIC` (`0x000e3d
 cargo test --workspace --offline --locked
 cargo build --workspace --release --offline --locked
 python3 -m unittest discover -s tests -p 'test_*.py'
-cargo run --offline --locked -p firmware-tools --example agent03_venus_late -- \
+cargo run --offline --locked -p firmware-tools --example venus_late -- \
   verify /PRIVATE/qcom/sm8150/Xiaomi/nabu/venus.mbn
-cargo run --offline --locked -p firmware-tools --example agent03_venus_late -- \
+cargo run --offline --locked -p firmware-tools --example venus_late -- \
   emit /tmp/agent-03-late-0x183e0-0x18628.bin
 # Compare independently, accounting for offset 0x4000:
 dd if=/PRIVATE/qcom/sm8150/Xiaomi/nabu/venus.mbn of=/tmp/agent03-reference-span \
@@ -60,9 +60,9 @@ A separate check used LLVM/Clang's ARM integrated assembler: disassemble the sam
 
 ```sh
 # After applying Agent 03 commits to the desired checkpoint-50 branch:
-cargo run --offline --locked -p firmware-tools --example agent03_venus_late -- \
+cargo run --offline --locked -p firmware-tools --example venus_late -- \
   verify /PRIVATE/qcom/sm8150/Xiaomi/nabu/venus.mbn
-cargo run --offline --locked -p firmware-tools --example agent03_venus_late -- \
+cargo run --offline --locked -p firmware-tools --example venus_late -- \
   emit /tmp/agent03-late-0x183e0-0x196ac.bin
 ```
 

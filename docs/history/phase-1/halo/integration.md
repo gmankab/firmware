@@ -56,7 +56,7 @@ independent rebuild of HALO machine instructions or runtime behavior.
 ```sh
 # Supply the original privately held and exact-revision reference file.
 PATH=/path/to/rust/bin:$PATH \
-  tools/verify-agent08-wmfw.sh /private/cirrus/cs35l41-dsp1-spk-prot.wmfw
+  tools/halo/verify-halo-wmfw.sh /private/cirrus/cs35l41-dsp1-spk-prot.wmfw
 ```
 
 The audit runs offline Rust tests and release build, Python tests, checks WMFW

@@ -25,7 +25,7 @@ DSP program implementations. Nothing in this branch is a new OEM signature.
 - A640 specialization: `crates/firmware-tools/src/devices/xiaomi_nabu/a640_container.rs`.
 - Validation: `tools/verify-xiaomi-nabu.sh`, `tools/assemble-a640-exact.py`,
   `tools/audit-nabu-mbn-sources.py`, plus the two agent-only Python test files.
-- Agent-only notes: `docs/agent-10-progress.md` and this document.
+- Agent-only notes: `docs/history/phase-1/mbn/progress.md` and this document.
 
 ## Merge into the real checkpoint-50 branch
 

@@ -42,7 +42,7 @@ cargo run --offline --locked -p firmware-tools --bin venus_bridge -- \
   verify /private/venus.mbn
 cargo run --offline --locked -p firmware-tools --bin venus_bridge -- \
   verify-joined /private/venus.mbn
-python3 tools/agent-02-a32-roundtrip.py /private/venus.mbn \
+python3 tools/venus/venus-bridge-a32-roundtrip.py /private/venus.mbn \
   --file-offset 0xc490 --vma 0x8490 --length 0x3ac \
   --data-range 0x8614:0x8618 --data-range 0x8684:0x8688 \
   --data-range 0x8834:0x883c
@@ -66,7 +66,7 @@ consecutive verified instructions or named data words to bridge layout.
 ```sh
 cargo run --offline --locked -p firmware-tools --bin venus_bridge -- verify /private/venus.mbn
 cargo run --offline --locked -p firmware-tools --bin venus_bridge -- verify-joined /private/venus.mbn
-python3 tools/agent-02-a32-roundtrip.py /private/venus.mbn \
+python3 tools/venus/venus-bridge-a32-roundtrip.py /private/venus.mbn \
   --file-offset 0xc83c --vma 0x883c --length 0x3c4 \
   --data-range 0x899c:0x89bc --data-range 0x8b94:0x8bac \
   --data-range 0x8bd8:0x8bdc
@@ -85,7 +85,7 @@ python3 tools/agent-02-a32-roundtrip.py /private/venus.mbn \
 - Independent `clang`/`llvm-objdump`/`llvm-objcopy` round-trip:
 
 ```sh
-python3 tools/agent-02-a32-roundtrip.py /private/venus.mbn \
+python3 tools/venus/venus-bridge-a32-roundtrip.py /private/venus.mbn \
   --file-offset 0xcc00 --vma 0x8c00 --length 0x298 \
   --data-range 0x8c1c:0x8c24 --data-range 0x8c48:0x8c50 \
   --data-range 0x8c58:0x8c5c --data-range 0x8c80:0x8c88 \
@@ -113,7 +113,7 @@ build. The integrated image remains partial and is not flashable.
   interval using these *non-instruction data* ranges:
 
 ```sh
-python3 tools/agent-02-a32-roundtrip.py /private/venus.mbn \
+python3 tools/venus/venus-bridge-a32-roundtrip.py /private/venus.mbn \
   --file-offset 0xce98 --vma 0x8e98 --length 0x568 \
   --data-range 0x8ec0:0x8ec4 --data-range 0x9110:0x9124 \
   --data-range 0x913c:0x9140 --data-range 0x9258:0x9264 \
@@ -135,7 +135,7 @@ python3 tools/agent-02-a32-roundtrip.py /private/venus.mbn \
 - Reproducible independent LLVM/Clang verification:
 
 ```sh
-python3 tools/agent-02-a32-roundtrip.py /private/venus.mbn \
+python3 tools/venus/venus-bridge-a32-roundtrip.py /private/venus.mbn \
   --file-offset 0xd400 --vma 0x9400 --length 0x30c \
   --data-range 0x94e8:0x94f4 --data-range 0x9534:0x9538 \
   --data-range 0x95e0:0x95e8 --data-range 0x96bc:0x96d0 \
@@ -158,7 +158,7 @@ python3 tools/agent-02-a32-roundtrip.py /private/venus.mbn \
 - Clang/LLVM round-trip on the additional span (excluding literal pools):
 
 ```sh
-python3 tools/agent-02-a32-roundtrip.py /private/venus.mbn \
+python3 tools/venus/venus-bridge-a32-roundtrip.py /private/venus.mbn \
   --file-offset 0xd70c --vma 0x970c --length 0x444 \
   --data-range 0x9734:0x9738 --data-range 0x98a0:0x98bc \
   --data-range 0x9968:0x996c --data-range 0x9a18:0x9a1c \
@@ -179,7 +179,7 @@ python3 tools/agent-02-a32-roundtrip.py /private/venus.mbn \
 - Independent LLVM/Clang round-trip with separate literal ranges:
 
 ```sh
-python3 tools/agent-02-a32-roundtrip.py /private/venus.mbn \
+python3 tools/venus/venus-bridge-a32-roundtrip.py /private/venus.mbn \
   --file-offset 0xdb50 --vma 0x9b50 --length 0x478 \
   --data-range 0x9bc8:0x9bd0 --data-range 0x9d9c:0x9db4 \
   --data-range 0x9e20:0x9e2c --data-range 0x9ea8:0x9eb4 \
@@ -204,7 +204,7 @@ python3 tools/agent-02-a32-roundtrip.py /private/venus.mbn \
   non-executable data ranges:
 
 ```sh
-python3 tools/agent-02-a32-roundtrip.py /private/venus.mbn \
+python3 tools/venus/venus-bridge-a32-roundtrip.py /private/venus.mbn \
   --file-offset 0xdfc8 --vma 0x9fc8 --length 0x484 \
   --data-range 0x9fd8:0x9fdc --data-range 0xa01c:0xa024 \
   --data-range 0xa034:0xa038 --data-range 0xa040:0xa044 \
@@ -235,7 +235,7 @@ python3 tools/agent-02-a32-roundtrip.py /private/venus.mbn \
   28 data words matches the reference exactly, using:
 
 ```sh
-python3 tools/agent-02-a32-roundtrip.py /private/venus.mbn \
+python3 tools/venus/venus-bridge-a32-roundtrip.py /private/venus.mbn \
   --file-offset 0xe44c --vma 0xa44c --length 0x5c0 \
   --data-range 0xa44c:0xa454 --data-range 0xa520:0xa524 \
   --data-range 0xa5b4:0xa5bc --data-range 0xa638:0xa640 \
@@ -260,7 +260,7 @@ Clang/LLVM reconstruction**, with the full ordered list of literal regions:
 
 ```sh
 PATH=/path/to/offline-rust/bin:$PATH \
-  bash tools/agent-02-verify-full-gap.sh /private/venus.mbn
+  bash tools/venus/venus-bridge-verify-full-gap.sh /private/venus.mbn
 ```
 
 To generate the complete boot-and-bridge output without OEM bytes:
@@ -274,7 +274,7 @@ To also verify a separately generated **Agent 01/Checkpoint 50 service**
 fragment, provide its emitted binary as the optional second argument:
 
 ```sh
-bash tools/agent-02-verify-full-gap.sh /private/venus.mbn \
+bash tools/venus/venus-bridge-verify-full-gap.sh /private/venus.mbn \
   /tmp/venus-service-region.bin
 ```
 

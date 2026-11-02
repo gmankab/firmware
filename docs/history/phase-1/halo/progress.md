@@ -160,7 +160,7 @@ References: `https://codebrowser.dev/linux/linux/include/sound/cs35l41.h.html`,
 
 ## Checkpoint 08-11 — end-to-end audit and checkpoint-50 integration guide
 
-Added `tools/verify-agent08-wmfw.sh`, a single offline audit that runs Rust,
+Added `tools/halo/verify-halo-wmfw.sh`, a single offline audit that runs Rust,
 Python and release-build checks, verifies all independently encoded metadata,
 reports checked DSP/control/CS35L41 AHB maps, and then **explicitly imports**
 the original seven external DSP payloads only into a temporary directory to
@@ -218,7 +218,7 @@ cargo run --offline --locked -p firmware-tools -- \
 cmp "$REF" "$PRIVATE/rebuilt.wmfw"
 ```
 
-`tools/verify-agent08-wmfw.sh` now checks both the original seven-input and
+`tools/halo/verify-halo-wmfw.sh` now checks both the original seven-input and
 new sparse eight-input repackers and tests altered sparse source rejection.
 
 ## Checkpoint 08-14 — two checked packed-Y zero ranges
@@ -247,7 +247,7 @@ cargo run --offline --locked -p firmware-tools -- \
 cmp "$REF" "$PRIVATE/compact-rebuilt.wmfw"
 ```
 
-`tools/verify-agent08-wmfw.sh` checks all three workflows and deliberately
+`tools/halo/verify-halo-wmfw.sh` checks all three workflows and deliberately
 corrupts an external compact Y part to confirm SHA-256 enforcement.
 
 ## Checkpoint 08-15 — checked HALO runtime algorithm directory

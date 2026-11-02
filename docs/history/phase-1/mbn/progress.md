@@ -87,6 +87,6 @@ All validation results and next missing work should be added below in later chec
 
 ## Checkpoint 12 — portable integration handoff
 
-- Added `docs/agent-10-integration.md` identifying all shared files and a merge/validation procedure for the requested checkpoint-50 branch, which **was not available** to this agent. Prepare a complete `git format-patch` series (one patch per commit) for the actual checkpoint-50 owner, preserving the exact Codex authorship.
+- Added `docs/history/phase-1/mbn/integration.md` identifying all shared files and a merge/validation procedure for the requested checkpoint-50 branch, which **was not available** to this agent. Prepare a complete `git format-patch` series (one patch per commit) for the actual checkpoint-50 owner, preserving the exact Codex authorship.
 - Verify patch replay against a clean clone of the *available* older base and compare final tree identity and test outcomes. This does **not** predict conflict-free application onto checkpoint 50, which changed some shared entrypoints after that older base.
 - Signatures, certificates, executable reference code and private firmware binaries remain outside Git; the external A640 original-authentication field is not included in this handoff.

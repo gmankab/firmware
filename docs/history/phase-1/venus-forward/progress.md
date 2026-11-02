@@ -11,9 +11,9 @@ Assigned checkpoint-50 base: `b7ed4b587633b9b475a40f5a3ace5cc90db620ff`.
 - Generated from ARM32 instruction semantics and explicit operands, not pasted OEM instruction words.
 - No unknown bytes are padded or added to the output. Only the generated fragment is emitted.
 - Rebuilt fragment is not runnable on its own, nor OEM-authenticated.
-- Deterministic validation: `cargo run --offline --locked --bin agent01-venus-forward -- verify /private/venus.mbn` and `cargo test --workspace --offline --locked`.
+- Deterministic validation: `cargo run --offline --locked --bin venus-forward -- verify /private/venus.mbn` and `cargo test --workspace --offline --locked`.
 
-Generated output is a partial function; the next missing instruction is the reported `END` in `venus_agent01_forward.rs`. The file should remain isolated during integration; the only shared edit is adding the module export to `devices/xiaomi_nabu/mod.rs`.
+Generated output is a partial function; the next missing instruction is the reported `END` in `venus_runtime_forward.rs`. The file should remain isolated during integration; the only shared edit is adding the module export to `devices/xiaomi_nabu/mod.rs`.
 
 ## Agent 01 checkpoint 02
 
@@ -94,8 +94,8 @@ Generated output is a partial function; the next missing instruction is the repo
 - To verify bytes with original reference present **outside Git**:
 
   ```sh
-  cargo run --offline --locked --bin agent01-venus-forward -- verify /private/venus.mbn
-  cargo run --offline --locked --bin agent01-venus-forward -- emit /tmp/venus-agent01.bin
+  cargo run --offline --locked --bin venus-forward -- verify /private/venus.mbn
+  cargo run --offline --locked --bin venus-forward -- emit /tmp/venus-agent01.bin
   ```
 
 - `cargo test --workspace --offline --locked`,
