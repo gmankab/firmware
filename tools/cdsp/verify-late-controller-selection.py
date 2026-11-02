@@ -41,7 +41,7 @@ def verify(llvm:Path,rz:Path,generated:Path,reference:Path,prefix:Path|None):
         full=prefix.read_bytes()
         if len(full)!=END-0x56000 or full!=source[0x56000:END]:
             raise ValueError('joined CDSP RWE prefix differs from original firmware')
-    fixture=Path(__file__).with_name('agent20-10-cdsp-controller-selection-semantic.s')
+    fixture=Path(__file__).with_name('late-controller-selection-semantic.s')
     with tempfile.TemporaryDirectory(prefix='nabu-cdsp-selection-') as root:
         obj=Path(root)/'fixture.o'
         subprocess.run([str(llvm),'-triple=hexagon','-mcpu=hexagonv60',

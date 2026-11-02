@@ -30,7 +30,7 @@ def main():
     for k,needle in expectations.items():assert needle in original[k],f'original instruction {k}: {original[k]}'
     with tempfile.TemporaryDirectory(prefix='cdsp-bank-limits-') as td:
         obj=Path(td)/'limits.o'
-        subprocess.run([str(a.llvm_mc),'-triple=hexagon','-mcpu=hexagonv60','-filetype=obj',str(Path(__file__).with_name('agent20-10-cdsp-controller-bank-bitset-limits-semantic.s')),'-o',str(obj)],check=True,capture_output=True,text=True)
+        subprocess.run([str(a.llvm_mc),'-triple=hexagon','-mcpu=hexagonv60','-filetype=obj',str(Path(__file__).with_name('late-controller-bank-bitset-limits-semantic.s')),'-o',str(obj)],check=True,capture_output=True,text=True)
         llvm=elf_text(obj.read_bytes())[START-RWE:END-RWE]
     decoded=decode(a.rz_asm,llvm,0x96cc8bd0)
     orig_w=struct.unpack('<8I',gen);llvm_w=struct.unpack('<8I',llvm)

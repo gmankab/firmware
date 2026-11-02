@@ -32,7 +32,7 @@ def verify(llvm:Path,rz:Path,generated:Path,reference:Path,prefix:Path|None)->No
     with tempfile.TemporaryDirectory(prefix='nabu-cdsp-large-prologue-') as tmp:
         output=Path(tmp)/'asm.o'
         subprocess.run([str(llvm),'-triple=hexagon','-mcpu=hexagonv60','-filetype=obj',
-            str(Path(__file__).with_name('agent20-10-cdsp-rwe-large-prologue.s')),
+            str(Path(__file__).with_name('late-rwe-large-prologue.s')),
             '-o',str(output)],check=True,capture_output=True,text=True)
         comp=read_text(output.read_bytes())[0x600:0x644]
     orig=words(src);generated_words=words(comp)

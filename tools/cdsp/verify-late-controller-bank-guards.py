@@ -51,7 +51,7 @@ def main():
  with tempfile.TemporaryDirectory(prefix='cdsp-v66-bank-guards-') as tmp:
   obj=Path(tmp)/'semantic.o'
   subprocess.run([str(args.llvm_mc),'-triple=hexagon','-mcpu=hexagonv60',
-     '-filetype=obj',str(Path(__file__).with_name('agent20-10-cdsp-controller-bank-guards-semantic.s')),
+     '-filetype=obj',str(Path(__file__).with_name('late-controller-bank-guards-semantic.s')),
      '-o',str(obj)],capture_output=True,text=True,check=True)
   independent=text_section(obj.read_bytes())[0xb2c:0xb40]
  other=decode(args.rz_asm,independent,0x96cc8b2c)

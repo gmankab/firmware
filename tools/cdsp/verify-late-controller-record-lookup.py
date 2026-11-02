@@ -39,7 +39,7 @@ def verify(llvm:Path,rz:Path,generated:Path,reference:Path,prefix:Path|None):
         b=prefix.read_bytes()
         if len(b)!=END-0x56000 or b!=orig[0x56000:END]:
             raise ValueError('2676-byte CDSP RWE prefix differs from pinned reference')
-    fixture=Path(__file__).with_name('agent20-10-cdsp-controller-record-lookup-semantic.s')
+    fixture=Path(__file__).with_name('late-controller-record-lookup-semantic.s')
     with tempfile.TemporaryDirectory(prefix='nabu-cdsp-lookup-') as temp:
         obj=Path(temp)/'lookup.o'
         subprocess.run([str(llvm),'-triple=hexagon','-mcpu=hexagonv60',

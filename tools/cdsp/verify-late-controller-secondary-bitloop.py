@@ -46,7 +46,7 @@ def verify(llvm:Path,rz:Path,generated:Path,prefix:Path,reference:Path):
         raise RuntimeError('unexpected Hexagon V66 packet markers')
     with tempfile.TemporaryDirectory(prefix='cdsp-secondary-llvm6-') as tmp:
         obj=Path(tmp)/'independent.o'
-        fixture=Path(__file__).with_name('agent20-10-cdsp-controller-secondary-bitloop.s')
+        fixture=Path(__file__).with_name('late-controller-secondary-bitloop.s')
         subprocess.run([str(llvm),'-triple=hexagon','-mcpu=hexagonv60','-filetype=obj',str(fixture),'-o',str(obj)],check=True,capture_output=True,text=True)
         parser=Path(__file__).with_name('verify-cdsp-hexagon-entry.py')
         spec=importlib.util.spec_from_file_location('hexagon_elf_parser',parser)

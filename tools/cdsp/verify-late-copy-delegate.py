@@ -34,7 +34,7 @@ def verify(llvm:Path,rz:Path,generated:Path,reference:Path,prefix:Path|None)->No
     with tempfile.TemporaryDirectory(prefix='cdsp-copy-delegate-') as tmp:
         obj=Path(tmp)/'copy.o'
         subprocess.run([str(llvm),'-triple=hexagon','-mcpu=hexagonv60',
-                        '-filetype=obj',str(Path(__file__).with_name('agent20-10-cdsp-rwe-copy-delegate.s')),
+                        '-filetype=obj',str(Path(__file__).with_name('late-rwe-copy-delegate.s')),
                         '-o',str(obj)],capture_output=True,text=True,check=True)
         independently_assembled=elf_text(obj.read_bytes())[0x5c0:0x600]
     theirs=words(got);other=words(independently_assembled)

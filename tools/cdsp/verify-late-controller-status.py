@@ -41,7 +41,7 @@ def verify(llvm:Path,rz:Path,binary:Path,reference:Path,prefix:Path|None):
         layout=prefix.read_bytes()
         if len(layout)!=END-0x56000 or layout!=original[0x56000:END]:
             raise ValueError('CDSP RWE full 2608-byte prefix does not match pinned image')
-    source=Path(__file__).with_name('agent20-10-cdsp-controller-status-semantic.s')
+    source=Path(__file__).with_name('late-controller-status-semantic.s')
     with tempfile.TemporaryDirectory(prefix='nabu-cdsp-status-') as d:
         obj=Path(d)/'status.o'
         subprocess.run([str(llvm),'-triple=hexagon','-mcpu=hexagonv60',

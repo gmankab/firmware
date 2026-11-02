@@ -32,7 +32,7 @@ def verify(llvm:Path,rz:Path,generated:Path,reference:Path,prefix:Path|None):
         p=prefix.read_bytes()
         if len(p)!=FILE+LENGTH-0x56000 or p!=firmware[0x56000:FILE+LENGTH]:
             raise ValueError('controller-init full RWE prefix comparison failed')
-    fixture=Path(__file__).with_name('agent20-10-cdsp-controller-init-semantic.s')
+    fixture=Path(__file__).with_name('late-controller-init-semantic.s')
     with tempfile.TemporaryDirectory(prefix='nabu-cdsp-init-') as temp:
         obj=Path(temp)/'controller.o'
         subprocess.run([str(llvm),'-triple=hexagon','-mcpu=hexagonv60',

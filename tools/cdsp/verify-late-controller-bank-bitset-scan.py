@@ -38,7 +38,7 @@ def main():
     with tempfile.TemporaryDirectory(prefix='cdsp-bankscan-') as d:
         obj=Path(d)/'fixture.o'
         subprocess.run([str(a.llvm_mc),'-triple=hexagon','-mcpu=hexagonv60','-filetype=obj',
-                        str(Path(__file__).with_name('agent20-10-cdsp-controller-bank-bitset-scan-semantic.s')),
+                        str(Path(__file__).with_name('late-controller-bank-bitset-scan-semantic.s')),
                         '-o',str(obj)],check=True,capture_output=True,text=True)
         llvm=elf_text(obj.read_bytes())[START-RWE:END-RWE]
     independent=decode(a.rz_asm,llvm,0x96cc8bb4)

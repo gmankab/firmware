@@ -35,7 +35,7 @@ def verify(llvm:Path,rz:Path,generated:Path,prefix:Path,reference:Path):
         if text not in summary:raise RuntimeError('original reference lacks '+text)
     with tempfile.TemporaryDirectory(prefix='cdsp-guard-llvm6-') as td:
         obj=Path(td)/'llvm.o'
-        fixture=Path(__file__).with_name('agent20-10-cdsp-controller-mode-guard.s')
+        fixture=Path(__file__).with_name('late-controller-mode-guard.s')
         subprocess.run([str(llvm),'-triple=hexagon','-mcpu=hexagonv60','-filetype=obj',str(fixture),'-o',str(obj)],check=True,capture_output=True,text=True)
         parser=Path(__file__).with_name('verify-cdsp-hexagon-entry.py')
         spec=importlib.util.spec_from_file_location('verified_cdsp_elf',parser)

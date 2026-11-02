@@ -49,7 +49,7 @@ def main():
     with tempfile.TemporaryDirectory(prefix='cdsp-late-bank-pred-') as td:
         obj=Path(td)/'llvm.o'
         subprocess.run([str(args.llvm_mc),'-triple=hexagon','-mcpu=hexagonv60','-filetype=obj',
-           str(Path(__file__).with_name('agent20-10-cdsp-controller-bank-predicates-semantic.s')),
+           str(Path(__file__).with_name('late-controller-bank-predicates-semantic.s')),
            '-o',str(obj)],check=True,text=True,capture_output=True)
         llvm=section(obj.read_bytes())[OFF-RWE:OFF-RWE+36]
     independent=decode(args.rz_asm,llvm,0x96cc8b78)

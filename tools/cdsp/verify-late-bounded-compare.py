@@ -35,7 +35,7 @@ def verify(llvm:Path,rz:Path,generated:Path,reference:Path,prefix:Path|None)->No
     with tempfile.TemporaryDirectory(prefix='cdsp_bounded_compare_') as td:
         obj=Path(td)/'bounded.o'
         subprocess.run([str(llvm),'-triple=hexagon','-mcpu=hexagonv60',
-            '-filetype=obj',str(Path(__file__).with_name('agent20-10-cdsp-rwe-bounded-compare.s')),
+            '-filetype=obj',str(Path(__file__).with_name('late-rwe-bounded-compare.s')),
             '-o',str(obj)],check=True,capture_output=True,text=True)
         independent=text(obj.read_bytes())[0x590:0x5c0]
     original_words=words(ours);llvm_words=words(independent)

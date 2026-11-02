@@ -32,7 +32,7 @@ def main():
     for idx,needle in assertions.items():assert needle in orig[idx],f'bad original word {idx}: {orig[idx]}'
     with tempfile.TemporaryDirectory(prefix='cdsp-bitmap-args-') as td:
         obj=Path(td)/'fixture.o'
-        subprocess.run([str(a.llvm_mc),'-triple=hexagon','-mcpu=hexagonv60','-filetype=obj',str(Path(__file__).with_name('agent20-10-cdsp-controller-bank-bitset-args-semantic.s')),'-o',str(obj)],check=True,capture_output=True,text=True)
+        subprocess.run([str(a.llvm_mc),'-triple=hexagon','-mcpu=hexagonv60','-filetype=obj',str(Path(__file__).with_name('late-controller-bank-bitset-args-semantic.s')),'-o',str(obj)],check=True,capture_output=True,text=True)
         llvm=elf_text(obj.read_bytes())[START-RWE:END-RWE+4]
     indep=decode(a.rz_asm,llvm,0x96cc8c10,9)
     ow=struct.unpack('<8I',gen);lw=struct.unpack('<9I',llvm)

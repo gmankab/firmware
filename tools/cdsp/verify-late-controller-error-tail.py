@@ -26,7 +26,7 @@ def verify(args):
         raise ValueError('Original trailing 12 bytes are not three source-encoded Hexagon NOPs')
     with tempfile.TemporaryDirectory(prefix='cdsp-error-tail-') as td:
         obj=Path(td)/'independent.o'
-        asm=Path(__file__).with_name('agent20-10-cdsp-controller-error-tail.s')
+        asm=Path(__file__).with_name('late-controller-error-tail.s')
         subprocess.run([str(args.llvm_mc),'-triple=hexagon','-mcpu=hexagonv60',
                        '-filetype=obj',str(asm),'-o',str(obj)],
                         check=True,capture_output=True,text=True)

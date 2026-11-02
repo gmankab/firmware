@@ -36,7 +36,7 @@ def verify(llvm:Path,rz:Path,gen:Path,reference:Path,prefix:Path|None)->None:
         if full[-LENGTH:]!=actual:raise ValueError('Joined prefix disagrees with emitted broker')
     with tempfile.TemporaryDirectory(prefix='cdsp_broker_') as tmp:
         obj=Path(tmp)/'callback-broker.o'
-        asm=Path(__file__).with_name('agent20-10-cdsp-rwe-callback-orchestrator.s')
+        asm=Path(__file__).with_name('late-rwe-callback-orchestrator.s')
         subprocess.run([str(llvm),'-triple=hexagon','-mcpu=hexagonv60',
                         '-filetype=obj',str(asm),'-o',str(obj)],
                        check=True,text=True,capture_output=True)

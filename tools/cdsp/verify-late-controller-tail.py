@@ -15,7 +15,7 @@ def verify(llvm:Path,rz:Path,generated:Path,reference:Path|None)->None:
     if len(contents)==0x4b0:sub=contents[0x408:]
     elif len(contents)==NBYTES:sub=contents
     else:raise ValueError('Expected 168-byte controller tail or entire 1200-byte executable segment')
-    asm=Path(__file__).with_name('agent20-10-cdsp-controller-tail.s')
+    asm=Path(__file__).with_name('late-controller-tail.s')
     with tempfile.TemporaryDirectory(prefix='cdsp-tail-') as td:
         obj=Path(td)/'tail.o'
         subprocess.run([str(llvm),'-triple=hexagon','-mcpu=hexagonv60',

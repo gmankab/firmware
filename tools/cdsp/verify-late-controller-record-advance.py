@@ -40,7 +40,7 @@ def verify(llvm:Path,rz:Path,generated:Path,reference:Path,prefix:Path|None):
  with tempfile.TemporaryDirectory(prefix='cdsp-record-cursor-') as t:
   obj=Path(t)/'cursor.o'
   subprocess.run([str(llvm),'-triple=hexagon','-mcpu=hexagonv60','-filetype=obj',
-    str(Path(__file__).with_name('agent20-10-cdsp-controller-record-advance-semantic.s')),'-o',str(obj)],
+    str(Path(__file__).with_name('late-controller-record-advance-semantic.s')),'-o',str(obj)],
     check=True,capture_output=True,text=True)
   independently=text_section(obj.read_bytes())[0x118:0x118+52]
  if len(independently)!=52:raise ValueError('independent LLVM fixture does not contain 13 words')

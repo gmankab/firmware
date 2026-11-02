@@ -33,7 +33,7 @@ def verify(args):
         if required not in joined:raise RuntimeError('Rizin did not confirm '+required)
     with tempfile.TemporaryDirectory(prefix='cdsp-return-llvm6-') as td:
         obj=Path(td)/'returns.o'
-        fixture=Path(__file__).with_name('agent20-10-cdsp-controller-return-paths.s')
+        fixture=Path(__file__).with_name('late-controller-return-paths.s')
         subprocess.run([str(args.llvm_mc),'-triple=hexagon','-mcpu=hexagonv60','-filetype=obj',str(fixture),'-o',str(obj)],check=True,capture_output=True,text=True)
         parser=Path(__file__).with_name('verify-cdsp-hexagon-entry.py')
         spec=importlib.util.spec_from_file_location('cdsp_elf_decoder',parser)

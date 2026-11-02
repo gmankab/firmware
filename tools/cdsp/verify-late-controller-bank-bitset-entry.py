@@ -46,7 +46,7 @@ def main():
     with tempfile.TemporaryDirectory(prefix='cdsp-bank-bitset-') as td:
         obj=Path(td)/'independent.o'
         subprocess.run([str(a.llvm_mc),'-triple=hexagon','-mcpu=hexagonv60','-filetype=obj',
-           str(Path(__file__).with_name('agent20-10-cdsp-controller-bank-bitset-entry-semantic.s')),
+           str(Path(__file__).with_name('late-controller-bank-bitset-entry-semantic.s')),
            '-o',str(obj)],check=True,capture_output=True,text=True)
         llvm=elf_text(obj.read_bytes())[START-RWE:START-RWE+32]
     ilines=decode(a.rz_asm,llvm,0x96cc8b98)

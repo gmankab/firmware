@@ -18,7 +18,7 @@ def verify(a):
     mod=importlib.util.module_from_spec(spec);spec.loader.exec_module(mod)
     with tempfile.TemporaryDirectory(prefix='cdsp-frame-') as td:
         files=[]
-        for name in ('agent20-10-cdsp-controller-frame-setup.s','agent20-10-cdsp-controller-frame-duplex.s'):
+        for name in ('late-controller-frame-setup.s','late-controller-frame-duplex.s'):
             obj=Path(td)/(name+'.o')
             subprocess.run([str(a.llvm_mc),'-triple=hexagon','-mcpu=hexagonv60','-filetype=obj',
                           str(Path(__file__).with_name(name)),'-o',str(obj)],check=True,capture_output=True,text=True)

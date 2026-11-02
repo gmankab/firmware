@@ -38,7 +38,7 @@ def main():
     with tempfile.TemporaryDirectory(prefix='cdsp-late-bank-init-') as td:
         obj=Path(td)/'independent.o'
         subprocess.run([str(a.llvm_mc),'-triple=hexagon','-mcpu=hexagonv60','-filetype=obj',
-            str(Path(__file__).with_name('agent20-10-cdsp-controller-bank-initialize-semantic.s')),
+            str(Path(__file__).with_name('late-controller-bank-initialize-semantic.s')),
             '-o',str(obj)],check=True,text=True,capture_output=True)
         llvm=parse_section(obj.read_bytes())[START-RWE_START:END-RWE_START]
     assert len(llvm)==len(generated)

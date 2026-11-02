@@ -41,7 +41,7 @@ def verify(llvm:Path,rz:Path,binary:Path,reference:Path,prefix:Path|None):
         region=prefix.read_bytes()
         if len(region)!=END-0x56000 or region!=orig[0x56000:END]:
             raise ValueError('full 2556-byte RWE prefix differs from original')
-    source=Path(__file__).with_name('agent20-10-cdsp-controller-byte-scan-semantic.s')
+    source=Path(__file__).with_name('late-controller-byte-scan-semantic.s')
     with tempfile.TemporaryDirectory(prefix='nabu-cdsp-scan-') as path:
         o=Path(path)/'scan.o'
         subprocess.run([str(llvm),'-triple=hexagon','-mcpu=hexagonv60',

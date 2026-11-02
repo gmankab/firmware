@@ -36,7 +36,7 @@ def validate(llvm:Path,rz:Path,generated:Path,reference:Path,prefix:Path|None):
         if len(p)!=END-0x56000 or p!=firmware[0x56000:END]:
             raise ValueError('2448-byte RWE prefix mismatch')
     orig=b[FILE-START:]
-    fixture=Path(__file__).with_name('agent20-10-cdsp-controller-enumeration-semantic.s')
+    fixture=Path(__file__).with_name('late-controller-enumeration-semantic.s')
     with tempfile.TemporaryDirectory(prefix='nabu-cdsp-loop-') as tmp:
         o=Path(tmp)/'fixture.o'
         subprocess.run([str(llvm),'-triple=hexagon','-mcpu=hexagonv60',

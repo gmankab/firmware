@@ -31,7 +31,7 @@ def main():
  with tempfile.TemporaryDirectory(prefix='cdsp-bank48-') as folder:
   obj=Path(folder)/'independent.o'
   subprocess.run([str(arg.llvm_mc),'-triple=hexagon','-mcpu=hexagonv60',
-     '-filetype=obj',str(Path(__file__).with_name('agent20-10-cdsp-controller-bank-entry.s')),
+     '-filetype=obj',str(Path(__file__).with_name('late-controller-bank-entry.s')),
      '-o',str(obj)],capture_output=True,text=True,check=True)
   llvm=parse_text(obj.read_bytes())[0xb00:0xb30]
  if len(llvm)!=len(gen):raise ValueError('LLVM6 did not assemble exactly 12 words')
