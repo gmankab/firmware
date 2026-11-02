@@ -38,6 +38,9 @@ pub mod wmfw_halo_fixed_point;
 pub mod wmfw_halo_calibration;
 pub mod wmfw_halo_control_defaults;
 pub mod wmfw_halo_memory_plan;
+// Independent packed program-memory provenance and host-register layouts.
+pub mod wmfw_halo_pm_transport;
+pub mod wmfw_halo_pm_oracle;
 
 /// Parse only the bounded ELF32 little-endian header and segment table.
 /// Neither this metadata inspector nor its output is an executable decompiler.
