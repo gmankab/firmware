@@ -11,6 +11,7 @@ from __future__ import annotations
 import argparse,hashlib,importlib.util,sys
 from pathlib import Path
 TOOLS=Path(__file__).resolve().parent
+ASSEMBLY_DIR=Path(__file__).resolve().parents[2]/'sources/xiaomi-nabu/adsp/rwe'
 if str(TOOLS) not in sys.path:sys.path.insert(0,str(TOOLS))
 START=0x11450
 END=0x11698
@@ -25,7 +26,7 @@ PARTS=(
     ('layout',0x11548,0x11624,'rwe-next-controller-global-layout.py'),
     ('handoff',0x11624,0x1167c,'rwe-next-controller-global-handoff.py'),
 )
-LAST_SOURCE=TOOLS/'rwe-next-controller-global-complete.S'
+LAST_SOURCE=ASSEMBLY_DIR / 'rwe-next-controller-global-complete.S'
 
 def load_source(name:str):
     path=TOOLS/name

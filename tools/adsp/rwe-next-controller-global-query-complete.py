@@ -12,6 +12,7 @@ import argparse,hashlib,importlib.util,struct,sys
 from pathlib import Path
 import sys
 T=Path(__file__).resolve().parent
+ASSEMBLY_DIR=Path(__file__).resolve().parents[2]/'sources/xiaomi-nabu/adsp/rwe'
 if str(T) not in sys.path:sys.path.insert(0,str(T))
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from adsp_hexagon_v66 import read_system_register,SystemRegister
@@ -32,7 +33,7 @@ def render(llvm_mc:str)->bytes:
     spec=importlib.util.spec_from_file_location('adsp_emit',T/'emit-adsp-entry.py')
     if not spec or not spec.loader:raise RuntimeError('Missing Hexagon assembler source')
     m=importlib.util.module_from_spec(spec);spec.loader.exec_module(m)
-    data=bytearray(b''.join(m.assemble(llvm_mc,T/name,length) for name,length in PARTS))
+    data=bytearray(b''.join(m.assemble(llvm_mc,ASSEMBLY_DIR/name,length) for name,length in PARTS))
     if len(data)!=SIZE:raise m.AdspError('Wrong controller-global query length')
     at=SGP0_AT-START
     if data[at:at+4]!=NOP:raise m.AdspError('Expected LLVM6 NOP at reserved V66-only system-register read')

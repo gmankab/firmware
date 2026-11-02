@@ -4,6 +4,7 @@ from __future__ import annotations
 import importlib.util,os,unittest
 from pathlib import Path
 T=Path(__file__).resolve().parents[1]/'tools/adsp'
+ASSEMBLY_DIR=Path(__file__).resolve().parents[1]/'sources/xiaomi-nabu/adsp/rwe'
 
 def load(name):
     spec=importlib.util.spec_from_file_location(name.replace('-','_').replace('.','_'),T/name)
@@ -20,7 +21,7 @@ class ScanOperations(unittest.TestCase):
         self.assertEqual((m.START,m.END,m.SIZE),(0x12220,0x12310,240))
         self.assertEqual(prefix.END,m.START)
         self.assertEqual(sum(x[1] for x in m.PARTS),m.SIZE)
-        s='\n'.join((T/name).read_text() for name,length in m.PARTS)
+        s='\n'.join((ASSEMBLY_DIR/name).read_text() for name,length in m.PARTS)
         for keyword in ('memw_locked(r17)', 'memh(r17+#212)=r3.new',
                         'loop0', 'memw(GP+##0xf020a0e4)'):
             if keyword!='loop0':self.assertIn(keyword,s)

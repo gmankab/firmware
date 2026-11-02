@@ -13,12 +13,13 @@ import argparse,hashlib,importlib.util,struct,subprocess,sys,tempfile
 from pathlib import Path
 import sys
 TOOLS=Path(__file__).resolve().parent
+ASSEMBLY_DIR=Path(__file__).resolve().parents[2]/'sources/xiaomi-nabu/adsp/rwe'
 if str(TOOLS) not in sys.path:sys.path.insert(0,str(TOOLS))
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from adsp_hexagon_v66 import SystemRegister,read_system_register
-SOURCE=TOOLS/'rwe-next-ssr-context-scan.S'
-NO_PAIR=TOOLS/'rwe-next-ssr-advance-nopair.S'
-LOOP_DUPLEX=TOOLS/'rwe-next-ssr-duplex.S'
+SOURCE=ASSEMBLY_DIR / 'rwe-next-ssr-context-scan.S'
+NO_PAIR=ASSEMBLY_DIR / 'rwe-next-ssr-advance-nopair.S'
+LOOP_DUPLEX=ASSEMBLY_DIR / 'rwe-next-ssr-duplex.S'
 FILE_START=0x11090
 FILE_END=0x11108
 SIZE=FILE_END-FILE_START

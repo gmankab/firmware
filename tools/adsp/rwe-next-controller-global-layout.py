@@ -10,6 +10,7 @@ from __future__ import annotations
 import argparse,hashlib,importlib.util
 from pathlib import Path
 T=Path(__file__).resolve().parent
+ASSEMBLY_DIR=Path(__file__).resolve().parents[2]/'sources/xiaomi-nabu/adsp/rwe'
 FILE_START=0x11548
 FILE_END=0x11624
 SIZE=FILE_END-FILE_START
@@ -25,7 +26,7 @@ def render(llvm_mc:str)->bytes:
     output=bytearray()
     for name,a,b,source in PARTS:
         if a != FILE_START+len(output):raise ValueError(f'Nonadjacent ADSP region {name}')
-        output+=core.assemble(llvm_mc,T/source,b-a)
+        output+=core.assemble(llvm_mc,ASSEMBLY_DIR/source,b-a)
     if len(output)!=SIZE:raise ValueError('Final source interval changed')
     return bytes(output)
 

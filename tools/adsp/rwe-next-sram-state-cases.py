@@ -11,7 +11,8 @@ import argparse,hashlib,importlib.util
 from pathlib import Path
 
 TOOLS=Path(__file__).resolve().parent
-SOURCE=TOOLS/'rwe-next-sram-state-cases.S'
+ASSEMBLY_DIR=Path(__file__).resolve().parents[2]/'sources/xiaomi-nabu/adsp/rwe'
+SOURCE=ASSEMBLY_DIR / 'rwe-next-sram-state-cases.S'
 START=0x11754
 END=0x11798
 SIZE=END-START

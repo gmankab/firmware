@@ -13,9 +13,10 @@ from __future__ import annotations
 import argparse,hashlib,importlib.util,struct,sys
 from pathlib import Path
 TOOLS=Path(__file__).resolve().parent
+ASSEMBLY_DIR=Path(__file__).resolve().parents[2]/'sources/xiaomi-nabu/adsp/rwe'
 if str(TOOLS) not in sys.path:sys.path.insert(0,str(TOOLS))
 START=0x11ae0;END=0x11ba0;SIZE=END-START;PHYSICAL=0x8be0eae0
-SOURCE=TOOLS/'rwe-next-controller-table-init.S'
+SOURCE=ASSEMBLY_DIR / 'rwe-next-controller-table-init.S'
 REFERENCE_SHA='4b579e5dc1333d634e5bdc93f3314e357e0e30dab7140833f6cc7aef086b1c1e'
 FIELD_AT=0x11b40
 PARSE_MASK=0x0000c000

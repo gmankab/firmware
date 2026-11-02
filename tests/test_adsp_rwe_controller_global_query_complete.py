@@ -4,6 +4,7 @@ from __future__ import annotations
 import importlib.util,os,struct,unittest
 from pathlib import Path
 T=Path(__file__).resolve().parents[1]/'tools/adsp'
+ASSEMBLY_DIR=Path(__file__).resolve().parents[1]/'sources/xiaomi-nabu/adsp/rwe'
 def load(name):
     s=importlib.util.spec_from_file_location(name.replace('-','_').replace('.','_'),T/name)
     assert s and s.loader
@@ -17,7 +18,7 @@ class ControllerQuery(unittest.TestCase):
         self.assertEqual((m.START,m.END,m.SIZE),(0x125a0,0x126a4,260))
         self.assertEqual(prior.END+4,m.START)
         self.assertEqual(sum(length for _,length in m.PARTS),m.SIZE)
-        s='\n'.join((T/name).read_text() for name,_ in m.PARTS)
+        s='\n'.join((ASSEMBLY_DIR/name).read_text() for name,_ in m.PARTS)
         for op in ('loop0(scan_entries,r6)','memw(GP+##0xf0026d68)',
                    'r1=or(r4,r1)','dealloc_return'):
             self.assertIn(op,s)

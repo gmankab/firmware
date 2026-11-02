@@ -11,7 +11,8 @@ import argparse,hashlib,importlib.util
 from pathlib import Path
 
 T=Path(__file__).resolve().parent
-SOURCE=T/'rwe-next-controller-publish.S'
+ASSEMBLY_DIR=Path(__file__).resolve().parents[2]/'sources/xiaomi-nabu/adsp/rwe'
+SOURCE=ASSEMBLY_DIR / 'rwe-next-controller-publish.S'
 START=0x11798
 END=0x1180c
 SIZE=END-START

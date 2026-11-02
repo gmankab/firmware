@@ -18,6 +18,7 @@ import sys
 from pathlib import Path
 
 T = Path(__file__).resolve().parent
+ASSEMBLY_DIR=Path(__file__).resolve().parents[2]/'sources/xiaomi-nabu/adsp/rwe'
 if str(T) not in sys.path:
     sys.path.insert(0, str(T))
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
@@ -27,7 +28,7 @@ START = 0x121c0
 END = 0x12220
 SIZE = END - START
 PHYSICAL = 0x8be0f1c0
-SOURCE = T / 'rwe-next-controller-slot-scan-prefix.S'
+SOURCE = ASSEMBLY_DIR / 'rwe-next-controller-slot-scan-prefix.S'
 REFERENCE_SHA = '4b579e5dc1333d634e5bdc93f3314e357e0e30dab7140833f6cc7aef086b1c1e'
 # LLVM6 generates the original operations with packet-end markers; their
 # tested, source-assembled operand bits are unchanged by this transformation.

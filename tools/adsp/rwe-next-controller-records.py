@@ -12,7 +12,8 @@ import argparse,hashlib,importlib.util,sys,struct
 from pathlib import Path
 import sys
 TOOLS=Path(__file__).resolve().parent
-SOURCE=TOOLS/'rwe-next-controller-records.S'
+ASSEMBLY_DIR=Path(__file__).resolve().parents[2]/'sources/xiaomi-nabu/adsp/rwe'
+SOURCE=ASSEMBLY_DIR / 'rwe-next-controller-records.S'
 if str(TOOLS) not in sys.path:sys.path.insert(0,str(TOOLS))
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from adsp_hexagon_v66 import (SystemRegister,read_system_register,packet_continuation)

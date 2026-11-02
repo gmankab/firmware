@@ -13,33 +13,34 @@ import argparse,hashlib,importlib.util,struct,sys
 from pathlib import Path
 import sys
 TOOLS=Path(__file__).resolve().parent
+ASSEMBLY_DIR=Path(__file__).resolve().parents[2]/'sources/xiaomi-nabu/adsp/rwe'
 if str(TOOLS) not in sys.path:sys.path.insert(0,str(TOOLS))
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from adsp_hexagon_v66 import (SystemRegister, read_system_register,
     read_system_register_pair, write_system_register, packet_continuation,
     physical_word_load,wait_thread_from_register)
-SOURCE=TOOLS/'rwe-next-getter.S'
+SOURCE=ASSEMBLY_DIR / 'rwe-next-getter.S'
 FILE_START=0x10330
 FILE_END=0x10674
 SIZE=FILE_END-FILE_START
 GETTER_SIZE=0x1c
-THREAD_CYCLES_SOURCE=TOOLS/'rwe-next-thread-cycles.S'
+THREAD_CYCLES_SOURCE=ASSEMBLY_DIR / 'rwe-next-thread-cycles.S'
 THREAD_CYCLES_SIZE=0x58
-ISDB_GUARD_SOURCE=TOOLS/'rwe-next-isdb-guard.S'
+ISDB_GUARD_SOURCE=ASSEMBLY_DIR / 'rwe-next-isdb-guard.S'
 ISDB_GUARD_SIZE=0x2c
-SRAM_CLONE_SOURCE=TOOLS/'rwe-next-sram-clone.S'
+SRAM_CLONE_SOURCE=ASSEMBLY_DIR / 'rwe-next-sram-clone.S'
 SRAM_CLONE_SIZE=0x60
-CONTROLLER_POLL_SOURCE=TOOLS/'rwe-next-status-poll.S'
+CONTROLLER_POLL_SOURCE=ASSEMBLY_DIR / 'rwe-next-status-poll.S'
 CONTROLLER_POLL_SIZE=0x30
-DEBUG_SNAPSHOT_SOURCE=TOOLS/'rwe-next-debug-snapshot.S'
+DEBUG_SNAPSHOT_SOURCE=ASSEMBLY_DIR / 'rwe-next-debug-snapshot.S'
 DEBUG_SNAPSHOT_SIZE=0x58
-CONTROLLER_PHASE_SOURCE=TOOLS/'rwe-next-controller-phase.S'
+CONTROLLER_PHASE_SOURCE=ASSEMBLY_DIR / 'rwe-next-controller-phase.S'
 CONTROLLER_PHASE_SIZE=0x7c
-CYCLE_SNAPSHOT_SOURCE=TOOLS/'rwe-next-cycle-snapshot.S'
+CYCLE_SNAPSHOT_SOURCE=ASSEMBLY_DIR / 'rwe-next-cycle-snapshot.S'
 CYCLE_SNAPSHOT_SIZE=0x3c
-PHYSICAL_SCAN_SOURCE=TOOLS/'rwe-next-physical-scan.S'
+PHYSICAL_SCAN_SOURCE=ASSEMBLY_DIR / 'rwe-next-physical-scan.S'
 PHYSICAL_SCAN_SIZE=0x54
-FIVE_BANK_SNAPSHOT_SOURCE=TOOLS/'rwe-next-five-bank-snapshot.S'
+FIVE_BANK_SNAPSHOT_SOURCE=ASSEMBLY_DIR / 'rwe-next-five-bank-snapshot.S'
 FIVE_BANK_SNAPSHOT_SIZE=0xb0
 PHYS_START=0x8be0d330
 SHA256_REFERENCE='4b579e5dc1333d634e5bdc93f3314e357e0e30dab7140833f6cc7aef086b1c1e'

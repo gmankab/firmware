@@ -16,6 +16,7 @@ import sys
 from pathlib import Path
 
 T=Path(__file__).resolve().parent
+ASSEMBLY_DIR=Path(__file__).resolve().parents[2]/'sources/xiaomi-nabu/adsp/rwe'
 if str(T) not in sys.path:sys.path.insert(0,str(T))
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from adsp_hexagon_v66 import SystemRegister, read_system_register
@@ -24,7 +25,7 @@ END=0x11754
 SIZE=END-START
 PHYSICAL=0x8be0e6d8
 EXPECTED_REF='4b579e5dc1333d634e5bdc93f3314e357e0e30dab7140833f6cc7aef086b1c1e'
-SOURCE=T/'rwe-next-sram-controller-status.S'
+SOURCE=ASSEMBLY_DIR / 'rwe-next-sram-controller-status.S'
 SYSTEM_READS={0x116f0:read_system_register(2,SystemRegister.SYSCFG),
               0x11714:read_system_register(10,SystemRegister.SGP0)}
 NOP=struct.pack('<I',0x7f00c000)

@@ -14,6 +14,7 @@ import importlib.util
 from pathlib import Path
 
 T=Path(__file__).resolve().parent
+ASSEMBLY_DIR=Path(__file__).resolve().parents[2]/'sources/xiaomi-nabu/adsp/rwe'
 START=0x12220
 END=0x12310
 SIZE=END-START
@@ -30,7 +31,7 @@ def render(llvm_mc:str)->bytes:
     spec=importlib.util.spec_from_file_location('adsp_entry',T/'emit-adsp-entry.py')
     if not spec or not spec.loader:raise RuntimeError('Missing Hexagon source assembler')
     m=importlib.util.module_from_spec(spec);spec.loader.exec_module(m)
-    built=b''.join(m.assemble(llvm_mc,T/name,length) for name,length in PARTS)
+    built=b''.join(m.assemble(llvm_mc,ASSEMBLY_DIR/name,length) for name,length in PARTS)
     if len(built)!=SIZE:raise m.AdspError('Wrong scanner staged layout')
     return built
 

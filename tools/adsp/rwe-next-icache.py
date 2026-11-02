@@ -11,6 +11,7 @@ import argparse, hashlib, importlib.util, struct, sys
 from pathlib import Path
 import sys
 TOOLS=Path(__file__).resolve().parent
+ASSEMBLY_DIR=Path(__file__).resolve().parents[2]/'sources/xiaomi-nabu/adsp/rwe'
 if str(TOOLS) not in sys.path:sys.path.insert(0,str(TOOLS))
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from adsp_hexagon_v66 import (SystemRegister,ControlRegister,
@@ -22,7 +23,7 @@ SIZE=FILE_END-FILE_START
 FILL_START=0x10674
 FILL_END=FILE_START
 FOLLOW_FILL_END=0x10c30
-SOURCE=TOOLS/'rwe-next-icache-snapshot.S'
+SOURCE=ASSEMBLY_DIR / 'rwe-next-icache-snapshot.S'
 REFERENCE_SHA256='4b579e5dc1333d634e5bdc93f3314e357e0e30dab7140833f6cc7aef086b1c1e'
 
 def base():

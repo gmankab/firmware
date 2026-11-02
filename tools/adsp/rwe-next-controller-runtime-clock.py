@@ -11,12 +11,13 @@ import argparse,hashlib,importlib.util,struct,sys
 from pathlib import Path
 import sys
 T=Path(__file__).resolve().parent
+ASSEMBLY_DIR=Path(__file__).resolve().parents[2]/'sources/xiaomi-nabu/adsp/rwe'
 if str(T) not in sys.path:sys.path.insert(0,str(T))
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from adsp_hexagon_v66 import (KernelZeroLock,packet_continuation,
     read_system_register_pair,start_thread_from_register)
 START=0x13850;END=0x138ec;SIZE=END-START;PHYSICAL=0x8be10850
-SOURCE=T/'rwe-next-controller-runtime-clock.S'
+SOURCE=ASSEMBLY_DIR / 'rwe-next-controller-runtime-clock.S'
 REFERENCE_SHA='4b579e5dc1333d634e5bdc93f3314e357e0e30dab7140833f6cc7aef086b1c1e'
 NOP=struct.pack('<I',0x7f00c000)
 SPECIAL={0x13864:read_system_register_pair(0,30),

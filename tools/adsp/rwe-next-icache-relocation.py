@@ -10,6 +10,7 @@ from __future__ import annotations
 import argparse,hashlib,importlib.util,sys
 from pathlib import Path
 T=Path(__file__).resolve().parent
+ASSEMBLY_DIR=Path(__file__).resolve().parents[2]/'sources/xiaomi-nabu/adsp/rwe'
 if str(T) not in sys.path:sys.path.insert(0,str(T))
 FILE_START=0x11170
 FILE_END=0x11394
@@ -36,7 +37,7 @@ def render(llvm_mc:str)->bytes:
     for start,end,name in PARTS:
         if len(o)!=start-FILE_START:
             raise ValueError(f'Non-contiguous source-built relocation instructions before 0x{start:x}')
-        b=mc.assemble(llvm_mc,T/name,end-start)
+        b=mc.assemble(llvm_mc,ASSEMBLY_DIR/name,end-start)
         o.extend(b)
     if len(o)!=SIZE:
         raise ValueError('Complete cache relocation source changed in size')

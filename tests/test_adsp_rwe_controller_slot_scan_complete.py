@@ -4,6 +4,7 @@ from __future__ import annotations
 import importlib.util,os,unittest
 from pathlib import Path
 T=Path(__file__).resolve().parents[1]/'tools/adsp'
+ASSEMBLY_DIR=Path(__file__).resolve().parents[1]/'sources/xiaomi-nabu/adsp/rwe'
 
 def load(name):
     s=importlib.util.spec_from_file_location(name.replace('-','_').replace('.','_'),T/name)
@@ -19,7 +20,7 @@ class CompleteScan(unittest.TestCase):
         self.assertEqual((m.START,m.END,m.SIZE),(0x121c0,0x1242c,620))
         self.assertEqual(sum(length for _,length in m.PARTS),m.SIZE)
         self.assertEqual(prior.END+4,m.START)
-        text='\n'.join((T/name).read_text() for name in (
+        text='\n'.join((ASSEMBLY_DIR/name).read_text() for name in (
             'rwe-next-controller-slot-scan-prefix.S',
             'rwe-next-controller-slot-scan-setup.S',
             'rwe-next-controller-slot-scan-atomic.S',

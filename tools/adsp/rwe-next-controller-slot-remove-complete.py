@@ -11,6 +11,7 @@ from __future__ import annotations
 import argparse,hashlib,importlib.util,sys
 from pathlib import Path
 T=Path(__file__).resolve().parent
+ASSEMBLY_DIR=Path(__file__).resolve().parents[2]/'sources/xiaomi-nabu/adsp/rwe'
 START=0x12430
 END=0x1259c
 SIZE=END-START
@@ -26,7 +27,7 @@ def render(llvm_mc:str)->bytes:
     spec=importlib.util.spec_from_file_location('adsp_entry',T/'emit-adsp-entry.py')
     if not spec or not spec.loader:raise RuntimeError('Missing Hexagon LLVM6 emitter')
     m=importlib.util.module_from_spec(spec);spec.loader.exec_module(m)
-    result=b''.join(m.assemble(llvm_mc,T/name,length) for name,length in PARTS)
+    result=b''.join(m.assemble(llvm_mc,ASSEMBLY_DIR/name,length) for name,length in PARTS)
     if len(result)!=SIZE:raise m.AdspError('Wrong controller-slot release length')
     return result
 

@@ -12,6 +12,7 @@ from __future__ import annotations
 import argparse,hashlib,importlib.util,sys
 from pathlib import Path
 T=Path(__file__).resolve().parent
+ASSEMBLY_DIR=Path(__file__).resolve().parents[2]/'sources/xiaomi-nabu/adsp/rwe'
 if str(T) not in sys.path:sys.path.insert(0,str(T))
 
 START=0x121c0
@@ -40,7 +41,7 @@ def render(llvm_mc:str)->bytes:
         if name.endswith('.py'):
             body=_import_script(name).render(llvm_mc)
         else:
-            body=from_source.assemble(llvm_mc,T/name,length)
+            body=from_source.assemble(llvm_mc,ASSEMBLY_DIR/name,length)
         if len(body)!=length:raise ValueError('Scanner component has incorrect output size')
         fragments.append(body)
     result=b''.join(fragments)

@@ -4,6 +4,7 @@ from __future__ import annotations
 import importlib.util,os,unittest
 from pathlib import Path
 T=Path(__file__).resolve().parents[1]/'tools/adsp'
+ASSEMBLY_DIR=Path(__file__).resolve().parents[1]/'sources/xiaomi-nabu/adsp/rwe'
 def load(name):
     s=importlib.util.spec_from_file_location(name.replace('-','_').replace('.','_'),T/name)
     assert s and s.loader
@@ -17,7 +18,7 @@ class SlotRemove(unittest.TestCase):
         self.assertEqual((m.START,m.END,m.SIZE),(0x12430,0x1259c,364))
         self.assertEqual(m.START,prev.END+4)
         self.assertEqual(sum(n for _,n in m.PARTS),m.SIZE)
-        contents='\n'.join((T/name).read_text() for name,_ in m.PARTS)
+        contents='\n'.join((ASSEMBLY_DIR/name).read_text() for name,_ in m.PARTS)
         for term in ('memw_locked(r18)','memw_locked(r19,p0)=r4',
                      'if(!cmp.eq(r2.new,r16))','dealloc_return'):
             self.assertIn(term,contents)

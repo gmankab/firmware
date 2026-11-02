@@ -10,11 +10,12 @@ from __future__ import annotations
 import argparse,hashlib,importlib.util
 from pathlib import Path
 T=Path(__file__).resolve().parent
+ASSEMBLY_DIR=Path(__file__).resolve().parents[2]/'sources/xiaomi-nabu/adsp/rwe'
 START=0x12764
 END=0x127c8
 SIZE=END-START
 PHYSICAL=0x8be0f764
-SOURCE=T/'rwe-next-controller-format-selector-cases-b.S'
+SOURCE=ASSEMBLY_DIR / 'rwe-next-controller-format-selector-cases-b.S'
 REFERENCE_SHA='4b579e5dc1333d634e5bdc93f3314e357e0e30dab7140833f6cc7aef086b1c1e'
 
 def render(llvm_mc:str)->bytes:

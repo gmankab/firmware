@@ -12,11 +12,12 @@ import argparse,hashlib,importlib.util,struct,sys
 from pathlib import Path
 import sys
 TOOLS=Path(__file__).resolve().parent
+ASSEMBLY_DIR=Path(__file__).resolve().parents[2]/'sources/xiaomi-nabu/adsp/rwe'
 if str(TOOLS) not in sys.path:sys.path.insert(0,str(TOOLS))
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from adsp_hexagon_v66 import (SystemRegister,read_system_register,
     read_system_register_pair,KernelZeroLock)
-SOURCE=TOOLS/'rwe-next-thread-record.S'
+SOURCE=ASSEMBLY_DIR / 'rwe-next-thread-record.S'
 FILE_START=0x10dc4
 FILE_END=0x10eb4
 SIZE=FILE_END-FILE_START

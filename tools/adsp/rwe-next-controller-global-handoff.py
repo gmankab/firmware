@@ -10,12 +10,13 @@ from __future__ import annotations
 import argparse,hashlib,importlib.util
 from pathlib import Path
 TOOLS=Path(__file__).resolve().parent
+ASSEMBLY_DIR=Path(__file__).resolve().parents[2]/'sources/xiaomi-nabu/adsp/rwe'
 FILE_START=0x11624
 FILE_END=0x1167c
 SIZE=FILE_END-FILE_START
 PHYSICAL_START=0x8be0e624
 REF_SHA='4b579e5dc1333d634e5bdc93f3314e357e0e30dab7140833f6cc7aef086b1c1e'
-SOURCE=TOOLS/'rwe-next-controller-global-handoff.S'
+SOURCE=ASSEMBLY_DIR / 'rwe-next-controller-global-handoff.S'
 
 def render(llvm_mc:str)->bytes:
     spec=importlib.util.spec_from_file_location('adsp',TOOLS.parent/'emit-adsp-entry.py')

@@ -11,12 +11,13 @@ from __future__ import annotations
 import argparse,hashlib,importlib.util
 from pathlib import Path
 T=Path(__file__).resolve().parent
+ASSEMBLY_DIR=Path(__file__).resolve().parents[2]/'sources/xiaomi-nabu/adsp/rwe'
 START=0x126a8
 END=0x126dc
 SIZE=END-START
 PHYSICAL=0x8be0f6a8
 REFERENCE_SHA='4b579e5dc1333d634e5bdc93f3314e357e0e30dab7140833f6cc7aef086b1c1e'
-SOURCE=T/'rwe-next-controller-format-selector-prefix.S'
+SOURCE=ASSEMBLY_DIR / 'rwe-next-controller-format-selector-prefix.S'
 
 def render(llvm_mc:str)->bytes:
     spec=importlib.util.spec_from_file_location('adsp_emit',T/'emit-adsp-entry.py')
