@@ -26,7 +26,7 @@ def load_module(name, path):
 
 
 def verify(reference, binary, converter):
-    previous = load_module("agent16_previous_audit", Path(__file__).with_name("verify-agent20-16-halo.py"))
+    previous = load_module("agent16_previous_audit", Path(__file__).with_name("verify-halo-memory-halo.py"))
     baseline = previous.verify(reference, binary, converter)
     raw = reference.read_bytes()
     vendor = load_module("agent16_vendor_controls", converter)

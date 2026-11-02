@@ -18,8 +18,8 @@ export CARGO_TARGET_DIR
 cargo test --workspace --offline --locked -q
 python3 -m unittest discover -s tests -p 'test_*.py'
 cargo build --workspace --release --offline --locked -q
-cargo run --offline --locked -q --example agent15_pm_audit -- "$REF" --json-out "$TMP/rust-report.json" >/dev/null
-python3 tools/agent15_pm_python.py "$REF" --json-out "$TMP/python-report.json" >/dev/null
+cargo run --offline --locked -q --example halo_pm_audit -- "$REF" --json-out "$TMP/rust-report.json" >/dev/null
+python3 tools/halo/pm_transport.py "$REF" --json-out "$TMP/python-report.json" >/dev/null
 cmp "$TMP/rust-report.json" "$TMP/python-report.json"
 python3 - "$TMP/rust-report.json" <<'PY'
 import json,sys
