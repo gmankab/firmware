@@ -16,6 +16,6 @@ fn main()->Result<(),Box<dyn Error>>{
             return Err(format!("at runtime 0x{:x}, expected {:02x}, generated {:02x}",segment::START+idx,slice[idx],generated[idx]).into());
         }
     }
-    println!("Agent20-06: {} exact bytes at runtime [0x{:x},0x{:x}), original MBN file [0x{:x},0x{:x}) ({})",generated.len(),segment::START,segment::END,segment::FILE_OFFSET,segment::FILE_OFFSET+generated.len(),arg[0]);
+    println!("Venus tail: {} exact bytes at runtime [0x{:x},0x{:x}), original MBN file [0x{:x},0x{:x}) ({})",generated.len(),segment::START,segment::END,segment::FILE_OFFSET,segment::FILE_OFFSET+generated.len(),arg[0]);
     Ok(())
 }
