@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Validate a complete agent03 contiguous typed Venus fragment using named data intervals.
 
-Run: python3 tools/agent20-03-verify-all.py --disasm /private/venus-disasm.txt
+Run: python3 tools/venus/venus-mid-verify-all.py --disasm /private/venus-disasm.txt
      --reference /private/venus.mbn --generated /tmp/fragment.bin --workdir /tmp/verify
 
 The helper delegates to the independent Clang/LLD assembler and additionally
@@ -15,7 +15,7 @@ p=argparse.ArgumentParser()
 for flag in ('disasm','reference','generated','workdir'):
  p.add_argument('--'+flag,required=True,type=Path)
 a=p.parse_args()
-ledger=json.loads((here/'agent20-03-venus-mid-ranges.json').read_text())
+ledger=json.loads((here/'venus-mid-venus-mid-ranges.json').read_text())
 start=int(ledger['runtime_start'],16)
 end=start+a.generated.stat().st_size
 limit=int(ledger['reservation_end'],16)
@@ -30,7 +30,7 @@ for l,r in ranges:
   active.append((l,r));prior=r
  elif l<end:
   p.error(f'partial data pool crosses current end: {l:#x}..{r:#x}')
-command=[sys.executable,str(here/'agent20-03-a32-mnemonic-roundtrip.py'),
+command=[sys.executable,str(here/'venus-mid-a32-mnemonic-roundtrip.py'),
          '--disasm',str(a.disasm),'--start',hex(start),'--end',hex(end),
          '--reference',str(a.reference),'--generated',str(a.generated),
          '--workdir',str(a.workdir)]

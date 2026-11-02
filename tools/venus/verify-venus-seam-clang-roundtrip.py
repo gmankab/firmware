@@ -8,7 +8,7 @@ literal data, then verifies its binary against the original AND an optional
 source-generated Rust fragment. Never writes OEM code into the repository.
 
 Usage:
-  python3 tools/verify-agent20-02-clang-roundtrip.py /private/venus.mbn \
+  python3 tools/venus/verify-venus-seam-clang-roundtrip.py /private/venus.mbn \
      --emitted /tmp/venus-agent20-02-seam.bin
 """
 from __future__ import annotations

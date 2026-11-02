@@ -46,7 +46,7 @@ def collect_middle(prefix:Path)->list[tuple[int,bytes]]:
 def main()->int:
     p=argparse.ArgumentParser(description=__doc__)
     p.add_argument('--prefix',type=Path,required=True,help='source-emitted 2604-byte ARM32 fragment')
-    p.add_argument('--middle-prefix',type=Path,required=True,help='basename of agent20_04_venus_middle --emit outputs')
+    p.add_argument('--middle-prefix',type=Path,required=True,help='basename of venus_controller_middle --emit outputs')
     p.add_argument('--tail',type=Path,required=True,help='source-emitted 0x55400-0x68000 span')
     p.add_argument('--reference',type=Path,help='private pinned venus.mbn for exact comparison; never copied into generator')
     p.add_argument('--output',type=Path,help='write the combined source-emitted 163840-byte fragment')

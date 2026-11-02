@@ -5,7 +5,7 @@
 # Optional second argument is a separately emitted service-region artifact.
 set -euo pipefail
 if (( $# < 1 || $# > 2 )); then
-  echo 'usage: agent-02-verify-full-gap.sh /private/venus.mbn [/tmp/emitted-service-region.bin]' >&2
+  echo 'usage: venus-bridge-verify-full-gap.sh /private/venus.mbn [/tmp/emitted-service-region.bin]' >&2
   exit 2
 fi
 REFERENCE=$1
@@ -47,7 +47,7 @@ ranges=(
 )
 args=()
 for interval in "${ranges[@]}"; do args+=(--data-range "$interval"); done
-python3 tools/agent-02-a32-roundtrip.py "$REFERENCE" \
+python3 tools/venus/venus-bridge-a32-roundtrip.py "$REFERENCE" \
   --file-offset 0xc490 --vma 0x8490 --length 0x257c \
   "${args[@]}" --binary-out "$WORK/llvm-rebuilt-gap.bin"
 cmp "$WORK/bridge.bin" "$WORK/llvm-rebuilt-gap.bin"
