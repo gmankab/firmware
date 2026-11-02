@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // GENERATED descriptive ELF header data. NO executable bytes or OEM signatures.
-// Rebuild: tools/generate-elf-specs.py FIRMWARE_DIR crates/firmware-tools/src/devices/xiaomi_nabu/elf_specs.rs
+// Rebuild: tools/generate-elf-specs.py FIRMWARE_DIR crates/firmware-tools/src/devices/xiaomi_nabu/formats/elf_specs.rs
 use crate::elf32_prefix::{Elf32Program, Elf32Spec};
 pub const KNOWN_ELFS: &[Elf32Spec] = &[
     Elf32Spec { name: "a640_zap.mbn", machine: 164, entry: 0x5000, flags: 0x3, section_header_size: 0, headers: &[

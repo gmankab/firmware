@@ -6,6 +6,7 @@ pub mod a640_shader;
 pub mod a640_launch;
 #[path = "a640/a640_plan.rs"]
 pub mod a640_plan;
+#[path = "formats/elf_specs.rs"]
 pub mod elf_specs;
 #[path = "modem/common/modemuw.rs"]
 pub mod modemuw;
