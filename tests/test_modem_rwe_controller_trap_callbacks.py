@@ -27,7 +27,7 @@ class TrapCallbacks(unittest.TestCase):
     def test_assembled_reference(self):
         mc=os.environ.get('AGENT11_LLVM_MC')
         if not mc:self.skipTest('Hexagon LLVM6 not configured')
-        src=S.parents[1]/'crates/firmware-tools/src/devices/xiaomi_nabu/modem_rwe_controller_trap_callbacks.s'
+        src=S.parents[1]/'sources/xiaomi-nabu/modem/modem_rwe_controller_trap_callbacks.s'
         b=m.assemble(Path(mc),src)
         self.assertEqual(len(b),112)
         if ref:=os.environ.get('AGENT11_MODEM_MBN'):m.verify(Path(ref).read_bytes(),b)

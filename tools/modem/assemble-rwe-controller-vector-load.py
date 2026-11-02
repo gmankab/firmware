@@ -60,7 +60,7 @@ def main()->int:
     root=Path(__file__).resolve().parents[1]
     a.add_argument('--llvm-mc',type=Path,required=True)
     a.add_argument('--reference',type=Path)
-    a.add_argument('--source',type=Path,default=root/'crates/firmware-tools/src/devices/xiaomi_nabu/modem_rwe_controller_vector_load.s')
+    a.add_argument('--source',type=Path,default=root/'sources/xiaomi-nabu/modem/modem_rwe_controller_vector_load.s')
     a.add_argument('--output',type=Path,required=True)
     args=a.parse_args()
     try:

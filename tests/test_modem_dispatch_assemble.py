@@ -34,7 +34,7 @@ class DispatchChecks(unittest.TestCase):
             modem.restore_predicate_order(b'\x00' * 16)
 
     def test_source_has_symbolic_branches_and_packet_groupings(self):
-        text=(ROOT/'crates/firmware-tools/src/devices/xiaomi_nabu/modem_boot_dispatch.s').read_text()
+        text=(ROOT/'sources/xiaomi-nabu/modem/modem_boot_dispatch.s').read_text()
         self.assertIn('HEX_SYSTEM_READ 2,29,1',text)
         self.assertIn('r4 = memw(r25+##-1064821884)',text)
         self.assertIn('jump:nt modem_ready_handler',text)

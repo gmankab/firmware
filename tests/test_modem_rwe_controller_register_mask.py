@@ -15,7 +15,7 @@ class TestControllerRegisterMask(unittest.TestCase):
  def test_exact_llvm_and_pinned_compare(self):
   mc=os.environ.get('AGENT11_LLVM_MC')
   if not mc:self.skipTest('Hexagon LLVM6 unavailable')
-  src=SCRIPT.parents[1]/'crates/firmware-tools/src/devices/xiaomi_nabu/modem_rwe_controller_register_mask.s'
+  src=SCRIPT.parents[1]/'sources/xiaomi-nabu/modem/modem_rwe_controller_register_mask.s'
   b=mod.assemble(Path(mc),src)
   self.assertEqual(len(b),76)
   ref=os.environ.get('AGENT11_MODEM_MBN')
@@ -23,7 +23,7 @@ class TestControllerRegisterMask(unittest.TestCase):
  def test_changed_sysreg_rejected(self):
   mc=os.environ.get('AGENT11_LLVM_MC')
   if not mc:self.skipTest('Hexagon LLVM6 unavailable')
-  src=SCRIPT.parents[1]/'crates/firmware-tools/src/devices/xiaomi_nabu/modem_rwe_controller_register_mask.s'
+  src=SCRIPT.parents[1]/'sources/xiaomi-nabu/modem/modem_rwe_controller_register_mask.s'
   with tempfile.TemporaryDirectory() as td:
    bad=Path(td)/'changed.s'
    bad.write_text(src.read_text().replace('MODEM_SYS_READ 25,0,3','MODEM_SYS_READ 25,1,3'))

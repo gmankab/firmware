@@ -17,7 +17,7 @@ class Agent11ModemVectors(unittest.TestCase):
     def test_llvm6_vector_assembler_when_available(self):
         llvm=os.getenv('AGENT11_LLVM_MC')
         if not llvm:self.skipTest('set AGENT11_LLVM_MC for assembler test')
-        code=module.assemble(Path(llvm),SCRIPT.parent.parent/'crates/firmware-tools/src/devices/xiaomi_nabu/modem_rwe_irq_vectors.s')
+        code=module.assemble(Path(llvm),SCRIPT.parent.parent/'sources/xiaomi-nabu/modem/modem_rwe_irq_vectors.s')
         self.assertEqual(len(code),256)
         self.assertEqual(code[49*4:50*4],b'\0'*4)
         self.assertEqual(code[50*4:54*4],(0x57e0c000).to_bytes(4,'little')*4)

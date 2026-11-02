@@ -40,7 +40,7 @@ def main()->int:
     root=Path(__file__).resolve().parents[1]
     parser=argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--llvm-mc',required=True,type=Path)
-    parser.add_argument('--source',type=Path,default=root/'crates/firmware-tools/src/devices/xiaomi_nabu/modem_rwe_early_mode_release.s')
+    parser.add_argument('--source',type=Path,default=root/'sources/xiaomi-nabu/modem/modem_rwe_early_mode_release.s')
     parser.add_argument('--output',required=True,type=Path)
     parser.add_argument('--reference',type=Path)
     args=parser.parse_args()

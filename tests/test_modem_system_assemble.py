@@ -26,7 +26,7 @@ class ModemSystemBuildTests(unittest.TestCase):
             modem_system.validate_reference(b'wrong modem revision', b'abc', 0x35c4)
 
     def test_source_uses_typed_system_pair_fields(self):
-        source = (ROOT/'crates/firmware-tools/src/devices/xiaomi_nabu/modem_sys_boot.s').read_text()
+        source = (ROOT/'sources/xiaomi-nabu/modem/modem_sys_boot.s').read_text()
         self.assertIn('HEX_SYSTEM_PAIR_WRITE 30,2',source)
         self.assertIn('HEX_SYSTEM_PAIR_WRITE 4,2',source)
         self.assertIn('r3:2 = combine(#0,#0)', source)

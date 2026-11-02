@@ -53,7 +53,7 @@ def main()->int:
     repo=Path(__file__).resolve().parents[1]
     parser.add_argument('--llvm-mc',required=True,type=Path)
     parser.add_argument('--reference',type=Path)
-    parser.add_argument('--source',type=Path,default=repo/'crates/firmware-tools/src/devices/xiaomi_nabu/modem_rwe_controller_trap_callbacks.s')
+    parser.add_argument('--source',type=Path,default=repo/'sources/xiaomi-nabu/modem/modem_rwe_controller_trap_callbacks.s')
     parser.add_argument('--output',required=True,type=Path)
     args=parser.parse_args()
     try:

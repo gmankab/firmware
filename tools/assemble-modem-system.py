@@ -39,7 +39,7 @@ def validate_reference(reference: bytes, expected: bytes, start: int) -> None:
 
 
 def assemble(llvm_mc: Path) -> bytes:
-    source = Path(__file__).resolve().parents[1]/"crates/firmware-tools/src/devices/xiaomi_nabu/modem_sys_boot.s"
+    source = Path(__file__).resolve().parents[1]/"sources/xiaomi-nabu/modem/modem_sys_boot.s"
     with tempfile.TemporaryDirectory(prefix="hexagon-system-") as tmp:
         object_file = Path(tmp)/"system.o"
         proc = subprocess.run([str(llvm_mc), "-triple=hexagon", "-mcpu=hexagonv60", "-filetype=obj",

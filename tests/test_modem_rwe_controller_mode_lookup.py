@@ -16,7 +16,7 @@ class TestModeLookup(unittest.TestCase):
     def test_source_assembly_and_exact_bytes(self):
         mc=os.environ.get('AGENT11_LLVM_MC')
         if not mc:self.skipTest('AGENT11_LLVM_MC missing')
-        src=SCRIPT.parents[1]/'crates/firmware-tools/src/devices/xiaomi_nabu/modem_rwe_controller_mode_lookup.s'
+        src=SCRIPT.parents[1]/'sources/xiaomi-nabu/modem/modem_rwe_controller_mode_lookup.s'
         b=mod.assemble(Path(mc),src)
         self.assertEqual(len(b),148)
         orig=os.environ.get('AGENT11_MODEM_MBN')
@@ -24,7 +24,7 @@ class TestModeLookup(unittest.TestCase):
     def test_wrong_privileged_action_fails_closed(self):
         mc=os.environ.get('AGENT11_LLVM_MC')
         if not mc:self.skipTest('AGENT11_LLVM_MC missing')
-        src=SCRIPT.parents[1]/'crates/firmware-tools/src/devices/xiaomi_nabu/modem_rwe_controller_mode_lookup.s'
+        src=SCRIPT.parents[1]/'sources/xiaomi-nabu/modem/modem_rwe_controller_mode_lookup.s'
         with tempfile.TemporaryDirectory() as td:
             mutated=Path(td)/'wrong.s'
             mutated.write_text(src.read_text().replace('MODEM_CTRL_ACTION 0x60,3','MODEM_CTRL_ACTION 0x80,3'))

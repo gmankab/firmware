@@ -52,7 +52,7 @@ def emit_contiguous_64(mc:Path,reference:bytes|None,mode_data:bytes,output:Path)
     helper=Path(__file__).with_name('assemble-rwe-mode-vector-stubs.py')
     spec=importlib.util.spec_from_file_location('agent11_mode_vector_stubs',helper)
     lib=importlib.util.module_from_spec(spec);spec.loader.exec_module(lib)
-    src=helper.parents[1]/'crates/firmware-tools/src/devices/xiaomi_nabu/modem_rwe_mode_vector_stubs.s'
+    src=helper.parents[1]/'sources/xiaomi-nabu/modem/modem_rwe_mode_vector_stubs.s'
     first,second=lib.assemble(mc,src)
     if reference is not None:lib.verify(reference,(first,second))
     combined=first+mode_data+second
@@ -66,7 +66,7 @@ def main()->int:
     args=argparse.ArgumentParser(description=__doc__)
     root=Path(__file__).resolve().parents[1]
     args.add_argument('--llvm-mc',type=Path,required=True)
-    args.add_argument('--source',type=Path,default=root/'crates/firmware-tools/src/devices/xiaomi_nabu/modem_rwe_mode_extract_rte.s')
+    args.add_argument('--source',type=Path,default=root/'sources/xiaomi-nabu/modem/modem_rwe_mode_extract_rte.s')
     args.add_argument('--reference',type=Path)
     args.add_argument('--output',type=Path,required=True)
     args.add_argument('--output-combined-64',type=Path)

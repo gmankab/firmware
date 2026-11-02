@@ -15,7 +15,7 @@ class TestSecondaryMode(unittest.TestCase):
  def test_source_and_original_match(self):
   mc=os.environ.get('AGENT11_LLVM_MC')
   if not mc:self.skipTest('Hexagon llvm-mc not configured')
-  src=SCRIPT.parents[1]/'crates/firmware-tools/src/devices/xiaomi_nabu/modem_rwe_controller_mode_secondary.s'
+  src=SCRIPT.parents[1]/'sources/xiaomi-nabu/modem/modem_rwe_controller_mode_secondary.s'
   b=mod.assemble(Path(mc),src)
   self.assertEqual(len(b),168)
   ref=os.environ.get('AGENT11_MODEM_MBN')
@@ -23,7 +23,7 @@ class TestSecondaryMode(unittest.TestCase):
  def test_fail_closed_on_privileged_action_mutation(self):
   mc=os.environ.get('AGENT11_LLVM_MC')
   if not mc:self.skipTest('Hexagon llvm-mc not configured')
-  src=SCRIPT.parents[1]/'crates/firmware-tools/src/devices/xiaomi_nabu/modem_rwe_controller_mode_secondary.s'
+  src=SCRIPT.parents[1]/'sources/xiaomi-nabu/modem/modem_rwe_controller_mode_secondary.s'
   with tempfile.TemporaryDirectory() as td:
    bad=Path(td)/'bad.s'
    bad.write_text(src.read_text().replace('MODEM_CTRL_ACTION 0x60,3','MODEM_CTRL_ACTION 0x80,3',1))

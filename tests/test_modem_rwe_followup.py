@@ -32,7 +32,7 @@ class ExceptionFollowup(unittest.TestCase):
     def test_source_assembler_and_optional_byte_reference(self):
         mc=os.environ.get('AGENT11_LLVM_MC')
         if not mc:self.skipTest('Set AGENT11_LLVM_MC for Hexagon source assembly test')
-        source=SCRIPT.parents[1]/'crates/firmware-tools/src/devices/xiaomi_nabu/modem_rwe_exception_followup.s'
+        source=SCRIPT.parents[1]/'sources/xiaomi-nabu/modem/modem_rwe_exception_followup.s'
         data=mod.assemble(Path(mc),source)
         self.assertEqual(len(data),1224)
         word=lambda off:int.from_bytes(data[off-mod.FILE_START:off-mod.FILE_START+4],'little')

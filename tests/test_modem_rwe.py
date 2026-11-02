@@ -26,7 +26,7 @@ class TestAgent11ModemRwe(unittest.TestCase):
     def test_asm_produces_source_encoded_284_bytes(self):
         mc=os.getenv('AGENT11_LLVM_MC')
         if not mc:self.skipTest('Set AGENT11_LLVM_MC for external LLVM6 assembler test')
-        output=module.assemble(Path(mc),SCRIPT.parent.parent/'crates/firmware-tools/src/devices/xiaomi_nabu/modem_rwe_early_controller.s')
+        output=module.assemble(Path(mc),SCRIPT.parent.parent/'sources/xiaomi-nabu/modem/modem_rwe_early_controller.s')
         self.assertEqual(len(output),284)
         words=[int.from_bytes(output[i:i+4],'little') for i in range(0,len(output),4)]
         # Source-built immediate extension precedes a long GPREL load.

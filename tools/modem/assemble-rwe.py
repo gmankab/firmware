@@ -111,7 +111,7 @@ def main()->int:
     p=argparse.ArgumentParser(description=__doc__)
     r=Path(__file__).resolve().parents[1]
     p.add_argument('--llvm-mc',type=Path,required=True)
-    p.add_argument('--source',type=Path,default=r/'crates/firmware-tools/src/devices/xiaomi_nabu/modem_rwe_early_controller.s')
+    p.add_argument('--source',type=Path,default=r/'sources/xiaomi-nabu/modem/modem_rwe_early_controller.s')
     p.add_argument('--output',required=True,type=Path)
     p.add_argument('--reference',type=Path,help='private pinned original modem.mbn')
     a=p.parse_args()

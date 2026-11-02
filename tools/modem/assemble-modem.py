@@ -262,7 +262,7 @@ def main()->int:
     parser=argparse.ArgumentParser(description=__doc__)
     root=Path(__file__).resolve().parents[1]
     parser.add_argument("--llvm-mc",required=True,type=Path)
-    parser.add_argument("--source",type=Path,default=root/"crates/firmware-tools/src/devices/xiaomi_nabu/modem_entry_followup.s")
+    parser.add_argument("--source",type=Path,default=root/"sources/xiaomi-nabu/modem/modem_entry_followup.s")
     parser.add_argument("--output",required=True,type=Path)
     parser.add_argument("--reference",type=Path,help="private unchanged modem.mbn revision for byte equality")
     args=parser.parse_args()

@@ -27,7 +27,7 @@ class Trampoline(unittest.TestCase):
   with self.assertRaisesRegex(ValueError,'Wrong modem'):m.verify(bytes(m.END),bytes(40))
  def test_llvm_output_matches_pinned(self):
   if not (mc:=os.environ.get('AGENT11_LLVM_MC')):self.skipTest('LLVM6 unavailable')
-  src=P.parents[1]/'crates/firmware-tools/src/devices/xiaomi_nabu/modem_rwe_controller_callback_trampolines.s'
+  src=P.parents[1]/'sources/xiaomi-nabu/modem/modem_rwe_controller_callback_trampolines.s'
   built=m.assemble(Path(mc),src)
   self.assertEqual(len(built),40)
   if ref:=os.environ.get('AGENT11_MODEM_MBN'):m.verify(Path(ref).read_bytes(),built)

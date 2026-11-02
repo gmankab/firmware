@@ -17,7 +17,7 @@ class TestControllerEntry(unittest.TestCase):
     def test_source_compiles_and_ref_match_when_tools_provided(self):
         mc=os.environ.get('AGENT11_LLVM_MC')
         if not mc:self.skipTest('AGENT11_LLVM_MC not set')
-        source=SCRIPT.parents[1]/'crates/firmware-tools/src/devices/xiaomi_nabu/modem_rwe_controller_mode_entry.s'
+        source=SCRIPT.parents[1]/'sources/xiaomi-nabu/modem/modem_rwe_controller_mode_entry.s'
         b=mod.assemble(Path(mc),source)
         self.assertEqual(len(b),72)
         self.assertEqual(struct.unpack_from('<I',b,0x38)[0],0x6c20c080)
@@ -27,7 +27,7 @@ class TestControllerEntry(unittest.TestCase):
     def test_incorrect_privileged_field_fails(self):
         mc=os.environ.get('AGENT11_LLVM_MC')
         if not mc:self.skipTest('AGENT11_LLVM_MC not set')
-        source=SCRIPT.parents[1]/'crates/firmware-tools/src/devices/xiaomi_nabu/modem_rwe_controller_mode_entry.s'
+        source=SCRIPT.parents[1]/'sources/xiaomi-nabu/modem/modem_rwe_controller_mode_entry.s'
         with tempfile.TemporaryDirectory() as td:
             p=Path(td)/'malformed.s'
             p.write_text(source.read_text().replace('MODEM_SYS_READ 13,16,1','MODEM_SYS_READ 13,17,1'))

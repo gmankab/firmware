@@ -45,7 +45,7 @@ def main()->int:
     repo=Path(__file__).resolve().parents[1]
     p.add_argument('--llvm-mc',type=Path,required=True)
     p.add_argument('--reference',type=Path)
-    p.add_argument('--source',type=Path,default=repo/'crates/firmware-tools/src/devices/xiaomi_nabu/modem_rwe_controller_mode_lookup.s')
+    p.add_argument('--source',type=Path,default=repo/'sources/xiaomi-nabu/modem/modem_rwe_controller_mode_lookup.s')
     p.add_argument('--output',type=Path,required=True)
     a=p.parse_args()
     try:

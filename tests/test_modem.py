@@ -31,7 +31,7 @@ class ModemAgent11Tests(unittest.TestCase):
     def test_assembler_with_llvm6_when_available(self):
         llvm=os.environ.get("AGENT11_LLVM_MC")
         if not llvm: self.skipTest("set AGENT11_LLVM_MC for external tool verification")
-        source=SCRIPT.parent.parent/"crates/firmware-tools/src/devices/xiaomi_nabu/modem_entry_followup.s"
+        source=SCRIPT.parent.parent/"sources/xiaomi-nabu/modem/modem_entry_followup.s"
         data=module.assemble(Path(llvm),source)
         self.assertEqual(len(data),4040)
         # Structural assertion checks the two adjacent word loads are in

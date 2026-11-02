@@ -27,7 +27,7 @@ class Agent11ModeExtract(unittest.TestCase):
         mc=os.environ.get('AGENT11_LLVM_MC')
         if not mc:self.skipTest('AGENT11_LLVM_MC required for original ISA assembly')
         reference=os.environ.get('AGENT11_MODEM_MBN')
-        src=SCRIPT.parents[1]/'crates/firmware-tools/src/devices/xiaomi_nabu/modem_rwe_mode_extract_rte.s'
+        src=SCRIPT.parents[1]/'sources/xiaomi-nabu/modem/modem_rwe_mode_extract_rte.s'
         b=mod.assemble(Path(mc),src)
         self.assertEqual(struct.unpack('<II',b),(0x8d2f4700,0x57e0c000))
         ref=Path(reference).read_bytes() if reference else None

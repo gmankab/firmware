@@ -29,7 +29,7 @@ class Agent11ModeWordOps(unittest.TestCase):
     def test_source_assembly_optional_exact_reference(self):
         mc=os.environ.get('AGENT11_LLVM_MC')
         if not mc:self.skipTest('AGENT11_LLVM_MC absent')
-        src=SCRIPT.parents[1]/'crates/firmware-tools/src/devices/xiaomi_nabu/modem_rwe_mode_word_ops.s'
+        src=SCRIPT.parents[1]/'sources/xiaomi-nabu/modem/modem_rwe_mode_word_ops.s'
         b=mod.assemble(Path(mc),src)
         self.assertEqual(len(b),72)
         self.assertEqual(struct.unpack_from('<I',b,0x30)[0],0x838058e2)

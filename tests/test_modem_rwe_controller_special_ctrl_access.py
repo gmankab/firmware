@@ -29,7 +29,7 @@ class ControllerAccess(unittest.TestCase):
    with self.subTest(i=i),self.assertRaisesRegex(ValueError,'Unexpected'):m.validate(damaged)
  def test_llvm_assembled_matches_pinned_modem(self):
   if not (mc:=os.environ.get('AGENT11_LLVM_MC')):self.skipTest('Hexagon LLVM6 unavailable')
-  src=P.parents[1]/'crates/firmware-tools/src/devices/xiaomi_nabu/modem_rwe_controller_special_ctrl_access.s'
+  src=P.parents[1]/'sources/xiaomi-nabu/modem/modem_rwe_controller_special_ctrl_access.s'
   b=m.assemble(Path(mc),src)
   self.assertEqual(len(b),104)
   if ref:=os.environ.get('AGENT11_MODEM_MBN'):m.verify(Path(ref).read_bytes(),b)

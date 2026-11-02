@@ -57,7 +57,7 @@ def main():
     root=Path(__file__).resolve().parents[1]
     p.add_argument('--llvm-mc',required=True,type=Path)
     p.add_argument('--reference',type=Path)
-    p.add_argument('--source',type=Path,default=root/'crates/firmware-tools/src/devices/xiaomi_nabu/modem_rwe_mode_word_ops.s')
+    p.add_argument('--source',type=Path,default=root/'sources/xiaomi-nabu/modem/modem_rwe_mode_word_ops.s')
     p.add_argument('--output',required=True,type=Path)
     args=p.parse_args()
     try:

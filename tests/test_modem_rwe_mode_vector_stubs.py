@@ -26,7 +26,7 @@ class Agent11ModeVectorStubs(unittest.TestCase):
     def test_llvm6_source_and_optional_reference(self):
         mc=os.environ.get('AGENT11_LLVM_MC')
         if not mc:self.skipTest('AGENT11_LLVM_MC required to test Hexagon LLVM6')
-        src=SCRIPT.parents[1]/'crates/firmware-tools/src/devices/xiaomi_nabu/modem_rwe_mode_vector_stubs.s'
+        src=SCRIPT.parents[1]/'sources/xiaomi-nabu/modem/modem_rwe_mode_vector_stubs.s'
         parts=mod.assemble(Path(mc),src)
         self.assertEqual(tuple(len(x) for x in parts),(8,48))
         self.assertEqual(struct.unpack_from('<I',parts[1],0x24)[0],0x1230e3ea)

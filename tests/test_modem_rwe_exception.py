@@ -30,7 +30,7 @@ class ModemRweException(unittest.TestCase):
         mc = os.environ.get('AGENT11_LLVM_MC')
         if not mc:
             self.skipTest('Set AGENT11_LLVM_MC to run LLVM6 Hexagon assembler test')
-        source = SCRIPT.parents[1]/'crates/firmware-tools/src/devices/xiaomi_nabu/modem_rwe_exception_dispatch.s'
+        source = SCRIPT.parents[1]/'sources/xiaomi-nabu/modem/modem_rwe_exception_dispatch.s'
         data = module.assemble(Path(mc), source)
         self.assertEqual(len(data), 4052)
         self.assertEqual(data[0x381b8-module.FILE_START:0x381bc-module.FILE_START],bytes.fromhex('00c0e057'))

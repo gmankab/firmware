@@ -42,7 +42,7 @@ def main()->int:
     p=argparse.ArgumentParser(description=__doc__)
     p.add_argument('--llvm-mc',required=True,type=Path)
     p.add_argument('--reference',type=Path)
-    p.add_argument('--source',type=Path,default=repo/'crates/firmware-tools/src/devices/xiaomi_nabu/modem_rwe_controller_register_mask.s')
+    p.add_argument('--source',type=Path,default=repo/'sources/xiaomi-nabu/modem/modem_rwe_controller_register_mask.s')
     p.add_argument('--output',required=True,type=Path)
     a=p.parse_args()
     try:

@@ -23,7 +23,7 @@ class ControllerTests(unittest.TestCase):
     def test_assembler_and_optional_reference(self):
         mc=os.environ.get('AGENT11_LLVM_MC')
         if not mc:self.skipTest('Set AGENT11_LLVM_MC to verify original LLVM6 source assembly')
-        source=SCRIPT.parents[1]/'crates/firmware-tools/src/devices/xiaomi_nabu/modem_rwe_exception_controller.s'
+        source=SCRIPT.parents[1]/'sources/xiaomi-nabu/modem/modem_rwe_exception_controller.s'
         data=mod.assemble(Path(mc),source)
         self.assertEqual(len(data),1364)
         get=lambda i:struct.unpack_from('<I',data,i-mod.FILE_START)[0]

@@ -18,7 +18,7 @@ class Agent11ModeRelease(unittest.TestCase):
     def test_assembled_operands_and_optional_reference(self):
         mc=os.environ.get('AGENT11_LLVM_MC')
         if not mc:self.skipTest('AGENT11_LLVM_MC required for source assembly')
-        p=SCRIPT.parents[1]/'crates/firmware-tools/src/devices/xiaomi_nabu/modem_rwe_early_mode_release.s'
+        p=SCRIPT.parents[1]/'sources/xiaomi-nabu/modem/modem_rwe_early_mode_release.s'
         data=mod.assemble(Path(mc),p)
         get=lambda off:struct.unpack_from('<I',data,off-mod.FILE_START)[0]
         self.assertEqual(get(0x3a3d8),0x6e83c007)  # special S3 read

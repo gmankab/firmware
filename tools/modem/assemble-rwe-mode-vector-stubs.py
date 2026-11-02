@@ -67,7 +67,7 @@ def main()->int:
     p=argparse.ArgumentParser(description=__doc__)
     root=Path(__file__).resolve().parents[1]
     p.add_argument('--llvm-mc',required=True,type=Path)
-    p.add_argument('--source',type=Path,default=root/'crates/firmware-tools/src/devices/xiaomi_nabu/modem_rwe_mode_vector_stubs.s')
+    p.add_argument('--source',type=Path,default=root/'sources/xiaomi-nabu/modem/modem_rwe_mode_vector_stubs.s')
     p.add_argument('--output-prefix',required=True,type=Path)
     p.add_argument('--reference',type=Path)
     a=p.parse_args()

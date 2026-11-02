@@ -135,7 +135,7 @@ def main()->int:
     root=Path(__file__).resolve().parents[1]
     p=argparse.ArgumentParser(description=__doc__)
     p.add_argument('--llvm-mc',type=Path,required=True)
-    p.add_argument('--source',type=Path,default=root/'crates/firmware-tools/src/devices/xiaomi_nabu/modem_rwe_exception_controller.s')
+    p.add_argument('--source',type=Path,default=root/'sources/xiaomi-nabu/modem/modem_rwe_exception_controller.s')
     p.add_argument('--output',type=Path,required=True)
     p.add_argument('--reference',type=Path)
     args=p.parse_args()

@@ -52,7 +52,7 @@ def main()->int:
     p=argparse.ArgumentParser(description=__doc__)
     repo=Path(__file__).resolve().parents[1]
     p.add_argument('--llvm-mc',required=True,type=Path)
-    p.add_argument('--source',type=Path,default=repo/'crates/firmware-tools/src/devices/xiaomi_nabu/modem_rwe_controller_mode_entry.s')
+    p.add_argument('--source',type=Path,default=repo/'sources/xiaomi-nabu/modem/modem_rwe_controller_mode_entry.s')
     p.add_argument('--reference',type=Path)
     p.add_argument('--output',required=True,type=Path)
     args=p.parse_args()

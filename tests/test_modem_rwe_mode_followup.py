@@ -29,7 +29,7 @@ class Agent11Followup(unittest.TestCase):
     def test_original_isa_source_matches_reference(self):
         mc=os.environ.get('AGENT11_LLVM_MC')
         if not mc:self.skipTest('AGENT11_LLVM_MC required for independent Hexagon assembler')
-        src=SCRIPT.parents[1]/'crates/firmware-tools/src/devices/xiaomi_nabu/modem_rwe_mode_followup.s'
+        src=SCRIPT.parents[1]/'sources/xiaomi-nabu/modem/modem_rwe_mode_followup.s'
         generated=mod.assemble(Path(mc),src)
         self.assertEqual(len(generated),56)
         self.assertEqual(struct.unpack_from('<I',generated,0x30)[0],0x57e0c000)

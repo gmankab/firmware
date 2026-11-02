@@ -29,7 +29,7 @@ class TestControllerVectorLoad(unittest.TestCase):
  def test_source_bytes_match_pinned_reference(self):
   mc=os.environ.get('AGENT11_LLVM_MC')
   if not mc:self.skipTest('Hexagon LLVM6 unavailable')
-  src=SCRIPT.parents[1]/'crates/firmware-tools/src/devices/xiaomi_nabu/modem_rwe_controller_vector_load.s'
+  src=SCRIPT.parents[1]/'sources/xiaomi-nabu/modem/modem_rwe_controller_vector_load.s'
   b=mod.assemble(Path(mc),src)
   self.assertEqual(len(b),372)
   ref=os.environ.get('AGENT11_MODEM_MBN')

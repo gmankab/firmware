@@ -11,7 +11,7 @@ P=R/'tools/verify-novatek-dlm-seed-manifest.py'
 S=importlib.util.spec_from_file_location('agent19_seed_manifest',P)
 assert S and S.loader
 m=importlib.util.module_from_spec(S);S.loader.exec_module(m)
-M=R/'crates/firmware-tools/src/devices/xiaomi_nabu/novatek_dlm_seed_hashes.tsv'
+M=R/'crates/firmware-tools/src/devices/xiaomi_nabu/novatek/dlm/novatek_dlm_seed_hashes.tsv'
 
 
 class TestDlmExternalSeedManifest(unittest.TestCase):

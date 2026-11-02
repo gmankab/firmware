@@ -24,7 +24,7 @@ class TestDescriptorList(unittest.TestCase):
  def test_llvm_source_matches_reference(self):
   mc=os.environ.get('AGENT11_LLVM_MC')
   if not mc:self.skipTest('No Hexagon llvm-mc configured')
-  src=SCRIPT.parents[1]/'crates/firmware-tools/src/devices/xiaomi_nabu/modem_rwe_controller_descriptor_list.s'
+  src=SCRIPT.parents[1]/'sources/xiaomi-nabu/modem/modem_rwe_controller_descriptor_list.s'
   b=mod.assemble(Path(mc),src)
   self.assertEqual(len(b),220)
   ref=os.environ.get('AGENT11_MODEM_MBN')
