@@ -11,7 +11,7 @@ import argparse,hashlib,importlib.util
 from pathlib import Path
 
 T=Path(__file__).resolve().parent
-SOURCE=T/'adsp-agent20-rwe-next-controller-publish.S'
+SOURCE=T/'rwe-next-controller-publish.S'
 START=0x11798
 END=0x1180c
 SIZE=END-START

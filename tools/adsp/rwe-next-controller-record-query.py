@@ -8,8 +8,10 @@ recovery/list-manipulation continuation at 0x131e0 (not included here).
 from __future__ import annotations
 import argparse,hashlib,importlib.util,struct,sys
 from pathlib import Path
+import sys
 T=Path(__file__).resolve().parent
 if str(T) not in sys.path:sys.path.insert(0,str(T))
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from adsp_hexagon_v66 import SystemRegister,read_system_register
 START=0x130d0
 END=0x131e0
@@ -17,7 +19,7 @@ SIZE=END-START
 PHYSICAL=0x8be100d0
 SGP0=0x130e0
 REFERENCE_SHA='4b579e5dc1333d634e5bdc93f3314e357e0e30dab7140833f6cc7aef086b1c1e'
-SOURCE=T/'adsp-agent20-rwe-next-controller-record-query.S'
+SOURCE=T/'rwe-next-controller-record-query.S'
 NOP=struct.pack('<I',0x7f00c000)
 
 def render(llvm_mc:str)->bytes:

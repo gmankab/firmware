@@ -11,11 +11,13 @@ for strict revision and byte-equality verification, never during generation.
 from __future__ import annotations
 import argparse,hashlib,importlib.util,struct,sys
 from pathlib import Path
+import sys
 TOOLS=Path(__file__).resolve().parent
 if str(TOOLS) not in sys.path:sys.path.insert(0,str(TOOLS))
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from adsp_hexagon_v66 import (ControllerAddressCommand,
     controller_address_command, SystemRegister, write_system_register)
-SOURCE=TOOLS/'adsp-agent20-rwe-next-controller-global-startup.S'
+SOURCE=TOOLS/'rwe-next-controller-global-startup.S'
 FILE_START=0x11450
 FILE_END=0x114a8
 SIZE=FILE_END-FILE_START
@@ -28,7 +30,7 @@ REPLACEMENTS={
 }
 
 def assembler():
-    spec=importlib.util.spec_from_file_location('adsp_entry',TOOLS/'emit-adsp-entry.py')
+    spec=importlib.util.spec_from_file_location('adsp_entry',TOOLS.parent/'emit-adsp-entry.py')
     if not spec or not spec.loader:raise RuntimeError('Missing ADSP assembler')
     module=importlib.util.module_from_spec(spec);spec.loader.exec_module(module)
     return module

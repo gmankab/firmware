@@ -10,8 +10,10 @@ emitted executable bytes. This source is not an OEM-signed MBN image.
 from __future__ import annotations
 import argparse,hashlib,importlib.util,struct,sys
 from pathlib import Path
+import sys
 T=Path(__file__).resolve().parent
 if str(T) not in sys.path:sys.path.insert(0,str(T))
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from adsp_hexagon_v66 import read_system_register,SystemRegister
 START=0x125a0
 END=0x126a4
@@ -20,9 +22,9 @@ PHYSICAL=0x8be0f5a0
 SGP0_AT=0x125ac
 REFERENCE_SHA='4b579e5dc1333d634e5bdc93f3314e357e0e30dab7140833f6cc7aef086b1c1e'
 PARTS=(
-    ('adsp-agent20-rwe-next-controller-global-query-prefix.S',0x54),
-    ('adsp-agent20-rwe-next-controller-global-query-search.S',0x70),
-    ('adsp-agent20-rwe-next-controller-global-query-tail.S',0x40),
+    ('rwe-next-controller-global-query-prefix.S',0x54),
+    ('rwe-next-controller-global-query-search.S',0x70),
+    ('rwe-next-controller-global-query-tail.S',0x40),
 )
 NOP=struct.pack('<I',0x7f00c000)
 
