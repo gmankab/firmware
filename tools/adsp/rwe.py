@@ -19,6 +19,7 @@ import tempfile
 TOOLS=Path(__file__).resolve().parent
 if str(TOOLS) not in sys.path:
     sys.path.insert(0,str(TOOLS))
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from adsp_hexagon_v66 import (SystemRegister, ControlRegister, InstructionCacheRead,
                               read_instruction_cache_word, physical_word_load, read_system_register, tlb_write_pair_r3_r2_index_r0, tlb_read_pair,
                               write_system_register,read_control_register,
@@ -29,74 +30,74 @@ FILE_END=0x6c6c
 SIZE=FILE_END-FILE_START
 PADDR=0x8BE03030
 REFERENCE_SHA='4b579e5dc1333d634e5bdc93f3314e357e0e30dab7140833f6cc7aef086b1c1e'
-SOURCE=TOOLS/'adsp-agent20-rwe-startup.S'
-DISPATCH_SOURCE=TOOLS/'adsp-agent20-rwe-dispatch.S'
+SOURCE=TOOLS/'rwe-startup.S'
+DISPATCH_SOURCE=TOOLS/'rwe-dispatch.S'
 STARTUP_SIZE=0x5c
 DISPATCH_SIZE=0x48
-FINALIZE_SOURCE=TOOLS/'adsp-agent20-rwe-finalize.S'
-DUPLEX_SOURCE=TOOLS/'adsp-agent20-rwe-duplex.S'
+FINALIZE_SOURCE=TOOLS/'rwe-finalize.S'
+DUPLEX_SOURCE=TOOLS/'rwe-duplex.S'
 FINALIZE_NOPAIR_SIZE=0x78
 FINALIZE_SIZE=0x74
-POLL_SOURCE=TOOLS/'adsp-agent20-rwe-poll.S'
+POLL_SOURCE=TOOLS/'rwe-poll.S'
 POLL_SIZE=0x4c
-MEMORY_INIT_SOURCE=TOOLS/'adsp-agent20-rwe-memory-init.S'
+MEMORY_INIT_SOURCE=TOOLS/'rwe-memory-init.S'
 MEMORY_INIT_SIZE=0x8c
-THREAD_GUARD_SOURCE=TOOLS/'adsp-agent20-rwe-thread-guard.S'
+THREAD_GUARD_SOURCE=TOOLS/'rwe-thread-guard.S'
 THREAD_GUARD_SIZE=0x3c
-FRAME_INIT_SOURCE=TOOLS/'adsp-agent20-rwe-frame-init.S'
+FRAME_INIT_SOURCE=TOOLS/'rwe-frame-init.S'
 FRAME_INIT_SIZE=0x6c
-RUNTIME_CALLS_SOURCE=TOOLS/'adsp-agent20-rwe-runtime-calls.S'
+RUNTIME_CALLS_SOURCE=TOOLS/'rwe-runtime-calls.S'
 RUNTIME_CALLS_SIZE=0x70
-RUNTIME_REGISTERS_SOURCE=TOOLS/'adsp-agent20-rwe-runtime-registers.S'
+RUNTIME_REGISTERS_SOURCE=TOOLS/'rwe-runtime-registers.S'
 RUNTIME_REGISTERS_SIZE=0x54
-RUNTIME_DIAGNOSTICS_SOURCE=TOOLS/'adsp-agent20-rwe-runtime-diagnostics.S'
+RUNTIME_DIAGNOSTICS_SOURCE=TOOLS/'rwe-runtime-diagnostics.S'
 RUNTIME_DIAGNOSTICS_SIZE=0x4c
-RUNTIME_RECOVERY_SOURCE=TOOLS/'adsp-agent20-rwe-runtime-recovery.S'
+RUNTIME_RECOVERY_SOURCE=TOOLS/'rwe-runtime-recovery.S'
 RUNTIME_RECOVERY_SIZE=0x68
-RUNTIME_POLL_SOURCE=TOOLS/'adsp-agent20-rwe-runtime-poll.S'
+RUNTIME_POLL_SOURCE=TOOLS/'rwe-runtime-poll.S'
 RUNTIME_POLL_SIZE=0x34
-THREAD_LAUNCH_SOURCE=TOOLS/'adsp-agent20-rwe-thread-launch.S'
+THREAD_LAUNCH_SOURCE=TOOLS/'rwe-thread-launch.S'
 THREAD_LAUNCH_SIZE=0x40
-STATE_READY_SOURCE=TOOLS/'adsp-agent20-rwe-state-ready.S'
+STATE_READY_SOURCE=TOOLS/'rwe-state-ready.S'
 STATE_READY_SIZE=0x24
-RESET_CONTROLLER_SOURCE=TOOLS/'adsp-agent20-rwe-reset-controller.S'
+RESET_CONTROLLER_SOURCE=TOOLS/'rwe-reset-controller.S'
 RESET_CONTROLLER_SIZE=0x90
-REGISTER_SNAPSHOT_SOURCE=TOOLS/'adsp-agent20-rwe-register-snapshot.S'
+REGISTER_SNAPSHOT_SOURCE=TOOLS/'rwe-register-snapshot.S'
 REGISTER_SNAPSHOT_SIZE=0x8c
 REGISTER_SNAPSHOT_END=0x65f4
-REVISION_GUARD_SOURCE=TOOLS/'adsp-agent20-rwe-revision-guard.S'
+REVISION_GUARD_SOURCE=TOOLS/'rwe-revision-guard.S'
 REVISION_GUARD_SIZE=0x28
 REVISION_GUARD_END=0x661c
-CACHE_DIAGNOSTICS_SOURCE=TOOLS/'adsp-agent20-rwe-cache-diagnostics.S'
+CACHE_DIAGNOSTICS_SOURCE=TOOLS/'rwe-cache-diagnostics.S'
 CACHE_DIAGNOSTICS_SIZE=0x118
-CACHE_COPY_SOURCE=TOOLS/'adsp-agent20-rwe-cache-copy.S'
+CACHE_COPY_SOURCE=TOOLS/'rwe-cache-copy.S'
 CACHE_COPY_SIZE=0x38
-PHYSICAL_CONTROLLER_SOURCE=TOOLS/'adsp-agent20-rwe-physical-controller.S'
+PHYSICAL_CONTROLLER_SOURCE=TOOLS/'rwe-physical-controller.S'
 PHYSICAL_CONTROLLER_SIZE=0x3c
-PHYSICAL_SYNC_SOURCE=TOOLS/'adsp-agent20-rwe-physical-sync.S'
+PHYSICAL_SYNC_SOURCE=TOOLS/'rwe-physical-sync.S'
 PHYSICAL_SYNC_SIZE=0x40
-PHYSICAL_SCAN_SOURCE=TOOLS/'adsp-agent20-rwe-physical-scan.S'
+PHYSICAL_SCAN_SOURCE=TOOLS/'rwe-physical-scan.S'
 PHYSICAL_SCAN_SIZE=0x30
-FEATURE_MODES_A_SOURCE=TOOLS/'adsp-agent20-rwe-feature-modes-a.S'
+FEATURE_MODES_A_SOURCE=TOOLS/'rwe-feature-modes-a.S'
 FEATURE_MODES_A_SIZE=0xa4
-FEATURE_MODES_B_SOURCE=TOOLS/'adsp-agent20-rwe-feature-modes-b.S'
+FEATURE_MODES_B_SOURCE=TOOLS/'rwe-feature-modes-b.S'
 FEATURE_MODES_B_SIZE=0xc0
-FEATURE_MODES_C_SOURCE=TOOLS/'adsp-agent20-rwe-feature-modes-c.S'
+FEATURE_MODES_C_SOURCE=TOOLS/'rwe-feature-modes-c.S'
 FEATURE_MODES_C_SIZE=0x94
-FEATURE_MODES_D_SOURCE=TOOLS/'adsp-agent20-rwe-feature-modes-d.S'
+FEATURE_MODES_D_SOURCE=TOOLS/'rwe-feature-modes-d.S'
 FEATURE_MODES_D_SIZE=0xa0
-FEATURE_MODES_E_SOURCE=TOOLS/'adsp-agent20-rwe-feature-modes-e.S'
+FEATURE_MODES_E_SOURCE=TOOLS/'rwe-feature-modes-e.S'
 FEATURE_MODES_E_SIZE=0xa4
-FEATURE_MODES_F_SOURCE=TOOLS/'adsp-agent20-rwe-feature-modes-f.S'
+FEATURE_MODES_F_SOURCE=TOOLS/'rwe-feature-modes-f.S'
 FEATURE_MODES_F_SIZE=0xbc
-TLB_RESTORE_SOURCE=TOOLS/'adsp-agent20-rwe-tlb-restore.S'
+TLB_RESTORE_SOURCE=TOOLS/'rwe-tlb-restore.S'
 TLB_RESTORE_SIZE=0x20
-TLB_READBACK_SOURCE=TOOLS/'adsp-agent20-rwe-tlb-readback.S'
+TLB_READBACK_SOURCE=TOOLS/'rwe-tlb-readback.S'
 TLB_READBACK_SIZE=0x3c
 
 
 def baseline():
-    spec=importlib.util.spec_from_file_location('adsp_previous_emitter',TOOLS/'emit-adsp-entry.py')
+    spec=importlib.util.spec_from_file_location('adsp_previous_emitter',TOOLS.parent/'emit-adsp-entry.py')
     if spec is None or spec.loader is None:
         raise RuntimeError('cannot load checked section assembler')
     mod=importlib.util.module_from_spec(spec)
