@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
 # SPDX-License-Identifier: GPL-3.0-only
 # Resume function export from a previously generated Ghidra functions.c file.
-# Usage: tools/continue-decompilation.sh ELF_FILE GHIDRA_INSTALL PRIOR_FUNCTIONS_C OUTPUT_DIRECTORY
+# Usage: tools/analysis/continue-decompilation.sh ELF_FILE GHIDRA_INSTALL PRIOR_FUNCTIONS_C OUTPUT_DIRECTORY
 set -euo pipefail
 if (( $# != 4 )); then
   echo "Usage: $0 ELF_FILE GHIDRA_INSTALL PRIOR_FUNCTIONS_C PRIVATE_OUTPUT_DIRECTORY" >&2
   exit 2
 fi
-ROOT=$(cd "$(dirname "$0")/.." && pwd)
+ROOT=$(cd "$(dirname "$0")/../.." && pwd)
 INPUT=$(realpath "$1")
 GHIDRA=$(realpath "$2")
 PRIOR=$(realpath "$3")

@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
 # SPDX-License-Identifier: GPL-3.0-only
 # Batch Ghidra inspection for *any* ELF device firmware. Inputs stay untouched.
-# Usage: tools/decompile-all.sh FILE_OR_DIRECTORY GHIDRA_INSTALL OUTPUT_DIRECTORY
+# Usage: tools/analysis/decompile-all.sh FILE_OR_DIRECTORY GHIDRA_INSTALL OUTPUT_DIRECTORY
 set -euo pipefail
 if (( $# != 3 )); then
   echo "Usage: $0 ELF_FILE_OR_TREE GHIDRA_INSTALL PRIVATE_OUTPUT_DIRECTORY" >&2
   exit 2
 fi
-ROOT=$(cd "$(dirname "$0")/.." && pwd)
+ROOT=$(cd "$(dirname "$0")/../.." && pwd)
 INPUT=$(realpath "$1")
 GHIDRA=$(realpath "$2")
 OUT=$(realpath -m "$3")

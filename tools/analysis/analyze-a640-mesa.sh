@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # SPDX-License-Identifier: GPL-3.0-only
 # Private analysis only. Disassembled OEM code is NOT GPL-licensed by this script.
-# Usage: tools/analyze-a640-mesa.sh A640_ZAP_MBN /path/to/freedreno/bin OUTDIR
+# Usage: tools/analysis/analyze-a640-mesa.sh A640_ZAP_MBN /path/to/freedreno/bin OUTDIR
 set -euo pipefail
 if (( $# != 3 )); then
   printf 'Usage: %s A640_ZAP_MBN FREEDRENO_BIN_DIR OUTDIR\n' "$0" >&2
