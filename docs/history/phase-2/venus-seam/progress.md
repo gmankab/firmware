@@ -16,7 +16,7 @@ Reference image is external to Git and pinned by `reference/xiaomi-nabu/firmware
 - Comparison command (reference explicitly provided; writer itself does not read firmware):
 
   ```sh
-  cargo run --offline --locked -p firmware-tools --example agent20_02_venus_seam -- verify /private/venus.mbn
+  cargo run --offline --locked -p firmware-tools --example venus_seam -- verify /private/venus.mbn
   ```
 
 - The independent Clang A32 assembly of instructions and separate jump table, with an externally observed disassembly, reproduces **all 348 bytes** without raw instruction words in the Rust emitter.
@@ -42,10 +42,10 @@ Code `[0x1815c,0x18330)`, four-target table `[0x18330,0x18340)`, code `[0x18340,
 - Standalone smoke commands with the original image outside Git:
 
   ```sh
-  cargo run --offline --locked -p firmware-tools --example agent20_02_venus_seam -- verify /private/venus.mbn
-  cargo run --offline --locked -p firmware-tools --example agent20_02_venus_seam -- emit /tmp/venus-seam-992.bin
-  cargo run --offline --locked -p firmware-tools --example agent20_02_venus_seam -- verify-joined-late /private/venus.mbn
-  cargo run --offline --locked -p firmware-tools --example agent20_02_venus_seam -- emit-joined-late /tmp/venus-seam-late-40056.bin
+  cargo run --offline --locked -p firmware-tools --example venus_seam -- verify /private/venus.mbn
+  cargo run --offline --locked -p firmware-tools --example venus_seam -- emit /tmp/venus-seam-992.bin
+  cargo run --offline --locked -p firmware-tools --example venus_seam -- verify-joined-late /private/venus.mbn
+  cargo run --offline --locked -p firmware-tools --example venus_seam -- emit-joined-late /tmp/venus-seam-late-40056.bin
   ```
 
 - The optional joined verification **also independently emits Agent 03's 39,064-byte preexisting late fragment** and checks adjacency: `[0x18000,0x21c78)` = 40,056 consecutive bytes. Of these, **992 bytes belong to this agent**; the remaining 39,064 bytes are *not* new Agent 20-02 work.
@@ -66,8 +66,8 @@ Code `[0x1815c,0x18330)`, four-target table `[0x18330,0x18340)`, code `[0x18340,
 A standalone script is included in this bundle:
 
 ```sh
-cargo run --offline --locked -p firmware-tools --example agent20_02_venus_seam -- emit /tmp/venus-seam-992.bin
-python3 tools/verify-agent20-02-clang-roundtrip.py /private/venus.mbn \
+cargo run --offline --locked -p firmware-tools --example venus_seam -- emit /tmp/venus-seam-992.bin
+python3 tools/venus/verify-venus-seam-clang-roundtrip.py /private/venus.mbn \
   --emitted /tmp/venus-seam-992.bin
 ```
 

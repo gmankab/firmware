@@ -11,7 +11,7 @@
 - **Executed A32 instructions:** 224 typed operations, each produced by a checked public ARM32 constructor.
 - **Non-executable literal/data:** 30 words (120 bytes), modeled separately as controller/error addresses, inline diagnostic values and status flags; located at `[0xa8114,0xa8124)`, `[0xa835c,0xa8360)`, `[0xa838c,0xa8390)`, `[0xa8398,0xa83f8)`.
 - **Independent Clang mnemonic assembly:** ARM-mode Clang/LLVM verifies the instruction encodings and distinct data pools; **zero mismatches** across all 1,016 bytes.
-- **Reference comparison:** `cargo run --offline --locked --bin agent20_06_venus_tail -- verify /private/venus.mbn` returns exact, no firmware payload is needed to **emit** the rebuilt bytes.
+- **Reference comparison:** `cargo run --offline --locked --bin venus-tail -- verify /private/venus.mbn` returns exact, no firmware payload is needed to **emit** the rebuilt bytes.
 - **Function boundary caveat:** `0xa8000` is inside an earlier controller function starting *below* Agent 20-06's exclusive range. The first new function boundary is `0xa83f8`. Because this fragment references several earlier conditional branches and the source address `0xa8000` is not an independent entrypoint, it is **not independently callable**. Future merged `ImagePlan` must join this to Agent 20-05's preceding code only after byte and control-flow verification.
 - **Next uncovered ARM runtime address:** `0xa83f8` (MBN file `0xac3f8`).
 
@@ -21,14 +21,14 @@
 cargo test --workspace --offline --locked
 cargo build --workspace --release --offline --locked
 python3 -m unittest discover -s tests -p 'test_*.py'
-cargo run --offline --locked --bin agent20_06_venus_tail -- verify /private/venus.mbn
-cargo run --offline --locked --bin agent20_06_venus_tail -- emit /tmp/venus-tail-agent20-06.bin
+cargo run --offline --locked --bin venus-tail -- verify /private/venus.mbn
+cargo run --offline --locked --bin venus-tail -- emit /tmp/venus-tail.bin
 git diff --check
 ```
 
 The fragment is **instruction-level, byte-identical re-encoding**, not proof of full high-level semantic decompilation, a hardware-tested firmware, an OEM-signed image, or completion of the giant first `PT_LOAD`. The reference is kept outside Git; static data pools are clearly classified and never counted as executable instructions.
 
-**Integration ownership:** New `venus_runtime_tail_agent20_06.rs`, unique CLI binary `agent20_06_venus_tail.rs`, progress notes; one explicit export in `devices/xiaomi_nabu/mod.rs`. No edits to Agent 20-01/03/05 source regions or shared MBN/ELF code. Keep module-export change distinct for conflict resolution during the real checkpoint-50 integration.
+**Integration ownership:** New `venus_tail_program.rs`, unique CLI binary `venus-tail.rs`, progress notes; one explicit export in `devices/xiaomi_nabu/mod.rs`. No edits to Agent 20-01/03/05 source regions or shared MBN/ELF code. Keep module-export change distinct for conflict resolution during the real checkpoint-50 integration.
 
 ## Checkpoint 02 — controller allocator and callback table
 
@@ -53,11 +53,11 @@ The fragment is **instruction-level, byte-identical re-encoding**, not proof of 
 - Newly independently built `[0xa8ea0,0xa92c8)` = **1,064 bytes**: 263 typed ARM32 instructions (1,052 bytes), and three separately identified repeated diagnostic pointers (12 bytes) at `0xa9034`, `0xa90d8`, `0xa911c`.
 - Function-level behavior: clear flags on codec command slots, derive indexed records using 84-byte strides, validate pointer initialization, update per-record metadata and report invalid use. Several helpers return via `bx lr` and others use guarded stack epilogues.
 - The new checked architecture encoder `arm32::transfer_byte_postindexed_register` uses public A32 register-offset addressing and rejects unsafe PC or load-into-base; committed separately from firmware work to isolate shared changes.
-- A new agent-local independent LLVM/Clang mnemonic round-trip helper `tools/agent20_06_a32_roundtrip.py` requires **explicit classification of every data pool** and errors on unsupported or unclassified instructions, using private reference bytes only for the validation process. It verifies all completed intervals individually with zero mismatches.
+- A new agent-local independent LLVM/Clang mnemonic round-trip helper `tools/venus/venus-tail_a32_roundtrip.py` requires **explicit classification of every data pool** and errors on unsupported or unclassified instructions, using private reference bytes only for the validation process. It verifies all completed intervals individually with zero mismatches.
 - Next uncovered runtime address: `0xa92c8`, a new `push`-framed controller routine. The current source interval remains independently disjoint from other agents and has NOT been integrated atop checkpoint 50.
 
 ```sh
-python3 tools/agent20_06_a32_roundtrip.py /private/venus.mbn 0xa8ea0 0xa92c8 \
+python3 tools/venus/venus-tail_a32_roundtrip.py /private/venus.mbn 0xa8ea0 0xa92c8 \
   --data-range 0xa9034:0xa9038 --data-range 0xa90d8:0xa90dc \
   --data-range 0xa911c:0xa9120
 ```
@@ -139,7 +139,7 @@ python3 tools/agent20_06_a32_roundtrip.py /private/venus.mbn 0xa8ea0 0xa92c8 \
 - Newly reconstructed `[0xac750,0xace00)` = 1,712 bytes, comprising **425 ARM32 instructions** (1,700 bytes) and three trailing diagnostic-address words (12 bytes) at `[0xac9e4,0xac9f0)`.
 - First complete function `[0xac750,0xac9f0)` serializes codec session release, input dimensions, callback release, and diagnostic reporting. The second, larger codec allocator begins at `0xac9f0` and remains incomplete at `0xace00`.
 - Added a checked ARM32 `UMULL`/`SMULL` encoder with explicit low/high destinations and PC/alias rejection, unit-tested against the reference instruction encodings.
-- Independent Clang/LLVM round-trip verified `[0xac750,0xace00)` using `tools/agent20_06_a32_roundtrip.py` with `--data-range 0xac9e4:0xac9f0`, **zero byte differences**.
+- Independent Clang/LLVM round-trip verified `[0xac750,0xace00)` using `tools/venus/venus-tail_a32_roundtrip.py` with `--data-range 0xac9e4:0xac9f0`, **zero byte differences**.
 - No original OEM opcode blobs are embedded; this is byte-identical **instruction-level** re-encoding and not a high-level source reimplementation, hardware test, newly signed MBN, or completed assigned tail.
 - Next uncovered ARM runtime address `0xace00`, original MBN offset `0xb0e00`.
 
@@ -256,7 +256,7 @@ python3 tools/agent20_06_a32_roundtrip.py /private/venus.mbn 0xa8ea0 0xa92c8 \
 - Verified cumulative runtime `[0xa8000,0xb2f08)` = **44,808 contiguous byte-identical bytes** (reference `venus.mbn` file `[0xac000,0xb6f08)`). The complete emitted fragment is independent of reading the private OEM reference; the optional `verify` command performs the comparison.
 - New `[0xb2a80,0xb2f08)` = **1,160 bytes**, consisting of **284 typed ARM32 instruction encodings (1,136 bytes)** and six explicitly named data words (24 bytes) at `[0xb2d30,0xb2d48)`. The first routine initializes codec report records, loops through hardware response slots and updates completion/status fields. The second reads controller channel responses into record-plane status arrays, with a conditional early `POP {...,PC}` at `0xb2e58` and final return at `0xb2f04`.
 - The diagnostic/data words are pointer-like values (`0x000f89a4`, `0x000f89ce`, `0x000e2788`, `0x000f88c7`, `0x000f7058`, `0x000f7095`), not unclassified A32 instructions.
-- Independent Clang/LLVM `tools/agent20_06_a32_roundtrip.py` with `--data-range 0xb2d30:0xb2d48` reconstructs all 1,160 bytes with zero differences. Rust direct verifier and fragment-specific tests also pass; the full offline Rust and Python suites pass. Release build status is logged separately; do not claim success if incomplete.
+- Independent Clang/LLVM `tools/venus/venus-tail_a32_roundtrip.py` with `--data-range 0xb2d30:0xb2d48` reconstructs all 1,160 bytes with zero differences. Rust direct verifier and fragment-specific tests also pass; the full offline Rust and Python suites pass. Release build status is logged separately; do not claim success if incomplete.
 - Next uncovered ARM runtime address is **`0xb2f08`** (original file `0xb6f08`). Work remains a *provisional older-base typed instruction re-encoding* rather than checkpoint-50 integration, independent behavioral decompilation, hardware testing, complete firmware or OEM signing.
 
 ## Checkpoint 29 — queued codec-frame reconciliation
@@ -290,7 +290,7 @@ python3 tools/agent20_06_a32_roundtrip.py /private/venus.mbn 0xa8ea0 0xa92c8 \
 - Full contiguous Venus executable-tail region `[0xa8000,0xb5008)` = **53,256 exactly matching bytes**, original MBN file `[0xac000,0xb9008)`.
 - Newly source-encoded `[0xb46cc,0xb5008)` = **2,364 bytes**, consisting of **577 typed A32 instructions (2,308 bytes)** and **14 separately classified non-code data words (56 bytes)**. Literal pools are `[0xb48ac,0xb48bc)` (four), `[0xb4e0c,0xb4e24)` (six), and `[0xb4ff8,0xb5008)` (four); no OEM instruction words are copied into Rust.
 - Rebuilt record-index compaction, active-record registration, two plane/line byte-count helpers, controller flush, and stream-feedback state updates. Branches into previous routines and the original return paths are preserved.
-- Direct `agent20_06_venus_tail verify` and independent Clang/LLVM `tools/agent20_06_a32_roundtrip.py` with the **three declared data ranges** both report **zero differing bytes**. Full offline Rust suite **204 tests**, Python suite **13 tests** pass; release-build status not claimed here.
+- Direct `venus-tail verify` and independent Clang/LLVM `tools/venus/venus-tail_a32_roundtrip.py` with the **three declared data ranges** both report **zero differing bytes**. Full offline Rust suite **204 tests**, Python suite **13 tests** pass; release-build status not claimed here.
 - Next uncovered ARM runtime is `0xb5008` (reference file offset `0xb9008`), beginning another controller routine. The branch remains provisional old-base A32 instruction-level reconstruction, not genuine high-level semantic decompilation, newly signed OEM firmware, on-device execution, or a checkpoint-50-rooted integration.
 
 ## Checkpoint 33 — controller stream-class jump table and first record checks
@@ -547,7 +547,7 @@ python3 tools/agent20_06_a32_roundtrip.py /private/venus.mbn 0xa8ea0 0xa92c8 \
 - Independently reassembled using:
 
   ```sh
-  python3 tools/agent20_06_a32_roundtrip.py /private/venus.mbn 0xbe7dc 0xbeb70 \
+  python3 tools/venus/venus-tail_a32_roundtrip.py /private/venus.mbn 0xbe7dc 0xbeb70 \
     --data-range 0xbe9e8:0xbe9ec --data-range 0xbe9f8:0xbe9fc
   ```
 
@@ -562,7 +562,7 @@ python3 tools/agent20_06_a32_roundtrip.py /private/venus.mbn 0xa8ea0 0xa92c8 \
 - Full Rust emission equals original reference (zero byte mismatches). Independent Clang/LLVM ARM instruction mnemonic reconstruction confirms **720 code bytes + 96 classified data bytes**, zero differences using:
 
   ```sh
-  python3 tools/agent20_06_a32_roundtrip.py /private/venus.mbn 0xbeb70 0xbeea0 \
+  python3 tools/venus/venus-tail_a32_roundtrip.py /private/venus.mbn 0xbeb70 0xbeea0 \
     --data-range 0xbeb70:0xbeb78 --data-range 0xbec30:0xbec78 \
     --data-range 0xbed60:0xbed64 --data-range 0xbee94:0xbeea0
   ```
@@ -577,7 +577,7 @@ python3 tools/agent20_06_a32_roundtrip.py /private/venus.mbn 0xa8ea0 0xa92c8 \
 - Direct whole-fragment comparison against the pinned original SHA-256 `9d4af65d7ede845e900f1b29ff425b7a8e2947056e695e246e58a2091445a085` is exact (zero mismatches). Independent Clang/LLVM reassembly of the new code region passed with the branch table classified as data:
 
   ```sh
-  python3 tools/agent20_06_a32_roundtrip.py /private/venus.mbn 0xbeea0 0xbf400 \
+  python3 tools/venus/venus-tail_a32_roundtrip.py /private/venus.mbn 0xbeea0 0xbf400 \
     --data-range 0xbefdc:0xbefec
   ```
 
@@ -590,7 +590,7 @@ python3 tools/agent20_06_a32_roundtrip.py /private/venus.mbn 0xa8ea0 0xa92c8 \
 - Entire source-emitted region matches the pinned reference exactly (0 different bytes). Independent Clang/LLVM instruction reassembly independently matches 2,552 instruction bytes and 92 classified data bytes:
 
   ```sh
-  python3 tools/agent20_06_a32_roundtrip.py /private/venus.mbn 0xbf400 0xbfe54 \
+  python3 tools/venus/venus-tail_a32_roundtrip.py /private/venus.mbn 0xbf400 0xbfe54 \
     --data-range 0xbfdf8:0xbfe54
   ```
 
@@ -605,7 +605,7 @@ python3 tools/agent20_06_a32_roundtrip.py /private/venus.mbn 0xa8ea0 0xa92c8 \
 - Entire source-emitted region matches the original Venus reference with **zero differing bytes**. Independent Clang/LLVM ARM mnemonic round-trip matches all code and declared data:
 
   ```sh
-  python3 tools/agent20_06_a32_roundtrip.py /private/venus.mbn 0xbfe54 0xc049c \
+  python3 tools/venus/venus-tail_a32_roundtrip.py /private/venus.mbn 0xbfe54 0xc049c \
     --data-range 0xc0470:0xc049c
   ```
 
@@ -619,7 +619,7 @@ python3 tools/agent20_06_a32_roundtrip.py /private/venus.mbn 0xa8ea0 0xa92c8 \
 - Full emitted output equals pinned `venus.mbn` (0 differences). Independent Clang/LLVM verification also matches the 1,240 instruction bytes and 44 declared data bytes:
 
   ```sh
-  python3 tools/agent20_06_a32_roundtrip.py /private/venus.mbn 0xc049c 0xc09a0 \
+  python3 tools/venus/venus-tail_a32_roundtrip.py /private/venus.mbn 0xc049c 0xc09a0 \
     --data-range 0xc05e0:0xc05e4 --data-range 0xc0978:0xc09a0
   ```
 
@@ -633,7 +633,7 @@ python3 tools/agent20_06_a32_roundtrip.py /private/venus.mbn 0xa8ea0 0xa92c8 \
 - Full Rust emitter compares equal to the pinned private `venus.mbn` reference; independent Clang/LLVM reassembly also verifies the new 1,988 code bytes and 88 data bytes, zero mismatches:
 
   ```sh
-  python3 tools/agent20_06_a32_roundtrip.py /private/venus.mbn 0xc09a0 0xc11bc \
+  python3 tools/venus/venus-tail_a32_roundtrip.py /private/venus.mbn 0xc09a0 0xc11bc \
     --data-range 0xc1164:0xc11bc
   ```
 
@@ -647,7 +647,7 @@ python3 tools/agent20_06_a32_roundtrip.py /private/venus.mbn 0xa8ea0 0xa92c8 \
 - Entire emitted region equals pinned `venus.mbn` (zero differences); independent Clang/LLVM reassembly reproduces all 836 code bytes and 20 declared data bytes:
 
   ```sh
-  python3 tools/agent20_06_a32_roundtrip.py /private/venus.mbn 0xc11bc 0xc1514 \
+  python3 tools/venus/venus-tail_a32_roundtrip.py /private/venus.mbn 0xc11bc 0xc1514 \
     --data-range 0xc1474:0xc1488
   ```
 
@@ -661,7 +661,7 @@ python3 tools/agent20_06_a32_roundtrip.py /private/venus.mbn 0xa8ea0 0xa92c8 \
 - Pinned original byte verification passes with zero mismatches; independent Clang/LLVM also confirms all 940 instructions bytes and the nine explicit data words:
 
   ```sh
-  python3 tools/agent20_06_a32_roundtrip.py /private/venus.mbn 0xc1514 0xc18e4 \
+  python3 tools/venus/venus-tail_a32_roundtrip.py /private/venus.mbn 0xc1514 0xc18e4 \
     --data-range 0xc18c0:0xc18e4
   ```
 
@@ -675,7 +675,7 @@ python3 tools/agent20_06_a32_roundtrip.py /private/venus.mbn 0xa8ea0 0xa92c8 \
 - Whole Rust output equals the pinned reference (zero differing bytes); independent Clang/LLVM reconstructs exactly the 636 ARM instruction bytes and the 24 declared data bytes:
 
   ```sh
-  python3 tools/agent20_06_a32_roundtrip.py /private/venus.mbn 0xc18e4 0xc1b78 \
+  python3 tools/venus/venus-tail_a32_roundtrip.py /private/venus.mbn 0xc18e4 0xc1b78 \
     --data-range 0xc1b60:0xc1b78
   ```
 
@@ -689,7 +689,7 @@ python3 tools/agent20_06_a32_roundtrip.py /private/venus.mbn 0xa8ea0 0xa92c8 \
 - Whole generator matches the pinned reference with zero mismatches; independent Clang/LLVM round-trip confirms all 988 instruction bytes plus 60 explicit data bytes:
 
   ```sh
-  python3 tools/agent20_06_a32_roundtrip.py /private/venus.mbn 0xc1b78 0xc1f90 \
+  python3 tools/venus/venus-tail_a32_roundtrip.py /private/venus.mbn 0xc1b78 0xc1f90 \
     --data-range 0xc1d04:0xc1d08 --data-range 0xc1d60:0xc1d68 \
     --data-range 0xc1f60:0xc1f90
   ```
@@ -704,7 +704,7 @@ python3 tools/agent20_06_a32_roundtrip.py /private/venus.mbn 0xa8ea0 0xa92c8 \
 - Original firmware whole-fragment comparison passes with zero differing bytes. Independent Clang/LLVM reconstructs all 2,256 instruction bytes and 20 classified data bytes with zero mismatches:
 
   ```sh
-  python3 tools/agent20_06_a32_roundtrip.py /private/venus.mbn 0xc1f90 0xc2874 \
+  python3 tools/venus/venus-tail_a32_roundtrip.py /private/venus.mbn 0xc1f90 0xc2874 \
     --data-range 0xc2860:0xc2874
   ```
 
@@ -718,7 +718,7 @@ python3 tools/agent20_06_a32_roundtrip.py /private/venus.mbn 0xa8ea0 0xa92c8 \
 - Full emitter-vs-pinned-original comparison found **zero mismatched bytes**. Independent Clang/LLVM mnemonic reconstruction verified 2,632 instructions bytes plus 16 manually classified data bytes:
 
   ```sh
-  python3 tools/agent20_06_a32_roundtrip.py /private/venus.mbn 0xc2874 0xc32cc \
+  python3 tools/venus/venus-tail_a32_roundtrip.py /private/venus.mbn 0xc2874 0xc32cc \
     --data-range 0xc32bc:0xc32cc
   ```
 
@@ -731,7 +731,7 @@ python3 tools/agent20_06_a32_roundtrip.py /private/venus.mbn 0xa8ea0 0xa92c8 \
 - Full private-reference comparison confirmed all 111,988 bytes match. Independent Clang/LLVM reassembly of the new 680 instruction bytes reports zero differences:
 
   ```sh
-  python3 tools/agent20_06_a32_roundtrip.py /private/venus.mbn 0xc32cc 0xc3574
+  python3 tools/venus/venus-tail_a32_roundtrip.py /private/venus.mbn 0xc32cc 0xc3574
   ```
 
 - **249 Rust tests and 13 Python tests passed**. New release build not completed/claimed. A prior checkpoint-specific test was adjusted to assert coverage of its historical boundary (`>=`) rather than incorrectly demand a fixed whole-fragment size once extended. Next uncovered VMA `0xc3574`, original MBN file `0xc7574`. Provisional older-Agent03 branch; no OEM signing or high-level algorithmic source recovery claimed.
@@ -743,7 +743,7 @@ python3 tools/agent20_06_a32_roundtrip.py /private/venus.mbn 0xa8ea0 0xa92c8 \
 - Rust full-fragment comparison reports **0 different bytes**. Clang/LLVM independently reassembles every 1,680 instruction byte plus 16 separately classified data bytes:
 
   ```sh
-  python3 tools/agent20_06_a32_roundtrip.py /private/venus.mbn 0xc3574 0xc3c14 \
+  python3 tools/venus/venus-tail_a32_roundtrip.py /private/venus.mbn 0xc3574 0xc3c14 \
     --data-range 0xc3bdc:0xc3bec
   ```
 
@@ -758,7 +758,7 @@ python3 tools/agent20_06_a32_roundtrip.py /private/venus.mbn 0xa8ea0 0xa92c8 \
 - Full emitter output matches the reference with **zero differing bytes**. Independent Clang/LLVM mnemonic reassembly confirms all 1,452 instruction bytes and 76 declared literal bytes:
 
   ```sh
-  python3 tools/agent20_06_a32_roundtrip.py /private/venus.mbn 0xc3c14 0xc420c \
+  python3 tools/venus/venus-tail_a32_roundtrip.py /private/venus.mbn 0xc3c14 0xc420c \
     --data-range 0xc4198:0xc41e4
   ```
 
@@ -772,7 +772,7 @@ python3 tools/agent20_06_a32_roundtrip.py /private/venus.mbn 0xa8ea0 0xa92c8 \
 - Full Rust generator compared byte-by-byte with original `venus.mbn`: **zero differences**. Clang/LLVM independently reassembled all 1,160 bytes:
 
   ```sh
-  python3 tools/agent20_06_a32_roundtrip.py /private/venus.mbn 0xc420c 0xc4694
+  python3 tools/venus/venus-tail_a32_roundtrip.py /private/venus.mbn 0xc420c 0xc4694
   ```
 
 - **253 Rust tests and 13 Python tests passed.** No completed release build claimed. New missing instruction begins at runtime `0xc4694`, original file `0xc8694`. The branch is provisional from older Agent 03, not checkpoint-50-integrated. Byte-identical ISA reconstruction is not high-level source decompilation or an independently OEM-signed firmware image.
@@ -785,7 +785,7 @@ python3 tools/agent20_06_a32_roundtrip.py /private/venus.mbn 0xa8ea0 0xa92c8 \
 - Whole Rust fragment byte-for-byte equals the pinned original (zero differences); independent Clang/LLVM confirms the complete interval:
 
   ```sh
-  python3 tools/agent20_06_a32_roundtrip.py /private/venus.mbn 0xc4694 0xc47c8 \
+  python3 tools/venus/venus-tail_a32_roundtrip.py /private/venus.mbn 0xc4694 0xc47c8 \
     --data-range 0xc47b0:0xc47c8
   ```
 
@@ -798,7 +798,7 @@ python3 tools/agent20_06_a32_roundtrip.py /private/venus.mbn 0xa8ea0 0xa92c8 \
 - Whole private-reference comparison found zero differing bytes. Independent Clang/LLVM reassembly matches all declared instructions and data:
 
   ```sh
-  python3 tools/agent20_06_a32_roundtrip.py /private/venus.mbn 0xc47c8 0xc4b28 \
+  python3 tools/venus/venus-tail_a32_roundtrip.py /private/venus.mbn 0xc47c8 0xc4b28 \
     --data-range 0xc4b1c:0xc4b28
   ```
 
@@ -812,7 +812,7 @@ python3 tools/agent20_06_a32_roundtrip.py /private/venus.mbn 0xa8ea0 0xa92c8 \
 - Whole Rust generator matches the private pinned reference with **zero byte differences**; independent Clang/LLVM verifies all 310 new ARM instruction encodings:
 
   ```sh
-  python3 tools/agent20_06_a32_roundtrip.py /private/venus.mbn 0xc4b28 0xc5000
+  python3 tools/venus/venus-tail_a32_roundtrip.py /private/venus.mbn 0xc4b28 0xc5000
   ```
 
 - **256 Rust tests and 13 Python tests passed.** No new successful release build claimed. Work is still provisional from older Agent 03, not checkpoint50 integrated, independently OEM signed, or validated for on-device behavior.
@@ -825,7 +825,7 @@ python3 tools/agent20_06_a32_roundtrip.py /private/venus.mbn 0xa8ea0 0xa92c8 \
 - Whole emitted fragment matches reference `venus.mbn` exactly. Clang/LLVM independently reassembles all 2,796 instruction bytes with **zero differences**:
 
   ```sh
-  python3 tools/agent20_06_a32_roundtrip.py /private/venus.mbn 0xc5000 0xc5aec
+  python3 tools/venus/venus-tail_a32_roundtrip.py /private/venus.mbn 0xc5000 0xc5aec
   ```
 
 - **257 Rust and 13 Python tests passed.** No new release-build success is claimed. Next uncovered runtime `0xc5aec`, original MBN file `0xc9aec`; branch remains provisional based on old Agent 03 and is not part of a verified checkpoint-50-derived integration. Typed A32 opcode equality does not establish full independent source semantics or OEM authentication.
@@ -835,8 +835,8 @@ python3 tools/agent20_06_a32_roundtrip.py /private/venus.mbn 0xa8ea0 0xa92c8 \
 - Independently emitted `[runtime 0xa8000,0xc5cd8)` = **122,072 consecutive exact bytes**; pinned Venus file range `[0xac000,0xc9cd8)`.
 - Newly reconstructed `[0xc5aec,0xc5cd8)` = **492 bytes**: **114 A32 instructions** (456 bytes) and **nine literal/data words** (36 bytes), in explicit pools `[0xc5aec,0xc5afc)`, `[0xc5bcc,0xc5bd8)` and `[0xc5cd0,0xc5cd8)`.
 - The original firmware has codec initialization, channel-mode flags, resource status checks, and diagnostic branches. The `LDRH` writeback and conditional byte access retain their original register modes. This checkpoint ends just before additional controller status instructions at `0xc5cd8`; the enclosing routine is incomplete.
-- Direct `agent20_06_venus_tail verify` against the pinned `venus.mbn` SHA-256 `9d4af65d7ede845e900f1b29ff425b7a8e2947056e695e246e58a2091445a085` passed with zero different bytes.
-- Independent Clang/LLVM `tools/agent20_06_a32_roundtrip.py` with the three `--data-range`s independently matched all new 492 bytes, without classifying literal pointers as instructions.
+- Direct `venus-tail verify` against the pinned `venus.mbn` SHA-256 `9d4af65d7ede845e900f1b29ff425b7a8e2947056e695e246e58a2091445a085` passed with zero different bytes.
+- Independent Clang/LLVM `tools/venus/venus-tail_a32_roundtrip.py` with the three `--data-range`s independently matched all new 492 bytes, without classifying literal pointers as instructions.
 - With isolated Rust/Cargo target and reduced debug information to avoid 4-GiB compiler OOM, the Rust workspace reports **258 tests passed**, and the Python suite **13 tests passed**. Offline release build was not run for this checkpoint.
 - Next missing runtime instruction: **`0xc5cd8`** (MBN file `0xc9cd8`). This remains a **provisional old-base** branch, not a checkpoint-50-based integration; byte identity is instruction encoding equivalence, not behavioral validation or independent OEM signing.
 
@@ -845,7 +845,7 @@ python3 tools/agent20_06_a32_roundtrip.py /private/venus.mbn 0xa8ea0 0xa92c8 \
 - Source-derived typed ARM32 output `[runtime 0xa8000,0xc5fac)` = **122,796 byte-identical bytes**; reference MBN `[0xac000,0xc9fac)`.
 - Newly rebuilt `[0xc5cd8,0xc5fac)` = **724 bytes**, comprising **178 instructions** (712 bytes) and three explicitly classified diagnostic pointers (12 bytes) in pools `[0xc5f34,0xc5f38)` and `[0xc5fa4,0xc5fac)`.
 - The function registers live codec dimensions, propagates flags, maintains controller MMIO bit fields and returns via the original `pop {...pc}` at `0xc5f88`, followed by a conditional error path. New helper code at `0xc5fac` remains uncovered.
-- Direct `agent20_06_venus_tail -- verify` matches pinned original Venus MBN (`9d4af65d7ede845e900f1b29ff425b7a8e2947056e695e246e58a2091445a085`) with **zero mismatches**. Independent Clang/LLVM mnemonic round-trip verifies all 712 code and 12 explicit data bytes.
+- Direct `venus-tail -- verify` matches pinned original Venus MBN (`9d4af65d7ede845e900f1b29ff425b7a8e2947056e695e246e58a2091445a085`) with **zero mismatches**. Independent Clang/LLVM mnemonic round-trip verifies all 712 code and 12 explicit data bytes.
 - Cargo workspace Rust test output confirms **259 tests passed**, Python suite **13 passed**. The combined invocation exceeded the command execution window after the completed Rust test output; Python was rerun and passed separately. Release build was not run.
 - Next missing runtime address `0xc5fac` (original file `0xc9fac`), within the later error-handling path. Work remains provisional from older agent ancestry, not a claimed checkpoint-50 integration.
 

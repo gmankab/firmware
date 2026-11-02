@@ -101,13 +101,13 @@ export CARGO_TARGET_DIR=/private/agent16-target
 cargo test --workspace --offline --locked
 cargo build --workspace --release --offline --locked
 python3 -m unittest discover -s tests -p 'test_*.py'
-python3 tools/verify-agent20-16-halo.py \
+python3 tools/halo/verify-halo-memory-halo.py \
   /private/cs35l41-dsp1-spk-prot.wmfw \
-  "$CARGO_TARGET_DIR/release/agent20-16-halo-memory" \
+  "$CARGO_TARGET_DIR/release/halo-memory" \
   /private/pinned-cirrus/tools/firmware_converter/wmfw_parser.py
 ```
 
-The isolated `agent20-16-halo-memory` binary supports `verify`, `emit-static-directory`, `decode-xy` (external diagnostics) and `assemble-external`. Its new modules are registered in a separate integration-only commit; the shared CLI, Cargo manifests, central status and Venus sources are untouched.
+The isolated `halo-memory` binary supports `verify`, `emit-static-directory`, `decode-xy` (external diagnostics) and `assemble-external`. Its new modules are registered in a separate integration-only commit; the shared CLI, Cargo manifests, central status and Venus sources are untouched.
 
 ## Remaining work and evidence limits
 
@@ -184,7 +184,7 @@ changed.
 
 ### Independent validation and entry points
 
-`tools/verify-agent20-16-controls.py` runs the checkpoint-01 checks, then uses
+`tools/halo/verify-halo-memory-controls.py` runs the checkpoint-01 checks, then uses
 the unchanged Cirrus converter to parse the original three metadata blocks,
 the static directory and every XM/YM word. It independently checks all 57
 names/offsets/lengths, all 264 values and every generated physical byte lane.
@@ -199,12 +199,12 @@ appear in the accompanying checkpoint-02 verification JSON.
 Additional isolated commands:
 
 ```sh
-agent20-16-halo-memory control-defaults
-agent20-16-halo-memory control-bytes
-agent20-16-halo-memory memory-provenance
-agent20-16-halo-memory verify-memory /private/reference.wmfw
-agent20-16-halo-memory extract-memory-external /private/reference.wmfw /private/new-inputs
-agent20-16-halo-memory assemble-memory-external /private/new-inputs /private/repacked.wmfw
+halo-memory control-defaults
+halo-memory control-bytes
+halo-memory memory-provenance
+halo-memory verify-memory /private/reference.wmfw
+halo-memory extract-memory-external /private/reference.wmfw /private/new-inputs
+halo-memory assemble-memory-external /private/new-inputs /private/repacked.wmfw
 ```
 
 The header footer's final field is now correctly documented as a **checksum**

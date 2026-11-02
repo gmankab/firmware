@@ -28,14 +28,14 @@ this is a portable independent child of the previous agent's branch.
 Reproduction with private reference external to Git:
 
 ```sh
-bash tools/verify-agent15-halo-pm.sh /private/cs35l41-dsp1-spk-prot.wmfw
+bash tools/halo/verify-halo-pm.sh /private/cs35l41-dsp1-spk-prot.wmfw
 # Standalone non-mutating counts/hashes:
-cargo run --offline --locked --example agent15_pm_audit -- /private/cs35l41-dsp1-spk-prot.wmfw
-python3 tools/agent15_pm_python.py /private/cs35l41-dsp1-spk-prot.wmfw
+cargo run --offline --locked --example halo_pm_audit -- /private/cs35l41-dsp1-spk-prot.wmfw
+python3 tools/halo/pm_transport.py /private/cs35l41-dsp1-spk-prot.wmfw
 ```
 
 Required source files are isolated to `wmfw_halo_pm_transport.rs`,
-`examples/agent15_pm_audit.rs`, two new test/audit scripts and this
+`examples/halo_pm_audit.rs`, two new test/audit scripts and this
 agent-specific documentation. The only shared change is the one-line
 `pub mod wmfw_halo_pm_transport;` registration in `lib.rs`, committed
 separately for merge review.

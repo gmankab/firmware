@@ -21,7 +21,7 @@ CDSP is little-endian ELF32 Hexagon V66, `e_machine=164`, `e_flags=0x66`. **ELF 
 - **56 independently generated executable bytes** at `cdsp.mbn` file `[0x55000,0x55038)`; ELF virtual `[0xc00c7000,0xc00c7038)`; physical `[0x96cc7000,0x96cc7038)`.
 - Source-level operation: write immediate `7` to MMIO register addresses `0x083a0040`, `0x083a0044`, and `0x083a0048`, issue Hexagon memory `barrier`, then jump to shared controller routine at physical `0x96cc7070` (outside the current fragment). The 14 four-byte words are eight Hexagon **packets**: six two-word extended-immediate assignment/store packets plus the standalone barrier and jump packets (8 packets total).
 - `cdsp_late_mmio::encode_extended_word_store_immediate` provides a checked architecture-field constructor with base register, aligned offset, and 32-bit value. Tests reject misaligned/unsupported offsets. Existing checked `cdsp_boot::encode_extended_assignment` and `ScalarPacket::JumpRelative` construct the other packets; the barrier is the independently LLVM-assembled architecture opcode, not an OEM byte array.
-- Verify with `cargo run --offline --locked -p firmware-tools --bin cdsp-late-rebuild -- verify /private/cdsp.mbn` and `tools/verify-agent20-10-cdsp-late.py --llvm-mc /private/llvm-mc --rz-asm /private/rz-asm --generated /private/mmio-56.bin --reference /private/cdsp.mbn`, using the staged Ubuntu 24 Rizin `LD_LIBRARY_PATH` when needed.
+- Verify with `cargo run --offline --locked -p firmware-tools --bin cdsp-late-rebuild -- verify /private/cdsp.mbn` and `tools/cdsp/verify-late-late.py --llvm-mc /private/llvm-mc --rz-asm /private/rz-asm --generated /private/mmio-56.bin --reference /private/cdsp.mbn`, using the staged Ubuntu 24 Rizin `LD_LIBRARY_PATH` when needed.
 - The full 1,200-byte short executable segment is **not reconstructed**. Next uncovered code offset is **`0x55038`**; the remaining 1,144 file bytes are not counted as source-generated. The entire CDSP image, authentication and hardware execution remain unverified.
 
 ## Merge guidance
@@ -34,7 +34,7 @@ Agent 20-10 owns only new `cdsp_late_*` sources, its verification tool, focused 
 - Added a 56-byte counter-read helper `[0x55038,0x55070)`: preserve R1/R2/R3 in R8/R9/R10, read the monotonic hardware counter at `0x083a2000`, spin until an unsigned counter delta exceeds R2, restore arguments and jump through R13.
 - Checked typed encoder `encode_word_load_immediate` handles only verified small aligned offsets, and `encode_wait_if_unsigned_delta_small` encodes the compound `P0=cmp.gtu(R3,R2); if(!P0.new) jump:t` with a narrow negative offset. The latter branches from physical `0x96cc705c` to `0x96cc7054`, the **second** counter load, not the initial snapshot at `0x96cc7050`.
 - An independently authored LLVM 6 fixture emits all 28 words and 17 packet groups exactly; Rizin V66 independently decodes the 28 words, their parse markers and operands, and direct comparison to the exact OEM reference passes.
-- Reproduce: `cargo run -p firmware-tools --bin cdsp-late-rebuild -- emit-joined /tmp/cdsp-late-112.bin`, `... -- verify-joined /private/cdsp.mbn`, and `python3 tools/verify-agent20-10-cdsp-late.py --joined --llvm-mc /path/to/llvm6/bin/llvm-mc --rz-asm /path/to/rz-asm --generated /tmp/cdsp-late-112.bin --reference /private/cdsp.mbn`.
+- Reproduce: `cargo run -p firmware-tools --bin cdsp-late-rebuild -- emit-joined /tmp/cdsp-late-112.bin`, `... -- verify-joined /private/cdsp.mbn`, and `python3 tools/cdsp/verify-late-late.py --joined --llvm-mc /path/to/llvm6/bin/llvm-mc --rz-asm /path/to/rz-asm --generated /tmp/cdsp-late-112.bin --reference /private/cdsp.mbn`.
 - Next unimplemented code is at file `0x55070`. Nothing from the metadata-heavy ELF segment `[0x3b000,0x5475c)` is counted as independent executable source. Checkpoint-50 base remains unavailable, so the branch is **provisional**.
 
 ## Checkpoint 03 — MMIO controller mode dispatch, contiguous 168 bytes
@@ -66,7 +66,7 @@ Agent 20-10 owns only new `cdsp_late_*` sources, its verification tool, focused 
 - Complete strictly contiguous CDSP executable file `[0x55000,0x5539c)`, **924 independently generated Hexagon instruction bytes**, ELF VMA `[0xc00c7000,0xc00c739c)`, physical `[0x96cc7000,0x96cc739c)`.
 - Added the 112-byte feature-enable and spin-loop handoff `[0x5532c,0x5539c)`: invalidates controller cache, changes the MMIO bit field at `0x08300200`, sets bit at `0x08300238`, reloads the controller base and jumps to the shared wait routine at `0x96cc7038` after `R13=add(PC,#8)`.
 - Corrected the precise checked PIC-link field from `0x6a49_c00d` to `0x6a49_c40d` (bit 10) based on independently authored LLVM6 Hexagon assembly **and** Rizin V66 decoding. Tests check this field, the branch displacement and exact generated count.
-- `tools/verify-agent20-10-cdsp-handoff.py` independently assembles all 112 bytes with LLVM6 and decodes 28 words with Rizin V66; direct reference comparison reports zero differing bytes.
+- `tools/cdsp/verify-late-handoff.py` independently assembles all 112 bytes with LLVM6 and decodes 28 words with Rizin V66; direct reference comparison reports zero differing bytes.
 - The remaining short `R E` segment is file `[0x5539c,0x554b0)` = 276 bytes. The previous `R E` region `[0x3b000,0x5475c)` is non-executable metadata despite flag `R E`; not counted.
 - The checkpoint remains a **provisional preparation branch** based on Agent 05 `a02618f…`, not the absent checkpoint-50 integrated base. `git -c commit.gpgsign=false` uses author and committer identity `Codex <codex@openai.com>`; there is no new OEM signature.
 
@@ -82,7 +82,7 @@ Agent 20-10 owns only new `cdsp_late_*` sources, its verification tool, focused 
 
 - Fully reconstructed **all 1,200 independently encoded Hexagon instruction bytes** in `cdsp.mbn` file `[0x55000,0x554b0)`. VMA `[0xc00c7000,0xc00c74b0)`, physical `[0x96cc7000,0x96cc74b0)`. This exact length matches the `PT_LOAD` executable section's `p_filesz`, not merely a function fragment.
 - Added the final **168 bytes** `[0x55408,0x554b0)`: update controller register `0x0830002c`, mask out bits `0x71f`, combine DSP state from R16 with `0x200`, update controller bit at `0x08300028`, poll P0.new until ready, write `0` to the three mailbox/IRQ registers at `0x083a0040`, `+4`, `+8`, barrier and `jumpr LR`.
-- Strict checked helpers model `R3=asl(R16,#0)` and `P0=cmp.eq(R3,R2); if(P0.new)jump:t -8`. The `ASL` operation and `R2=##0x200` share one packet. Independently authored LLVM6 source `tools/agent20-10-cdsp-controller-tail.s` reproduces **all 42 four-byte instruction words exactly**, including the parse marker; Rizin V66 decodes all 42 and confirms the branch target and MMIO instruction semantics.
+- Strict checked helpers model `R3=asl(R16,#0)` and `P0=cmp.eq(R3,R2); if(P0.new)jump:t -8`. The `ASL` operation and `R2=##0x200` share one packet. Independently authored LLVM6 source `tools/cdsp/late-controller-tail.s` reproduces **all 42 four-byte instruction words exactly**, including the parse marker; Rizin V66 decodes all 42 and confirms the branch target and MMIO instruction semantics.
 - Entire 1,200-byte executable segment compares exactly to the original CDSP reference, with **zero mismatches**. This **does not** imply completion of the other, much larger CDSP `PT_LOAD` segments, bootability or new OEM signature creation.
 - Next independent code to reconstruct is in `RWE` file segment starting at **`0x56000`**, VMA `0xc00c8000`, physical `0x96cc8000`. The `[0x554b0,0x56000)` gap between ELF loads is not executable reconstruction; it must remain structural layout.
 - Git base caveat unchanged: still a portable branch from Agent 05 `a02618f…`; checkpoint50's integrated SHA was unavailable in the supplied materials.
@@ -91,7 +91,7 @@ Agent 20-10 owns only new `cdsp_late_*` sources, its verification tool, focused 
 
 - Distinct `RWE` segment begins at MBN file `0x56000`, VMA `0xc00c8000`, physical `0x96cc8000`. Reconstructed first genuine runtime callback function **84 bytes** at `[0x56000,0x56054)` with **zero byte mismatches**; this interval is explicitly **disjoint** from the completed `[0x55000,0x554b0)` controller segment.
 - `cdsp_late_runtime` independently encodes Hexagon frame allocation, save R27, high/low 16-bit immediate halves, conditional startup hook in R28, `R2=#0` followed by the one-word `R3=#0;R1=#0` duplex, runtime table traversal through R27, callback invocation, negative loop jump, restore/deallocframe and `jumpr LR`. Values and checkable packet layout are typed; the original opcode bytes are not imported into this source.
-- Program semantic assembly `tools/agent20-10-cdsp-rwe-entry.s` independently **reassembles all 84 bytes exactly via LLVM6**, including the unusual duplex order (LLVM selects the original layout when semantically equivalent zero assignments are ordered as R3,R2,R1). Rizin V66 confirms 21 valid Hexagon words and the original branch target.
+- Program semantic assembly `tools/cdsp/late-rwe-entry.s` independently **reassembles all 84 bytes exactly via LLVM6**, including the unusual duplex order (LLVM selects the original layout when semantically equivalent zero assignments are ordered as R3,R2,R1). Rizin V66 confirms 21 valid Hexagon words and the original branch target.
 - Following 12 bytes `[0x56054,0x56060)` are zero-filled source file layout **not instruction bytes**, so they are not counted as independently reconstructed firmware. The next procedure appears to start at `0x56060`, with cross-segment calling conventions and init-data relocations still to reconstruct.
 - Combined unique verified later CDSP executable source at the two separate sites: **1,200 + 84 = 1,284 bytes**. Do not call this contiguous across the segment gap; the image has multiple disjoint `PT_LOAD` mappings. The old Agent 05 core/source fragment is separately verified and not included in this count.
 - Full offline workspace Rust and Python test suites and release build pass. This remains a provisional branch from old Agent05 (`a02618f…`), not checkpoint-50 Git lineage; no full CDSP firmware or new OEM signature has been generated.
@@ -100,7 +100,7 @@ Agent 20-10 owns only new `cdsp_late_*` sources, its verification tool, focused 
 
 - **64 independent source-generated bytes** at file `[0x560d4,0x56114)`; VMA `[0xc00c80d4,0xc00c8114)`, physical `[0x96cc80d4,0x96cc8114)`. The output matches all original firmware bytes with **zero differences**.
 - The code begins with the return stub at `0x560d4`; the following 40 bytes save LR and SP to controller-global locations through extended PC-relative adds, set R0 to -1 and branch to physical `0x96dc3ec0`; the next five-word packet clears the GP-relative state slot `0xc028c014` and returns.
-- Original 40-byte PIC body plus `jumpr LR` (44 bytes) independently LLVM6-assemble to the exact firmware bytes using `tools/agent20-10-cdsp-rwe-pic.s`. The GP store is a **forced-extended five-word V66 packet** in the original, whereas LLVM6 independently produces a **shorter 16-byte semantically equivalent sequence**. `tools/verify-agent20-10-cdsp-rwe-pic-gp.py` explicitly checks the LLVM6 equivalence, Rizin V66 decoding of all 16 original instruction words, and a strict full 64-byte pinned reference equality; it does *not* falsely claim that the LLVM6 GP packet has identical length or opcode order.
+- Original 40-byte PIC body plus `jumpr LR` (44 bytes) independently LLVM6-assemble to the exact firmware bytes using `tools/cdsp/late-rwe-pic.s`. The GP store is a **forced-extended five-word V66 packet** in the original, whereas LLVM6 independently produces a **shorter 16-byte semantically equivalent sequence**. `tools/cdsp/verify-late-rwe-pic-gp.py` explicitly checks the LLVM6 equivalence, Rizin V66 decoding of all 16 original instruction words, and a strict full 64-byte pinned reference equality; it does *not* falsely claim that the LLVM6 GP packet has identical length or opcode order.
 - Checked constructors independently reconstruct PC-relative fields, explicit negative-one literal, extended jump and GP `.new` packet with bounded original operands. No raw OEM bytes or original signature/certificates are copied into Git.
 - **Disjoint coverage count for Agent 20-10:** completed controller code 1,200 + RWE callback entry 84 + runtime PIC/GP 64 = **1,348 source-built executable bytes**, all individually reference-exact. The RWE gap `[0x56054,0x560d4)` is **128 file bytes**, including 12 structural zero bytes and 116 unimplemented program bytes (one additional runtime init function), and is NOT counted as reconstructed code.
 - Next RWE candidate begins at file `0x56120`, after three additional NOP words at `[0x56114,0x56120)` that are source-layout boundary instructions/padding. The remaining CDSP image spans multiple large code/data ELF segments and is not fully reconstructed or newly authenticated.
@@ -111,7 +111,7 @@ Agent 20-10 owns only new `cdsp_late_*` sources, its verification tool, focused 
 - **116 new independently generated source-code bytes** at file `[0x56060,0x560d4)` with physical `[0x96cc8060,0x96cc80d4)`, source mapped VMA `[0xc00c8060,0xc00c80d4)`. All emitted bytes compare exactly with the private original pinned CDSP firmware.
 - The decoder-visible routine stores a callback to GP global `0xc036488c`, saves R1:0 and adjusts SP, makes eight **address-checked extended calls** to `0x96ccd8e0`, `0x96cc9788`, `0x96cca8fc`, `0x96cc81e0`, `0x96cc82c8`, `0x96ccda30`, `0x96cca8e8`, `0x96dc3344`, and ends with a local self-branch. It uses the V66 compound packet form for an extended call and stack-pair transfer.
 - Dedicated typed Rust encoders reconstruct the extended GP store, 24-bit bounded PC-relative call fields with explicit parse markers, and stack-pair load/store addressing modes. Unit tests validate every eight call encoding and reject unsupported immediate offsets; no OEM opcodes are pasted in from a reference.
-- LLVM6 with semantically independent Hexagon source `tools/agent20-10-cdsp-rwe-loader.s` reproduces the **112 following bytes exactly**, but shortens the initial forced-extended two-word GP store to one word. `tools/verify-agent20-10-cdsp-rwe-loader.py` explicitly checks that equivalence, decodes **all 29 original instruction words** via Rizin V66 and verifies the original full 116-byte interval with zero mismatches. No claim is made that LLVM6's shortened GP-store packet is instruction-byte identical.
+- LLVM6 with semantically independent Hexagon source `tools/cdsp/late-rwe-loader.s` reproduces the **112 following bytes exactly**, but shortens the initial forced-extended two-word GP store to one word. `tools/cdsp/verify-late-rwe-loader.py` explicitly checks that equivalence, decodes **all 29 original instruction words** via Rizin V66 and verifies the original full 116-byte interval with zero mismatches. No claim is made that LLVM6's shortened GP-store packet is instruction-byte identical.
 - `build_rwe_source_and_layout_prefix()` creates a byte-identical **276-byte contiguous image layout** `[0x56000,0x56114)`, carefully accounting for **264 independently source-generated executable bytes** and **12 structural zeros** `[0x56054,0x56060)`. These structural bytes are not counted as reconstructed executable.
 - New unique independent code since Agent05 across all disjoint regions: 1,200-byte complete controller segment + 264-byte RWE executable prefix = **1,464 source-generated executable bytes**. The remaining 12 bytes are tracked solely as layout fill, and other enormous CDSP executable/zero-filled ELF regions are still unimplemented.
 - Current work still descends from old Agent05 `a02618f…`, not unavailable checkpoint50-integrated head. OEM signature, final full image or hardware behavior remain out of scope.
@@ -121,7 +121,7 @@ Agent 20-10 owns only new `cdsp_late_*` sources, its verification tool, focused 
 - Added **64 independently source-generated Hexagon V66 bytes** `[0x561a0,0x561e0)` (VMA `[0xc00c81a0,0xc00c81e0)`, physical `[0x96cc81a0,0x96cc81e0)`). Their output matches the pinned private CDSP reference exactly, zero differing bytes. This is disjoint from `[0x56000,0x56114)` until `[0x56114,0x561a0)` is authored; no implicit original bytes or zeros count as code.
 - The routine reads two absolute callback pointers through forced **two-word GP-relative V66 addressing**, allocates an eight-byte frame, conditionally branches if callback pointers are null, prepares `R1:0=(4,R16)`, invokes R2, clears its pointer using R2.new, then performs a paired deallocation/return.
 - Checked typed encoders validate packet-relative offsets from the **packet start**, not the individual `if (cmp.eq(R2.new,#0))` consumer; the first branch to `0x96cc81dc` uses a `0x28`-byte packet-relative displacement, the second branch to `0x96cc81d4` uses `0x14` bytes. Rizin V66 confirms 16 original instruction words and both branch targets.
-- An independently authored LLVM6 Hexagon semantic source reassembles **11 words to the exact original encodings**; LLVM6 chooses one-word GP loads rather than the two-word forced-extended source forms and inserts an extra zero extender before the final R2.new store. `tools/verify-agent20-10-cdsp-rwe-registry.py` checks and documents these differences, independently tests the equivalent LLVM semantics, decodes the entire original-order 16-word typed output with Rizin V66 and verifies the private reference. It does **not** misrepresent LLVM6's 60-byte output as byte-for-byte identical to the source's original 64 bytes.
+- An independently authored LLVM6 Hexagon semantic source reassembles **11 words to the exact original encodings**; LLVM6 chooses one-word GP loads rather than the two-word forced-extended source forms and inserts an extra zero extender before the final R2.new store. `tools/cdsp/verify-late-rwe-registry.py` checks and documents these differences, independently tests the equivalent LLVM semantics, decodes the entire original-order 16-word typed output with Rizin V66 and verifies the private reference. It does **not** misrepresent LLVM6's 60-byte output as byte-for-byte identical to the source's original 64 bytes.
 - Total **unique independently generated executable code** across disjoint CDSP ranges: completed controller segment 1,200 bytes + RWE prefix 264 code bytes + callback-registry cleaner 64 = **1,528 bytes**. Structural 12-byte linker fill stays separate. The RWE gap `[0x56114,0x561a0)` contains 140 bytes not yet source-generated (including three NOP words); it will be reconstructed independently next.
 - Git parent is still Agent05 `a02618f...`, not checkpoint-50. This is a portable provisional checkpoint until a verified integrated parent becomes available. A complete CDSP image, original OEM signing material, and real-hardware behavioral validation are out of scope.
 
@@ -130,7 +130,7 @@ Agent 20-10 owns only new `cdsp_late_*` sources, its verification tool, focused 
 - Added **128 independently encoded Hexagon V66 executable bytes** at CDSP MBN file `[0x56120,0x561a0)`, ELF virtual `[0xc00c8120,0xc00c81a0)`, physical `[0x96cc8120,0x96cc81a0)`. Generated bytes compare exactly with pinned source `cdsp.mbn`, with **zero byte differences**.
 - The 32 four-byte instruction words implement frame allocation, forced-extended absolute callback-registry loads, callback-selection branches, an indexed callback lookup, a hardware `loop0`, `.new` conditional stores, guarded indirect calls and `dealloc_return`. Checked typed Rust encoders validate register classes, immediate fields, packet-relative branches and `.new` consumer distance; no original opcode arrays are embedded as output.
 - The preceding **12 bytes** `[0x56114,0x56120)` encode three deterministic Hexagon NOPs. They are classified as **layout/alignment**, not novel source-built callback instructions. With the existing `[0x56054,0x56060)` 12-byte structural zero fill, the entire RWE file interval `[0x56000,0x561e0)` is **480 contiguous byte-identical bytes**, accounted as **456 independently generated executable code + 24 structural layout/NOP bytes**. The independently reconstructed short controller `[0x55000,0x554b0)` adds another 1,200 executable bytes, bringing this agent's independently authored **disjoint executable total to 1,656 bytes** (1,200+456), and no other CDSP image content is implied by that total.
-- `tools/agent20-10-cdsp-rwe-dispatch.s` expresses the full function independently in LLVM6 Hexagon assembly. LLVM6 gives the same **128-byte semantic output**, but chooses a compact first registry load, inserts an extender for R1=0x320 and reorders two guarded packets; the verifier checks **23 unchanged original instruction words**, preserves and discloses all other forms. Rizin V66 decodes all **32 source-built original-order words**, verifies packet boundaries and five key branch/loop destinations. No claim is made that LLVM6's raw 128 bytes exactly match all original 128 bytes.
+- `tools/cdsp/late-rwe-dispatch.s` expresses the full function independently in LLVM6 Hexagon assembly. LLVM6 gives the same **128-byte semantic output**, but chooses a compact first registry load, inserts an extender for R1=0x320 and reorders two guarded packets; the verifier checks **23 unchanged original instruction words**, preserves and discloses all other forms. Rizin V66 decodes all **32 source-built original-order words**, verifies packet boundaries and five key branch/loop destinations. No claim is made that LLVM6's raw 128 bytes exactly match all original 128 bytes.
 - Reproduce the emitter and full layout:
 
   ```sh
@@ -138,7 +138,7 @@ Agent 20-10 owns only new `cdsp_late_*` sources, its verification tool, focused 
   cargo run --offline --locked -p firmware-tools --bin cdsp-late-callback-dispatch -- verify /private/cdsp.mbn
   cargo run --offline --locked -p firmware-tools --bin cdsp-late-callback-dispatch -- emit-prefix /tmp/cdsp-rwe-480.bin
   cargo run --offline --locked -p firmware-tools --bin cdsp-late-callback-dispatch -- verify-prefix /private/cdsp.mbn
-  python3 tools/verify-agent20-10-cdsp-rwe-dispatch.py \
+  python3 tools/cdsp/verify-late-rwe-dispatch.py \
     --llvm-mc /private/llvm6/bin/llvm-mc --rz-asm /private/rz-asm \
     --generated /tmp/cdsp-56120.bin --prefix /tmp/cdsp-rwe-480.bin \
     --reference /private/cdsp.mbn
@@ -159,7 +159,7 @@ Agent 20-10 owns only new `cdsp_late_*` sources, its verification tool, focused 
   cargo run --offline --locked -p firmware-tools --bin cdsp-late-callback-sweeper -- verify /private/cdsp.mbn
   cargo run --offline --locked -p firmware-tools --bin cdsp-late-callback-sweeper -- emit-prefix /tmp/cdsp-rwe-560.bin
   cargo run --offline --locked -p firmware-tools --bin cdsp-late-callback-sweeper -- verify-prefix /private/cdsp.mbn
-  python3 tools/verify-agent20-10-cdsp-rwe-sweeper.py \
+  python3 tools/cdsp/verify-late-rwe-sweeper.py \
     --llvm-mc /path/to/llvm6/bin/llvm-mc --rz-asm /path/to/rz-asm \
     --generated /tmp/cdsp-rwe-sweeper-80.bin --prefix /tmp/cdsp-rwe-560.bin \
     --reference /private/cdsp.mbn
@@ -172,7 +172,7 @@ Agent 20-10 owns only new `cdsp_late_*` sources, its verification tool, focused 
 - Added 152 independently emitted Hexagon V66 executable bytes at `cdsp.mbn` file `[0x56230,0x562c8)` (ELF virtual `[0xc00c8230,0xc00c82c8)`, physical `[0x96cc8230,0x96cc82c8)`). Source-generated bytes compare exactly to the pinned private CDSP reference: **0 mismatches**.
 - The routine performs conditional callback registration and a frame-linked multiplexer: it tests R0 for `-1`, saves R17:16/R19:18/R21:20, invokes the controller service at physical `0x96dfd9a0`, computes `R17=mpyi(R16,R17)`, checks a GP-relative callback status byte at `0xc0364128`, optionally calls the dispatcher at `0x96cc8120`, traverses callback pointers through R20, and loops over R2.new results until either completion or fallback. It then returns with three saved register pairs restored.
 - `build_rwe_prefix_through_poll()` is **712 byte-identical file bytes** at `[0x56000,0x562c8)`, accounted as **688 independently reconstructed executable code bytes and 24 separate layout NOP/fill bytes**. The short controller executable `[0x55000,0x554b0)` adds 1,200 code bytes, making **1,888 independently generated executable bytes in two disjoint ranges** (plus 24 layout bytes).
-- `tools/agent20-10-cdsp-rwe-poll.s` is an independently authored Hexagon v60/V66-compatible LLVM6 source. LLVM6 produces **144 bytes** vs the OEM's 152 (two forced extenders in the original), with **32 of 38 original instruction words** exactly matching. A conditional branch displacement also changes because the source is shortened. This is a semantic cross-check, **not** an assertion that the LLVM6 text reproduces the original bytes in full. Rizin V66 independently verifies all **38 original packet-order words** and all significant call/loop destinations. A source-built Rust emitter with checked operands preserves the actual firmware packet widths.
+- `tools/cdsp/late-rwe-poll.s` is an independently authored Hexagon v60/V66-compatible LLVM6 source. LLVM6 produces **144 bytes** vs the OEM's 152 (two forced extenders in the original), with **32 of 38 original instruction words** exactly matching. A conditional branch displacement also changes because the source is shortened. This is a semantic cross-check, **not** an assertion that the LLVM6 text reproduces the original bytes in full. Rizin V66 independently verifies all **38 original packet-order words** and all significant call/loop destinations. A source-built Rust emitter with checked operands preserves the actual firmware packet widths.
 - The callback emitter checks direct-call split displacements (the upper field is `(delta >> 15)`, not `>>16`), and unit tests reject unsupported addresses/registers, GP stores and invalid backedges. This fixes a previous local test failure.
 - To reproduce verification (original reference is private, never copied into Git):
 
@@ -181,7 +181,7 @@ Agent 20-10 owns only new `cdsp_late_*` sources, its verification tool, focused 
   cargo run --offline --locked -p firmware-tools --bin cdsp-late-callback-poll -- verify /private/cdsp.mbn
   cargo run --offline --locked -p firmware-tools --bin cdsp-late-callback-poll -- emit-prefix /tmp/cdsp-rwe-712.bin
   cargo run --offline --locked -p firmware-tools --bin cdsp-late-callback-poll -- verify-prefix /private/cdsp.mbn
-  python3 tools/verify-agent20-10-cdsp-rwe-poll.py \
+  python3 tools/cdsp/verify-late-rwe-poll.py \
     --llvm-mc /private/llvm6/bin/llvm-mc --rz-asm /private/rz-asm \
     --generated /tmp/cdsp-rwe-poll-152.bin --prefix /tmp/cdsp-rwe-712.bin \
     --reference /private/cdsp.mbn
@@ -199,7 +199,7 @@ Agent 20-10 owns only new `cdsp_late_*` sources, its verification tool, focused 
 - Checked encoder tests reject unsupported register/value/branch offsets, with explicit overflow and packet marker rules. Reproduce using `cargo run --offline --locked -p firmware-tools --bin cdsp-late-callback-completion -- verify-prefix /private/cdsp.mbn`, or direct two-assembler check:
 
   ```sh
-  python3 tools/verify-agent20-10-cdsp-rwe-finish.py \
+  python3 tools/cdsp/verify-late-rwe-finish.py \
     --llvm-mc /private/llvm6/bin/llvm-mc --rz-asm /private/rz-asm \
     --generated /private/callback-finish-80.bin \
     --prefix /private/cdsp-rwe-800.bin --reference /private/cdsp.mbn
@@ -213,7 +213,7 @@ Agent 20-10 owns only new `cdsp_late_*` sources, its verification tool, focused 
 - The new routine checks a GP-relative initialization pointer at `0xfe0ad660`, sets up a 48-byte stack frame, saves live registers, conditionally initializes three seed-state globals at `0xc0364158`, `0xc0364150`, `0xc0364148`, and branches to exit at physical `0x96cc8438` when already initialized. Full function continues beyond `0x56364` and **is not yet marked complete**.
 - LLVM6 semantic source yields **64 bytes**, while the original uses **68** due to a forced 32-bit GP load and different packet scheduling. Thirteen source instruction encodings match LLVM6 unchanged; this does **not** establish binary-identical LLVM assembly. Rizin V66 independently validates all 17 original-order packet words and the physical pointer/branch targets.
 - Contiguous RWE prefix `[0x56000,0x56364)` = **868 file bytes**, including **836 generated executable bytes and 32 distinct NOP/fill bytes**. The separate complete short controller program `[0x55000,0x554b0)` contributes another **1,200 source-derived executable bytes**, so Agent 20-10 total executable coverage is now **2,036 bytes** across disjoint regions, with no OEM authentication or opaque executable payload counted.
-- Focused checked-operand unit tests reject invalid GP pointers, register numbers, conditional branch locations and unsupported frame sizes. Run `cdsp-late-rng-prologue verify-prefix` with the pinned private MBN, plus `tools/verify-agent20-10-cdsp-rng-prefix.py` with LLVM6 and Rizin V66. Next missing code: file `0x56364` within the same seed-update routine.
+- Focused checked-operand unit tests reject invalid GP pointers, register numbers, conditional branch locations and unsupported frame sizes. Run `cdsp-late-rng-prologue verify-prefix` with the pinned private MBN, plus `tools/cdsp/verify-late-rng-prefix.py` with LLVM6 and Rizin V66. Next missing code: file `0x56364` within the same seed-update routine.
 
 ## Checkpoint 18 — seeded callback registration and GP status writes, 2,128 executable bytes
 
@@ -221,7 +221,7 @@ Agent 20-10 owns only new `cdsp_late_*` sources, its verification tool, focused 
 - Semantic operations: read `UPCYCLELO` into R22, invoke timing routine at physical `0x96dc0540`, conditionally load/update GP byte at `0xc0364140`, run guarded poll callback at `0x96cc8230`, update the three seed-state words addressed through R19/R18/R20 and set the completed-init byte to R23. Branch from the `P0.new` packet at `0x96cc837c` to `0x96cc83c0` when already initialized.
 - LLVM6 independently assembles an 84-byte semantic equivalent to the source's 92-byte original-order V66 packet layout: it omits two forced GP immexts and adjusts several packet markers/call placements. **Fifteen unchanged instruction words** are verified against its semantic compilation. Rizin V66 independently verifies all **23** original packet words, physical branch/call targets and GP addresses. Direct pinned reference comparison passes with zero differences; LLVM6 is not misrepresented as an unchanged full binary reproduction.
 - Contiguous RWE file prefix is now `[0x56000,0x563c0)` = **960 file bytes**, consisting of **928 independently emitted executable bytes plus 32 NOP/fill bytes**. The other disjoint, fully rebuilt 1,200-byte controller segment yields **2,128 cumulative independently generated CDSP executable bytes** in this agent.
-- Unit tests check checked operand ranges and packet-relative branch targets; all direct emitted bytes are compared against original `cdsp.mbn`. Reproduce with `cdsp-late-rng-init verify-prefix /private/cdsp.mbn` and `tools/verify-agent20-10-cdsp-rng-init.py --llvm-mc /private/llvm6/bin/llvm-mc --rz-asm /private/rz-asm --generated /private/rng-state-92.bin --prefix /private/cdsp-rwe-960.bin --reference /private/cdsp.mbn`.
+- Unit tests check checked operand ranges and packet-relative branch targets; all direct emitted bytes are compared against original `cdsp.mbn`. Reproduce with `cdsp-late-rng-init verify-prefix /private/cdsp.mbn` and `tools/cdsp/verify-late-rng-init.py --llvm-mc /private/llvm6/bin/llvm-mc --rz-asm /private/rz-asm --generated /private/rng-state-92.bin --prefix /private/cdsp-rwe-960.bin --reference /private/cdsp.mbn`.
 - Next code at file `0x563c0`: the data-dependent shift/XOR state-update loop and a callback dispatch/return path; the full function starting at `0x56320` remains **incomplete**. This branch remains **provisional** because it derives from Agent05's CDSP checkpoint 17, not checkpoint 50 integration.
 
 ## Checkpoint 19 — complete seeded CDSP controller update and return, 2,264 executable bytes
@@ -244,12 +244,12 @@ Agent 20-10 owns only new `cdsp_late_*` sources, its verification tool, focused 
   controller segment `[0x55000,0x554b0)` contributes 1,200 executable bytes,
   for **2,264 independently generated code bytes** in two disjoint regions.
   Structural NOPs are not counted as functional executable code.
-- Independent LLVM6 semantic source `tools/agent20-10-cdsp-rwe-seed-update.s`
+- Independent LLVM6 semantic source `tools/cdsp/late-rwe-seed-update.s`
   compiles to 136 bytes, with **24 original-order matching instruction-word
   encodings**. LLVM6 reschedules an extended GP assignment and uses different
   packet parse markers and branch placement for some words; it is not claimed
   to be an exact, unchanged full LLVM6 binary reassembly.
-  `tools/verify-agent20-10-cdsp-rng-update.py` independently checks those
+  `tools/cdsp/verify-late-rng-update.py` independently checks those
   24 unchanged LLVM word encodings, all **34 original source-built words**
   decoded by Rizin V66 in their authentic packet order, both physical call
   targets and the conditional backedge, and full byte equality of the
@@ -262,7 +262,7 @@ Agent 20-10 owns only new `cdsp_late_*` sources, its verification tool, focused 
   cargo run --offline --locked -p firmware-tools --bin cdsp-late-rng-update -- verify /private/cdsp.mbn
   cargo run --offline --locked -p firmware-tools --bin cdsp-late-rng-update -- verify-seed /private/cdsp.mbn
   cargo run --offline --locked -p firmware-tools --bin cdsp-late-rng-update -- verify-prefix /private/cdsp.mbn
-  python3 tools/verify-agent20-10-cdsp-rng-update.py \
+  python3 tools/cdsp/verify-late-rng-update.py \
     --llvm-mc /private/llvm6/bin/llvm-mc --rz-asm /private/rz-asm \
     --generated /private/rng-update-136.bin \
     --whole /private/seed-full-296.bin --prefix /private/cdsp-rwe-1096.bin \
@@ -299,7 +299,7 @@ Agent 20-10 owns only new `cdsp_late_*` sources, its verification tool, focused 
   structural fill. The next unimplemented CDSP routine begins at `0x56464`.
 - Unit tests reject unsupported physical branch targets, operand registers,
   and wrong duplex sizes. Run `cdsp-late-seed-handoff verify-prefix` with the
-  private pinned CDSP, and `tools/verify-agent20-10-cdsp-seed-handoff.py` with
+  private pinned CDSP, and `tools/cdsp/verify-late-seed-handoff.py` with
   LLVM6/Rizin V66 for independent confirmation. Complete offline Rust,
   Python, and release checks pass before publication.
 - This branch is still **provisional from Agent05's old CDSP checkpoint 17**,
@@ -339,7 +339,7 @@ Agent 20-10 owns only new `cdsp_late_*` sources, its verification tool, focused 
   ```sh
   cargo run --offline --locked -p firmware-tools --bin cdsp-late-atomic-counter -- verify /private/cdsp.mbn
   cargo run --offline --locked -p firmware-tools --bin cdsp-late-atomic-counter -- verify-prefix /private/cdsp.mbn
-  python3 tools/verify-agent20-10-cdsp-atomic-counter.py \
+  python3 tools/cdsp/verify-late-atomic-counter.py \
       --llvm-mc /private/llvm6/bin/llvm-mc --rz-asm /private/rz-asm \
       --generated /private/atomic-counter-84.bin --prefix /private/cdsp-rwe-1208.bin \
       --reference /private/cdsp.mbn
@@ -384,7 +384,7 @@ Agent 20-10 owns only new `cdsp_late_*` sources, its verification tool, focused 
   ```sh
   cargo run --offline --locked -p firmware-tools --bin cdsp-late-callback-service -- verify /private/cdsp.mbn
   cargo run --offline --locked -p firmware-tools --bin cdsp-late-callback-service -- verify-prefix /private/cdsp.mbn
-  python3 tools/verify-agent20-10-cdsp-callback-service.py \
+  python3 tools/cdsp/verify-late-callback-service.py \
     --llvm-mc /private/llvm6/bin/llvm-mc --rz-asm /private/rz-asm \
     --generated /private/callback-service-136.bin \
     --prefix /private/cdsp-rwe-1344.bin --reference /private/cdsp.mbn
@@ -422,7 +422,7 @@ Agent 20-10 owns only new `cdsp_late_*` sources, its verification tool, focused 
   GP addresses, multiplier values and branch targets. Independent check:
 
   ```sh
-  python3 tools/verify-agent20-10-cdsp-gp-multiplier.py \
+  python3 tools/cdsp/verify-late-gp-multiplier.py \
     --llvm-mc /private/llvm6/bin/llvm-mc --rz-asm /private/rz-asm \
     --generated /private/gp-multiplier-40.bin \
     --prefix /private/cdsp-rwe-1384.bin --reference /private/cdsp.mbn
@@ -458,7 +458,7 @@ Agent 20-10 owns only new `cdsp_late_*` sources, its verification tool, focused 
   Independent check:
 
   ```sh
-  python3 tools/verify-agent20-10-cdsp-null-callback.py \
+  python3 tools/cdsp/verify-late-null-callback.py \
     --llvm-mc /private/llvm6/bin/llvm-mc --rz-asm /private/rz-asm \
     --generated /private/null-callback-32.bin \
     --prefix /private/cdsp-rwe-1424.bin --reference /private/cdsp.mbn
@@ -475,7 +475,7 @@ Agent 20-10 owns only new `cdsp_late_*` sources, its verification tool, focused 
 - The function initializes a counter and output pointer, checks unsigned length, compares signed byte input through a bounded loop, returns zero on an exhausted/invalid input path, and uses a backward conditional branch to physical `0x96cc8594`.
 - Full contiguous RWE source-built layout `[0x56000,0x565c0)` = **1,472 bytes**, containing **1,432 reconstructed executable bytes and 40 separately classified alignment/fill bytes**. With the disjoint complete controller segment `[0x55000,0x554b0)` = 1,200 executable bytes, this agent has **2,632 independently generated executable bytes**.
 - Independently written LLVM6 fixture produces 48 bytes. Exactly 10 of the 12 instruction words are unchanged; LLVM6 orders the two-word predicate packet branch-first, whereas the OEM original places predicate first. This is a packet scheduling/marker distinction, not evidence of different semantics. Rizin Hexagon V66 separately decodes all 12 original-order words, both early zero returns and physical branch targets.
-- Added narrow, checked Hexagon constructors for signed byte loads/postincrement, initial packed register zero, predicate/new-value branch and loop backedge, plus `cdsp-late-bounded-compare` CLI and independent `tools/verify-agent20-10-cdsp-bounded-compare.py`.
+- Added narrow, checked Hexagon constructors for signed byte loads/postincrement, initial packed register zero, predicate/new-value branch and loop backedge, plus `cdsp-late-bounded-compare` CLI and independent `tools/cdsp/verify-late-bounded-compare.py`.
 - Direct byte comparison and complete prefix comparison pass with **zero differences** against pinned private `cdsp.mbn` SHA-256 `febeae7b8e47bad4eeabc159a3c24b74cda26dfa12b384c31de5de30817e06ea`.
 - The next function starts at file `0x565c0`, physical `0x96cc85c0`; its trailing 4-byte linker NOP belongs to layout, not executable source. Work remains on older Agent 05 base, not the unavailable checkpoint-50 integration.
 
@@ -484,7 +484,7 @@ Verification commands (reference original outside Git):
 ```sh
 cargo run --offline --locked -p firmware-tools --bin cdsp-late-bounded-compare -- verify /private/cdsp.mbn
 cargo run --offline --locked -p firmware-tools --bin cdsp-late-bounded-compare -- verify-prefix /private/cdsp.mbn
-python3 tools/verify-agent20-10-cdsp-bounded-compare.py \
+python3 tools/cdsp/verify-late-bounded-compare.py \
   --llvm-mc /private/llvm6/bin/llvm-mc --rz-asm /private/rz-asm \
   --generated /private/bounded-48.bin --prefix /private/cdsp-rwe-1472.bin \
   --reference /private/cdsp.mbn
@@ -505,7 +505,7 @@ Independent checks:
 ```sh
 cargo run --offline --locked -p firmware-tools --bin cdsp-late-copy-delegate -- verify /private/cdsp.mbn
 cargo run --offline --locked -p firmware-tools --bin cdsp-late-copy-delegate -- verify-prefix /private/cdsp.mbn
-python3 tools/verify-agent20-10-cdsp-copy-delegate.py \
+python3 tools/cdsp/verify-late-copy-delegate.py \
   --llvm-mc /private/llvm6/bin/llvm-mc --rz-asm /private/rz-asm \
   --generated /private/copy-delegate-60.bin --prefix /private/cdsp-rwe-1536.bin \
   --reference /private/cdsp.mbn
@@ -525,7 +525,7 @@ Check independently:
 ```sh
 cargo run --offline --locked -p firmware-tools --bin cdsp-late-large-prologue -- verify /private/cdsp.mbn
 cargo run --offline --locked -p firmware-tools --bin cdsp-late-large-prologue -- verify-prefix /private/cdsp.mbn
-python3 tools/verify-agent20-10-cdsp-large-prologue.py \
+python3 tools/cdsp/verify-late-large-prologue.py \
   --llvm-mc /private/llvm6/bin/llvm-mc --rz-asm /private/rz-asm \
   --generated /private/controller-80.bin --prefix /private/cdsp-rwe-1616.bin \
   --reference /private/cdsp.mbn
@@ -535,14 +535,14 @@ python3 tools/verify-agent20-10-cdsp-large-prologue.py \
 
 - Reconstructed **72 independently source-generated Hexagon V66 executable bytes** at file `[0x56650,0x56698)` (VMA `[0xc00c8650,0xc00c8698)`, physical `[0x96cc8650,0x96cc8698)`), extending the same **incomplete larger controller routine** beyond checkpoint 27. The first 9 words independently LLVM6-assemble byte-exactly; the latter 9 words are equivalent but LLVM6 reorders predicate/new-value packets and chooses different packet markers. No claim of an unchanged LLVM6 binary for those latter words.
 - The sequence calls shared copy service `0x96cd0480`, initializes a handle, checks `R16.new` against zero with original branch to physical `0x96cc88bc`, reads the active stream bank, computes the upper bank `R25=R24+0x4000`, and checks unsigned bounds `P0=cmp.gtu(R23,R24)`, `P0=!cmp.gtu(R24,R2)`, `P0=cmp.gtu(R23,R25)`, `P0=!cmp.gtu(R25,R2)`. `P0.new` exits target `0x96cc8688`, `0x96cc8698`, `0x96cc86c0` using original explicit packet boundaries.
-- **Corrected typed encode fields** for the unsigned comparison and `P0.new` taken branch after strict byte comparison; added five exact-word regression assertions plus invalid operand/branch tests. `tools/agent20-10-cdsp-rwe-controller-validate.s` is **independently authored** Hexagon LLVM6 semantic assembly with physically correct target spacing, and `tools/verify-agent20-10-cdsp-rwe-controller-validate.py` cross-checks the complete 18-word original Rizin V66 packet order, the LLVM6 semantic instruction multiset and the pinned original firmware bytes.
+- **Corrected typed encode fields** for the unsigned comparison and `P0.new` taken branch after strict byte comparison; added five exact-word regression assertions plus invalid operand/branch tests. `tools/cdsp/late-rwe-controller-validate.s` is **independently authored** Hexagon LLVM6 semantic assembly with physically correct target spacing, and `tools/cdsp/verify-late-rwe-controller-validate.py` cross-checks the complete 18-word original Rizin V66 packet order, the LLVM6 semantic instruction multiset and the pinned original firmware bytes.
 - The new typed emitter plus previously rebuilt prefix compare **byte-identically** with pinned private `cdsp.mbn`, zero mismatches. Contiguous file layout `[0x56000,0x56698)` = **1,688 bytes**, accounting for **1,644 independently generated executable bytes** and **44 structural NOP/fill bytes**. Combined with disjoint first controller `[0x55000,0x554b0)` = 1,200 executable bytes, cumulative source-derived CDSP executable count is **2,844 bytes**. Unknown CDSP executable segments, OEM authentication bytes, and hardware execution behavior remain unresolved.
 - Reproduce independently (original reference must remain outside Git):
 
   ```sh
   cargo run --offline --locked -p firmware-tools --bin cdsp-late-controller-validate -- verify /private/cdsp.mbn
   cargo run --offline --locked -p firmware-tools --bin cdsp-late-controller-validate -- verify-prefix /private/cdsp.mbn
-  python3 tools/verify-agent20-10-cdsp-rwe-controller-validate.py \
+  python3 tools/cdsp/verify-late-rwe-controller-validate.py \
     --llvm-mc /private/llvm6/bin/llvm-mc --rz-asm /private/rz-asm \
     --generated /private/controller-validate-72.bin \
     --prefix /private/cdsp-rwe-1688.bin --reference /private/cdsp.mbn
@@ -555,11 +555,11 @@ python3 tools/verify-agent20-10-cdsp-large-prologue.py \
 - Added **40 independently generated Hexagon V66 executable bytes** at CDSP file `[0x56698,0x566c0)` (physical `[0x96cc8698,0x96cc86c0)`, VMA `[0xc00c8698,0xc00c86c0)`). The first pair of packets copy GP-buffer pointers and call physical helpers `0x96cd1020` and `0x96cd0480`; a second packet loads the returned controller handle, performs a `.new` equality test and branches backward to `0x96cc8670` or forward to error exit `0x96cc88bc`. This is part of the larger controller function beginning at `0x56600`, not a standalone function.
 - The standalone `cdsp_late_controller_transfer` module uses checked operand encodings for two duplex input-pointer copies, both relative calls, handle loads and signed `.new` backedge. It rejects unsupported sources, base registers, offsets and branch targets. No OEM opcode array or reference-binary byte imports are present in generated code.
 - The entire RWE prefix `[file 0x56000,0x566c0)` matches **1,728 source-generated file bytes**: **1,684 executable bytes** and **44 distinctly counted NOP/fill layout bytes**. With the separate complete controller `[0x55000,0x554b0)` = 1,200 executable bytes, the agent's independently authored cumulative executable coverage is **2,884 bytes**, disjoint between two segments, and **0 reference byte mismatches**.
-- Independent LLVM6 source `tools/agent20-10-cdsp-rwe-controller-transfer.s` emits all ten equivalent Hexagon V66 instructions. The assembler orders each two-word call/duplex packet call-first whereas original Hexagon code places duplex first; after a documented swap **8/10 instruction words match unchanged**. The two call fields differ by one instruction position because the calls move by four bytes; both target the same absolute physical addresses. Rizin V66 independently decodes **all ten original-order words**, checks the signed retry loop, error jump and both call targets. No unsupported assertion of unchanged full LLVM assembly is made.
+- Independent LLVM6 source `tools/cdsp/late-rwe-controller-transfer.s` emits all ten equivalent Hexagon V66 instructions. The assembler orders each two-word call/duplex packet call-first whereas original Hexagon code places duplex first; after a documented swap **8/10 instruction words match unchanged**. The two call fields differ by one instruction position because the calls move by four bytes; both target the same absolute physical addresses. Rizin V66 independently decodes **all ten original-order words**, checks the signed retry loop, error jump and both call targets. No unsupported assertion of unchanged full LLVM assembly is made.
 - `cargo run --offline --locked -p firmware-tools --bin cdsp-late-controller-transfer -- verify-prefix /private/cdsp.mbn` and direct `verify` pass with pinned original SHA-256 `febeae7b8e47bad4eeabc159a3c24b74cda26dfa12b384c31de5de30817e06ea`. Full Rust regression suite **245 tests**, 23 Python tests and release build pass. Independent validation:
 
   ```sh
-  python3 tools/verify-agent20-10-cdsp-rwe-controller-transfer.py \
+  python3 tools/cdsp/verify-late-rwe-controller-transfer.py \
     --llvm-mc /private/llvm6/bin/llvm-mc --rz-asm /private/rz-asm \
     --generated /private/controller-transfer-40.bin \
     --prefix /private/controller-rwe-1728.bin \
@@ -573,12 +573,12 @@ python3 tools/verify-agent20-10-cdsp-large-prologue.py \
 - Added **24 original-byte-identical source-generated Hexagon V66 instruction bytes** at CDSP file `[0x566c0,0x566d8)` (physical `[0x96cc86c0,0x96cc86d8)`, virtual `[0xc00c86c0,0xc00c86d8)`). This continues the large controller routine from checkpoints 27–29, not a complete function.
 - The six checked operations initialize `R25:24=combine(#1,#7)`, set R18 to sixteen, branch when R17 is zero to physical `0x96cc8734`, compute `R3=cl0(R17)`, set `R2=add(R18,-16)`, and branch to the insufficient-capacity exit at `0x96cc8890` when unsigned `R24 > R2.new` is false. Hexagon parse markers and `.new` hazards are explicitly preserved.
 - `cdsp_late_controller_bitloop` emits a checked six-instruction Rust fragment from typed operands and explicit short branch displacements. The source bytes and **1,752-byte** full RWE prefix compare exactly to pinned `cdsp.mbn` SHA-256 `febeae7b8e47bad4eeabc159a3c24b74cda26dfa12b384c31de5de30817e06ea`, with zero differences. The prefix contains **1,708 executable code bytes** and **44 separate NOP/fill bytes**. Adding the disjoint complete 1,200-byte controller segment gives **2,908 independently reconstructed executable bytes** total.
-- Independently authored `tools/agent20-10-cdsp-rwe-controller-bitloop-prefix.s` compiles successfully with LLVM6, producing six semantically identical V66 instructions. Four instructions match unchanged; LLVM6 combines the initial two instructions into a different packet and relocates a fused short branch by one packet, so **full LLVM6 binary identity is not claimed**. Rizin V66 validates all six original source-built instructions and both physical branch destinations. The independent verifier enforces matching semantic multisets, exact OEM bytes, and prefix source/fill separation.
+- Independently authored `tools/cdsp/late-rwe-controller-bitloop-prefix.s` compiles successfully with LLVM6, producing six semantically identical V66 instructions. Four instructions match unchanged; LLVM6 combines the initial two instructions into a different packet and relocates a fused short branch by one packet, so **full LLVM6 binary identity is not claimed**. Rizin V66 validates all six original source-built instructions and both physical branch destinations. The independent verifier enforces matching semantic multisets, exact OEM bytes, and prefix source/fill separation.
 - **Tests:** full offline workspace **247 Rust tests**, 23 Python tests, and the full release build pass. Both standalone and joined-prefix `verify` commands pass with the reference outside Git. Checked encoder unit tests reject incorrect operand registers and alternative branch destinations.
 
   ```sh
   cargo run --offline --locked -p firmware-tools --bin cdsp-late-controller-bitloop -- verify-prefix /private/cdsp.mbn
-  python3 tools/verify-agent20-10-cdsp-rwe-controller-bitloop.py \
+  python3 tools/cdsp/verify-late-rwe-controller-bitloop.py \
     --llvm-mc /private/llvm6/bin/llvm-mc --rz-asm /private/rz-asm \
     --generated /private/controller-bitloop-24.bin \
     --prefix /private/controller-rwe-1752.bin --reference /private/cdsp.mbn
@@ -590,14 +590,14 @@ python3 tools/verify-agent20-10-cdsp-large-prologue.py \
 
 - Completed the **92-byte** iterator body at CDSP file `[0x566d8,0x56734)`, physical `[0x96cc86d8,0x96cc8734)`, continuing the six-instruction entry from checkpoint 30. The combined bitloop entry and body are **116 independently source-encoded bytes** in `cdsp_late_controller_bitloop.rs`; the enclosing controller function is still incomplete.
 - Code uses typed checked Hexagon V66 encodings for bit-mask scanning, `ct0`, `minu`, conditional shifts, signed bitplane accumulation, extended masks `0x3ffffe`, `0x70000000` and `0xc0000000`, a call to physical `0x96dc0aac`, and a packet-relative retry branch to `0x96cc86cc`. Invalid operand pairs, constants and branch targets are rejected by tests.
-- Independent LLVM6 source `tools/agent20-10-cdsp-rwe-controller-bitloop-body.s` assembles the same operations. **12 of 23 instruction words match unchanged**; remaining LLVM6 differences arise from packet marker/scheduler decisions, not byte matches, and are explicitly identified. `tools/verify-agent20-10-cdsp-rwe-controller-bitloop-body.py` uses Rizin V66 to decode **all 23 original packet words**, call target and retry edge. Exact source-generated Rust body/prefix comparison against the original pinned `cdsp.mbn` passes with **zero differing bytes**.
+- Independent LLVM6 source `tools/cdsp/late-rwe-controller-bitloop-body.s` assembles the same operations. **12 of 23 instruction words match unchanged**; remaining LLVM6 differences arise from packet marker/scheduler decisions, not byte matches, and are explicitly identified. `tools/cdsp/verify-late-rwe-controller-bitloop-body.py` uses Rizin V66 to decode **all 23 original packet words**, call target and retry edge. Exact source-generated Rust body/prefix comparison against the original pinned `cdsp.mbn` passes with **zero differing bytes**.
 - RWE prefix `[file 0x56000,0x56734)` is **1,844 file bytes**, containing **1,800 independently generated executable bytes** plus **44 separately counted alignment/fill bytes**. The short complete controller `[file 0x55000,0x554b0)` contributes another 1,200 independent executable bytes, so the agent's cumulative executable coverage is **3,000 bytes**, disjoint between the two segments.
 - In this session full offline workspace **248 Rust tests**, **23 Python tests**, focused source tests, reference comparison and release build passed. Reference CDSP SHA-256 `febeae7b8e47bad4eeabc159a3c24b74cda26dfa12b384c31de5de30817e06ea` is outside Git.
 - **Next missing byte:** `0x56734`, physical `0x96cc8734`, still within the controller function begun at `0x56600`. Output is not a signed or boot-validated firmware; the branch still originates from Agent 05 older CDSP history, not unavailable checkpoint 50.
 
 ```sh
 cargo run --offline --locked -p firmware-tools --bin cdsp-late-controller-bitloop -- verify-prefix /private/cdsp.mbn
-python3 tools/verify-agent20-10-cdsp-rwe-controller-bitloop-body.py \
+python3 tools/cdsp/verify-late-rwe-controller-bitloop-body.py \
  --llvm-mc /private/llvm6/bin/llvm-mc --rz-asm /private/rz-asm \
  --generated /private/controller-bitloop-body-92.bin \
  --prefix /private/controller-rwe-1844.bin --reference /private/cdsp.mbn
@@ -639,7 +639,7 @@ python3 tools/verify-agent20-10-cdsp-rwe-controller-bitloop-body.py \
 
 ```sh
 cargo run --offline --locked -p firmware-tools --bin cdsp-late-controller-mask-setup -- verify-prefix /private/cdsp.mbn
-python3 tools/verify-agent20-10-cdsp-controller-mask-setup.py \
+python3 tools/cdsp/verify-late-controller-mask-setup.py \
   --llvm-mc /private/llvm6/bin/llvm-mc --rz-asm /private/rz-asm \
   --generated /private/controller-mask-80.bin \
   --prefix /private/controller-rwe-1924.bin \
@@ -677,7 +677,7 @@ python3 tools/verify-agent20-10-cdsp-controller-mask-setup.py \
 
 ```sh
 cargo run --offline --locked -p firmware-tools --bin cdsp-late-controller-mode-guard -- verify-prefix /private/cdsp.mbn
-python3 tools/verify-agent20-10-cdsp-controller-mode-guard.py \
+python3 tools/cdsp/verify-late-controller-mode-guard.py \
   --llvm-mc /private/llvm6/bin/llvm-mc --rz-asm /private/rz-asm \
   --generated /private/mode-guard-48.bin \
   --prefix /private/controller-rwe-1972.bin \
@@ -689,13 +689,13 @@ python3 tools/verify-agent20-10-cdsp-controller-mode-guard.py \
 - Independently encoded **88 Hexagon V66 executable bytes** at CDSP file `[0x567b4,0x5680c)`, physical `[0x96cc87b4,0x96cc880c)`, the second bit-plane scanner inside the controller function begun at `0x56600`.
 - `cdsp_late_controller_secondary_bitloop.rs` reconstructs `R2=or(R19,R24)`, checked set-bit/count-trailing-zero/minimum operations, signed shift accumulators, extended protocol flags `0x77000000` and `0xc0000000`, direct helper call at physical `0x96dc0aac`, and the packet-relative guarded backedge to `0x96cc87a8`. All register pairs, immediate values and destinations are checked by the typed narrow constructors.
 - Standalone 88-byte source-built output and full `[0x56000,0x5680c)` prefix match pinned original `cdsp.mbn` with **zero differences**. The joined prefix is **2,060 file bytes = 2,016 independent executable + 44 structural NOP/layout bytes**; short completed controller `[0x55000,0x554b0)` contributes a further 1,200 independent executable bytes, totaling **3,216 independently reconstructed executable bytes**.
-- Independently authored LLVM6 V60 assembly fixture produces all **22 semantically identical instructions**; 11 original instruction words remain identical, the other eleven differ by architecture packet marker scheduling. `tools/verify-agent20-10-cdsp-controller-secondary-bitloop.py` uses Rizin V66 to verify the entire 22-word original packet structure, target `0x96dc0aac`, loop target `0x96cc87a8` and two full-width immext constants. Unavailable hardware semantics are not claimed by this instruction-level byte match.
+- Independently authored LLVM6 V60 assembly fixture produces all **22 semantically identical instructions**; 11 original instruction words remain identical, the other eleven differ by architecture packet marker scheduling. `tools/cdsp/verify-late-controller-secondary-bitloop.py` uses Rizin V66 to verify the entire 22-word original packet structure, target `0x96dc0aac`, loop target `0x96cc87a8` and two full-width immext constants. Unavailable hardware semantics are not claimed by this instruction-level byte match.
 - Full offline Rust test suite **254 tests passed**, Python **23 tests passed**, release build succeeded. The next byte `0x5680c` remains inside the same controller function.
 - This checkpoint is still **provisional**, rooted in Agent 05's older CDSP branch; the checkpoint-50 integration base is not available here. An exact OEM reference comparison does not supply signing keys and the output is not a complete newly authenticated CDSP MBN.
 
 ```sh
 cargo run --offline --locked -p firmware-tools --bin cdsp-late-controller-secondary-bitloop -- verify-prefix /private/cdsp.mbn
-python3 tools/verify-agent20-10-cdsp-controller-secondary-bitloop.py \
+python3 tools/cdsp/verify-late-controller-secondary-bitloop.py \
   --llvm-mc /private/llvm6/bin/llvm-mc --rz-asm /private/rz-asm \
   --generated /private/secondary-bitloop-88.bin \
   --prefix /private/controller-rwe-2060.bin --reference /private/cdsp.mbn
@@ -706,12 +706,12 @@ python3 tools/verify-agent20-10-cdsp-controller-secondary-bitloop.py \
 - Added **60 independently typed Hexagon V66 executable bytes** at file `[0x5680c,0x56848)`, physical `[0x96cc880c,0x96cc8848)` to the controller function which began at file `0x56600`. The routine is not finished; its shared success/error exits follow this new span.
 - Checked constructors produce the signed 31-bitplane headroom adjustment, fused unsigned comparisons and physical branch targets `0x96cc881c`, `0x96cc884c` and `0x96cc88c8`, the alternate `R2/R18` plane-size shift, full-width `0xc0000000` and `0x77000000` extended command constants, and nested 0x1ffffe masked plane packing. Unsupported register tuples, mask sizes or targets return errors.
 - Source-generated output **matches all 60 bytes** in pinned `cdsp.mbn` SHA-256 `febeae7b8e47bad4eeabc159a3c24b74cda26dfa12b384c31de5de30817e06ea`; generated full `[0x56000,0x56848)` prefix also matches its 2,120 original bytes. Of the prefix, **2,076 bytes are independently encoded executable instructions and 44 bytes are separately modeled NOP/fill**. Adding the disjoint 1,200-byte complete controller at `[0x55000,0x554b0)` yields **3,276 source-generated executable bytes**.
-- Independently authored LLVM6 V60 source fixture `tools/agent20-10-cdsp-controller-secondary-completion.s` reassembles **all 15 instruction words byte-for-byte identical** to the Rust output and original firmware. `tools/verify-agent20-10-cdsp-controller-secondary-completion.py` validates original V66 packet markers, two extenders, three guarded branch destinations and exact joined-prefix bytes with the Rizin V66 decoder. No private reference code bytes are copied into the Rust emitter.
+- Independently authored LLVM6 V60 source fixture `tools/cdsp/late-controller-secondary-completion.s` reassembles **all 15 instruction words byte-for-byte identical** to the Rust output and original firmware. `tools/cdsp/verify-late-controller-secondary-completion.py` validates original V66 packet markers, two extenders, three guarded branch destinations and exact joined-prefix bytes with the Rizin V66 decoder. No private reference code bytes are copied into the Rust emitter.
 - Full offline Rust suite **256 tests**, Python suite **23 tests**, release build all pass. The next uncovered file offset is `0x56848` (physical `0x96cc8848`). This provisional branch descends from older Agent05 CDSP history, not yet a verified checkpoint-50 integrated base. No complete OEM-authorized firmware or hardware execution proof is claimed.
 
 ```sh
 cargo run --offline --locked -p firmware-tools --bin cdsp-late-controller-secondary-completion -- verify-prefix /private/cdsp.mbn
-python3 tools/verify-agent20-10-cdsp-controller-secondary-completion.py \
+python3 tools/cdsp/verify-late-controller-secondary-completion.py \
   --llvm-mc /private/llvm6/bin/llvm-mc --rz-asm /private/rz-asm \
   --generated /private/secondary-completion-60.bin \
   --prefix /private/controller-rwe-2120.bin --reference /private/cdsp.mbn
@@ -722,12 +722,12 @@ python3 tools/verify-agent20-10-cdsp-controller-secondary-completion.py \
 - Independently source-encoded **72 Hexagon V66 executable bytes** at CDSP file `[0x56848,0x56890)`, physical `[0x96cc8848,0x96cc8890)` to finish the common normal- and empty-plane unwind paths within the large controller function.
 - Typed checked operations restore saved `R17:16`, `R19:18`, `R21:20`, `R23:22`, `R25:24` and `R27:26` register pairs from their frame offsets, prepare the return pair `R1:0=combine(0,1)`, reload the current bitplane field, tail-call helper `0x96dc0aac` from two distinct physical call sites, and deallocate the original frame. Packet ordering is explicit and unsupported registers/frame offsets are rejected.
 - Full `[0x56000,0x56890)` prefix has **2,192 file bytes = 2,148 independently generated executable + 44 named layout NOP bytes**; plus the completely reconstructed disjoint `[0x55000,0x554b0)` controller contributes 1,200 executable bytes, for **3,348 independently generated executable bytes** total. Both standalone source-emitted output and joined prefix are exactly equal to pinned CDSP MBN (zero differing bytes).
-- Independently authored LLVM6 V60 fixture `tools/agent20-10-cdsp-controller-return-paths.s` matches the semantic sequence of all 18 words; **14/18 words are byte-identical**, four differ solely by packet parse-marker scheduling. Independent V66 Rizin decoder confirms the original packet structure, both verified shared-helper jump targets and all two saved-state paths. `tools/verify-agent20-10-cdsp-controller-return-paths.py` checks these properties without copying the original firmware into the emitter.
+- Independently authored LLVM6 V60 fixture `tools/cdsp/late-controller-return-paths.s` matches the semantic sequence of all 18 words; **14/18 words are byte-identical**, four differ solely by packet parse-marker scheduling. Independent V66 Rizin decoder confirms the original packet structure, both verified shared-helper jump targets and all two saved-state paths. `tools/cdsp/verify-late-controller-return-paths.py` checks these properties without copying the original firmware into the emitter.
 - Full offline **258 Rust tests, 23 Python tests, release build** passed. The next uncovered file offset is `0x56890`, physical `0x96cc8890`, where three diagnostic/error-call paths conclude the controller. Source lineage remains **provisional from older Agent 05 CDSP history**, not checkpoint-50 integrated and not OEM-authenticated/flashable.
 
 ```sh
 cargo run --offline --locked -p firmware-tools --bin cdsp-late-controller-return-paths -- verify-prefix /private/cdsp.mbn
-python3 tools/verify-agent20-10-cdsp-controller-return-paths.py \
+python3 tools/cdsp/verify-late-controller-return-paths.py \
   --llvm-mc /private/llvm6/bin/llvm-mc --rz-asm /private/rz-asm \
   --generated /private/return-paths-72.bin \
   --prefix /private/controller-rwe-2192.bin --reference /private/cdsp.mbn
@@ -738,8 +738,8 @@ python3 tools/verify-agent20-10-cdsp-controller-return-paths.py \
 - Reconstructed the **84-byte executable controller-error tail** at CDSP file `[0x56890,0x568e4)`, physical `[0x96cc8890,0x96cc88e4)`; all 21 Hexagon V66 instruction words match the pinned `cdsp.mbn` byte-for-byte. The extension belongs to the controller function begun at file `0x56600`.
 - Three seven-word diagnostic records call the same trace helper at `0x96dc0bac` and register/update helper at `0x96ccd8c4`; message pointers are `0xc0226180`, `0xc02261a6`, `0xc02261a6`, with severity codes 212, 284, 307. Runtime packet markers and the `R1:0=combine(R18,##0xc0226175)` extenders are independently assembled, not pasted OEM words.
 - Three 32-bit `nop` packets (`0x7f00c000` each) follow at file `[0x568e4,0x568f0)` and are classified **only as 12 layout/alignment bytes**, not independently authored executable. The full contiguous RWE prefix `[0x56000,0x568f0)` totals **2,288 bytes**: 2,232 source-encoded executable + 56 structural NOP/fill. The separate completed controller `[0x55000,0x554b0)` contributes 1,200 more executable, yielding **3,432 total source-encoded executable bytes** across two regions.
-- `tools/agent20-10-cdsp-controller-error-tail.s` contains separately authored LLVM 6 Hexagon operations; LLVM assembles **21/21 words byte-identically** to the Rust emitter and reference, including original packet order, direct physical helper displacements and extended constants. `tools/verify-agent20-10-cdsp-controller-error-tail.py` checks the pinned original SHA-256, the full 2,288-byte RWE prefix, LLVM output and 6 direct call operations using the LLVM Hexagon decoder.
-- Verify: `cargo run --offline --locked -p firmware-tools --bin cdsp-late-controller-error-tail -- verify-prefix /private/cdsp.mbn`, then `python3 tools/verify-agent20-10-cdsp-controller-error-tail.py --llvm-mc /private/llvm6/bin/llvm-mc --llvm-objdump /private/llvm6/bin/llvm-objdump --generated /tmp/error-tail-84.bin --prefix /tmp/rwe-prefix-2288.bin --reference /private/cdsp.mbn`.
+- `tools/cdsp/late-controller-error-tail.s` contains separately authored LLVM 6 Hexagon operations; LLVM assembles **21/21 words byte-identically** to the Rust emitter and reference, including original packet order, direct physical helper displacements and extended constants. `tools/cdsp/verify-late-controller-error-tail.py` checks the pinned original SHA-256, the full 2,288-byte RWE prefix, LLVM output and 6 direct call operations using the LLVM Hexagon decoder.
+- Verify: `cargo run --offline --locked -p firmware-tools --bin cdsp-late-controller-error-tail -- verify-prefix /private/cdsp.mbn`, then `python3 tools/cdsp/verify-late-controller-error-tail.py --llvm-mc /private/llvm6/bin/llvm-mc --llvm-objdump /private/llvm6/bin/llvm-objdump --generated /tmp/error-tail-84.bin --prefix /tmp/rwe-prefix-2288.bin --reference /private/cdsp.mbn`.
 - **Next uncovered instruction:** file `0x568f0` (physical `0x96cc88f0`). This remains an Agent 05-descended preparatory branch, not a verified checkpoint-50-rooted integration and not a complete/authenticated CDSP firmware build.
 
 ## Checkpoint 38 — next codec/controller frame start through 0x56930; 3,496 executable bytes
@@ -747,12 +747,12 @@ python3 tools/verify-agent20-10-cdsp-controller-return-paths.py \
 - Added **64 independently source-generated Hexagon V66 bytes** at CDSP file `[0x568f0,0x56930)`, physical `[0x96cc88f0,0x96cc8930)`, beginning the next controller function after the 12 alignment NOPs.
 - This prologue sets checked controller-log pointer `0xc0364b98`, four codec FourCC constants (`SYHP`, `LOOP`, `AFED`, `_TLU` in big-endian textual interpretation), `R3:2=combine(0,0); allocframe(#96)` and four FP-relative duplex register-pair stores. The V66 packet ordering is represented explicitly; no original machine-code data is pasted as an opcode array.
 - `[0x56000,0x56930)` now rebuilds **2,352 byte-identical file bytes** as **2,296 independent executable bytes + 56 explicit structural NOP/fill bytes**. With completed short controller `[0x55000,0x554b0)` contributing 1,200 executable bytes, the unique reconstructed **CDSP executable total is 3,496 bytes**.
-- Independent LLVM6 semantic fixture `tools/agent20-10-cdsp-controller-frame-setup.s` matches 13/16 original words directly; LLVM6 independently assembles the original combined frame duplex `0x7c013cc0` unchanged when placed in its own packet. Original scheduling has the first extended assignment and duplex in one packet, whereas LLVM6 changes this packet grouping. The checked source emitter reproduces the original sequence exactly. `tools/verify-agent20-10-cdsp-controller-frame-setup.py` verifies all 64 generated and entire 2,352 reference bytes with pinned SHA-256.
+- Independent LLVM6 semantic fixture `tools/cdsp/late-controller-frame-setup.s` matches 13/16 original words directly; LLVM6 independently assembles the original combined frame duplex `0x7c013cc0` unchanged when placed in its own packet. Original scheduling has the first extended assignment and duplex in one packet, whereas LLVM6 changes this packet grouping. The checked source emitter reproduces the original sequence exactly. `tools/cdsp/verify-late-controller-frame-setup.py` verifies all 64 generated and entire 2,352 reference bytes with pinned SHA-256.
 - This is a **partial function**; the next uncovered instruction is file `0x56930` (physical `0x96cc8930`), still inside the controller callback routine. The branch remains provisional on Agent 05's old CDSP checkpoint, not checkpoint-50 integrated history. No OEM re-signing/hardware claims are made.
 
 ```sh
 cargo run --offline --locked -p firmware-tools --bin cdsp-late-controller-frame-setup -- verify-prefix /private/cdsp.mbn
-python3 tools/verify-agent20-10-cdsp-controller-frame-setup.py \
+python3 tools/cdsp/verify-late-controller-frame-setup.py \
   --llvm-mc /private/llvm6/bin/llvm-mc --llvm-objdump /private/llvm6/bin/llvm-objdump \
   --generated /tmp/frame-64.bin --prefix /tmp/cdsp-rwe-2352.bin --reference /private/cdsp.mbn
 ```
@@ -771,7 +771,7 @@ Verify with:
 ```sh
 cargo run --offline --locked --bin cdsp-late-controller-init -- verify-prefix /private/cdsp.mbn
 cargo run --offline --locked --bin cdsp-late-controller-init -- emit /tmp/controller-36.bin
-python3 tools/verify-agent20-10-cdsp-controller-init.py \
+python3 tools/cdsp/verify-late-controller-init.py \
   --llvm-mc /path/to/llvm6/bin/llvm-mc --rz-asm /path/to/rz-asm \
   --generated /tmp/controller-36.bin --reference /private/cdsp.mbn
 ```
@@ -780,7 +780,7 @@ python3 tools/verify-agent20-10-cdsp-controller-init.py \
 
 - Added **60 independently reconstructed executable bytes** in CDSP file `[0x56954,0x56990)` (physical `[0x96cc8954,0x96cc8990)`), continuing the source-built controller routine of checkpoint 39. Unique Agent 20-10 executable coverage now totals **3,592 bytes** (1,200 short controller + **2,392 RWE**).
 - The contiguous RWE file region `[0x56000,0x56990)` totals **2,448 exact bytes**, split into 2,392 independently generated executable and the same 56 separately accounted NOP/fill bytes. The 60 new bytes implement a null-item service-skip branch, call to physical `0x96ddf2c0`, compressed input-pointer duplex, cursor scan and backedge to `0x96cc8954`, guarded stack load, empty-buffer result clearing and conditional exit to `0x96cc8ad0`.
-- Independent LLVM6 fixture compiles these semantic operations with one extra word because it expands the `R1=FP+24; R0=R16` duplex and schedules some `.new` predicates differently. It preserves the service-call, both loop/exit targets and unchanged scalar operation fields. Rizin V66 independently decodes all **15 original Hexagon words** including original packet markers; `tools/verify-agent20-10-cdsp-controller-enumeration.py` checks this difference explicitly, rather than claiming byte-equal LLVM assembly.
+- Independent LLVM6 fixture compiles these semantic operations with one extra word because it expands the `R1=FP+24; R0=R16` duplex and schedules some `.new` predicates differently. It preserves the service-call, both loop/exit targets and unchanged scalar operation fields. Rizin V66 independently decodes all **15 original Hexagon words** including original packet markers; `tools/cdsp/verify-late-controller-enumeration.py` checks this difference explicitly, rather than claiming byte-equal LLVM assembly.
 - Entire 96-byte controller-start prefix `0x56930–0x56990` is byte-identical to original `cdsp.mbn`; no reference bytes are imported into the Rust generator. The routine continues beyond `0x56990`, not yet reconstructed. The branch remains **provisional on Agent 05's old CDSP base**; checkpoint-50 integration is not available.
 
 Run:
@@ -788,7 +788,7 @@ Run:
 ```sh
 cargo run --offline --locked --bin cdsp-late-controller-init -- verify-prefix /private/cdsp.mbn
 cargo run --offline --locked --bin cdsp-late-controller-init -- emit /tmp/controller-96.bin
-python3 tools/verify-agent20-10-cdsp-controller-enumeration.py \
+python3 tools/cdsp/verify-late-controller-enumeration.py \
   --llvm-mc /path/to/llvm6/bin/llvm-mc --rz-asm /path/to/rizin/bin/rz-asm \
   --generated /tmp/controller-96.bin --reference /private/cdsp.mbn
 ```
@@ -798,14 +798,14 @@ python3 tools/verify-agent20-10-cdsp-controller-enumeration.py \
 - Reconstructed **48 independently source-encoded Hexagon V66 executable bytes** in original `cdsp.mbn` file `[0x56990,0x569c0)` (physical `[0x96cc8990,0x96cc89c0)`). All **12 instruction words** compare byte-identically with the pinned original reference; no OEM instruction arrays are embedded in the generator.
 - The code computes `P0=!cmp.gt(R21,R19)` and `P1=cmp.eq(R21,0)`, builds a candidate index with `mux(P0,-1,0)`, selects an address with `R2=R20+160*R3`, calls the controller callback at physical `0x96ccfd00`, and branches to two missing-resource handlers at `0x96cc8adc` and `0x96cc8aec`. Checked Rust helpers reject unverified register/immediate/predicate choices and validate packet-relative call/branch displacements.
 - The contiguous RWE prefix `[0x56000,0x569c0)` is now **2,496 byte-identical file bytes**, of which **2,440 are independently source-generated executable code** and **56 are separately accounted layout NOPs/fill**. The completed short `R E` controller segment `[0x55000,0x554b0)` contains another **1,200 executable bytes**, bringing Agent 20-10's **disjoint executable total to 3,640 bytes**. The rest of CDSP remains incomplete; the next uncovered file offset is `0x569c0` (physical `0x96cc89c0`) inside a larger controller function.
-- The independent LLVM6 Hexagon semantic fixture `tools/agent20-10-cdsp-controller-selection-semantic.s` compiles all twelve operations, but schedules the `R1:0=combine(1,0)` and P1.new move in reverse order and places the multiply/call in a different packet. The call thus has a different displacement encoding **while preserving the same absolute physical destination**. `tools/verify-agent20-10-cdsp-controller-selection.py` checks the remaining instruction fields (ignoring only packet parse bits), Rizin V66 validates the actual original 12-word packet order and all branch/call targets, and the verifier checks the exact full RWE prefix. It does **not** claim that the LLVM6 output is raw byte-identical where scheduling differs.
+- The independent LLVM6 Hexagon semantic fixture `tools/cdsp/late-controller-selection-semantic.s` compiles all twelve operations, but schedules the `R1:0=combine(1,0)` and P1.new move in reverse order and places the multiply/call in a different packet. The call thus has a different displacement encoding **while preserving the same absolute physical destination**. `tools/cdsp/verify-late-controller-selection.py` checks the remaining instruction fields (ignoring only packet parse bits), Rizin V66 validates the actual original 12-word packet order and all branch/call targets, and the verifier checks the exact full RWE prefix. It does **not** claim that the LLVM6 output is raw byte-identical where scheduling differs.
 - Reproduce verification:
 
   ```sh
   cargo run --offline --locked -p firmware-tools --bin cdsp-late-controller-selection -- verify-prefix /private/cdsp.mbn
   cargo run --offline --locked -p firmware-tools --bin cdsp-late-controller-selection -- emit /tmp/cdsp-controller-selector-48.bin
   cargo run --offline --locked -p firmware-tools --bin cdsp-late-controller-selection -- emit-prefix /tmp/cdsp-rwe-prefix-2496.bin
-  python3 tools/verify-agent20-10-cdsp-controller-selection.py \
+  python3 tools/cdsp/verify-late-controller-selection.py \
     --llvm-mc /private/llvm6/bin/llvm-mc --rz-asm /private/rz-asm \
     --generated /tmp/cdsp-controller-selector-48.bin --reference /private/cdsp.mbn \
     --prefix /tmp/cdsp-rwe-prefix-2496.bin
@@ -817,7 +817,7 @@ python3 tools/verify-agent20-10-cdsp-controller-enumeration.py \
 
 - Added **60 independently constructed Hexagon V66 executable bytes** at file `[0x569c0,0x569fc)`, physical `[0x96cc89c0,0x96cc89fc)`, extending the controller candidate-selection routine. The checked Rust `build_controller_byte_scan()` emits **15 exact original instruction words** with no original firmware byte arrays in the generator.
 - The new section loads two buffer/stack descriptors as duplex instructions, invokes the controller trace helper at physical `0x96dc0bac`, initializes the byte counter and pointer, checks a 31-byte scan limit, scans signed input bytes until NUL, branches back to `0x96cc89dc` on a match, and otherwise continues to `0x96cc8a0c`.
-- LLVM 6 independently assembles the same operations from `tools/agent20-10-cdsp-controller-byte-scan-semantic.s`. Eleven original words match the independent output exactly, three differ **only in packet parse bits**, and the original fused `.new` byte-zero branch is expressed by LLVM as an equivalent explicit `P1` predicate. The independent fixture's branch targets are verified by Rizin V66, not falsely described as raw byte-identical where scheduling differs.
+- LLVM 6 independently assembles the same operations from `tools/cdsp/late-controller-byte-scan-semantic.s`. Eleven original words match the independent output exactly, three differ **only in packet parse bits**, and the original fused `.new` byte-zero branch is expressed by LLVM as an equivalent explicit `P1` predicate. The independent fixture's branch targets are verified by Rizin V66, not falsely described as raw byte-identical where scheduling differs.
 - The full contiguous RWE prefix `[0x56000,0x569fc)` now matches **2,556 file bytes**, with **2,500 source-generated executable bytes and 56 original structural NOP/fill bytes** counted separately. Together with the complete 1,200-byte short controller `[0x55000,0x554b0)`, unique source-generated CDSP executable coverage is **3,700 bytes**. All data are disjoint; no unknown firmware, signed segments or reference payloads are copied into Git.
 - Verification:
 
@@ -825,7 +825,7 @@ python3 tools/verify-agent20-10-cdsp-controller-enumeration.py \
   cargo run --offline --locked -p firmware-tools --bin cdsp-late-controller-byte-scan -- verify-prefix /private/cdsp.mbn
   cargo run --offline --locked -p firmware-tools --bin cdsp-late-controller-byte-scan -- emit /tmp/cdsp-scan-60.bin
   cargo run --offline --locked -p firmware-tools --bin cdsp-late-controller-byte-scan -- emit-prefix /tmp/cdsp-rwe-2556.bin
-  python3 tools/verify-agent20-10-cdsp-controller-byte-scan.py \
+  python3 tools/cdsp/verify-late-controller-byte-scan.py \
     --llvm-mc /private/llvm6/bin/llvm-mc --rz-asm /private/rz-asm \
     --generated /tmp/cdsp-scan-60.bin --reference /private/cdsp.mbn \
     --prefix /tmp/cdsp-rwe-2556.bin
@@ -845,7 +845,7 @@ python3 tools/verify-agent20-10-cdsp-controller-enumeration.py \
   cargo run --offline --locked -p firmware-tools --bin cdsp-late-controller-status -- verify-prefix /private/cdsp.mbn
   cargo run --offline --locked -p firmware-tools --bin cdsp-late-controller-status -- emit /tmp/controller-status-52.bin
   cargo run --offline --locked -p firmware-tools --bin cdsp-late-controller-status -- emit-prefix /tmp/cdsp-rwe-prefix-2608.bin
-  python3 tools/verify-agent20-10-cdsp-controller-status.py \
+  python3 tools/cdsp/verify-late-controller-status.py \
     --llvm-mc /private/llvm6/bin/llvm-mc --rz-asm /private/rz-asm \
     --generated /tmp/controller-status-52.bin --reference /private/cdsp.mbn \
     --prefix /tmp/cdsp-rwe-prefix-2608.bin
@@ -857,7 +857,7 @@ python3 tools/verify-agent20-10-cdsp-controller-enumeration.py \
 
 - Added **68 independently encoded Hexagon V66 executable bytes** in CDSP file `[0x56a30,0x56a74)` (physical `[0x96cc8a30,0x96cc8a74)`), continuing the controller input-function begun at `0x568f0`. All **17 original instruction words are byte-identical** to the pinned CDSP reference without embedding OEM byte arrays in the Rust generator.
 - This range loads an indexed record from `R17+R23`, branches past invalid `-1` descriptors to `0x96cc8aa8`, emits a diagnostic trace through physical `0x96dc0bac`, saves stack/controller state using a V66 duplex packet, constructs an argument tuple for the resource helper at `0x96cd1230`, normalizes its return count and exits early if the candidate handle matches R16.
-- Independent LLVM6 fixture `tools/agent20-10-cdsp-controller-record-lookup-semantic.s` confirms eight original words exactly and seven more with **only packet parse bits changed**. LLVM6 uses explicit `P1=cmp.eq(...)` branches in place of the original `R3.new` and `R2.new` fused guard encodings; Rizin V66 checks the original 17-word arrangement and verifies that **both** equivalent branches target physical `0x96cc8aa8`. No claim of exact LLVM6 binary reassembly is made for altered schedule/guard forms.
+- Independent LLVM6 fixture `tools/cdsp/late-controller-record-lookup-semantic.s` confirms eight original words exactly and seven more with **only packet parse bits changed**. LLVM6 uses explicit `P1=cmp.eq(...)` branches in place of the original `R3.new` and `R2.new` fused guard encodings; Rizin V66 checks the original 17-word arrangement and verifies that **both** equivalent branches target physical `0x96cc8aa8`. No claim of exact LLVM6 binary reassembly is made for altered schedule/guard forms.
 - The contiguous RWE layout `[0x56000,0x56a74)` is now **2,676 exact file bytes**, consisting of **2,620 independently source-encoded executable bytes** and **56 earlier structural NOP/fill bytes**. The separately completed `[0x55000,0x554b0)` controller adds another 1,200 executable bytes, giving **3,820 distinct CDSP executable bytes** in two non-overlapping firmware regions. Full CDSP reconstruction and OEM signing remain incomplete.
 - Reproduce the source-only output and independent verification:
 
@@ -865,7 +865,7 @@ python3 tools/verify-agent20-10-cdsp-controller-enumeration.py \
   cargo run --offline --locked -p firmware-tools --bin cdsp-late-controller-record-lookup -- verify-prefix /private/cdsp.mbn
   cargo run --offline --locked -p firmware-tools --bin cdsp-late-controller-record-lookup -- emit /tmp/cdsp-record-lookup-68.bin
   cargo run --offline --locked -p firmware-tools --bin cdsp-late-controller-record-lookup -- emit-prefix /tmp/cdsp-rwe-prefix-2676.bin
-  python3 tools/verify-agent20-10-cdsp-controller-record-lookup.py \
+  python3 tools/cdsp/verify-late-controller-record-lookup.py \
     --llvm-mc /private/llvm6/bin/llvm-mc --rz-asm /private/rz-asm \
     --generated /tmp/cdsp-record-lookup-68.bin --reference /private/cdsp.mbn \
     --prefix /tmp/cdsp-rwe-prefix-2676.bin
@@ -877,7 +877,7 @@ python3 tools/verify-agent20-10-cdsp-controller-enumeration.py \
 
 - Implemented **52 independently source-encoded Hexagon V66 executable bytes** at CDSP file `[0x56a74,0x56aa8)` (physical `[0x96cc8a74,0x96cc8aa8)`), directly after the original indexed lookup. All 13 packet words match the pinned original `cdsp.mbn` byte-for-byte; no OEM instruction words enter the generator.
 - The code loads current and previous record sizes, adds shifted metadata lengths, detects two unsigned capacity overflows with **fused `.new` guards**, then dispatches the shared merge helper at physical `0x96cd0480` and prepares its fallback argument tuple. The branch target is measured from the first producer word of each V66 packet, not the guard consumer.
-- Independent assembler fixture `tools/agent20-10-cdsp-controller-record-bounds-semantic.s` reproduces the **same operands/semantics** (five words byte-identical and five others differing only in packet parse bits). LLVM 6 reorders the two compare/branch packets and uses explicit `P1=cmp.gtu(...)` guards where the original consumes the freshly loaded `R2.new` or `R3.new`. Rizin V66 independently verifies every original packet, both branches to physical `0x96cc8aa8`, and the call to `0x96cd0480`. The LLVM fixture is **not** claimed to produce the original 52 bytes exactly.
+- Independent assembler fixture `tools/cdsp/late-controller-record-bounds-semantic.s` reproduces the **same operands/semantics** (five words byte-identical and five others differing only in packet parse bits). LLVM 6 reorders the two compare/branch packets and uses explicit `P1=cmp.gtu(...)` guards where the original consumes the freshly loaded `R2.new` or `R3.new`. Rizin V66 independently verifies every original packet, both branches to physical `0x96cc8aa8`, and the call to `0x96cd0480`. The LLVM fixture is **not** claimed to produce the original 52 bytes exactly.
 - The regenerated contiguous `RWE` prefix `[file 0x56000,0x56aa8)` now has **2,728 byte-identical file bytes**: **2,672 executable** and **56 previously accounted layout/alignment bytes**. Including the separately complete `[0x55000,0x554b0)` controller, unique independently authored executable coverage has reached **3,872 bytes**. This is still far short of the full CDSP image.
 - Commands (original reference remains outside Git):
 
@@ -885,7 +885,7 @@ python3 tools/verify-agent20-10-cdsp-controller-enumeration.py \
   cargo run --offline --locked -p firmware-tools --bin cdsp-late-controller-record-bounds -- verify-prefix /private/cdsp.mbn
   cargo run --offline --locked -p firmware-tools --bin cdsp-late-controller-record-bounds -- emit /tmp/cdsp-bounds-52.bin
   cargo run --offline --locked -p firmware-tools --bin cdsp-late-controller-record-bounds -- emit-prefix /tmp/cdsp-rwe-prefix-2728.bin
-  python3 tools/verify-agent20-10-cdsp-controller-record-bounds.py \
+  python3 tools/cdsp/verify-late-controller-record-bounds.py \
     --llvm-mc /private/llvm6/bin/llvm-mc --rz-asm /private/rz-asm \
     --generated /tmp/cdsp-bounds-52.bin --reference /private/cdsp.mbn \
     --prefix /tmp/cdsp-rwe-prefix-2728.bin
@@ -897,7 +897,7 @@ python3 tools/verify-agent20-10-cdsp-controller-enumeration.py \
 
 - Implemented **52 additional Hexagon V66 source-encoded executable bytes** in original CDSP `[0x56aa8,0x56adc)` (physical `[0x96cc8aa8,0x96cc8adc)`). All 13 words agree exactly with the pinned original; the instruction generator uses checked register/offset/packet operands and the unchanged original return form, not OEM instruction arrays.
 - This code advances the record cursor, tests the next descriptor for nonzero and loops to `0x96cc8a30`, bounds the byte-candidate scan at 30, computes a 160-byte entry stride, checks the candidate against a byte table, conditionally loops back to `0x96cc8990`, restores four callee-saved GPR pairs and executes `dealloc_return`. Both backedges use the **physical producer packet** start for relative displacement, not the consumer's address.
-- The independent LLVM6 fixture `tools/agent20-10-cdsp-controller-record-advance-semantic.s` reconstructs the same named instructions with **six exact instruction words**. LLVM6 changes two packet markers, one `P0.new` predicate qualifier and two R2.new consumer packets into explicit P1 compares; its branch-offset encoding for the bounded exit also differs due to reordering. Rizin V66 verifies every original word, the original new-value semantics and all three branch targets. The LLVM output is **not** claimed to be binary-identical for those changed packets.
+- The independent LLVM6 fixture `tools/cdsp/late-controller-record-advance-semantic.s` reconstructs the same named instructions with **six exact instruction words**. LLVM6 changes two packet markers, one `P0.new` predicate qualifier and two R2.new consumer packets into explicit P1 compares; its branch-offset encoding for the bounded exit also differs due to reordering. Rizin V66 verifies every original word, the original new-value semantics and all three branch targets. The LLVM output is **not** claimed to be binary-identical for those changed packets.
 - The complete record-scan controller function now returns at `0x56adc`. The contiguous RWE prefix `[0x56000,0x56adc)` matches **2,780 file bytes**: **2,724 executable** and **56 structural/layout bytes**. With the earlier independent 1,200-byte controller `[0x55000,0x554b0)`, unique independently authored Hexagon executable coverage is **3,924 bytes** in disjoint regions. Full CDSP firmware is not reconstructed, signed, or hardware-verified.
 - Reproducer:
 
@@ -905,7 +905,7 @@ python3 tools/verify-agent20-10-cdsp-controller-enumeration.py \
   cargo run --offline --locked -p firmware-tools --bin cdsp-late-controller-record-advance -- verify-prefix /private/cdsp.mbn
   cargo run --offline --locked -p firmware-tools --bin cdsp-late-controller-record-advance -- emit /tmp/cdsp-record-cursor-52.bin
   cargo run --offline --locked -p firmware-tools --bin cdsp-late-controller-record-advance -- emit-prefix /tmp/cdsp-rwe-prefix-2780.bin
-  python3 tools/verify-agent20-10-cdsp-controller-record-advance.py \
+  python3 tools/cdsp/verify-late-controller-record-advance.py \
     --llvm-mc /private/llvm6/bin/llvm-mc --rz-asm /private/rz-asm \
     --generated /tmp/cdsp-record-cursor-52.bin --reference /private/cdsp.mbn \
     --prefix /tmp/cdsp-rwe-prefix-2780.bin
@@ -917,7 +917,7 @@ python3 tools/verify-agent20-10-cdsp-controller-enumeration.py \
 
 - Reconstructed **32 independently source-generated V66 executable bytes** at original CDSP file `[0x56adc,0x56afc)`, physical `[0x96cc8adc,0x96cc8afc)`. Two four-instruction diagnostic packets call shared service `0x96ccd8c4` with distinct error codes 365/366 and the same extended diagnostic-string pointer `0xc0226175`.
 - Separately emitted a single **4-byte Hexagon NOP as structural alignment** `[0x56afc,0x56b00)`. This byte count is not claimed as reconstructed executable code. The following independent function begins at `0x56b00`.
-- Independent LLVM 6 assembly in `tools/agent20-10-cdsp-controller-record-diagnostics.s` reproduces all **9/9 instruction/layout words exactly**, including original V66 packet markers and both physical call targets. Rizin V66 checks original decoded instructions and immediate values. Generated bytes match the pinned `cdsp.mbn` SHA-256 `febeae7b8e47bad4eeabc159a3c24b74cda26dfa12b384c31de5de30817e06ea`.
+- Independent LLVM 6 assembly in `tools/cdsp/late-controller-record-diagnostics.s` reproduces all **9/9 instruction/layout words exactly**, including original V66 packet markers and both physical call targets. Rizin V66 checks original decoded instructions and immediate values. Generated bytes match the pinned `cdsp.mbn` SHA-256 `febeae7b8e47bad4eeabc159a3c24b74cda26dfa12b384c31de5de30817e06ea`.
 - The contiguous source-generated RWE *file layout* `[0x56000,0x56b00)` now matches **2,816 bytes**, of which **2,756 are independently reconstructed executable code** and **60 are explicitly accounted alignment/fill**. Together with independently reconstructed controller `[0x55000,0x554b0)`, verified executable coverage totals **3,956 distinct bytes** across two non-overlapping CDSP ELF regions.
 - Reproducible commands:
 
@@ -925,7 +925,7 @@ python3 tools/verify-agent20-10-cdsp-controller-enumeration.py \
   cargo run --offline --locked -p firmware-tools --bin cdsp-late-controller-record-diagnostics -- verify-prefix /private/cdsp.mbn
   cargo run --offline --locked -p firmware-tools --bin cdsp-late-controller-record-diagnostics -- emit /tmp/cdsp-record-diagnostics-32.bin
   cargo run --offline --locked -p firmware-tools --bin cdsp-late-controller-record-diagnostics -- emit-prefix /tmp/cdsp-rwe-prefix-2816.bin
-  python3 tools/verify-agent20-10-cdsp-controller-record-diagnostics.py \
+  python3 tools/cdsp/verify-late-controller-record-diagnostics.py \
     --llvm-mc /private/llvm6/bin/llvm-mc --rz-asm /private/rz-asm \
     --generated /tmp/cdsp-record-diagnostics-32.bin --prefix /tmp/cdsp-rwe-prefix-2816.bin \
     --reference /private/cdsp.mbn
@@ -938,7 +938,7 @@ python3 tools/verify-agent20-10-cdsp-controller-enumeration.py \
 - Added **48 independently generated Hexagon V66 executable bytes** at original CDSP file `[0x56b00,0x56b30)`, physical `[0x96cc8b00,0x96cc8b30)`.
 - The narrow typed encoders cover a force-extended zero assignment, an 80-byte frame with paired R17:16 save, additional R19:18 and R21:20 frame saves, a conditional high-mask assignment, three SP-relative 64-bit register-pair stores, a guarded bank-range branch to `0x96cc8e1c`, and a trailing LSR shift. The function continues beyond this prefix; no return is fabricated.
 - The pinned reference MBN is compared **only by the independent verifier**: generated 48 bytes and the joined `[0x56000,0x56b30)` **2,864-byte layout** match exactly. The prior 60 structural alignment bytes remain non-executable. Including previously reconstructed `[0x55000,0x554b0)` (1,200 executable bytes), new independent executable coverage totals **4,004 bytes** (2,804 executable in RWE + 1,200 in the complete controller segment).
-- The independent LLVM 6 fixture (`tools/agent20-10-cdsp-controller-bank-entry.s`) assembles **11/12 words identically**, including the 0x96cc8e1c branch, frame duplex and all register stores. LLVM closes the last LSR as a separate packet; the original continues, so the **one changed packet-marker byte** is explained and normalized strictly to bits 14..15 in the verifier. Rizin V66 validates all 12 original words and their packet/branch decoding. No claim of independent exact LLVM binary match for that last word.
+- The independent LLVM 6 fixture (`tools/cdsp/late-controller-bank-entry.s`) assembles **11/12 words identically**, including the 0x96cc8e1c branch, frame duplex and all register stores. LLVM closes the last LSR as a separate packet; the original continues, so the **one changed packet-marker byte** is explained and normalized strictly to bits 14..15 in the verifier. Rizin V66 validates all 12 original words and their packet/branch decoding. No claim of independent exact LLVM binary match for that last word.
 - The RWE prefix now covers **2,864 file bytes**, **2,804 executable + 60 layout**. Next uncovered file byte `0x56b30` (physical `0x96cc8b30`), inside the original bank enumerator. Full CDSP reconstruction, hardware behavior and OEM authentication remain unresolved; current branch is still provisional on Agent 05 older Git history.
 
 Reproduce with private pinned CDSP `cdsp.mbn` outside Git:
@@ -947,7 +947,7 @@ Reproduce with private pinned CDSP `cdsp.mbn` outside Git:
 cargo run --offline --locked -p firmware-tools --bin cdsp-late-controller-bank-entry -- verify-prefix /private/cdsp.mbn
 cargo run --offline --locked -p firmware-tools --bin cdsp-late-controller-bank-entry -- emit /tmp/cdsp-bank48.bin
 cargo run --offline --locked -p firmware-tools --bin cdsp-late-controller-bank-entry -- emit-prefix /tmp/cdsp-rwe-prefix-2864.bin
-python3 tools/verify-agent20-10-cdsp-controller-bank-entry.py \
+python3 tools/cdsp/verify-late-controller-bank-entry.py \
   --llvm-mc /private/llvm6/bin/llvm-mc --rz-asm /private/rz-asm \
   --generated /tmp/cdsp-bank48.bin --prefix /tmp/cdsp-rwe-prefix-2864.bin \
   --reference /private/cdsp.mbn
@@ -967,7 +967,7 @@ Reproducer (pinned original reference outside Git):
 cargo run --offline --locked -p firmware-tools --bin cdsp-late-controller-bank-guards -- verify-prefix /private/cdsp.mbn
 cargo run --offline --locked -p firmware-tools --bin cdsp-late-controller-bank-guards -- emit /tmp/cdsp-bank-guards28.bin
 cargo run --offline --locked -p firmware-tools --bin cdsp-late-controller-bank-guards -- emit-prefix /tmp/cdsp-rwe-prefix-2892.bin
-python3 tools/verify-agent20-10-cdsp-controller-bank-guards.py \
+python3 tools/cdsp/verify-late-controller-bank-guards.py \
   --llvm-mc /private/llvm6/bin/llvm-mc --rz-asm /private/rz-asm \
   --generated /tmp/cdsp-bank-guards28.bin --prefix /tmp/cdsp-rwe-prefix-2892.bin \
   --reference /private/cdsp.mbn
@@ -976,7 +976,7 @@ python3 tools/verify-agent20-10-cdsp-controller-bank-guards.py \
 ## Checkpoint 50 — controller bank parameter initialization, file 0x56b4c–0x56b78
 
 - Reconstructed **44 source-emitted executable bytes** (eleven V66 words) at pinned CDSP file `[0x56b4c,0x56b78)`, physical `[0x96cc8b4c,0x96cc8b78)`. The fragment normalizes R16 as the bank count, forms the controller helper's `SP+28` parameter address, loads the absolute parameter slot `0xc0367850` through a fused `R21=##absolute`/memory operation, subtracts the preceding shifted bank count, initializes the helper's signed/unsigned argument pair, writes three explicitly encoded stack arguments and directly calls controller service `0x96cceaf0`.
-- Original LLVM 6 **independent semantic assembly** (`tools/agent20-10-cdsp-controller-bank-initialize-semantic.s`) produces all eleven operand encodings; **7/11 words are byte-identical**, and the four differences are *only Hexagon parse markers* `0x4000/0xc000` on words 0, 4, 7 and 9. The checked Rust emitters preserve the source's original packet grouping. Rizin V66 independently decodes all eleven original words, including the fused absolute load, one-word duplex and helper target. No claim is made that LLVM6 produced an exact binary for the rescheduled packet markers.
+- Original LLVM 6 **independent semantic assembly** (`tools/cdsp/late-controller-bank-initialize-semantic.s`) produces all eleven operand encodings; **7/11 words are byte-identical**, and the four differences are *only Hexagon parse markers* `0x4000/0xc000` on words 0, 4, 7 and 9. The checked Rust emitters preserve the source's original packet grouping. Rizin V66 independently decodes all eleven original words, including the fused absolute load, one-word duplex and helper target. No claim is made that LLVM6 produced an exact binary for the rescheduled packet markers.
 - The complete emitted RWE prefix `[0x56000,0x56b78)` is **2,936 byte-identical file bytes**, comprising **2,876 independently generated executable bytes** and the preceding **60 structural NOP/fill bytes**. Alongside the non-overlapping 1,200-byte controller at `[0x55000,0x554b0)`, unique reconstructed executable code totals **4,076 bytes**. Next uncovered file offset: **0x56b78**, still within the same enumerator function.
 - Reproduce from the original pinned CDSP reference outside Git (SHA-256 `febeae7b8e47bad4eeabc159a3c24b74cda26dfa12b384c31de5de30817e06ea`):
 
@@ -984,7 +984,7 @@ python3 tools/verify-agent20-10-cdsp-controller-bank-guards.py \
   cargo run --offline --locked -p firmware-tools --bin cdsp-late-controller-bank-initialize -- verify-prefix /private/cdsp.mbn
   cargo run --offline --locked -p firmware-tools --bin cdsp-late-controller-bank-initialize -- emit /tmp/cdsp-bank-init-44.bin
   cargo run --offline --locked -p firmware-tools --bin cdsp-late-controller-bank-initialize -- emit-prefix /tmp/cdsp-prefix-2936.bin
-  python3 tools/verify-agent20-10-cdsp-controller-bank-initialize.py \
+  python3 tools/cdsp/verify-late-controller-bank-initialize.py \
     --llvm-mc /private/llvm6/bin/llvm-mc --rz-asm /private/rz-asm \
     --generated /tmp/cdsp-bank-init-44.bin --prefix /tmp/cdsp-prefix-2936.bin \
     --reference /private/cdsp.mbn
@@ -1003,7 +1003,7 @@ python3 tools/verify-agent20-10-cdsp-controller-bank-guards.py \
 cargo run --offline --locked -p firmware-tools --bin cdsp-late-controller-bank-predicates -- verify-prefix /private/cdsp.mbn
 cargo run --offline --locked -p firmware-tools --bin cdsp-late-controller-bank-predicates -- emit /tmp/bank-predicates-32.bin
 cargo run --offline --locked -p firmware-tools --bin cdsp-late-controller-bank-predicates -- emit-prefix /tmp/cdsp-rwe-2968.bin
-python3 tools/verify-agent20-10-cdsp-controller-bank-predicates.py \
+python3 tools/cdsp/verify-late-controller-bank-predicates.py \
   --generated /tmp/bank-predicates-32.bin --prefix /tmp/cdsp-rwe-2968.bin \
   --reference /private/cdsp.mbn --llvm-mc /private/llvm6/bin/llvm-mc --rz-asm /private/rz-asm
 ```
@@ -1016,14 +1016,14 @@ The branch still descends from Agent 05's **older provisional Git base**, not th
 - Typed, range-checked Rust constructors encode the two extended constants, the zero pair, the original duplex, and the aligned `memd` load. The 28-byte fragment and the **2,996-byte contiguous** emitted RWE prefix `[0x56000,0x56bb4)` independently compare equal to the pinned `cdsp.mbn`. The prefix contains **2,936 executable bytes** and **60 separately accounted linker-fill/alignment bytes**, no new fill in this checkpoint.
 - Original Rizin V66 decodes all seven words, including the one-word two-store duplex and its original packet markers. The independent LLVM 6 fixture encodes the same semantics but expands that duplex into *two* 32-bit memory-store instructions, and changes two parse markers. The verifier checks all five initial instruction operand fields after masking parse markers and checks that the LLVM `memd` matches the original shifted by one word. **LLVM 6 output is not claimed to be byte-identical.**
 - Including the separate original 1,200-byte controller segment `[0x55000,0x554b0)`, uniquely generated executable coverage reaches **4,136 bytes** across non-overlapping regions.
-- Tests: independent `tools/verify-agent20-10-cdsp-controller-bank-bitset-entry.py` verifies SHA, 28 direct bytes, 2,996 joined prefix bytes, original Rizin V66 decode and LLVM6 equivalence. All 289 Rust workspace tests and 23 Python tests pass in the actual checkpoint-52 run. The offline locked release build also succeeded.
+- Tests: independent `tools/cdsp/verify-late-controller-bank-bitset-entry.py` verifies SHA, 28 direct bytes, 2,996 joined prefix bytes, original Rizin V66 decode and LLVM6 equivalence. All 289 Rust workspace tests and 23 Python tests pass in the actual checkpoint-52 run. The offline locked release build also succeeded.
 - Reproduce:
 
   ```sh
   cargo run --offline --locked -p firmware-tools --bin cdsp-late-controller-bank-bitset-entry -- verify-prefix /private/cdsp.mbn
   cargo run --offline --locked -p firmware-tools --bin cdsp-late-controller-bank-bitset-entry -- emit /tmp/cdsp-bank-bitset-28.bin
   cargo run --offline --locked -p firmware-tools --bin cdsp-late-controller-bank-bitset-entry -- emit-prefix /tmp/cdsp-rwe-prefix-2996.bin
-  python3 tools/verify-agent20-10-cdsp-controller-bank-bitset-entry.py \
+  python3 tools/cdsp/verify-late-controller-bank-bitset-entry.py \
     --generated /tmp/cdsp-bank-bitset-28.bin --prefix /tmp/cdsp-rwe-prefix-2996.bin \
     --reference /private/cdsp.mbn --llvm-mc /private/llvm6/bin/llvm-mc --rz-asm /private/rz-asm
   ```
@@ -1042,7 +1042,7 @@ The branch still descends from Agent 05's **older provisional Git base**, not th
   cargo run --offline --locked -p firmware-tools --bin cdsp-late-controller-bank-bitset-scan -- verify-prefix /private/cdsp.mbn
   cargo run --offline --locked -p firmware-tools --bin cdsp-late-controller-bank-bitset-scan -- emit /tmp/cdsp-bank-scan-28.bin
   cargo run --offline --locked -p firmware-tools --bin cdsp-late-controller-bank-bitset-scan -- emit-prefix /tmp/cdsp-rwe-prefix-3024.bin
-  python3 tools/verify-agent20-10-cdsp-controller-bank-bitset-scan.py \
+  python3 tools/cdsp/verify-late-controller-bank-bitset-scan.py \
     --generated /tmp/cdsp-bank-scan-28.bin --prefix /tmp/cdsp-rwe-prefix-3024.bin \
     --reference /private/cdsp.mbn --llvm-mc /private/llvm6/bin/llvm-mc --rz-asm /private/rz-asm
   ```
@@ -1055,14 +1055,14 @@ The branch still descends from Agent 05's **older provisional Git base**, not th
 - This sequence computes `R3 = 0-R16`, masks `R1` into R4, extracts the 20-bit plane width into R17, rejects `R17.new>R19`, combines `R16-1` into the running upper limit, rejects `R18>R4.new`, and extracts the next 23-bit field from R0. Both original fused `.new` guards target `0x96cc8d40`, calculated from their respective packet origins.
 - The independent LLVM6 fixture assembles the eight instruction operations and reproduces **seven of eight words byte-identically**. Its only difference is the parse marker on the final `R4=extractu(R0,#23,#1)` word, which LLVM closes as a singleton packet while the original continues into the next fragment. Rizin V66 confirms the original packet and both guards. The generated Rust emitter itself passes exact original-reference comparison.
 - Full generated RWE file prefix `[0x56000,0x56bf0)` now covers **3,056 reference-identical file bytes**, comprising **2,996 independently generated executable bytes** and **60 separately classified structural alignment/fill bytes**. With separate completed controller `[0x55000,0x554b0)` of 1,200 executable bytes, total independently generated executable coverage is **4,196 bytes** across two regions.
-- Independent script `tools/verify-agent20-10-cdsp-controller-bank-bitset-limits.py` validates the pinned reference SHA, every byte of the 32-byte fragment and 3,056-byte full prefix, LLVM instruction fields and Rizin branch/packet semantics.
+- Independent script `tools/cdsp/verify-late-controller-bank-bitset-limits.py` validates the pinned reference SHA, every byte of the 32-byte fragment and 3,056-byte full prefix, LLVM instruction fields and Rizin branch/packet semantics.
 - Reproduce:
 
   ```sh
   cargo run --offline --locked -p firmware-tools --bin cdsp-late-controller-bank-bitset-limits -- verify-prefix /private/cdsp.mbn
   cargo run --offline --locked -p firmware-tools --bin cdsp-late-controller-bank-bitset-limits -- emit /tmp/cdsp-bank-limits-32.bin
   cargo run --offline --locked -p firmware-tools --bin cdsp-late-controller-bank-bitset-limits -- emit-prefix /tmp/cdsp-rwe-prefix-3056.bin
-  python3 tools/verify-agent20-10-cdsp-controller-bank-bitset-limits.py \
+  python3 tools/cdsp/verify-late-controller-bank-bitset-limits.py \
     --generated /tmp/cdsp-bank-limits-32.bin --prefix /tmp/cdsp-rwe-prefix-3056.bin \
     --reference /private/cdsp.mbn --llvm-mc /private/llvm6/bin/llvm-mc --rz-asm /private/rz-asm
   ```
@@ -1075,13 +1075,13 @@ The branch still descends from Agent 05's **older provisional Git base**, not th
 - This instruction block right-shifts the 64-bit bitmap `R1:0` by 38 into `R7:6`, loads `R5=memw(R20+0)` while simultaneously saving `R17` to `memw(FP+0)` in a **single original V66 compressed duplex word**, extracts bit fields from R0, ANDs `R3` with R4, moves R6 to R18, then emits an explicit `immext` and mask `R18=or(R3,and(R18,##0x800000))`.
 - An independent LLVM6 fixture emits **nine words** for the eight original operations because it expands the source duplex into two memory operations; additionally four parse-marker differences are recorded and validated. The independent Rizin V66 decoder confirms every original word including the packed duplex, 64-bit shift and extended flag. The source-built Rust emitter is compared directly with the original for exact binary identity; the LLVM6 fixture is a semantic cross-check, not claimed byte-identical.
 - Joined RWE `[0x56000,0x56c10)` now covers **3,088 exact file bytes**, **3,028 independently generated executable bytes** plus **60 structural NOP/alignment bytes**. With the separate original 1,200-byte controller segment `[0x55000,0x554b0)`, independently generated executable coverage has increased to **4,228 bytes** across two nonoverlapping intervals.
-- The independent script `tools/verify-agent20-10-cdsp-controller-bank-bitset-fields.py` verifies SHA-256 of the pinned reference, the new 32 source-built bytes, full 3,088-byte joined prefix and the LLVM/Rizin distinctions. Reproduce:
+- The independent script `tools/cdsp/verify-late-controller-bank-bitset-fields.py` verifies SHA-256 of the pinned reference, the new 32 source-built bytes, full 3,088-byte joined prefix and the LLVM/Rizin distinctions. Reproduce:
 
   ```sh
   cargo run --offline --locked -p firmware-tools --bin cdsp-late-controller-bank-bitset-fields -- verify-prefix /private/cdsp.mbn
   cargo run --offline --locked -p firmware-tools --bin cdsp-late-controller-bank-bitset-fields -- emit /tmp/bank-fields-32.bin
   cargo run --offline --locked -p firmware-tools --bin cdsp-late-controller-bank-bitset-fields -- emit-prefix /tmp/rwe-prefix-3088.bin
-  python3 tools/verify-agent20-10-cdsp-controller-bank-bitset-fields.py \
+  python3 tools/cdsp/verify-late-controller-bank-bitset-fields.py \
     --generated /tmp/bank-fields-32.bin --prefix /tmp/rwe-prefix-3088.bin \
     --reference /private/cdsp.mbn --llvm-mc /private/llvm6/bin/llvm-mc --rz-asm /private/rz-asm
   ```
@@ -1094,13 +1094,13 @@ The branch still descends from Agent 05's **older provisional Git base**, not th
 - The source emitter uses separately checked pair-extraction bitfields, a width-checked scalar extraction, register-indexed memory load, exact but constrained compact frame-and-copy duplex and checked small-mask OR operations. The emitted 32 bytes and entire preceding RWE layout compare equal to the pinned CDSP MBN, not to an external OEM byte array inside the source.
 - Independent LLVM6 assembly reproduces all operations as nine words (it expands the original one-word duplex to two instructions) and differs in six source packet markers. Rizin V66 decodes all eight original words and confirms the compact duplex and 64-bit extract semantics. Exact LLVM byte equality is **not** claimed; the Rust emitter's byte equality is independently tested against the original reference.
 - The contiguous generated RWE prefix `[0x56000,0x56c30)` now covers **3,120 byte-identical file bytes**: **3,060 independently source-generated executable bytes** and **60 structural alignment/fill bytes**. The separate complete 1,200-byte controller `[0x55000,0x554b0)` raises unique executable coverage to **4,260 bytes**.
-- Independently cross-checked by `tools/verify-agent20-10-cdsp-controller-bank-bitset-args.py`, including pinned SHA-256, exact 32-byte fragment, complete 3,120-byte RWE prefix and the LLVM6/Rizin decoding differences.
+- Independently cross-checked by `tools/cdsp/verify-late-controller-bank-bitset-args.py`, including pinned SHA-256, exact 32-byte fragment, complete 3,120-byte RWE prefix and the LLVM6/Rizin decoding differences.
 
   ```sh
   cargo run --offline --locked -p firmware-tools --bin cdsp-late-controller-bank-bitset-args -- verify-prefix /private/cdsp.mbn
   cargo run --offline --locked -p firmware-tools --bin cdsp-late-controller-bank-bitset-args -- emit /tmp/bank-args-32.bin
   cargo run --offline --locked -p firmware-tools --bin cdsp-late-controller-bank-bitset-args -- emit-prefix /tmp/rwe-prefix-3120.bin
-  python3 tools/verify-agent20-10-cdsp-controller-bank-bitset-args.py \
+  python3 tools/cdsp/verify-late-controller-bank-bitset-args.py \
     --generated /tmp/bank-args-32.bin --prefix /tmp/rwe-prefix-3120.bin \
     --reference /private/cdsp.mbn --llvm-mc /private/llvm6/bin/llvm-mc --rz-asm /private/rz-asm
   ```

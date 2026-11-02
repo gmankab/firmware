@@ -10,11 +10,11 @@
 ## Checkpoint 01 — register-record validation helper
 
 - File `[0x42708,0x427a0)`; VMA `[0xb0002708,0xb00027a0)`; **152 independently authored Hexagon instruction bytes** (38 encoded words including duplex/immext and hardware-loop packets). No padding or external bytes within the new region.
-- Source: `sources/xiaomi-nabu/wlanmdsp/agent13-runtime-record-check.S`. Implements record-table search using 7-iteration `loop0`, validates a caller-provided record/status value, emits diagnostic messages and returns via `dealloc_return` after restoring saved register pair.
+- Source: `sources/xiaomi-nabu/wlanmdsp/early/runtime-record-check.S`. Implements record-table search using 7-iteration `loop0`, validates a caller-provided record/status value, emits diagnostic messages and returns via `dealloc_return` after restoring saved register pair.
 - Correct source packet ordering matters. Extended literal packets at `0x2728` and `0x2788` must put the `r0=##...` instruction before `r2=r16` in assembly text to reconstruct original duplex placement. Correct absolute Hexagon `call` PC-relative displacements were verified against reference; wrong displacement assembles but differs in opcode bytes.
 - First assembler comparison initially found 22 differing bytes. Correcting two packet orders, one extended address and two call displacements yields **0 byte differences**. Rebuilding with supplied LLVM22 V66 matches all 152 reference bytes exactly; SHA-256 `5e86e28fded96cd5fe19b39410884ce9727e58dbe26446b21a1bc67723a5c23e`.
 - Full executable-layout prefix, *only when rebuilt from Agent7 independent sources*, is `[0x40000,0x427a0)` = **10,144 matching bytes**, SHA-256 `d486b130c9c4da569e37e0e2d0dde127b25e298795a69b5b41c35e110d608096`. Components: **6,368 independently authored instruction bytes** (6,216 earlier +152 new), **3,776 identified linker-fill/alignment bytes** (not source code). There are no unknown bytes in this prefix.
-- Deterministic `tools/build-wlanmdsp-agent13.py` assembles new code, optionally independently rebuilds and joins Agent7 code (`--join-agent07`), and validates exact pinned firmware SHA, ELF32 entry, executable `PT_LOAD` and first differing byte, with optional JSON provenance manifest. It refuses implicit holes, overlapping fragments, missing assembler, and embedded OEM `.incbin`, `.word`, `.long`, `.quad`, `.byte`, `.fill` directives.
+- Deterministic `tools/wlanmdsp/build-wlanmdsp.py` assembles new code, optionally independently rebuilds and joins Agent7 code (`--join-agent07`), and validates exact pinned firmware SHA, ELF32 entry, executable `PT_LOAD` and first differing byte, with optional JSON provenance manifest. It refuses implicit holes, overlapping fragments, missing assembler, and embedded OEM `.incbin`, `.word`, `.long`, `.quad`, `.byte`, `.fill` directives.
 - `cargo test --workspace --offline --locked -q`: **160 Rust tests passed**. `python3 -m unittest discover -s tests -p 'test_*.py'`: **22 cases, 20 passed, 2 optional skipped**. `cargo build --workspace --release --offline --locked`: passed. Direct strict reference checks (standalone and combined) passed. `git diff --check`: passed.
 - **Next executable function begins at file `0x427a0` / VMA `0xb00027a0`.** Remaining owned interval `[0x427a0,0x100000)` is not yet source-rebuilt. Signed firmware is not produced; exact instruction encodings do not prove complete high-level source recovery or runtime behavior.
 
@@ -22,12 +22,12 @@
 
 ```sh
 LD_LIBRARY_PATH=/private/nabu-next-toolchain/ubuntu-runtime/flat \
-python3 tools/build-wlanmdsp-agent13.py /tmp/agent13-wlan.bin \
+python3 tools/wlanmdsp/build-wlanmdsp.py /tmp/agent13-wlan.bin \
   --llvm22 /private/llvm22/bin/llvm-mc \
   --reference /private/wlanmdsp.mbn --manifest /tmp/agent13-wlan.json
 
 LD_LIBRARY_PATH=/private/nabu-next-toolchain/ubuntu-runtime/flat \
-python3 tools/build-wlanmdsp-agent13.py /tmp/wlan-prefix-through-27a0.bin \
+python3 tools/wlanmdsp/build-wlanmdsp.py /tmp/wlan-prefix-through-27a0.bin \
   --join-agent07 --llvm6 /private/llvm6/bin/llvm-mc \
   --llvm22 /private/llvm22/bin/llvm-mc \
   --reference /private/wlanmdsp.mbn
@@ -36,7 +36,7 @@ python3 tools/build-wlanmdsp-agent13.py /tmp/wlan-prefix-through-27a0.bin \
 ## Checkpoint 02 — classify WLAN record format and runtime diagnostic status
 
 - Appends `[file 0x427a0,0x42960)` = **448 source-authored Hexagon V66 bytes** to the previous 152-byte record lookup; Agent13 now owns **600 contiguous instruction bytes** `[0x42708,0x42960)` / VMA `[0xb0002708,0xb0002960)`.
-- Source file `agent13-runtime-record-classify.S` models the whole classifier: QuRT runtime state reads, format tag handling (including bitfield extract and static mode tables), signed/unsigned status reporting, and shared fallback/diagnostic code. It has conditional new-value packet branches and an extended far tail jump to the platform handler.
+- Source file `runtime-record-classify.S` models the whole classifier: QuRT runtime state reads, format tag handling (including bitfield extract and static mode tables), signed/unsigned status reporting, and shared fallback/diagnostic code. It has conditional new-value packet branches and an extended far tail jump to the platform handler.
 - All **448 original bytes** match independently emitted LLVM22 V66 code, preserving 112 encoded words with packet-accurate order. The far jump uses a packet-base displacement explicitly documented in source. Incorrect packet order and an incorrect immediate originally produced mismatches; both were corrected before this checkpoint.
 - Agent13 generated code now has SHA-256 `d6fce6e6ce1c796c7ff47499a0869ae25900bb6a7c25ad28af19f52b4dd1e82d`. Independently joining Agent7's verified code yields `[0x40000,0x42960)` = **10,592 matching layout bytes**, SHA-256 `e15f567f6364cea88c166665903f03319b93d14b358357614b9a582071700623`. Distinguish **6,816 executable instruction bytes** (6,216 prior +600 new) from **3,776 generated linker-fill bytes**.
 - Verified against the exact SHA-256-pinned `wlanmdsp.mbn`; zero differences over both the new fragment and entire joined prefix. Repository Rust suite: 160 tests passed. Python suite: 22 discovered, 20 passed, 2 skipped. Offline release build: passed.
@@ -95,10 +95,10 @@ python3 tools/build-wlanmdsp-agent13.py /tmp/wlan-prefix-through-27a0.bin \
 
 ## Checkpoint 07 — WLAN incoming record validation and stream-state dispatch
 
-- New **1,124 source-assembled Hexagon V66 instruction bytes**, file `[0x42fac,0x43410)` / VMA `[0xb0002fac,0xb0003410)`, in complete packet-level assembly `agent13-runtime-record-processing.S`. The next routine begins with a `call/allocframe` packet at file `0x43410`; none of that packet is borrowed or emitted in this fragment.
+- New **1,124 source-assembled Hexagon V66 instruction bytes**, file `[0x42fac,0x43410)` / VMA `[0xb0002fac,0xb0003410)`, in complete packet-level assembly `runtime-record-processing.S`. The next routine begins with a `call/allocframe` packet at file `0x43410`; none of that packet is borrowed or emitted in this fragment.
 - Reconstructed header unpacking, capacity/format checks, index/record state transitions, conditional diagnostic callbacks, pointer safety validation, and stream bookkeeping with packet-local `.new` predicates. The four-operation packet at VMA `0x2fb4` is reordered to reproduce the original duplex selection, and the `0x3394` far jump is explicitly extended as `jump ##0x2a24c0` (packet-relative target `0x2a5854`). No proprietary opcode/data words appear in the source.
 - **Zero byte mismatches** for 1,124 newly generated bytes and the whole prior+new executable-layout prefix. Agent 13's total independent instruction coverage is now **3,336 bytes** `[file 0x42708,0x43410)`; joined source-built prefix is `[0x40000,0x43410)` = **13,328 bytes**: **9,552 independently authored instruction bytes** (Agent 7: 6,216; Agent 13: 3,336) and **3,776 separate linker-fill bytes**. The whole layout SHA-256 is `5561a711119f8f73ebd044340f8009ac14fa034d810f6de0038923e724aef600`.
-- Rebuild command: `LD_LIBRARY_PATH=/private/ubuntu-runtime/flat python3 tools/build-wlanmdsp-agent13.py /tmp/agent13-prefix.bin --join-agent07 --llvm6 /private/llvm6/bin/llvm-mc --llvm22 /private/llvm22/bin/llvm-mc --reference /private/wlanmdsp.mbn --manifest /tmp/agent13-prefix.json`.
+- Rebuild command: `LD_LIBRARY_PATH=/private/ubuntu-runtime/flat python3 tools/wlanmdsp/build-wlanmdsp.py /tmp/agent13-prefix.bin --join-agent07 --llvm6 /private/llvm6/bin/llvm-mc --llvm22 /private/llvm22/bin/llvm-mc --reference /private/wlanmdsp.mbn --manifest /tmp/agent13-prefix.json`.
 - Isolated Rust workspace tests **160 pass**; Python discovery **22 tests, 21 pass, 1 skip**; LLVM22 optional packet-roundtrip checked with reference; offline release build passed; `git diff --check` clean.
 - Source ancestry is still Agent 7's `d6104bb`, **not** missing checkpoint-50. Whole firmware and OEM signing are not reproduced; later WLAN Hexagon executable remains unimplemented from **file `0x43410` / VMA `0xb0003410`** to this agent's reserved upper bound `0x100000`.
 
@@ -216,10 +216,10 @@ python3 tools/build-wlanmdsp-agent13.py /tmp/wlan-prefix-through-27a0.bin \
   pointers and status flags. Rebuild preserves packet parse bits, `:mem_noshuf`
   ordering on two register-slot pairs, PC-relative calls/branches and an
   explicitly extended final `r0=#0; jump ##...` duplex packet.
-- Assembly verifier: `python3 tools/build-wlanmdsp-agent13-forward.py
+- Assembly verifier: `python3 tools/wlanmdsp/build-wlanmdsp-forward.py
   --llvm6 /private/llvm6/bin/llvm-mc --reference /private/wlanmdsp.mbn
   --output /tmp/agent13-new.bin --manifest /tmp/agent13-new.json`.
-- Source-only and exact-length tests are in `tests/test_agent13_wlan_forward.py`.
+- Source-only and exact-length tests are in `tests/test_wlan_forward.py`.
 - **Do not sum** this 916-byte region into checkpoint 16's 19,668-byte prefix
   as contiguous: checkpoint 17–25 sources covering `[0x44cd4,0x4568c)` are
   absent from this session and must be applied first.
@@ -612,7 +612,7 @@ python3 tools/build-wlanmdsp-agent13.py /tmp/wlan-prefix-through-27a0.bin \
   Original pinned `wlanmdsp.mbn` SHA-256 verified, and direct complete-range
   byte comparison reports **zero mismatches**.
 - Source-only build:
-  `python3 tools/build-wlanmdsp-agent13-forward.py --llvm6 /private/llvm6/bin/llvm-mc --reference /private/wlanmdsp.mbn --output /tmp/wlan-forward.bin`.
+  `python3 tools/wlanmdsp/build-wlanmdsp-forward.py --llvm6 /private/llvm6/bin/llvm-mc --reference /private/wlanmdsp.mbn --output /tmp/wlan-forward.bin`.
 - Still based on checkpoint16 `7c730bf` without the missing checkpoint17–25
   branch ancestry; this **does not** establish a contiguous executable-layout
   prefix from `0x40000`. No complete or authenticated WLAN firmware was built.

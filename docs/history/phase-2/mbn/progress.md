@@ -17,7 +17,7 @@ remains Agent 01's assignment. No other agents' payload regions were imported
 or modified here.
 
 The evidence-only handoff commit adds this document and
-`docs/agent20-20-evidence/`; it does not change the tested implementation.
+`docs/evidence/mbn/`; it does not change the tested implementation.
 All new Git author and committer identities are `Codex <codex@openai.com>`.
 This records attribution, not a cryptographic Git signature.
 
@@ -162,7 +162,7 @@ independent ISA assembler round-trip is claimed. The original typed A640
 emitters were freshly compiled and compared to the pinned firmware.
 
 The complete manifest, test logs, release log and validation summary are in
-`docs/agent20-20-evidence/`. The manifest's tested commit is the implementation
+`docs/evidence/mbn/`. The manifest's tested commit is the implementation
 commit above; subsequent handoff documentation does not change source code.
 
 ## Coverage of this isolated packaging branch

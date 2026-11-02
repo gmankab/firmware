@@ -10,7 +10,7 @@ then looks up the location in Agent 19's canonical source-ownership ledger.
 **Important:** a `Movi` address constant is **not** itself a memory access.
 No register dataflow, indirect lookup or runtime operation is inferred from
 these results. Existing GP read/write sites remain separately audited in
-`docs/agent20-19-dlm-consumer-audit.md`. The new report must not be used
+`docs/history/phase-2/novatek-dlm/dlm-consumer-audit.md`. The new report must not be used
 to award source-byte coverage or infer startup initializer values.
 
 | Quantity | Verified |

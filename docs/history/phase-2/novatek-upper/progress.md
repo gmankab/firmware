@@ -77,7 +77,7 @@ Data at `[0x19bf0,0x1ac80)` exactly matches independently published Arm
 `math/log_data.c` at commit `189dfefe37d54c5b9d2a8bb2039091a638c691e1`.
 The original C file, layout header, full MIT license option, source hashes,
 preprocessor configuration, and field-order provenance are included under
-`reference/xiaomi-nabu/agent20-18/`. The source-derived constants are organized
+`reference/xiaomi-nabu/novatek/ilm-upper/`. The source-derived constants are organized
 as split ln(2), polynomial coefficients, reciprocal/logarithm pairs, and
 split table centers. They are not counted as executable instructions.
 
@@ -119,7 +119,7 @@ export CARGO_TARGET_DIR=/your/isolated/agent20-18-target
 cargo test --workspace --offline --locked
 cargo build --workspace --release --offline --locked
 python3 -m unittest discover -s tests -p 'test_*.py'
-python3 tools/devices/xiaomi-nabu/verify-agent20-18.py \
+python3 tools/devices/xiaomi-nabu/verify-novatek-upper.py \
   /private/novatek_nt36523_fw.bin \
   --emitter "$CARGO_TARGET_DIR/release/novatek-upper-ilm" \
   --as /path/to/nds32le-elf-as --ld /path/to/nds32le-elf-ld \
@@ -135,7 +135,7 @@ silently filled gaps, changed source hashes, and any Rust/GNU/data mismatch.
 The public-source data verifier also runs without the private firmware:
 
 ```sh
-python3 tools/devices/xiaomi-nabu/verify_agent20_18_data.py
+python3 tools/devices/xiaomi-nabu/verify_novatek-upper_data.py
 ```
 
 ### Remaining exact holes and next work
@@ -227,7 +227,7 @@ export CARGO_TARGET_DIR=/your/isolated/agent20-18-target
 cargo test --workspace --offline --locked
 cargo build --workspace --release --offline --locked
 python3 -m unittest discover -s tests -p 'test_*.py'
-python3 tools/devices/xiaomi-nabu/verify-agent20-18.py \
+python3 tools/devices/xiaomi-nabu/verify-novatek-upper.py \
   /private/novatek_nt36523_fw.bin \
   --emitter "$CARGO_TARGET_DIR/release/novatek-upper-ilm" \
   --as /path/to/nds32le-elf-as --ld /path/to/nds32le-elf-ld \
@@ -277,7 +277,7 @@ Run in an isolated checkout:
 cargo test --workspace --offline --locked
 cargo build --workspace --release --offline --locked
 python3 -m unittest discover -s tests -p 'test_*.py'
-python3 tools/devices/xiaomi-nabu/verify-agent20-18.py /private/novatek_nt36523_fw.bin \
+python3 tools/devices/xiaomi-nabu/verify-novatek-upper.py /private/novatek_nt36523_fw.bin \
   --emitter "$CARGO_TARGET_DIR/release/novatek-upper-ilm" --source-only \
   --report /tmp/agent20-18-checkpoint03.json
 ```
@@ -330,7 +330,7 @@ To repeat the pinned comparison without exporting OEM data:
 
 ```sh
 cargo build --workspace --release --offline --locked
-python3 tools/devices/xiaomi-nabu/verify-agent20-18.py /private/novatek_nt36523_fw.bin \
+python3 tools/devices/xiaomi-nabu/verify-novatek-upper.py /private/novatek_nt36523_fw.bin \
   --emitter "$CARGO_TARGET_DIR/release/novatek-upper-ilm" \
   --source-only --report /tmp/agent20-18-checkpoint05.json
 ```
@@ -357,7 +357,7 @@ vary; the first matrix has no adjacent identical rows. These matrices and the
 OEM calibration data**; no publicly grounded source, vendor-supplied
 calibration measurements, or exact generating algorithm was established.
 Their full and component checksums and descriptive statistics appear in
-`reference/xiaomi-nabu/agent20-18/upper-calibration-provenance.json`.
+`reference/xiaomi-nabu/novatek/ilm-upper/upper-calibration-provenance.json`.
 No raw OEM calibration data or purported measurement-generation formula was
 embedded in any source file or released bundle.
 
@@ -371,7 +371,7 @@ cargo build --workspace --release --offline --locked
 # kept outside Git and out of deliverable bundles.
 dd if=/private/novatek_nt36523_fw.bin of=/private/nvt-calibration.bin \
   bs=1 skip=$((0x18620)) count=$((0x195b0-0x18620)) status=none
-python3 tools/devices/xiaomi-nabu/assemble_agent20_18_upper.py \
+python3 tools/devices/xiaomi-nabu/assemble_novatek_upper.py \
   --source-fragments /tmp/agent20-18-source \
   --external-calibration /private/nvt-calibration.bin \
   --output /tmp/upper-ilm-reference-assisted-44160.bin \

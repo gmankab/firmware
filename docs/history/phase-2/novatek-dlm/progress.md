@@ -117,7 +117,7 @@ Validation records and exact artifact hashes accompany each checkpoint bundle. T
 | DLM prefix mirror | All 2,304 bytes verified |
 | Diff whitespace check | Passed |
 
-The 52 Python skips belong to pre-existing A640/ADSP/CDSP/modem/WLAN checks requiring separately supplied firmware and/or assembler tools. Their exact test names and reasons are included in `agent20-19-checkpoint-01-verification.json` and the handoff logs. No new Agent 19 test is skipped in the recorded full run. A skipped test is not counted as passing.
+The 52 Python skips belong to pre-existing A640/ADSP/CDSP/modem/WLAN checks requiring separately supplied firmware and/or assembler tools. Their exact test names and reasons are included in `checkpoint-01-verification.json` and the handoff logs. No new Agent 19 test is skipped in the recorded full run. A skipped test is not counted as passing.
 
 SHA-256 of all newly emitted fragments concatenated in increasing file-offset order: `5c9bc1b5833d9417e494da1db5f8113723f1c2561fcc73e072448da19628cd2f`. This 9,252-byte concatenation is a verification digest input, not a contiguous firmware image.
 
@@ -370,7 +370,7 @@ Runtime addresses map through the independently established postmarketOS
 NDS32 GP base `0x2d9e0` and DLM SRAM-to-file delta `0x2000`. For the monitor
 flag, EX9.IT slot **436** is independently generated as `sbi.gp r0,-1691`;
 it does not overwrite `r1=1` between `0x1570a` and `0x15738`. The optional
-read-only checker `tools/verify-agent19-upper-ilm-evidence.py` requires both
+read-only checker `tools/novatek/verify-upper-ilm-evidence.py` requires both
 Agent 18's source files, verifies each reset instruction pair and EX9 slot,
 rejects modified register values/destinations, and reports the 13 file bytes.
 It does *not* require or copy Agent 18's executable bytes into this branch.
@@ -411,7 +411,7 @@ paths supplied), and the offline locked release build passes with Rust 1.99.1.
 Reproduce the cross-agent evidence gate with read-only source paths:
 
 ```sh
-python3 tools/verify-agent19-upper-ilm-evidence.py \
+python3 tools/novatek/verify-upper-ilm-evidence.py \
   --upper-ilm-rs /path/to/agent18/novatek_upper_ilm.rs \
   --upper-ex9-rs /path/to/agent18/novatek_upper_ex9.rs
 ```
@@ -611,7 +611,7 @@ none are promoted to source. The current 9,353 generated DLM bytes and
 40,199 unresolved DLM bytes are unchanged. The pinned reference, strict
 metadata/envelope, all 12 CRC fields, mirror, Rust/Python tests and release
 build are rechecked at each checkpoint. See
-`docs/agent20-19-dlm-descriptor-geometry.md` for formulas and method limits.
+`docs/history/phase-2/novatek-dlm/dlm-descriptor-geometry.md` for formulas and method limits.
 
 ## Checkpoint 14 — typed absolute DLM address cross-references, zero source delta
 
@@ -629,7 +629,7 @@ and the pinned Agent18 checkpoint02 snapshot. The Agent18 code itself stays
 outside Agent19's Git bundle. **No source bytes are credited**: 9,353
 independently generated DLM bytes remain, 40,199 are unknown, and zero
 new executable bytes are added. See
-`docs/agent20-19-dlm-absolute-literals.md`.
+`docs/history/phase-2/novatek-dlm/dlm-absolute-literals.md`.
 
 ## Checkpoint 15 — Fail-closed sparse DLM reconstruction with reference-dependent seeds
 
@@ -736,7 +736,7 @@ new executable bytes are added. See
 - The conditional reassembly, strict postmarketOS hash check, CRC-32/MPEG-2,
   DLM mirror, independent Python model, and external-seed/malformed-input
   regressions must continue passing before promotion to integration.
-- See `docs/agent20-19-dlm-narrow-bank-relocation.md` for evidence, complete
+- See `docs/history/phase-2/novatek-dlm/dlm-narrow-bank-relocation.md` for evidence, complete
   transformations, failure cases, and reproducible commands. Branch still
   derives from old integration preview, not checkpoint-50.
 
@@ -755,7 +755,7 @@ new executable bytes are added. See
   dependent**, and **27,215 external seed** bytes in **60 seed ranges**.
   The underlying 40,199 source-unrecovered DLM bytes remain unchanged.
 - Full Rust/Python/release and original reference checks remain required.
-  See `docs/agent20-19-dlm-zero-bank-aliases.md` for the exact bounds,
+  See `docs/history/phase-2/novatek-dlm/dlm-zero-bank-aliases.md` for the exact bounds,
   cross-version checks, provenance limitations and reproducer.
 - Agent 19 remains a portable branch from the older integration preview,
   not a descendant of the missing checkpoint-50 Git commit.
@@ -766,7 +766,7 @@ new executable bytes are added. See
 - New `novatek-dlm seed-manifest` and `verify-seed-manifest <pinned-image>` commands; `assemble-sparse` and `verify-sparse-rebuild` validate the manifest and all seed digests *before* generating output. A synthetic-unpinned library API remains for unit tests but the user CLI fails closed.
 - Separate Python `hashlib` implementation verifies the plan and supplied image/seed-directory, and tests reject altered profiles, changed SHA, moved/reordered/missing ranges and content mutations. An actual mutated private seed was rejected before creating an output file.
 - Independently source-authored DLM **remains 9,353 bytes**, reference-dependent **12,984 bytes**, external **27,215 bytes**, 60 seed ranges. These hashes are integrity constraints and do **not** recover firmware source or prove OEM authenticity.
-- See `docs/agent20-19-dlm-pinned-seeds.md`; original firmware/seed directory and rebuilt conditional DLM remain private and are never committed.
+- See `docs/history/phase-2/novatek-dlm/dlm-pinned-seeds.md`; original firmware/seed directory and rebuilt conditional DLM remain private and are never committed.
 
 ### Checkpoint 21 executed gates
 
@@ -777,7 +777,7 @@ The workspace test run completed with **449 Rust tests passed**, **215 Python te
 - Added two additional lower-to-upper DLM staging dependencies: 24 bytes `[0x23860,0x23878)` → `[0x27860,0x27878)` and 98 bytes `[0x23a13,0x23a75)` → `[0x27a13,0x27a75)`. The earlier 406-byte codec-bank alias ends at `0x23a12`, so the one-byte mismatch at that boundary remains external; a four-byte preceding gap is also left external.
 - Both pinned postmarketOS and older map220v Novatek firmware revisions satisfy the 122-byte relations. Rust and independent Python synthetic tests propagate nonzero primary values and reject tampering/truncation. The original primary data remain unknown; **zero new independently authored bytes**.
 - Total DLM plan is now **9,353 independently authored source bytes + 13,106 source-dependent bytes + 27,093 external required bytes = 49,552**; **61 exact external seed ranges**. The strict SHA-256 manifest is updated and rejects the previous 60-range layout or wrong firmware revision.
-- The source-unknown ledger still reports **40,199 DLM bytes**. This checkpoint refines reference-conditional reconstruction, not compiler-producible source or OEM firmware authentication. See `docs/agent20-19-dlm-staging-extensions.md`.
+- The source-unknown ledger still reports **40,199 DLM bytes**. This checkpoint refines reference-conditional reconstruction, not compiler-producible source or OEM firmware authentication. See `docs/history/phase-2/novatek-dlm/dlm-staging-extensions.md`.
 
 ### Checkpoint 22 executed gates
 

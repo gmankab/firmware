@@ -67,10 +67,10 @@ Generated interval: file `[0x1001c4,0x100528)`, runtime
 
 | Source stem | File range | Bytes | Recovered operations |
 | --- | --- | ---: | --- |
-| `agent14-late-state-apply.S` | `[0x1001c4,0x100240)` | 124 | Match record/context tokens, decode a status word, update state and a flag. |
-| `agent14-late-descriptor-submit.S` | `[0x100240,0x100410)` | 464 | Acquire a descriptor, update packed fields and lengths, submit it, count success, handle failures. |
-| `agent14-late-record-gate.S` | `[0x100410,0x1004e8)` | 216 | Apply parsed-record flags, the inverted membership predicate, optional six-byte comparison and a subsequent helper gate. |
-| `agent14-late-rate-code-set.S` | `[0x1004e8,0x100528)` | 64 | Check counted byte values against the four-value bitmap using a hardware loop. |
+| `state-apply.S` | `[0x1001c4,0x100240)` | 124 | Match record/context tokens, decode a status word, update state and a flag. |
+| `descriptor-submit.S` | `[0x100240,0x100410)` | 464 | Acquire a descriptor, update packed fields and lengths, submit it, count success, handle failures. |
+| `record-gate.S` | `[0x100410,0x1004e8)` | 216 | Apply parsed-record flags, the inverted membership predicate, optional six-byte comparison and a subsequent helper gate. |
+| `rate-code-set.S` | `[0x1004e8,0x100528)` | 64 | Check counted byte values against the four-value bitmap using a hardware loop. |
 
 These are explicit Hexagon instruction mnemonics and VLIW packets. They are
 not recovered OEM C/Rust source. Higher-level external helper names remain
@@ -151,7 +151,7 @@ Only the successful final runs count as checkpoint evidence.
 Final checkpoint-01 regression: **160 Rust tests and 82 Python tests passed,
 with 0 skipped tests**. The workspace release build and `git diff --check`
 passed. The pinned-reference build, independent assembly and complete V66
-decode all passed. Evidence is in `docs/evidence/agent20-14/checkpoint-01.json`.
+decode all passed. Evidence is in `docs/evidence/wlanmdsp/late/checkpoint-01.json`.
 
 ### Reproduction
 
@@ -201,12 +201,12 @@ Six complete functions add **1,244 executable bytes**, file
 
 | Source stem | File range | Bytes | Recovered operations |
 | --- | --- | ---: | --- |
-| `agent14-late-caller-frame-search.S` | `[0x100528,0x10059c)` | 116 | Use caller-frame data to search context-associated candidate patterns. |
-| `agent14-late-counted-record-collect.S` | `[0x10059c,0x100698)` | 252 | Walk length-prefixed records, collect at most fifteen masked codes, retain a type-zero record, set a conditional flag. |
-| `agent14-late-signature-dispatch.S` | `[0x100698,0x1007c4)` | 300 | Route two type-`0xdd` signatures to distinct child parsers and handle truncated records. |
-| `agent14-late-configuration-check.S` | `[0x1007c4,0x100840)` | 124 | Validate scalar ranges and alignment without changing the input. |
-| `agent14-late-request-submit.S` | `[0x100840,0x10099c)` | 348 | Construct a stack request, submit it, update flags/counters and invoke optional timer-like helpers. |
-| `agent14-late-request-teardown.S` | `[0x10099c,0x100a04)` | 104 | Perform guarded teardown, clear the active flag, reset state and propagate the request result. |
+| `caller-frame-search.S` | `[0x100528,0x10059c)` | 116 | Use caller-frame data to search context-associated candidate patterns. |
+| `counted-record-collect.S` | `[0x10059c,0x100698)` | 252 | Walk length-prefixed records, collect at most fifteen masked codes, retain a type-zero record, set a conditional flag. |
+| `signature-dispatch.S` | `[0x100698,0x1007c4)` | 300 | Route two type-`0xdd` signatures to distinct child parsers and handle truncated records. |
+| `configuration-check.S` | `[0x1007c4,0x100840)` | 124 | Validate scalar ranges and alignment without changing the input. |
+| `request-submit.S` | `[0x100840,0x10099c)` | 348 | Construct a stack request, submit it, update flags/counters and invoke optional timer-like helpers. |
+| `request-teardown.S` | `[0x10099c,0x100a04)` | 104 | Perform guarded teardown, clear the active flag, reset state and propagate the request result. |
 
 The new span contains 157 packets and 311 encoded words, including 16 extenders
 and 24 duplex words. It adds no literal pool, metadata/data, layout fill or
@@ -259,7 +259,7 @@ that checkpoint 01 remains an exact prefix. Final checkpoint evidence records
 **160 Rust tests and 83 Python tests passing, 0 skipped**, a passing release
 build, successful complete V66 decoding, zero reference/independent-assembler
 mismatches and `git diff --check`. See
-`docs/evidence/agent20-14/checkpoint-02.json`.
+`docs/evidence/wlanmdsp/late/checkpoint-02.json`.
 
 Forward continuation: file `0x100a04`, runtime `0xb00c0a04`. The 452-byte lower
 seam is still uncovered. Build this snapshot with `--through-checkpoint 2`;
@@ -347,7 +347,7 @@ cd7a034676ef728179336b34869dc713d49f509c9ac001648677c8d79d553be1
 ```
 
 Final regression and source fingerprints are recorded in
-`docs/evidence/agent20-14/checkpoint-03.json`. All 160 Rust and 83 Python tests
+`docs/evidence/wlanmdsp/late/checkpoint-03.json`. All 160 Rust and 83 Python tests
 pass with zero skips; the release build and whitespace check pass. The forward
 continuation is file `0x101724`, runtime `0xb00c1724`, at a new function entry.
 The lower 452-byte seam remains unimplemented. The wider allocation, external
@@ -482,8 +482,8 @@ two-word load/store encoding; omitting it would silently compress the packet
 and corrupt branch offsets. PC-relative external calls must be adjusted for
 the independent object origin. All three fragment SHA-256 hashes, exact
 locations, and V66 decode counts are in
-`sources/xiaomi-nabu/wlanmdsp/agent14-late-regions.json` and
-`docs/evidence/agent20-14/checkpoint-05.json`.
+`sources/xiaomi-nabu/wlanmdsp/late/regions.json` and
+`docs/evidence/wlanmdsp/late/checkpoint-05.json`.
 
 Build commands (the compiler files and reference remain outside Git):
 
@@ -538,7 +538,7 @@ code. The remaining owned WLAN file budget is 2,433,320 bytes, and
 `[0x100000,0x1001c4)` still needs Agent 13's coordination.
 
 Build with `--through-checkpoint 6` instead of `5` in the checkpoint-05
-command. See `docs/evidence/agent20-14/checkpoint-06.json` for current
+command. See `docs/evidence/wlanmdsp/late/checkpoint-06.json` for current
 per-region hashes and test provenance. Original private reference firmware
 and OEM signature material remain outside Git.
 
@@ -655,7 +655,7 @@ firmware input. An optional pinned-reference comparison reports zero byte
 mismatches. The separate 496-byte table generator was also checked unchanged.
 
 Build using `--through-checkpoint 10`, and see
-`docs/evidence/agent20-14/checkpoint-10.json`. Tests run in a private Cargo
+`docs/evidence/wlanmdsp/late/checkpoint-10.json`. Tests run in a private Cargo
 target directory: 160 Rust tests, 103 Python test cases (98 executed and
 passed, five skipped for optional dependencies), and workspace release build
 completed. `git diff --check` passed. These results do not establish high-level
@@ -1209,7 +1209,7 @@ The session-attach packet combining a store with a register-pair load uses
 explicit `:mem_noshuf` so LLVM preserves the original packet word ordering.
 All seven sources assemble byte-identically under LLVM22/V66 and independently
 under LLVM6/V65, agree with the pinned reference image and have no raw
-OEM instruction words or unexplained padding. The `agent14-late-regions.json`
+OEM instruction words or unexplained padding. The `regions.json`
 manifest records every new source and exact SHA-256.
 
 Cumulative contiguous executable `[0x1001c4,0x106694)` is **25,808 bytes**;
@@ -1344,7 +1344,7 @@ new firmware authentication has been established.
 
 Validation: 160 Rust tests, 191 Python tests, release build, both assemblers,
 V66 decoder and complete cumulative reference comparison pass. Exact hashes
-and packet counts are recorded in `docs/evidence/agent20-14/checkpoint-34.json`.
+and packet counts are recorded in `docs/evidence/wlanmdsp/late/checkpoint-34.json`.
 
 ## Checkpoint 35 — session diagnostics and bounded controller dispatch
 
@@ -1441,7 +1441,7 @@ bytes**, plus **496 independently source-constructed jump-table data bytes** =
 The workspace passes **160 Rust tests, 203 Python tests (no skips)** and
 an offline release build. Exact per-region SHA-256, packet counts, decoder
 coverage and source paths are recorded in
-`docs/evidence/agent20-14/checkpoint-38.json`. The leading Agent13 seam
+`docs/evidence/wlanmdsp/late/checkpoint-38.json`. The leading Agent13 seam
 `[0x100000,0x1001c4)` remains intentionally uncovered. Neither functional
 hardware behavior nor new OEM firmware authentication has been established.
 

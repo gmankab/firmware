@@ -41,7 +41,7 @@ Generated span SHA-256:
 
 Validation: **203 Rust tests passed, 13 Python tests passed, zero skipped**, offline locked release build passed, `git diff --check` passed. Full-span GNU binutils 2.25.1 assembly/link/objcopy comparison passed for both profiles with relaxation disabled; no `.byte`, `.word`, or other data fallback was used. pypcode 4.0.1 additionally decoded the first 25 instructions. Test totals describe this portable branch, not the integration owner's repository.
 
-The first uncovered file offset is **`0x6bc`**, runtime **`0x4bc`**. **63,812 assigned bytes remain** at this checkpoint. The inherited 538-byte prefix plus this contribution gives 620 adjacent instruction bytes `[0x450,0x6bc)`, but the inherited prefix has the semantic defects documented in `agent20-17-inherited-encoder-audit.md`; this checkpoint does not silently certify or correct them.
+The first uncovered file offset is **`0x6bc`**, runtime **`0x4bc`**. **63,812 assigned bytes remain** at this checkpoint. The inherited 538-byte prefix plus this contribution gives 620 adjacent instruction bytes `[0x450,0x6bc)`, but the inherited prefix has the semantic defects documented in `inherited-encoder-audit.md`; this checkpoint does not silently certify or correct them.
 
 ## Reproduction
 
@@ -67,7 +67,7 @@ python3 tools/verify-novatek-ilm-low.py \
 
 Repeat with `--profile map220v` and its exact reference. Use **unmodified GNU binutils 2.25.1**, which retains EX9/IFCALL/IFRET support. The newer 2.43.1 assembler lacks those entries; pypcode 4.0.1 also lacks complete IFC coverage. The verifier fails rather than substituting raw bytes for unsupported instructions. Explicit `--skip-assembler` produces a partial report and exit status 2; it cannot satisfy a checkpoint gate.
 
-The bundle includes the typed source, standalone CLI, verifier, inherited-encoder audit, and per-profile verification evidence under `verification/agent20-17/`. OEM references and local tool binaries are deliberately external. The generated fragment is not a complete firmware image; behavioral validation and hardware execution remain unperformed.
+The bundle includes the typed source, standalone CLI, verifier, inherited-encoder audit, and per-profile verification evidence under `verification/novatek/ilm-lower/`. OEM references and local tool binaries are deliberately external. The generated fragment is not a complete firmware image; behavioral validation and hardware execution remain unperformed.
 
 ## Checkpoint 02 — Controller setup, polling, copying and reporting
 
@@ -101,7 +101,7 @@ Required gates: **206 Rust tests and 13 Python tests passed, zero skipped**;
 offline locked release build and `git diff --check` passed. All 117
 instructions independently assemble and decode under unmodified GNU 2.25.1,
 including EX9 and IFC forms. Evidence is included under
-`verification/agent20-17/checkpoint02-*`.
+`verification/novatek/ilm-lower/checkpoint02-*`.
 
 First uncovered file offset: **`0x79c`**, runtime **`0x59c`**.
 Remaining exclusive postmarketOS assignment: **63,588 bytes**. Including
@@ -138,7 +138,7 @@ verifier regression tests exercise profile identity, descriptor bounds,
 contiguity, instruction/data separation, EX9 effects, and IFC/direct branch
 target interpretation. All 292 instructions independently assemble and
 decode under unmodified GNU 2.25.1. Evidence is included under
-`verification/agent20-17/checkpoint03-*`.
+`verification/novatek/ilm-lower/checkpoint03-*`.
 
 First uncovered file offset: **`0x95a`**, runtime **`0x75a`**.
 Remaining exclusive postmarketOS assignment: **63,142 bytes**. Including
@@ -191,7 +191,7 @@ offline locked release build and `git diff --check` passed. Unmodified
 GNU binutils 2.25.1 independently assembled and decoded all 455 instructions
 for each profile. The verified release emitter SHA-256 is
 `39712931515f6281adcc9acf7af761e6af162ad9e3f58e8076370bf2b21fcb1a`.
-Detailed reports and logs are under `verification/agent20-17/checkpoint04-*`.
+Detailed reports and logs are under `verification/novatek/ilm-lower/checkpoint04-*`.
 
 New regression cases cover the layout divergence, GP/immediate alignment
 and range checks, compact register limits, and multi-register masks. Review
