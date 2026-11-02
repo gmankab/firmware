@@ -445,6 +445,7 @@ pub mod cdsp_late_runtime_loader;
 pub mod cdsp_late_runtime_more;
 #[path = "cdsp/late/cdsp_late_seed_handoff.rs"]
 pub mod cdsp_late_seed_handoff;
+#[path = "venus/runtime/mid/venus_runtime_mid.rs"]
 pub mod venus_runtime_mid;
 #[path = "venus/runtime/core/venus_runtime_seam.rs"]
 pub mod venus_runtime_seam;
