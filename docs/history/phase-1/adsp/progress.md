@@ -28,7 +28,7 @@ actually started from checkpoint 50.
 - The entry fragment `[0x3000, 0x3024)` comprises precisely nine A32-sized
   *Hexagon* (not ARM32) packets/instructions: initial jump, six vector
   self-loop traps, distant jump to RX-relative `0x1158`, and initial `r0=0`.
-  Generated from `tools/adsp-boot-vectors.S`, no binary `.word`/`.incbin`.
+  Generated from `sources/xiaomi-nabu/adsp/adsp-boot-vectors.S`, no binary `.word`/`.incbin`.
   Checkpoint 08 adds the adjacent `[0x3024,0x3044)` (32-byte) V66
 system-control tail to form a **68-byte contiguous boot prefix**
 `[0x3000,0x3044)`. This uses narrow typed Hexagon encoders for `SSR`,
@@ -101,7 +101,7 @@ matches the SHA-256 reference exactly. Whole controller SHA-256:
 `6ca6a20b8be04e75c6cc41896019bf3d46eab35e648b4d9ad39f0fbd0453f9ea`.
 Checkpoint 12 separately reconstructs the 64-byte source-authored
 Hexagon hardware-loop memory-copy routine `[0x4890,0x48d0)`.
-`tools/adsp-dsp-memory-copy.S` builds `loop0`/`:endloop0` packets and
+`sources/xiaomi-nabu/adsp/adsp-dsp-memory-copy.S` builds `loop0`/`:endloop0` packets and
 post-incrementing 64-bit transfers with LLVM6, SHA-256
 `b16b41de41c20fbcce631e29bb6e062a6c5bfbb4a642fe2dc603468944fef5fd`.
 
@@ -215,10 +215,10 @@ Hexagon v66 instruction support and packet scheduling will be needed to
 reconstruct the next TLB operation and the remaining bootstrap gap.
 
 These changes are confined to:
-`tools/adsp-boot-vectors.S`, `tools/adsp-counter-controller.S`,
-`tools/adsp-tlb-map.S`, `tools/adsp-tlb-flush.S`,
-`tools/adsp-dsp-memory-copy.S`, `tools/adsp-cacheline-copy.S`,
-`tools/adsp-tlb-reconcile.S`,
+`sources/xiaomi-nabu/adsp/adsp-boot-vectors.S`, `sources/xiaomi-nabu/adsp/adsp-counter-controller.S`,
+`sources/xiaomi-nabu/adsp/adsp-tlb-map.S`, `sources/xiaomi-nabu/adsp/adsp-tlb-flush.S`,
+`sources/xiaomi-nabu/adsp/adsp-dsp-memory-copy.S`, `sources/xiaomi-nabu/adsp/adsp-cacheline-copy.S`,
+`sources/xiaomi-nabu/adsp/adsp-tlb-reconcile.S`,
 `tools/adsp_hexagon_v66.py`, `tools/emit-adsp-entry.py`,
 `tests/test_adsp_bootstrap.py`, `tests/test_adsp_v66.py`,
 and this progress document.
@@ -237,7 +237,7 @@ file `[0x4980,0x49ac)`, physical `[0x8be01980,0x8be019ac)`:
   32-bit address, then call the adjacent routine beginning at `0x49ac`.
 - Restore `lr` and return without importing OEM instruction words.
 
-`tools/adsp-controller-bootstrap.S` assembles with LLVM6 Hexagon v65, which
+`sources/xiaomi-nabu/adsp/adsp-controller-bootstrap.S` assembles with LLVM6 Hexagon v65, which
 is safe for the supported instructions used in this fragment. A forced
 `immext` is required for the GP-relative address; omitting it silently
 shortens the binary and changes the logical address. All 44 bytes match the
@@ -270,7 +270,7 @@ This is not a complete authenticated ADSP firmware image.
 
 Independently built **92 bytes** at file `[0x49ac,0x4a08)`, physical
 `[0x8be019ac,0x8be01a08)`, from the meaningful source in
-`tools/adsp-controller-cache-copy.S`. The source loads the pointer pair and
+`sources/xiaomi-nabu/adsp/adsp-controller-cache-copy.S`. The source loads the pointer pair and
 size from GP-relative controller words, skips missing/short input, then uses
 Hexagon `loop0` to process 32 bytes of cache-aligned data per iteration with
 `dczeroa`, paired 64-bit loads and post-incrementing stores.
@@ -302,7 +302,7 @@ python3 -S tools/emit-adsp-entry.py \
 
 Extended the same contiguous controller region with **76 source-authored
 bytes** at file offsets `[0x4a08,0x4a54)`, physical
-`[0x8be01a08,0x8be01a54)`. `tools/adsp-controller-physical-copy.S` loads
+`[0x8be01a08,0x8be01a54)`. `sources/xiaomi-nabu/adsp/adsp-controller-physical-copy.S` loads
 input/output locations and lengths through independently assembled GP-relative
 operations, checks for null/short inputs, and copies four-byte words through
 a `loop0` counted hardware loop. The source defines all packet grouping and
@@ -336,7 +336,7 @@ python3 -S tools/emit-adsp-entry.py \
 
 Added **144 contiguous bytes** at file `[0x4a54,0x4ae4)` (physical
 `[0x8be01a54,0x8be01ae4)`), source-authored in
-`tools/adsp-controller-physical-compare.S`. The function checks controller
+`sources/xiaomi-nabu/adsp/adsp-controller-physical-compare.S`. The function checks controller
 addresses and lengths, compares page-mapped source words with the physically
 addressed memory contents under a Hexagon `loop0`, and records no more than
 four mismatch entries in an output table. The comparison includes two
@@ -372,7 +372,7 @@ The next uncovered contiguous controller byte is `0x4ae4`; the earlier
 
 Extended controller reconstruction by **36 contiguous bytes** at ADSP file
 `[0x4ae4,0x4b08)` (physical `[0x8be01ae4,0x8be01b08)`). The
-`tools/adsp-controller-cfgbase.S` source obtains `CFGBASE`, shifts the
+`sources/xiaomi-nabu/adsp/adsp-controller-cfgbase.S` source obtains `CFGBASE`, shifts the
 controller aperture, reads its physical word, and writes the shifted result
 through the GP-relative control register with Hexagon new-value forwarding.
 LLVM6 fully emits the shift, extended immediate, GP-relative store and
@@ -461,7 +461,7 @@ source opcodes. The `ISDBEN` write and `brkpt` encodings match multiple
 independent ADSP call sites verified with Rizin. All six assembler sentinel
 slots are checked before replacing them; no private reference words appear
 in the output generator. Source:
-`tools/adsp-controller-debug-check.S`.
+`sources/xiaomi-nabu/adsp/adsp-controller-debug-check.S`.
 
 The contiguous controller span is now **2,784 bytes** `[0x41e0,0x4cc0)`;
 with the disjoint 68-byte boot prefix, **2,852 total reproducibly generated
@@ -483,7 +483,7 @@ python3 -S tools/emit-adsp-entry.py \
 
 Added **40 exact executable bytes** at file offsets `[0x4cc0,0x4ce8)`,
 physical `[0x8be01cc0,0x8be01ce8)` in
-`tools/adsp-controller-vector-handoff.S`. It calculates an exception-vector
+`sources/xiaomi-nabu/adsp/adsp-controller-vector-handoff.S`. It calculates an exception-vector
 address, writes the privileged `EVB` register from `R1`, invokes the earlier
 `0x4690` controller helper, loads a controller state word, and dispatches
 two predicates to the later routines at `0x51b0` and `0x51c0`. The source
@@ -567,7 +567,7 @@ from low/high register halves and the `S54` base, stores `R1:0` as a
 64-bit word, calculates the thread-specific stack pointer and transfers
 control into the next context-switch routine.
 
-The packet-aware LLVM6 source file `tools/adsp-controller-context-save.S`
+The packet-aware LLVM6 source file `sources/xiaomi-nabu/adsp/adsp-controller-context-save.S`
 generates all arithmetic, `immext`, memory-store and branch instructions.
 Three v66-specific system-register read sites (`HTID`, `S54`, and a
 **continuing-packet HTID** read) are replaced with checked narrow operand
