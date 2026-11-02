@@ -12,3 +12,5 @@ publish = false
 qrisc.workspace = true
 ir3.workspace = true
 arm32.workspace = true
+venus-controller = { path = "../venus-controller" }
+venus-tail = { path = "../venus-tail" }

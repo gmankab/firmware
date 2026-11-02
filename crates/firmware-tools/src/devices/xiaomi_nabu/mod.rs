@@ -180,3 +180,7 @@ pub mod cdsp_early_worker_callbacks;
 pub mod cdsp_early_worker_command;
 pub mod cdsp_early_worker_decision;
 pub mod cdsp_early_worker_lock; // Agent20-09 variable-width memory selector // Agent20-09 CDSP stop/restart and TLB save through 0x4b1c // Agent20-09 physical-state copy and cache flush to 0x4ab0 // Agent20-09 L2 cache global helper through 0x4a38 // CDSP read privileged state into exception frame to 0x4a08
+
+// Own large A32 generator groups in independent, low-memory Rust crates.
+pub use venus_controller::*;
+pub use venus_tail::venus_runtime_tail_agent20_06;

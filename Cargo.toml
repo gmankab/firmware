@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: GPL-3.0-only
 [workspace]
-members = ["crates/firmware-tools", "crates/qrisc", "crates/ir3", "crates/arm32"]
-default-members = ["crates/firmware-tools", "crates/qrisc", "crates/ir3", "crates/arm32"]
+members = ["crates/firmware-tools", "crates/qrisc", "crates/ir3", "crates/arm32", "crates/venus-controller", "crates/venus-tail"]
+default-members = ["crates/firmware-tools", "crates/qrisc", "crates/ir3", "crates/arm32", "crates/venus-controller", "crates/venus-tail"]
 exclude = ["experiments/hexagon-probe"]
 resolver = "2"
 

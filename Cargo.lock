@@ -13,6 +13,8 @@ dependencies = [
  "arm32",
  "ir3",
  "qrisc",
+ "venus-controller",
+ "venus-tail",
 ]
 
 [[package]]
@@ -22,3 +24,17 @@ version = "0.1.0"
 [[package]]
 name = "qrisc"
 version = "0.1.0"
+
+[[package]]
+name = "venus-controller"
+version = "0.1.0"
+dependencies = [
+ "arm32",
+]
+
+[[package]]
+name = "venus-tail"
+version = "0.1.0"
+dependencies = [
+ "arm32",
+]

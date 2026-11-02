@@ -1,0 +1,9 @@
+# SPDX-License-Identifier: GPL-3.0-only
+[package]
+name = "venus-tail"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish = false
+[dependencies]
+arm32.workspace = true
