@@ -16,7 +16,7 @@ FILE_END=0x11548
 SIZE=FILE_END-FILE_START
 PHYSICAL_START=0x8be0e4a8
 REFERENCE_SHA256='4b579e5dc1333d634e5bdc93f3314e357e0e30dab7140833f6cc7aef086b1c1e'
-SOURCE=T/'adsp-agent20-rwe-next-controller-global-memory.S'
+SOURCE=T/'rwe-next-controller-global-memory.S'
 
 def render(llvm_mc:str)->bytes:
     p=T/'emit-adsp-entry.py';spec=importlib.util.spec_from_file_location('adsp_generator',p)

@@ -14,7 +14,7 @@ START=0x1289c
 END=0x129bc
 SIZE=END-START
 PHYSICAL=0x8be0f89c
-SOURCE=T/'adsp-agent20-rwe-next-controller-format-selector-reports.S'
+SOURCE=T/'rwe-next-controller-format-selector-reports.S'
 REFERENCE_SHA='4b579e5dc1333d634e5bdc93f3314e357e0e30dab7140833f6cc7aef086b1c1e'
 # These are diagnostic format string pointers in controller virtual address space,
 # NOT vendor machine words or executable bytes.

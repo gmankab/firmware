@@ -14,8 +14,8 @@ FILE_START=0x11548
 FILE_END=0x11624
 SIZE=FILE_END-FILE_START
 PHYSICAL_START=0x8be0e548
-PARTS=(('global-pointers',0x11548,0x11594,'adsp-agent20-rwe-next-controller-global-pointers.S'),
-       ('global-layout',0x11594,0x11624,'adsp-agent20-rwe-next-controller-global-layout.S'))
+PARTS=(('global-pointers',0x11548,0x11594,'rwe-next-controller-global-pointers.S'),
+       ('global-layout',0x11594,0x11624,'rwe-next-controller-global-layout.S'))
 REFERENCE_SHA256='4b579e5dc1333d634e5bdc93f3314e357e0e30dab7140833f6cc7aef086b1c1e'
 
 def render(llvm_mc:str)->bytes:

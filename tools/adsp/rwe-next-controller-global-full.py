@@ -20,12 +20,12 @@ FILL_START=END
 FILL_END=0x116a0
 REFERENCE_SHA='4b579e5dc1333d634e5bdc93f3314e357e0e30dab7140833f6cc7aef086b1c1e'
 PARTS=(
-    ('startup',0x11450,0x114a8,'adsp-agent20-rwe-next-controller-global-startup.py'),
-    ('memory',0x114a8,0x11548,'adsp-agent20-rwe-next-controller-global-memory.py'),
-    ('layout',0x11548,0x11624,'adsp-agent20-rwe-next-controller-global-layout.py'),
-    ('handoff',0x11624,0x1167c,'adsp-agent20-rwe-next-controller-global-handoff.py'),
+    ('startup',0x11450,0x114a8,'rwe-next-controller-global-startup.py'),
+    ('memory',0x114a8,0x11548,'rwe-next-controller-global-memory.py'),
+    ('layout',0x11548,0x11624,'rwe-next-controller-global-layout.py'),
+    ('handoff',0x11624,0x1167c,'rwe-next-controller-global-handoff.py'),
 )
-LAST_SOURCE=TOOLS/'adsp-agent20-rwe-next-controller-global-complete.S'
+LAST_SOURCE=TOOLS/'rwe-next-controller-global-complete.S'
 
 def load_source(name:str):
     path=TOOLS/name
