@@ -47,6 +47,31 @@ checks are recorded in `docs/maintenance/{adsp,cdsp}-assembly-relocation.json`
 and enforced by `tests/test_assembly_source_ownership.py`.
 Never add symlinks or duplicate firmware source into executable tool directories.
 
+### Public entry points versus implementation tools
+
+Only the stable public entry points remain directly in `tools/`:
+`firmware.py`, `check-local.sh`, `low-memory-build.sh`, `verify.sh`, and
+`verify-xiaomi-nabu.sh` (`__init__.py` maintains Python module loading).
+All component-specific implementation tools live in the `tools/<component>/`
+package/directory. Shared ELF and MBN inspection tools live under
+`tools/analysis/`; metadata and A640 assemblers under `tools/build/`;
+certificate, MBN and QRISC verifiers under `tools/verify/`.
+
+The Hexagon V66 instruction encoder and ADSP entry/late emitters are now
+co-located in `tools/adsp/`, while WLAN late packet parsing is in
+`tools/wlanmdsp/`. The exact old-to-new paths and SHA-256 provenance are
+recorded in:
+
+- `docs/maintenance/common-tool-relocation.json` (five ELF/MBN utilities)
+- `docs/maintenance/shell-tool-relocation.json` (four shell tools)
+- `docs/maintenance/wlan-packet-parser-relocation.json`
+- `docs/maintenance/adsp-tool-ownership.json`
+
+`tests/test_public_tool_entrypoints.py` rejects stray implementation files
+at the tools root and checks that no firmware assembly has returned under
+`tools/`. Do not create alias scripts with obsolete locations: update callers
+and their tests together.
+
 ### Avoiding unbounded reads and compilation freezes
 
 For large A32 generators and reference binaries, inspect metadata before
