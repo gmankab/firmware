@@ -36,7 +36,7 @@ def verify(binary:Path,reference:Path,rz:Path,llvm:Path)->None:
     if len(pairs)!=21:raise ValueError(f'Rizin decoded {len(pairs)} of 21 words')
     for i,((pc,op),want) in enumerate(zip(pairs,EXPECTED)):
         if pc!=PC+i*4 or norm(op)!=norm(want):raise ValueError(f'Rizin difference at {pc:#x}: {op!r} vs {want!r}')
-    spec=importlib.util.spec_from_file_location('helper',Path(__file__).with_name('verify-agent20-09-hvx.py'))
+    spec=importlib.util.spec_from_file_location('helper',Path(__file__).with_name('verify-early-hvx.py'))
     if not spec or not spec.loader:raise RuntimeError('missing LLVM6 helper')
     mod=importlib.util.module_from_spec(spec);spec.loader.exec_module(mod)
     singles={

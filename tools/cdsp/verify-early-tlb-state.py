@@ -36,7 +36,7 @@ def verify(ours:Path,reference:Path,rz:Path,mc:Path):
         if address!=PC+i*4 or normalized(semantic)!=normalized(expect):
             raise ValueError(f'Rizin discrepancy at {address:#x}: {semantic!r} != {expect!r}')
     import importlib.util
-    helper_path=Path(__file__).with_name('verify-agent20-09-hvx.py')
+    helper_path=Path(__file__).with_name('verify-early-hvx.py')
     spec=importlib.util.spec_from_file_location('hvx_helper',helper_path)
     if not spec or not spec.loader:raise ValueError('HVX helper missing')
     helper=importlib.util.module_from_spec(spec);spec.loader.exec_module(helper)

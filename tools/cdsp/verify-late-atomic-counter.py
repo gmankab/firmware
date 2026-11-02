@@ -36,7 +36,7 @@ def verify(llvm:Path,rz:Path,generated:Path,reference:Path,prefix:Path|None)->No
         if joined[-SIZE:]!=source:raise ValueError('RWE prefix emitted a different atomic counter')
     with tempfile.TemporaryDirectory(prefix='cdsp_atomic_checker_') as tmp:
         obj=Path(tmp)/'cdsp-atomic.o'
-        asm=Path(__file__).with_name('agent20-10-cdsp-rwe-atomic-semantics.s')
+        asm=Path(__file__).with_name('late-rwe-atomic-semantics.s')
         subprocess.run([str(llvm),'-triple=hexagon','-mcpu=hexagonv60',
                         '-filetype=obj',str(asm),'-o',str(obj)],
                         check=True,capture_output=True,text=True)

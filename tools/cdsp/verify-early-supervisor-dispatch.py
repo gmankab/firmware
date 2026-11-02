@@ -44,7 +44,7 @@ def verify(output:Path,reference:Path,rz:Path,llvm:Path)->None:
     for idx,((pc,s),expected) in enumerate(zip(parsed,EXPECTED)):
         if pc!=PC+idx*4 or normalize(s)!=normalize(expected):
             raise ValueError(f'Rizin differs at {pc:#x}: {s!r} vs {expected!r}')
-    p=Path(__file__).with_name('verify-agent20-09-hvx.py')
+    p=Path(__file__).with_name('verify-early-hvx.py')
     spec=importlib.util.spec_from_file_location('hexagon_llvm_helper',p)
     if not spec or not spec.loader:raise RuntimeError('missing LLVM6 helper')
     mod=importlib.util.module_from_spec(spec);spec.loader.exec_module(mod)

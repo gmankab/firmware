@@ -39,7 +39,7 @@ def verify(binary:Path,reference:Path,rz:Path,llvm:Path)->None:
     for i,((addr,semantic),want) in enumerate(zip(pairs,EXPECTED)):
         if addr!=PC+i*4 or norm(semantic)!=norm(want):
             raise ValueError(f'Rizin differs at {addr:#x}: {semantic!r} != {want!r}')
-    spec=importlib.util.spec_from_file_location('h',Path(__file__).with_name('verify-agent20-09-hvx.py'))
+    spec=importlib.util.spec_from_file_location('h',Path(__file__).with_name('verify-early-hvx.py'))
     if not spec or not spec.loader:raise RuntimeError('LLVM helper missing')
     mod=importlib.util.module_from_spec(spec);spec.loader.exec_module(mod)
     samples={
