@@ -32,7 +32,7 @@ SOURCE = ADSP_ASM / 'adsp-controller-tlb-snapshot.S'
 
 
 def load_baseline_emitter():
-    p = TOOLS / 'emit-adsp-entry.py'
+    p = TOOLS.parent / 'emit-adsp-entry.py'
     spec = importlib.util.spec_from_file_location('adsp_agent04_emitter', p)
     if spec is None or spec.loader is None:
         raise RuntimeError('unable to load checked Hexagon object decoder')

@@ -20,7 +20,7 @@ REFERENCE_SHA='4b579e5dc1333d634e5bdc93f3314e357e0e30dab7140833f6cc7aef086b1c1e'
 NOP=struct.pack('<I',0x7f00c000)
 
 def render(llvm_mc:str)->bytes:
- sp=importlib.util.spec_from_file_location('hex_llvm',T/'emit-adsp-entry.py')
+ sp=importlib.util.spec_from_file_location('hex_llvm',T.parent / 'emit-adsp-entry.py')
  if not sp or not sp.loader:raise RuntimeError('LLVM6 source assembler missing')
  m=importlib.util.module_from_spec(sp);sp.loader.exec_module(m)
  out=bytearray(m.assemble(llvm_mc,SOURCE,SIZE))

@@ -27,7 +27,7 @@ PRIVILEGED={
 NOP=struct.pack('<I',0x7f00c000)
 
 def render(llvm_mc:str)->bytes:
-    spec=importlib.util.spec_from_file_location('adsp',T/'emit-adsp-entry.py')
+    spec=importlib.util.spec_from_file_location('adsp',T.parent / 'emit-adsp-entry.py')
     if not spec or not spec.loader:raise RuntimeError('Missing LLVM assembler')
     a=importlib.util.module_from_spec(spec);spec.loader.exec_module(a)
     out=bytearray(a.assemble(llvm_mc,SOURCE,SIZE))

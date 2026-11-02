@@ -24,7 +24,7 @@ SOURCE=ASSEMBLY_DIR / 'rwe-next-controller-record-query.S'
 NOP=struct.pack('<I',0x7f00c000)
 
 def render(llvm_mc:str)->bytes:
-    sp=importlib.util.spec_from_file_location('hexagon_assembler',T/'emit-adsp-entry.py')
+    sp=importlib.util.spec_from_file_location('hexagon_assembler',T.parent / 'emit-adsp-entry.py')
     if not sp or not sp.loader:raise RuntimeError('Missing Hexagon reassembler')
     m=importlib.util.module_from_spec(sp);sp.loader.exec_module(m)
     b=bytearray(m.assemble(llvm_mc,SOURCE,SIZE));idx=SGP0-START

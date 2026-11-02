@@ -30,7 +30,7 @@ PARTS=(
 NOP=struct.pack('<I',0x7f00c000)
 
 def render(llvm_mc:str)->bytes:
-    spec=importlib.util.spec_from_file_location('adsp_emit',T/'emit-adsp-entry.py')
+    spec=importlib.util.spec_from_file_location('adsp_emit',T.parent / 'emit-adsp-entry.py')
     if not spec or not spec.loader:raise RuntimeError('Missing Hexagon assembler source')
     m=importlib.util.module_from_spec(spec);spec.loader.exec_module(m)
     data=bytearray(b''.join(m.assemble(llvm_mc,ASSEMBLY_DIR/name,length) for name,length in PARTS))

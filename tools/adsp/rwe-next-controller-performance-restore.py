@@ -40,7 +40,7 @@ SYSTEM_TRANSFERS={
 }
 
 def render(llvm_mc:str)->bytes:
- sp=importlib.util.spec_from_file_location('hexagon_emitter',T/'emit-adsp-entry.py')
+ sp=importlib.util.spec_from_file_location('hexagon_emitter',T.parent / 'emit-adsp-entry.py')
  if not sp or not sp.loader:raise RuntimeError('Missing independent LLVM6 emitter')
  m=importlib.util.module_from_spec(sp);sp.loader.exec_module(m)
  b=bytearray(m.assemble(llvm_mc,SOURCE,SIZE))

@@ -28,7 +28,7 @@ FORMAT_MESSAGES=(
 )
 
 def render(llvm_mc:str)->bytes:
-    sp=importlib.util.spec_from_file_location('adsp_elf_emit',T/'emit-adsp-entry.py')
+    sp=importlib.util.spec_from_file_location('adsp_elf_emit',T.parent / 'emit-adsp-entry.py')
     if not sp or not sp.loader:raise RuntimeError('Missing Hexagon assembler')
     m=importlib.util.module_from_spec(sp);sp.loader.exec_module(m)
     return m.assemble(llvm_mc,SOURCE,SIZE)

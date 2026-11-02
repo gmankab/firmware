@@ -18,7 +18,7 @@ SOURCE=ASSEMBLY_DIR / 'rwe-next-controller-format-selector-cases-c.S'
 REFERENCE_SHA='4b579e5dc1333d634e5bdc93f3314e357e0e30dab7140833f6cc7aef086b1c1e'
 
 def render(llvm_mc:str)->bytes:
-    sp=importlib.util.spec_from_file_location('hexagon_emit',T/'emit-adsp-entry.py')
+    sp=importlib.util.spec_from_file_location('hexagon_emit',T.parent / 'emit-adsp-entry.py')
     if not sp or not sp.loader:raise RuntimeError('Missing ELF .text builder')
     m=importlib.util.module_from_spec(sp);sp.loader.exec_module(m)
     return m.assemble(llvm_mc,SOURCE,SIZE)

@@ -8,7 +8,7 @@ not independently reconstructed executable or an inlined OEM payload.
 from __future__ import annotations
 import argparse,hashlib,importlib.util,sys
 from pathlib import Path
-SOURCE=Path(__file__).with_suffix('.S')
+SOURCE=Path(__file__).resolve().parents[2]/'sources/xiaomi-nabu/adsp/rwe/rwe-next-packed-offsets.S'
 FILE_START=0x11108
 FILE_END=0x11164
 SIZE=FILE_END-FILE_START
@@ -18,7 +18,7 @@ PHYSICAL_START=0x8be0e108
 REFERENCE_SHA256='4b579e5dc1333d634e5bdc93f3314e357e0e30dab7140833f6cc7aef086b1c1e'
 
 def base():
-    spec=importlib.util.spec_from_file_location('adsp_core',SOURCE.with_name('emit-adsp-entry.py'))
+    spec=importlib.util.spec_from_file_location('adsp_core',Path(__file__).resolve().parents[1]/'emit-adsp-entry.py')
     if not spec or not spec.loader:raise RuntimeError('Missing Hexagon source assembler')
     m=importlib.util.module_from_spec(spec);spec.loader.exec_module(m);return m
 

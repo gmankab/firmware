@@ -17,7 +17,7 @@ SOURCE=ASSEMBLY_DIR / 'rwe-next-controller-slot-status.S'
 REFERENCE_SHA='4b579e5dc1333d634e5bdc93f3314e357e0e30dab7140833f6cc7aef086b1c1e'
 
 def render(llvm_mc:str)->bytes:
-    spec=importlib.util.spec_from_file_location('assembler',T/'emit-adsp-entry.py')
+    spec=importlib.util.spec_from_file_location('assembler',T.parent / 'emit-adsp-entry.py')
     if not spec or not spec.loader:raise RuntimeError('Missing checked Hexagon assembler')
     asm=importlib.util.module_from_spec(spec);spec.loader.exec_module(asm)
     return asm.assemble(llvm_mc,SOURCE,SIZE)

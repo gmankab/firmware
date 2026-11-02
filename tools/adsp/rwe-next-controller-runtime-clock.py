@@ -28,7 +28,7 @@ SPECIAL={0x13864:read_system_register_pair(0,30),
 PACKET_CONTINUATIONS=(0x1386c,0x13878)
 
 def render(llvm_mc:str)->bytes:
- sp=importlib.util.spec_from_file_location('emitter',T/'emit-adsp-entry.py')
+ sp=importlib.util.spec_from_file_location('emitter',T.parent / 'emit-adsp-entry.py')
  if not sp or not sp.loader:raise RuntimeError('Missing LLVM6 emitter')
  em=importlib.util.module_from_spec(sp);sp.loader.exec_module(em)
  data=bytearray(em.assemble(llvm_mc,SOURCE,SIZE))

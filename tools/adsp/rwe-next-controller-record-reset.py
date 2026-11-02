@@ -26,7 +26,7 @@ REFERENCE_SHA='4b579e5dc1333d634e5bdc93f3314e357e0e30dab7140833f6cc7aef086b1c1e'
 NOP=struct.pack('<I',0x7f00c000)
 
 def render(llvm_mc:str)->bytes:
-    spec=importlib.util.spec_from_file_location('adsp_emit',T/'emit-adsp-entry.py')
+    spec=importlib.util.spec_from_file_location('adsp_emit',T.parent / 'emit-adsp-entry.py')
     if spec is None or spec.loader is None:
         raise RuntimeError('Missing Hexagon source-assembler helper')
     m=importlib.util.module_from_spec(spec);spec.loader.exec_module(m)

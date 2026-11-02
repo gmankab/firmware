@@ -29,7 +29,7 @@ PARTS=(
 LAST_SOURCE=ASSEMBLY_DIR / 'rwe-next-controller-global-complete.S'
 
 def load_source(name:str):
-    path=TOOLS/name
+    path=(TOOLS.parent if name=='emit-adsp-entry.py' else TOOLS)/name
     spec=importlib.util.spec_from_file_location('adsp_fragment_'+name.replace('.','_').replace('-','_'),path)
     if not spec or not spec.loader:raise RuntimeError(f'Missing source emitter {path}')
     obj=importlib.util.module_from_spec(spec);spec.loader.exec_module(obj);return obj

@@ -20,7 +20,7 @@ REFERENCE_SHA256='4b579e5dc1333d634e5bdc93f3314e357e0e30dab7140833f6cc7aef086b1c
 SOURCE=ASSEMBLY_DIR / 'rwe-next-controller-global-memory.S'
 
 def render(llvm_mc:str)->bytes:
-    p=T/'emit-adsp-entry.py';spec=importlib.util.spec_from_file_location('adsp_generator',p)
+    p=T.parent / 'emit-adsp-entry.py';spec=importlib.util.spec_from_file_location('adsp_generator',p)
     if not spec or not spec.loader:raise RuntimeError('Missing ADSP assembler module')
     m=importlib.util.module_from_spec(spec);spec.loader.exec_module(m)
     return m.assemble(llvm_mc,SOURCE,SIZE)
