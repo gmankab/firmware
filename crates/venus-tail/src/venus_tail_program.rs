@@ -42,6 +42,8 @@ impl Code {
         self.emit(arm32::transfer_word(C::Al,true,rd,R::PC,signed)?)
     }
 }
+
+// Firmware routines and literal pools remain in their original item namespace.
 include!("parts/section_001.rs");
 include!("parts/section_002.rs");
 include!("parts/section_003.rs");
