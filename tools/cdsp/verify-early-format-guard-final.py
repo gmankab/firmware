@@ -31,7 +31,7 @@ ERRORS=[(0x5864,-25,0x5878)]
 JUMPS=[(0x571c,0x5864),(0x57c0,0x5864)]
 
 def shared():
- path=Path(__file__).with_name('verify-agent20-09-format-guard-tail.py')
+ path=Path(__file__).with_name('verify-early-format-guard-tail.py')
  spec=importlib.util.spec_from_file_location('format_tail',path)
  if not spec or not spec.loader:raise ValueError('Missing prior independent Hexagon test infrastructure')
  mod=importlib.util.module_from_spec(spec);spec.loader.exec_module(mod)

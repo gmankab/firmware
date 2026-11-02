@@ -42,7 +42,7 @@ def verify(path:Path,reference:Path,rz:Path,llvm:Path)->None:
     for i,((pc,semantic),want) in enumerate(zip(parsed,EXPECTED)):
         if pc!=PC+i*4 or normalize(semantic)!=normalize(want):
             raise ValueError(f'Rizin failed at {pc:#x}: {semantic!r} != {want!r}')
-    spec=importlib.util.spec_from_file_location('hexagon_llvm_helper',Path(__file__).with_name('verify-agent20-09-hvx.py'))
+    spec=importlib.util.spec_from_file_location('hexagon_llvm_helper',Path(__file__).with_name('verify-early-hvx.py'))
     if not spec or not spec.loader:raise RuntimeError('LLVM helper missing')
     mod=importlib.util.module_from_spec(spec);spec.loader.exec_module(mod)
     # Assemble complete instruction packets for branches. Hexagon .new

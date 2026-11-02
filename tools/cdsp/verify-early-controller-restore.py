@@ -39,7 +39,7 @@ def verify(binary:Path,reference:Path,rz:Path,llvm:Path):
     if len(lines)!=27:raise ValueError(f'Rizin decoded only {len(lines)} of 27')
     for i,((pc,ins),want) in enumerate(zip(lines,EXPECTED)):
         if pc!=PC+i*4 or normalize(ins)!=normalize(want):raise ValueError(f'Rizin mismatch at word {i}: {ins!r} vs {want!r}')
-    spec=importlib.util.spec_from_file_location('hvx_helper',Path(__file__).with_name('verify-agent20-09-hvx.py'))
+    spec=importlib.util.spec_from_file_location('hvx_helper',Path(__file__).with_name('verify-early-hvx.py'))
     assert spec and spec.loader
     helper=importlib.util.module_from_spec(spec);spec.loader.exec_module(helper)
     # LLVM6 emits different legal extended GP and long-jump instruction
