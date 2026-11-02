@@ -93,7 +93,7 @@ git diff --check
 
 "$CARGO_TARGET_DIR/release/novatek-dlm" emit /tmp/agent20-19-emitted
 "$CARGO_TARGET_DIR/release/novatek-dlm" verify-reference /private/novatek_nt36523_fw.bin
-python3 tools/verify-novatek-dlm.py \
+python3 tools/novatek/verify-novatek-dlm.py \
   --reference /private/novatek_nt36523_fw.bin \
   --emitted-dir /tmp/agent20-19-emitted
 ```
@@ -502,7 +502,7 @@ relationship.
 
 ```sh
 novatek-dlm verify-calibration-alias /private/novatek_nt36523_fw.bin
-python3 tools/verify-novatek-calibration-alias.py /private/novatek_nt36523_fw.bin
+python3 tools/novatek/verify-novatek-calibration-alias.py /private/novatek_nt36523_fw.bin
 ```
 
 **No increase in unique source reconstruction:** 9,353 independently generated

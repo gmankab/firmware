@@ -60,8 +60,8 @@ python3 -m unittest discover -s tests -p 'test_*.py'
 ./target/release/novatek-dlm sparse-plan
 ./target/release/novatek-dlm verify-sparse-rebuild /private/postmarketos/novatek_nt36523_fw.bin
 ./target/release/novatek-dlm verify-zero-bank-aliases /private/postmarketos/novatek_nt36523_fw.bin
-python3 tools/verify-novatek-dlm-zero-bank-aliases.py /private/postmarketos/novatek_nt36523_fw.bin
-python3 tools/verify-novatek-dlm-zero-bank-aliases.py /private/map220v/novatek_nt36523_fw.bin
+python3 tools/novatek/verify-novatek-dlm-zero-bank-aliases.py /private/postmarketos/novatek_nt36523_fw.bin
+python3 tools/novatek/verify-novatek-dlm-zero-bank-aliases.py /private/map220v/novatek_nt36523_fw.bin
 ```
 
 The Python model reconstructs these relationships independently of the Rust

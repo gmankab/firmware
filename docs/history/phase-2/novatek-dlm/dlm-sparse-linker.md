@@ -76,7 +76,7 @@ python3 -m unittest discover -s tests -p 'test_*.py'
 
 # Independent Python verification against the same original/typed fragments.
 "$CARGO_TARGET_DIR/release/novatek-dlm" emit /tmp/agent19-authored-fragments
-python3 tools/verify-novatek-dlm-sparse.py \
+python3 tools/novatek/verify-novatek-dlm-sparse.py \
   --reference /private/novatek_nt36523_fw.bin \
   --emitted-dir /tmp/agent19-authored-fragments \
   --sparse-plan /tmp/novatek-dlm-seed-plan.json

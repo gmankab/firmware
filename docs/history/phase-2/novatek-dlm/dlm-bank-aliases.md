@@ -31,7 +31,7 @@ relationships. The main reference verifier now runs this check too.
 ```sh
 cargo run --offline --locked -p firmware-tools --bin novatek-dlm -- \
   verify-bank-aliases /private/novatek_nt36523_fw.bin
-python3 tools/verify-novatek-dlm-bank-aliases.py \
+python3 tools/novatek/verify-novatek-dlm-bank-aliases.py \
   /private/novatek_nt36523_fw.bin --ledger /tmp/dlm-ledger.json
 ```
 

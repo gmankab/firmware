@@ -65,9 +65,9 @@ python3 -m unittest discover -s tests -p 'test_*.py'
 "$CARGO_TARGET_DIR/release/novatek-dlm" verify-sparse-rebuild /private/novatek_nt36523_fw.bin
 "$CARGO_TARGET_DIR/release/novatek-dlm" sparse-plan > /tmp/agent19-sparse-plan.json
 "$CARGO_TARGET_DIR/release/novatek-dlm" emit /tmp/agent19-source-fragments
-python3 tools/verify-novatek-dlm-sparse.py --reference /private/novatek_nt36523_fw.bin \
+python3 tools/novatek/verify-novatek-dlm-sparse.py --reference /private/novatek_nt36523_fw.bin \
     --emitted-dir /tmp/agent19-source-fragments --sparse-plan /tmp/agent19-sparse-plan.json
-python3 tools/verify-novatek-dlm-narrow-bank.py /private/novatek_nt36523_fw.bin
+python3 tools/novatek/verify-novatek-dlm-narrow-bank.py /private/novatek_nt36523_fw.bin
 ```
 
 No source files from Agents 17 or 18 are modified, nor are global CLI or

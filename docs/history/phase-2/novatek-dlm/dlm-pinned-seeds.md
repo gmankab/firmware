@@ -16,7 +16,7 @@ The independent Python checker uses standard-library `hashlib` (not the Rust has
 cargo run --offline --locked --bin novatek-dlm -- sparse-plan > /tmp/dlm-sparse-plan.json
 cargo run --offline --locked --bin novatek-dlm -- seed-manifest > /tmp/dlm-seed-manifest.tsv
 cargo run --offline --locked --bin novatek-dlm -- verify-seed-manifest /private/postmarketos-novatek_nt36523_fw.bin
-python3 tools/verify-novatek-dlm-seed-manifest.py \
+python3 tools/novatek/verify-novatek-dlm-seed-manifest.py \
   --manifest /tmp/dlm-seed-manifest.tsv --plan /tmp/dlm-sparse-plan.json \
   --reference /private/postmarketos-novatek_nt36523_fw.bin
 
@@ -25,7 +25,7 @@ python3 tools/verify-novatek-dlm-seed-manifest.py \
 # It MUST NOT be added to Git or uploaded as a checkpoint artifact.
 cargo run --release --offline --locked --bin novatek-dlm -- \
   assemble-sparse /private/external-seeds /tmp/rebuilt-DLM.bin
-python3 tools/verify-novatek-dlm-seed-manifest.py \
+python3 tools/novatek/verify-novatek-dlm-seed-manifest.py \
   --manifest /tmp/dlm-seed-manifest.tsv --plan /tmp/dlm-sparse-plan.json \
   --seed-dir /private/external-seeds
 ```

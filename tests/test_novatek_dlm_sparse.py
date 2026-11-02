@@ -4,7 +4,7 @@ import importlib.util
 from pathlib import Path
 import unittest
 
-P=Path(__file__).resolve().parents[1]/'tools/verify-novatek-dlm-sparse.py'
+P=Path(__file__).resolve().parents[1]/'tools/novatek/verify-novatek-dlm-sparse.py'
 S=importlib.util.spec_from_file_location('novatek_dlm_sparse_independent',P)
 assert S and S.loader
 m=importlib.util.module_from_spec(S);S.loader.exec_module(m)

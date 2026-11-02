@@ -13,7 +13,7 @@ import unittest
 from unittest import mock
 
 
-SCRIPT = Path(__file__).resolve().parents[1] / "tools" / "verify-novatek-ilm-low.py"
+SCRIPT = Path(__file__).resolve().parents[1] / "tools/novatek" / "verify-novatek-ilm-low.py"
 SPEC = importlib.util.spec_from_file_location("novatek_ilmlow_verifier", SCRIPT)
 verifier = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(verifier)

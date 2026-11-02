@@ -5,7 +5,7 @@ import importlib.util
 from pathlib import Path
 import unittest
 
-SOURCE = Path(__file__).resolve().parents[1] / 'tools' / 'audit-novatek-dlm-consumers.py'
+SOURCE = Path(__file__).resolve().parents[1] / 'tools/novatek' / 'audit-novatek-dlm-consumers.py'
 spec = importlib.util.spec_from_file_location('agent19_consumer_map', SOURCE)
 mod = importlib.util.module_from_spec(spec)
 # Dataclass class lookup relies on a registered import module.

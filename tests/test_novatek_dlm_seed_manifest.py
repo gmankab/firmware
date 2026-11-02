@@ -7,7 +7,7 @@ from pathlib import Path
 import unittest
 
 R=Path(__file__).resolve().parents[1]
-P=R/'tools/verify-novatek-dlm-seed-manifest.py'
+P=R/'tools/novatek/verify-novatek-dlm-seed-manifest.py'
 S=importlib.util.spec_from_file_location('agent19_seed_manifest',P)
 assert S and S.loader
 m=importlib.util.module_from_spec(S);S.loader.exec_module(m)

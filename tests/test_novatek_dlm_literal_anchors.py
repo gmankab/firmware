@@ -6,7 +6,7 @@ from pathlib import Path
 import unittest
 
 ROOT=Path(__file__).resolve().parents[1]
-spec=importlib.util.spec_from_file_location('novatek_dlm_literals',ROOT/'tools/audit-novatek-dlm-literal-anchors.py')
+spec=importlib.util.spec_from_file_location('novatek_dlm_literals',ROOT/'tools/novatek/audit-novatek-dlm-literal-anchors.py')
 audit=importlib.util.module_from_spec(spec)
 spec.loader.exec_module(audit)
 

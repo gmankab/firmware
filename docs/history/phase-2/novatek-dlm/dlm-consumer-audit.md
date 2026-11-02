@@ -10,7 +10,7 @@ Agent 18's source is copied into the Git branch.
 
 ```sh
 cargo run --offline --locked -p firmware-tools --bin novatek-dlm -- ledger > /tmp/dlm-ledger.json
-python3 tools/audit-novatek-dlm-consumers.py \
+python3 tools/novatek/audit-novatek-dlm-consumers.py \
   --upper-ilm-rs /path/to/agent18/novatek_upper_ilm.rs \
   --upper-ex9-rs /path/to/agent18/novatek_upper_ex9.rs \
   --ledger /tmp/dlm-ledger.json --verify-checkpoint02-snapshot \

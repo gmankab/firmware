@@ -17,7 +17,7 @@ The pinning manifest from checkpoint 21 was deliberately regenerated for the cha
 Independent verification with both legitimate private firmware revisions:
 
 ```sh
-python3 tools/verify-novatek-dlm-staging-extensions.py \
+python3 tools/novatek/verify-novatek-dlm-staging-extensions.py \
   --postmarketos /private/postmarketos-novatek_nt36523_fw.bin \
   --map220v /private/map220v-novatek_nt36523_fw.bin
 

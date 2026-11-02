@@ -1,0 +1,42 @@
+{
+  "moved_files": 12,
+  "source_sha256": {
+    "audit-novatek-dlm-consumers.py": "b6eb0c500c545fcebffd54cf0e4a219c1038fea9bccb8db51f546020f13a1bb0",
+    "audit-novatek-dlm-literal-anchors.py": "81d16d6e0c6c80c72c281fa7486335168a2b137dda0e0f236e019ab05b7b353b",
+    "verify-novatek-calibration-alias.py": "688b6ae4ab805e10153ae667cfa9e401283e159ee4a9513f0dd531af12b4e5b3",
+    "verify-novatek-dlm-bank-aliases.py": "fb5ee4e81f1db0645d94ad6cd38e72324cf626a4774ea002716fa96f7457cb8d",
+    "verify-novatek-dlm-descriptor-geometry.py": "cdf9c1f4531f98fa148dd1ee831c6c8f4f2acd94ca9d0d9c42cb03569784b401",
+    "verify-novatek-dlm-narrow-bank.py": "504d27a53cf8e6749eded06f9a7c4ec70eb389f5c8c61082e4b134a2ecebd3f7",
+    "verify-novatek-dlm-seed-manifest.py": "796778c04bc5dca1bb742263b18a2940871543436b814329aa76cbcdc45ee55d",
+    "verify-novatek-dlm-sparse.py": "a2fac43bb4b3a7736eb5702e41323786e98a017d37347cde0d107f4355535d15",
+    "verify-novatek-dlm-staging-extensions.py": "0329a178a450a3fcfda8becd75631c86bb118482b18eeecfa7d95bb697615a91",
+    "verify-novatek-dlm-zero-bank-aliases.py": "121b25f31852201009945612a74c545c77cb2329068c6f3035c458c2dcc0bcea",
+    "verify-novatek-dlm.py": "b115b4de62fd6e8df8016f187340f4cbf3f1caf4ba64fb12a41cd9bb006eca70",
+    "verify-novatek-ilm-low.py": "931fcccabbe76fbd8847cd561f80e2e219130087b1a79d68592b7b4838de2e72"
+  },
+  "files_edited": [
+    "tests/test_novatek_dlm_seed_manifest.py",
+    "tests/test_novatek_dlm_alias.py",
+    "tests/test_novatek_dlm_consumer_map.py",
+    "tests/test_novatek_dlm_zero_bank_aliases.py",
+    "tests/test_novatek_dlm.py",
+    "tests/test_novatek_dlm_literal_anchors.py",
+    "tests/test_novatek_dlm_narrow_bank.py",
+    "tests/test_novatek_dlm_staging_extensions.py",
+    "tests/test_novatek_dlm_sparse.py",
+    "tests/test_novatek_ilmlow_verifier.py",
+    "tests/test_novatek_dlm_descriptor_geometry.py",
+    "docs/history/phase-2/novatek-dlm/dlm-pinned-seeds.md",
+    "docs/history/phase-2/novatek-dlm/dlm-bank-aliases.md",
+    "docs/history/phase-2/novatek-dlm/dlm-absolute-literals.md",
+    "docs/history/phase-2/novatek-dlm/dlm-zero-bank-aliases.md",
+    "docs/history/phase-2/novatek-dlm/dlm-narrow-bank-relocation.md",
+    "docs/history/phase-2/novatek-dlm/dlm-sparse-linker.md",
+    "docs/history/phase-2/novatek-dlm/dlm-consumer-audit.md",
+    "docs/history/phase-2/novatek-dlm/dlm-staging-extensions.md",
+    "docs/history/phase-2/novatek-dlm/progress.md",
+    "docs/history/phase-2/novatek-dlm/dlm-descriptor-geometry.md",
+    "docs/history/phase-2/novatek-lower/progress.md"
+  ],
+  "migration_map_updates": 0
+}

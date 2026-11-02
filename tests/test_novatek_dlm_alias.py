@@ -4,7 +4,7 @@ import struct
 import unittest
 from pathlib import Path
 
-MODULE=Path(__file__).resolve().parents[1]/'tools/verify-novatek-calibration-alias.py'
+MODULE=Path(__file__).resolve().parents[1]/'tools/novatek/verify-novatek-calibration-alias.py'
 spec=importlib.util.spec_from_file_location('novatek_calibration_alias',MODULE)
 dlm=importlib.util.module_from_spec(spec)
 spec.loader.exec_module(dlm)

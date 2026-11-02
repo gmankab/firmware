@@ -11,7 +11,7 @@ import tempfile
 import unittest
 
 ROOT = Path(__file__).resolve().parents[1]
-SPEC = importlib.util.spec_from_file_location("novatek_dlm_check", ROOT / "tools/verify-novatek-dlm.py")
+SPEC = importlib.util.spec_from_file_location("novatek_dlm_check", ROOT / "tools/novatek/verify-novatek-dlm.py")
 dlm = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(dlm)
 

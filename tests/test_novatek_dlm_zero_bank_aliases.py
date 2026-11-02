@@ -5,7 +5,7 @@ from pathlib import Path
 import unittest
 
 S=importlib.util.spec_from_file_location('novatek_zero_alias',
-    Path(__file__).resolve().parents[1]/'tools/verify-novatek-dlm-zero-bank-aliases.py')
+    Path(__file__).resolve().parents[1]/'tools/novatek/verify-novatek-dlm-zero-bank-aliases.py')
 assert S and S.loader
 m=importlib.util.module_from_spec(S);S.loader.exec_module(m)
 

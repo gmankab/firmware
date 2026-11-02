@@ -44,7 +44,7 @@ changes that promote either side to authored source.
 export NOVATEK_REFERENCE=/private/novatek_nt36523_fw.bin
 cargo run --offline --locked -p firmware-tools --bin novatek-dlm -- ledger > /tmp/agent19-dlm-ledger.json
 cargo run --offline --locked -p firmware-tools --bin novatek-dlm -- verify-descriptor-geometry "$NOVATEK_REFERENCE"
-python3 tools/verify-novatek-dlm-descriptor-geometry.py "$NOVATEK_REFERENCE" --ledger /tmp/agent19-dlm-ledger.json
+python3 tools/novatek/verify-novatek-dlm-descriptor-geometry.py "$NOVATEK_REFERENCE" --ledger /tmp/agent19-dlm-ledger.json
 ```
 
 **Provenance:** zero independent source bytes added. Source-generated

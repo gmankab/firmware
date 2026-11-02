@@ -5,7 +5,7 @@ from pathlib import Path
 import json
 import unittest
 import sys
-P=Path(__file__).resolve().parents[1]/'tools'/'verify-novatek-dlm-bank-aliases.py'
+P=Path(__file__).resolve().parents[1]/'tools/novatek'/'verify-novatek-dlm-bank-aliases.py'
 spec=importlib.util.spec_from_file_location('agent19_bank_alias',P)
 mod=importlib.util.module_from_spec(spec)
 sys.modules[spec.name]=mod

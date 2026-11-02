@@ -7,7 +7,7 @@ import struct
 import unittest
 
 SRC=Path(__file__).resolve().parents[1]
-spec=importlib.util.spec_from_file_location('dlm_descriptor_geometry', SRC/'tools/verify-novatek-dlm-descriptor-geometry.py')
+spec=importlib.util.spec_from_file_location('dlm_descriptor_geometry', SRC/'tools/novatek/verify-novatek-dlm-descriptor-geometry.py')
 mod=importlib.util.module_from_spec(spec)
 spec.loader.exec_module(mod)
 

@@ -57,7 +57,7 @@ git diff --check
 The standalone `novatek-ilm-low` binary supports `emit PROFILE OUTPUT`, `verify PROFILE REFERENCE`, and `listing PROFILE`. The lightweight Rust comparison intentionally reports the required whole-image hash; use the Python gate below to enforce it.
 
 ```sh
-python3 tools/verify-novatek-ilm-low.py \
+python3 tools/novatek/verify-novatek-ilm-low.py \
   --profile postmarketos --reference /private/postmarketos/novatek_nt36523_fw.bin \
   --emitter /tmp/agent17-target/release/novatek-ilm-low \
   --as /tools/nds32le-elf-as --ld /tools/nds32le-elf-ld \
@@ -269,7 +269,7 @@ PostmarketOS first missing file address: `0xb22`, runtime `0x922`; next routine 
 - The additional source includes status processing, touch coordinate arithmetic, frame dispatch and sensor/report handling; the runtime return/call edges are recorded in a separate static verifier. No full IFC-state execution was simulated.
 - The source verifier now checks **477 EX9 uses / 151 distinct entries** in the **Agent 18** upper-ILM dependency table (**604 externally owned bytes, zero added Agent17 coverage**). Analyzed **750 direct/control-flow edges** and 66 register-dependent transfer sites. Never copied EX9 table bytes into the source generator.
 - Separate map220v reconstruction is unchanged and verified at **1,210 byte-identical bytes** on `[file 0x66a,0xb24)`; incompatible later profile code was not extrapolated.
-- **All checks passed:** `cargo test --workspace --offline --locked`, `cargo build --workspace --release --offline --locked`, Python test discovery, full generated-span postmarketOS/map220v comparison, `git diff --check`, Git history/bundle verification. The historical GNU NDS32 2.25.1 assembler is **not available** in this execution environment, so `tools/verify-novatek-ilm-low.py --skip-assembler` retains **partial / exit code 2**, not an independent assembler pass.
+- **All checks passed:** `cargo test --workspace --offline --locked`, `cargo build --workspace --release --offline --locked`, Python test discovery, full generated-span postmarketOS/map220v comparison, `git diff --check`, Git history/bundle verification. The historical GNU NDS32 2.25.1 assembler is **not available** in this execution environment, so `tools/novatek/verify-novatek-ilm-low.py --skip-assembler` retains **partial / exit code 2**, not an independent assembler pass.
 - The first unsupported instruction is **file `0x23d0`**, runtime `0x21d0`, NDS32 compact prefix `0xb200` requiring independent ISA-family confirmation before extending further. **Remaining assigned ILM: 56,368 bytes** (`0x10000-0x23d0`). The ending routine at this checkpoint is unfinished.
 - This branch is still rooted in the prior Agent 09 base `51b1f91f32d32542aa03e114f5a2f4d94b559e2a`, not Agent 01's integration branch. The cumulative patch must be verified against the actual merged HEAD before claiming checkpoint-50 ancestry.
 

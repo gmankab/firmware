@@ -4,7 +4,7 @@ import importlib.util
 from pathlib import Path
 import unittest
 
-SRC=Path(__file__).resolve().parents[1]/'tools/verify-novatek-dlm-narrow-bank.py'
+SRC=Path(__file__).resolve().parents[1]/'tools/novatek/verify-novatek-dlm-narrow-bank.py'
 S=importlib.util.spec_from_file_location('novatek_narrow_bank_independent',SRC)
 assert S and S.loader
 m=importlib.util.module_from_spec(S); S.loader.exec_module(m)
