@@ -8,15 +8,17 @@ at file offset 0x13084 and is deliberately not emitted by this fragment.
 from __future__ import annotations
 import argparse,hashlib,importlib.util,struct,sys
 from pathlib import Path
+import sys
 T=Path(__file__).resolve().parent
 sys.path.insert(0,str(T))
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from adsp_hexagon_v66 import SystemRegister,read_system_register
 START=0x12f50
 END=0x13084
 SIZE=END-START
 PHYSICAL=0x8be0ff50
 SGP0=0x12f68
-SOURCE=T/'adsp-agent20-rwe-next-controller-record-select.S'
+SOURCE=T/'rwe-next-controller-record-select.S'
 REFERENCE_SHA='4b579e5dc1333d634e5bdc93f3314e357e0e30dab7140833f6cc7aef086b1c1e'
 NOP=struct.pack('<I',0x7f00c000)
 

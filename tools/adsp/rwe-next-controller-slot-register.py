@@ -10,17 +10,19 @@ The pinned ADSP reference is used only for verification, not output assembly.
 from __future__ import annotations
 import argparse,hashlib,importlib.util,struct,sys
 from pathlib import Path
+import sys
 TOOLS=Path(__file__).resolve().parent
 if str(TOOLS) not in sys.path:sys.path.insert(0,str(TOOLS))
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from adsp_hexagon_v66 import SystemRegister,read_system_register
 START=0x11ba0;END=0x11c88;SIZE=END-START;PHYSICAL=0x8be0eba0
-SOURCE=TOOLS/'adsp-agent20-rwe-next-controller-slot-register.S'
+SOURCE=TOOLS/'rwe-next-controller-slot-register.S'
 REFERENCE_SHA='4b579e5dc1333d634e5bdc93f3314e357e0e30dab7140833f6cc7aef086b1c1e'
 READ_SGP0_AT=0x11bb0
 NOP=struct.pack('<I',0x7f00c000)
 
 def render(llvm_mc:str)->bytes:
-    spec=importlib.util.spec_from_file_location('adsp_llvm',TOOLS/'emit-adsp-entry.py')
+    spec=importlib.util.spec_from_file_location('adsp_llvm',TOOLS.parent/'emit-adsp-entry.py')
     if not spec or not spec.loader:raise RuntimeError('Missing LLVM6 source assembler')
     m=importlib.util.module_from_spec(spec);spec.loader.exec_module(m)
     out=bytearray(m.assemble(llvm_mc,SOURCE,SIZE))

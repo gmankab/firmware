@@ -20,11 +20,11 @@ SIZE=END-START
 PHYSICAL=0x8be0f1c0
 REFERENCE_SHA='4b579e5dc1333d634e5bdc93f3314e357e0e30dab7140833f6cc7aef086b1c1e'
 PARTS=(
-    ('adsp-agent20-rwe-next-controller-slot-scan-prefix.py',0x60),
-    ('adsp-agent20-rwe-next-controller-slot-scan-operations.py',0xf0),
-    ('adsp-agent20-rwe-next-controller-slot-scan-bitmap.S',0x90),
-    ('adsp-agent20-rwe-next-controller-slot-scan-classes.S',0x50),
-    ('adsp-agent20-rwe-next-controller-slot-scan-epilogue.S',0x3c),
+    ('rwe-next-controller-slot-scan-prefix.py',0x60),
+    ('rwe-next-controller-slot-scan-operations.py',0xf0),
+    ('rwe-next-controller-slot-scan-bitmap.S',0x90),
+    ('rwe-next-controller-slot-scan-classes.S',0x50),
+    ('rwe-next-controller-slot-scan-epilogue.S',0x3c),
 )
 
 def _import_script(name:str):

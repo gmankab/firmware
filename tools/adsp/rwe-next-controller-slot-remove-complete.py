@@ -17,9 +17,9 @@ SIZE=END-START
 PHYSICAL=0x8be0f430
 REFERENCE_SHA='4b579e5dc1333d634e5bdc93f3314e357e0e30dab7140833f6cc7aef086b1c1e'
 PARTS=(
-    ('adsp-agent20-rwe-next-controller-slot-remove-prefix.S',0x68),
-    ('adsp-agent20-rwe-next-controller-slot-remove-search.S',0x7c),
-    ('adsp-agent20-rwe-next-controller-slot-remove-final.S',0x88),
+    ('rwe-next-controller-slot-remove-prefix.S',0x68),
+    ('rwe-next-controller-slot-remove-search.S',0x7c),
+    ('rwe-next-controller-slot-remove-final.S',0x88),
 )
 
 def render(llvm_mc:str)->bytes:

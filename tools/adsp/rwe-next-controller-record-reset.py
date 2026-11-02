@@ -9,8 +9,10 @@ explicit NOP sentinels. This is not OEM code-signing or behavioral proof.
 from __future__ import annotations
 import argparse,hashlib,importlib.util,struct,sys
 from pathlib import Path
+import sys
 T=Path(__file__).resolve().parent
 if str(T) not in sys.path:sys.path.insert(0,str(T))
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from adsp_hexagon_v66 import KernelZeroLock,SystemRegister,read_system_register
 START=0x13250
 END=0x13390
@@ -18,7 +20,7 @@ SIZE=END-START
 PHYSICAL=0x8be10250
 SGP0=0x1325c
 K0_LOCK=0x132f4
-SOURCE=T/'adsp-agent20-rwe-next-controller-record-reset.S'
+SOURCE=T/'rwe-next-controller-record-reset.S'
 REFERENCE_SHA='4b579e5dc1333d634e5bdc93f3314e357e0e30dab7140833f6cc7aef086b1c1e'
 NOP=struct.pack('<I',0x7f00c000)
 
