@@ -49,7 +49,7 @@ def verify(reference:bytes,data:bytes)->None:
 
 def emit_contiguous_64(mc:Path,reference:bytes|None,mode_data:bytes,output:Path)->None:
     """Join three source-built intervals, never padding with vendor bytes."""
-    helper=Path(__file__).with_name('assemble-agent11-rwe-mode-vector-stubs.py')
+    helper=Path(__file__).with_name('assemble-rwe-mode-vector-stubs.py')
     spec=importlib.util.spec_from_file_location('agent11_mode_vector_stubs',helper)
     lib=importlib.util.module_from_spec(spec);spec.loader.exec_module(lib)
     src=helper.parents[1]/'crates/firmware-tools/src/devices/xiaomi_nabu/modem_rwe_mode_vector_stubs.s'
