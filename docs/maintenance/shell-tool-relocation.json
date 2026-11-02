@@ -1,0 +1,35 @@
+{
+  "files": [
+    {
+      "from": "tools/analyze-a640-mesa.sh",
+      "to": "tools/analysis/analyze-a640-mesa.sh",
+      "before_sha256": "916957e772f57c51ff76c7f4f1aa4d9ef518f628002a28f7558dd28f56f8697b",
+      "after_sha256": "84ef151af570862e4641a1a7010551e32f6ed2086bb8784cde009c37bb9ca169",
+      "bytes": 7121
+    },
+    {
+      "from": "tools/continue-decompilation.sh",
+      "to": "tools/analysis/continue-decompilation.sh",
+      "before_sha256": "45b3ef70dd81fff20dfd38430daca28a253575b2657142ae73b4f019acff387a",
+      "after_sha256": "a73731e2e9d211d5773314cadb0816369037ebfaece89839fec21f851194bf11",
+      "bytes": 1584
+    },
+    {
+      "from": "tools/decompile-all.sh",
+      "to": "tools/analysis/decompile-all.sh",
+      "before_sha256": "8b2902005954110e2e69b2d655d3de35e5b4c4ca2cf4aa0df9fe40c0d7a89d89",
+      "after_sha256": "0e625b46776d9d2c8ade5b0268173fef2843133cead357e4f891c1e0f91ad971",
+      "bytes": 2961
+    },
+    {
+      "from": "tools/verify-qrisc-against-mesa.sh",
+      "to": "tools/verify/verify-qrisc-against-mesa.sh",
+      "before_sha256": "da7254aaf63d5694cd86672103176c8e939ac49724dd177a8d33e697078ec984",
+      "after_sha256": "6a69dbd573e2f2c89d8286cba0e3ae3dd33708411d633f67d52e7c04cb1aca70",
+      "bytes": 993
+    }
+  ],
+  "references_updated": [
+    "docs/DECOMPILATION.md"
+  ]
+}

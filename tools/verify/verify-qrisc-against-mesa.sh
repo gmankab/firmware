@@ -9,7 +9,7 @@ fi
 ASM=$(realpath "$1")
 RNN_PATH=$(realpath "$2")
 export RNN_PATH
-ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
+ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)
 D=$(mktemp -d); trap 'rm -rf "$D"' EXIT
 cat > "$D/public.asm" <<'ASM_SOURCE'
 [016ee001]

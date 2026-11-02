@@ -156,7 +156,7 @@ Our `DecompileFirmware.java` exports bounded C-like function listings and failur
 For a directory containing ELF firmware from *any* device, a wrapper performs import, hashing, bounded processing and per-image error logging:
 
 ```sh
-tools/decompile-all.sh \
+tools/analysis/decompile-all.sh \
   /private/extracted-device-firmware \
   "$GHIDRA" \
   /private/ghidra-batch
@@ -168,13 +168,13 @@ You can extend the time budget for large images without embedding timeouts in co
 
 ```sh
 ANALYSIS_SEC=600 DECOMP_SEC=420 MAX_FUNCS=50000 \
-  tools/decompile-all.sh /private/firmware.elf "$GHIDRA" /private/ghidra-large
+  tools/analysis/decompile-all.sh /private/firmware.elf "$GHIDRA" /private/ghidra-large
 ```
 
 To repeat Ghidra on a difficult file while skipping function addresses already present in an earlier export:
 
 ```sh
-tools/continue-decompilation.sh \
+tools/analysis/continue-decompilation.sh \
   /private/firmware.elf "$GHIDRA" \
   /private/ghidra-batch/images/NAME-HASH/functions.c \
   /private/ghidra-second-pass
@@ -235,7 +235,7 @@ export RNN_PATH=/tmp/mesa-source/mesa-26.2.4/src/freedreno/registers
 `-r` means raw disassembly in this tested version; `-g` is the QRISC firmware identifier, **not** the IR3 GPU name. Check `qrisc-disasm -h` for flags in other releases. For Nabu's A640 image a single driver script also probes three related A6xx families and writes a decoder-coverage report:
 
 ```sh
-tools/analyze-a640-mesa.sh \
+tools/analysis/analyze-a640-mesa.sh \
   /private/a640_zap.mbn \
   /tmp/mesa-build/src/freedreno/qrisc \
   /private/a640-mesa-output
@@ -268,7 +268,7 @@ cmp -- "$SRC/src/freedreno/tests/reference/qrisc_test.fw" \
   /tmp/public-reassembled.fw
 ```
 
-The workspace also has a **synthetic**, original QRISC program that tests its typed Rust assembler against Mesa. Run `tools/verify-qrisc-against-mesa.sh` with the Mesa QRISC assembler path and register database path. The tool versions tested with Nabu may include a four-byte prefix in some custom raw reassembly outputs; account for the raw-file format only after comparing against a public fixture. Never “fix” an unknown difference by silently inserting original executable words into public Rust source.
+The workspace also has a **synthetic**, original QRISC program that tests its typed Rust assembler against Mesa. Run `tools/verify/verify-qrisc-against-mesa.sh` with the Mesa QRISC assembler path and register database path. The tool versions tested with Nabu may include a four-byte prefix in some custom raw reassembly outputs; account for the raw-file format only after comparing against a public fixture. Never “fix” an unknown difference by silently inserting original executable words into public Rust source.
 
 When reconstructing a program from semantics, use labels for calls, branches and embedded-table locations. Mesa's QRISC README warns that preemption routines reference tables relative to `CP_SQE_INSTR_BASE`; changing layout can require label-based relocations. Disassembly and exact reassembly are validation steps, **not a substitute** for separately authored algorithms.
 
