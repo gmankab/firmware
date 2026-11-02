@@ -225,7 +225,7 @@ class ADSPExternalsAndCodeTests(unittest.TestCase):
                          'fc93165eb63cf884d54d433d15f46be6aeb732d0fb128d11bafa87bf6187cd38')
         # The adjacent separately authored 16-byte copy remains independently
         # checkable but must not appear twice in the emitted coverage ledger.
-        old = ROOT/'tools'/'adsp-late-copy-registry-slot.S'
+        old = ROOT/'sources/xiaomi-nabu/adsp/adsp-late-copy-registry-slot.S'
         self.assertEqual(adsp.compile_source(LLVM_MC,old,16),
             adsp.compile_source(LLVM_MC,src,sz)[44:])
         src=adsp.FRAGMENTS['atomic-add'][0].read_text()
