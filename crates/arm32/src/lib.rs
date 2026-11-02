@@ -195,6 +195,45 @@ pub fn load_halfword(condition: Condition, rd: Register, rn: Register,
     Ok(store_halfword(condition, rd, rn, signed_offset)? | (1 << 20))
 }
 
+
+/// Checked architectural instruction encoder consolidated from the supplied source branches.
+pub fn load_halfword_preindexed_writeback(condition: Condition, rd: Register,
+                                           rn: Register, signed_offset: i32) -> Result<u32,String> {
+    if rd == rn || rn == Register::PC {
+        return Err("invalid ARM32 LDRH immediate writeback operands".into());
+    }
+    Ok(load_halfword(condition, rd, rn, signed_offset)? | (1 << 21))
+}
+
+/// Checked architectural instruction encoder consolidated from the supplied source branches.
+pub fn load_halfword_register_preindexed_writeback(condition: Condition,
+    rd: Register, rn: Register, rm: Register) -> Result<u32,String> {
+    if [rd,rn,rm].contains(&Register::PC) || rd == rn {
+        return Err("invalid A32 LDRH register pre-index writeback operands".into());
+    }
+    Ok(cond(condition) | 0x01b0_00b0
+       | (rn.number() << 16) | (rd.number() << 12) | rm.number())
+}
+
+/// Checked architectural instruction encoder consolidated from the supplied source branches.
+pub fn load_halfword_postindexed(condition: Condition, rd: Register, rn: Register,
+                                 signed_offset: i32) -> Result<u32,String> {
+    if rd == rn {
+        return Err("A32 LDRH postindex load destination cannot equal base".into());
+    }
+    Ok(store_halfword_postindexed(condition,rd,rn,signed_offset)? | (1 << 20))
+}
+
+/// Checked architectural instruction encoder consolidated from the supplied source branches.
+pub fn multiply_long(condition: Condition, signed: bool, lo: Register,
+                     hi: Register, rm: Register, rs: Register) -> Result<u32, String> {
+    if [lo, hi, rm, rs].contains(&Register::PC) || lo == hi {
+        return Err("invalid ARM32 UMULL/SMULL destination or PC register".into());
+    }
+    Ok(cond(condition) | (if signed {0x00c0_0090} else {0x0080_0090})
+        | (hi.number()<<16) | (lo.number()<<12) | (rs.number()<<8) | rm.number())
+}
+
 /// A32 register-offset halfword transfer, pre-indexed without writeback.
 /// A32 uses a different addressing-field layout from word loads/stores:
 /// the register offset is only Rm (no barrel shift), with bits 7 and 4 set.
@@ -224,15 +263,6 @@ pub fn load_signed_halfword(condition: Condition, rd: Register, rn: Register,
 
 /// A32 register-indexed halfword LDRH/STRH without writeback.
 /// Registers are unshifted; the instruction requires dedicated extra-load/
-/// store fields, unlike normal word-register addressing.
-pub fn transfer_halfword_register(condition: Condition, load: bool,
-    rd: Register, rn: Register, rm: Register) -> Result<u32,String> {
-    if [rd,rn,rm].contains(&Register::PC) {
-        return Err("PC is not a supported A32 halfword register transfer operand".into());
-    }
-    Ok(cond(condition) | 0x0180_00b0 | if load { 1 << 20 } else { 0 }
-       | (rn.number() << 16) | (rd.number() << 12) | rm.number())
-}
 
 /// A32 LDRSH signed halfword with unshifted register offset.
 /// The architecture uses the extra-load/store group with S/H opcode bits.
@@ -387,15 +417,6 @@ pub fn signed_multiply_bottom_halves(condition: Condition, rd: Register,
 }
 
 /// A32 SMULBB: multiply the signed bottom 16 bits of two ARM registers.
-/// This is an architectural DSP instruction, not an OEM opcode constant.
-pub fn signed_multiply_bottom_halves(condition: Condition, rd: Register,
-                                   rm: Register, rs: Register) -> Result<u32,String> {
-    if [rd,rm,rs].contains(&Register::PC) {
-        return Err("ARM32 SMULBB must not use PC".into());
-    }
-    Ok(cond(condition) | 0x0160_0080 | (rd.number()<<16)
-      | (rs.number()<<8) | rm.number())
-}
 
 /// A32 MUL: multiply two general-purpose registers, without accumulate.
 /// The register fields are checked, and older ARM restrictions on using the
