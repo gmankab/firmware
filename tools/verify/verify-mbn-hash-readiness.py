@@ -137,7 +137,7 @@ def main(argv=None):
     parser.add_argument("source_report", type=Path, help="six newline-delimited JSON source-readiness rows")
     parser.add_argument("reference_dir", type=Path, help="private exact original six-image directory")
     parser.add_argument("--pins", type=Path,
-                        default=Path(__file__).resolve().parents[1] / "reference/xiaomi-nabu/firmware.sha256")
+                        default=Path(__file__).resolve().parents[2] / "reference/xiaomi-nabu/firmware.sha256")
     args = parser.parse_args(argv)
     try:
         from importlib.util import spec_from_file_location, module_from_spec

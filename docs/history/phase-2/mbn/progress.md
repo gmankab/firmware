@@ -93,7 +93,7 @@ existing source implementation.
 
 ### Original-reference signature checks
 
-`tools/verify-mbn-signatures.py` now checks that the hashed header span binds
+`tools/verify/verify-mbn-signatures.py` now checks that the hashed header span binds
 the full ELF program-header table, rejects invalid PT_LOAD sizes and hash/auth
 overlap, requires exact authentication-segment consumption, and rejects
 nonminimal DER lengths and duplicate certificates. OpenSSL validates each
@@ -246,7 +246,7 @@ A separate machine-readable standalone Rust example
 `crates/firmware-tools/examples/mbn_hash_readiness.rs` emits one deterministic
 JSON record for each of the six Nabu ELF/MBNv6 profiles without ever opening
 an OEM reference. The new optional Python checker
-`tools/verify-mbn-hash-readiness.py` reads a pinned reference externally,
+`tools/verify/verify-mbn-hash-readiness.py` reads a pinned reference externally,
 parses its program headers independently, enforces full segment geometry,
 checks all source-ready SHA-384 values and refuses duplicated or altered
 segment entries/claims. This proves a ready digest matches the reference

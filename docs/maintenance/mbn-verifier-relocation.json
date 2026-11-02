@@ -1,0 +1,28 @@
+{
+  "moved_files": 3,
+  "original_sha256": {
+    "audit-nabu-mbn-sources.py": "6a7e043dc370074bac48839d863c2561b080e74b24a485c93406f695bd66a016",
+    "verify-mbn-hash-readiness.py": "a4eeb6b58792ecb6a47f02d424da9d84b74a7d9a652c2ef5d683e6577f53463e",
+    "verify-mbn-signatures.py": "a9db1c21d3a18dcdba335795a787f6c7eebc2622d5720297f8dbed504023fc94"
+  },
+  "changed_callers": [
+    "tests/test_audit_nabu_mbn_sources.py",
+    "tests/test_mbn_hash_readiness.py",
+    "tests/test_mbn_signatures.py",
+    "tools/verify-mbn-hash-readiness.py",
+    "tools/mbn-reproducibility.py",
+    "tools/assemble-a640-exact.py",
+    "tools/verify-xiaomi-nabu.sh",
+    "tools/audit-nabu-mbn-sources.py",
+    "docs/BUILDING.md",
+    "docs/history/phase-2/mbn/progress.md",
+    "docs/history/phase-1/mbn/integration.md",
+    "docs/history/phase-1/mbn/progress.md"
+  ],
+  "historical_map_updates": 0,
+  "installed_sha256": {
+    "audit-nabu-mbn-sources.py": "bc92d66316f0245346dad52f09993199eab8ac92513dde0815626327c7942119",
+    "verify-mbn-hash-readiness.py": "aca9a57fb4b3c781ff0f21e911cc90559b753a4296a6510c0a0a94fa4212aef8",
+    "verify-mbn-signatures.py": "a9db1c21d3a18dcdba335795a787f6c7eebc2622d5720297f8dbed504023fc94"
+  }
+}

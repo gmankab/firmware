@@ -606,8 +606,8 @@ def compare_source_with_reference(report, original):
 
 def verify_originals(directory, builds, temporary, epoch):
     checkout = builds[0]["checkout"]
-    auditor = load_module(checkout / "tools" / "audit-nabu-mbn-sources.py", "mbn_repro_auditor")
-    verifier = load_module(checkout / "tools" / "verify-mbn-signatures.py", "mbn_repro_verifier")
+    auditor = load_module(checkout / "tools/verify" / "audit-nabu-mbn-sources.py", "mbn_repro_auditor")
+    verifier = load_module(checkout / "tools/verify" / "verify-mbn-signatures.py", "mbn_repro_verifier")
     revisions = auditor.pinned_sha256s()
     originals = pinned_references(directory, revisions)
     private = Path(temporary) / "originals"
@@ -621,7 +621,7 @@ def verify_originals(directory, builds, temporary, epoch):
     for build in builds:
         strict_comparisons.append({report["image"]: compare_source_with_reference(
             report, originals[report["image"]]) for report in build["source_output"]})
-    readiness_checker = load_module(checkout / "tools" / "verify-mbn-hash-readiness.py",
+    readiness_checker = load_module(checkout / "tools/verify" / "verify-mbn-hash-readiness.py",
                                     "mbn_repro_readiness_checker")
     source_hash_comparisons = [readiness_checker.verify_reports(
         build["hash_readiness"], private, revisions) for build in builds]

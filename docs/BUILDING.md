@@ -67,7 +67,7 @@ cargo run --offline --locked -p firmware-tools -- \
   assemble-a640-with-external-auth \
   /private/a640-oem-auth.bin /private/a640-rebuilt.mbn
 cmp /private/a640_zap.mbn /private/a640-rebuilt.mbn
-python3 tools/verify-mbn-signatures.py /private/a640-rebuilt.mbn
+python3 tools/verify/verify-mbn-signatures.py /private/a640-rebuilt.mbn
 ```
 
 The assembler checks all MBNv6 SHA-384 ELF segment hashes. The separate
@@ -81,7 +81,7 @@ Without that argument the root is untrusted external data.
 For any ELF32/MBNv6 image with a single OEM signer (including another device):
 
 ```sh
-python3 tools/verify-mbn-signatures.py /private/other-device/firmware.mbn
+python3 tools/verify/verify-mbn-signatures.py /private/other-device/firmware.mbn
 ```
 
 Images with a second QTI signature currently require additional format support;

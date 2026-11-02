@@ -24,7 +24,7 @@ DSP program implementations. Nothing in this branch is a new OEM signature.
   `mbn_source_builder.rs`, `qcom_mbn_profiles.rs`, `mbn_coverage_manifest.rs`.
 - A640 specialization: `crates/firmware-tools/src/devices/xiaomi_nabu/a640/a640_container.rs`.
 - Validation: `tools/verify-xiaomi-nabu.sh`, `tools/assemble-a640-exact.py`,
-  `tools/audit-nabu-mbn-sources.py`, plus the two agent-only Python test files.
+  `tools/verify/audit-nabu-mbn-sources.py`, plus the two agent-only Python test files.
 - Agent-only notes: `docs/history/phase-1/mbn/progress.md` and this document.
 
 ## Merge into the real checkpoint-50 branch
@@ -61,7 +61,7 @@ cargo build --workspace --release --offline --locked
 python3 -m unittest discover -s tests -p 'test_*.py'
 git diff --check
 # Private source directory containing exact six revisions; no files go to Git:
-python3 tools/audit-nabu-mbn-sources.py /private/NABU_QCOM_MBN_DIR \
+python3 tools/verify/audit-nabu-mbn-sources.py /private/NABU_QCOM_MBN_DIR \
   --firmware-tools target/release/firmware-tools \
   --verify-embedded-signatures > /private/six-mbn-coverage.jsonl
 # Independently generated A640 code + original OEM signature/cert field:

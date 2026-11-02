@@ -12,7 +12,7 @@ import time
 import unittest
 
 
-SCRIPT = Path(__file__).resolve().parents[1] / "tools" / "verify-mbn-signatures.py"
+SCRIPT = Path(__file__).resolve().parents[1] / "tools/verify" / "verify-mbn-signatures.py"
 SPEC = importlib.util.spec_from_file_location("mbn_signatures", SCRIPT)
 mbn_signatures = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(mbn_signatures)

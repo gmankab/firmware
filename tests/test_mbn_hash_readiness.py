@@ -8,7 +8,7 @@ import struct
 import unittest
 
 S = importlib.util.spec_from_file_location(
-    "mbn_hash_readiness", Path(__file__).resolve().parents[1] / "tools/verify-mbn-hash-readiness.py")
+    "mbn_hash_readiness", Path(__file__).resolve().parents[1] / "tools/verify/verify-mbn-hash-readiness.py")
 checker = importlib.util.module_from_spec(S)
 S.loader.exec_module(checker)
 

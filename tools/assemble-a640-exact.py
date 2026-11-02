@@ -39,7 +39,7 @@ def validate_exact_rebuilt_image(data: bytes):
 
 
 def verify_embedded_chain(data: bytes):
-    spec = importlib.util.spec_from_file_location("nabu_mbn_verifier", ROOT / "tools" / "verify-mbn-signatures.py")
+    spec = importlib.util.spec_from_file_location("nabu_mbn_verifier", ROOT / "tools/verify" / "verify-mbn-signatures.py")
     if spec is None or spec.loader is None:
         raise ValueError("cannot load the independent OpenSSL MBN verifier")
     module = importlib.util.module_from_spec(spec)

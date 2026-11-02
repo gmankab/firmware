@@ -17,7 +17,7 @@ from pathlib import Path
 import subprocess
 import sys
 
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = Path(__file__).resolve().parents[2]
 REVISIONS = ROOT / "reference" / "xiaomi-nabu" / "firmware.sha256"
 IMAGES = ("a640_zap.mbn", "adsp.mbn", "cdsp.mbn", "modem.mbn", "venus.mbn", "wlanmdsp.mbn")
 EMBEDDED_ROOT_SHA256 = "c924a35f39ce1cdd1b8d5a9f3b8e3c51317930431d7a9dd5a55028cf6965fe65"
@@ -85,7 +85,7 @@ def audit(root, firmware_tools, verify_signatures=False):
             raise ValueError(f"{name}: source-coverage invariants not met")
         # Embedded-chain RSA-PSS consistency is independent of source coverage.
         if verify_signatures:
-            tool([sys.executable, str(ROOT / "tools" / "verify-mbn-signatures.py"),
+            tool([sys.executable, str(ROOT / "tools/verify" / "verify-mbn-signatures.py"),
                   str(src), "--expected-root-sha256", EMBEDDED_ROOT_SHA256])
         reports.append(report)
     return reports
