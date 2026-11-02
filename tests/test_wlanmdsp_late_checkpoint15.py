@@ -11,7 +11,7 @@ assert SPEC and SPEC.loader
 late=importlib.util.module_from_spec(SPEC)
 sys.modules[SPEC.name]=late
 SPEC.loader.exec_module(late)
-SRC=ROOT/'sources/xiaomi-nabu/wlanmdsp'
+SRC=ROOT/'sources/xiaomi-nabu/wlanmdsp/late'
 
 class ControllerFrameCommandTests(unittest.TestCase):
     def test_checkpoint_15_is_exactly_one_adjacent_routine(self):
@@ -23,13 +23,13 @@ class ControllerFrameCommandTests(unittest.TestCase):
         self.assertEqual(after[-1].size_bytes,692)
         self.assertEqual(sum(r.size_bytes for r in after),12800)
         self.assertEqual(after[-1].packet_joins,(
-            (0x4c,'sources/xiaomi-nabu/wlanmdsp/agent14-late-controller-frame-duplex-a.S'),
-            (0x14c,'sources/xiaomi-nabu/wlanmdsp/agent14-late-controller-frame-duplex-b.S')))
+            (0x4c,'sources/xiaomi-nabu/wlanmdsp/late/controller-frame-duplex-a.S'),
+            (0x14c,'sources/xiaomi-nabu/wlanmdsp/late/controller-frame-duplex-b.S')))
 
     def test_instructions_and_duplexes_are_typed_source(self):
-        body=(SRC/'agent14-late-controller-frame-command.S').read_text()
-        first=(SRC/'agent14-late-controller-frame-duplex-a.S').read_text()
-        second=(SRC/'agent14-late-controller-frame-duplex-b.S').read_text()
+        body=(SRC/'controller-frame-command.S').read_text()
+        first=(SRC/'controller-frame-duplex-a.S').read_text()
+        second=(SRC/'controller-frame-duplex-b.S').read_text()
         self.assertIn('jump ##1975360',body)
         self.assertIn('r23 = add(r20,#0x28)',second)
         self.assertIn('r5:4 = combine(#0,#0x0)',first)
@@ -40,7 +40,7 @@ class ControllerFrameCommandTests(unittest.TestCase):
 
     def test_rejects_overlapping_packet_fixture_offsets(self):
         import json
-        payload=json.loads((SRC/'agent14-late-regions.json').read_text())
+        payload=json.loads((SRC/'regions.json').read_text())
         new=next(entry for entry in payload['regions'] if entry['name']=='controller-frame-command')
         new['packet_joins'][1]['offset']=new['packet_joins'][0]['offset']+4
         with self.assertRaisesRegex(late.BuildError,'packet join overlaps'):

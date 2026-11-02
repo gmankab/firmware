@@ -25,7 +25,7 @@ class InterfaceRecordDispatcherTests(unittest.TestCase):
         self.assertLess(new[-1].file_end,late.OWNED_FILE_END)
 
     def test_typed_hexagon_packet_source_preserves_extenders_and_order(self):
-        src=(ROOT/'sources/xiaomi-nabu/wlanmdsp/agent14-late-interface-record-dispatch.S').read_text()
+        src=(ROOT/'sources/xiaomi-nabu/wlanmdsp/late/interface-record-dispatch.S').read_text()
         self.assertIn('if (p0) call ##-542440',src)
         self.assertIn('if (p0) call ##-542668',src)
         self.assertIn('{ memw(r2+#0x10) = r3; r2 = memw(r18+#0x0) }:mem_noshuf',src)
@@ -40,7 +40,7 @@ class InterfaceRecordDispatcherTests(unittest.TestCase):
         import copy
         info=late.select_regions(late.load_registry(),through_checkpoint=21)
         self.assertEqual(info[-1].sha256,'edb482bed18bae21b5da93724800ea18b9e9c7054ed45cbcf838b176287b619a')
-        payload=__import__('json').loads((ROOT/'sources/xiaomi-nabu/wlanmdsp/agent14-late-regions.json').read_text())
+        payload=__import__('json').loads((ROOT/'sources/xiaomi-nabu/wlanmdsp/late/regions.json').read_text())
         payload['regions']=[r for r in payload['regions'] if r['checkpoint']<=21]
         bad=copy.deepcopy(payload)
         bad['regions'][-1]['file_start']-=4

@@ -21,13 +21,13 @@ class WindowHandlers(unittest.TestCase):
     def test_no_raw_oem_instruction_directives(self):
         for n,a,b in self.expected:
             with self.subTest(n=n):
-                s=(ROOT/'sources/xiaomi-nabu/wlanmdsp'/f'agent14-late-{n}.S').read_text()
+                s=(ROOT/'sources/xiaomi-nabu/wlanmdsp/late'/f'{n}.S').read_text()
                 for instr in ('.word','.long','.byte','.incbin','.inst','.fill'):
                     self.assertNotIn(instr,s)
                 self.assertIn('agent14_late_'+n.replace('-','_')+':',s)
     def test_source_order_preserves_original_packets(self):
-        a=(ROOT/'sources/xiaomi-nabu/wlanmdsp/agent14-late-window-record-lookup.S').read_text()
-        b=(ROOT/'sources/xiaomi-nabu/wlanmdsp/agent14-late-window-record-validate.S').read_text()
+        a=(ROOT/'sources/xiaomi-nabu/wlanmdsp/late/window-record-lookup.S').read_text()
+        b=(ROOT/'sources/xiaomi-nabu/wlanmdsp/late/window-record-validate.S').read_text()
         self.assertIn('{ r18 = r0; r0 = ##0x6820; r20 = memw(r1+#0x0) }',a)
         self.assertIn('{ r0 = ##0x6838; r18 = r0; r17 = r1 }',b)
 if __name__=='__main__':unittest.main()

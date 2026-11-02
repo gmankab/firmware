@@ -21,9 +21,9 @@ class Agent14Checkpoint11Tests(unittest.TestCase):
         self.assertEqual([r.size_bytes for r in current[-2:]], [420,228])
         self.assertEqual(sum(r.size_bytes for r in current),10468)
     def test_jump_extenders_and_shuffled_memory_packets(self):
-        root=ROOT/'sources/xiaomi-nabu/wlanmdsp'
-        first=(root/'agent14-late-frame-status-parse.S').read_text()
-        second=(root/'agent14-late-packed-record-reply.S').read_text()
+        root=ROOT/'sources/xiaomi-nabu/wlanmdsp/late'
+        first=(root/'frame-status-parse.S').read_text()
+        second=(root/'packed-record-reply.S').read_text()
         self.assertIn('jump ##1978280',first)
         self.assertIn('r1 = r22; r2 = #0x6;',first)
         self.assertIn('jump ##-793032',second)

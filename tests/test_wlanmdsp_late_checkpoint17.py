@@ -21,14 +21,14 @@ class ResponseAndResetTests(unittest.TestCase):
         self.assertEqual(sum(r.size_bytes for r in new),13468)
         self.assertEqual([r.checkpoint for r in new[-2:]],[17,17])
     def test_source_is_typed_and_has_no_oem_word_directives(self):
-        for stem in ('agent14_late_interface_aux_reply','agent14_late_controller_io_reset'):
-            source=(ROOT/f'sources/xiaomi-nabu/wlanmdsp/{stem}.S').read_text()
+        for stem in ('interface-aux-reply','controller-io-reset'):
+            source=(ROOT/f'sources/xiaomi-nabu/wlanmdsp/late/{stem}.S').read_text()
             for directive in ('.word','.long','.byte','.incbin','.fill'):
                 self.assertNotIn(directive,source)
-        source=(ROOT/'sources/xiaomi-nabu/wlanmdsp/agent14_late_interface_aux_reply.S').read_text()
+        source=(ROOT/'sources/xiaomi-nabu/wlanmdsp/late/interface-aux-reply.S').read_text()
         self.assertIn('r17 |= asl(r7,#0x10)',source)
         self.assertIn('jump 1974888',source)
-        reset=(ROOT/'sources/xiaomi-nabu/wlanmdsp/agent14_late_controller_io_reset.S').read_text()
+        reset=(ROOT/'sources/xiaomi-nabu/wlanmdsp/late/controller-io-reset.S').read_text()
         self.assertIn('dealloc_return',reset)
         self.assertIn('##0x6618',reset)
 

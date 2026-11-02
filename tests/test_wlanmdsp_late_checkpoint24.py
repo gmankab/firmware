@@ -35,7 +35,7 @@ class StreamStatusHelperTests(unittest.TestCase):
     def test_only_named_isa_mnemonics_no_vendor_opcode_blobs(self):
         for name,_,__ in self.EXPECTED:
             with self.subTest(name=name):
-                src=(ROOT/'sources/xiaomi-nabu/wlanmdsp'/f'agent14-late-{name}.S').read_text()
+                src=(ROOT/'sources/xiaomi-nabu/wlanmdsp/late'/f'{name}.S').read_text()
                 for directive in ('.word','.long','.byte','.incbin','.fill','.org','.inst'):
                     self.assertNotIn(directive,src)
                 self.assertIn('.globl agent14_late_'+name.replace('-','_'),src)

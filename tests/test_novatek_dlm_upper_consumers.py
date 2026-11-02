@@ -6,7 +6,7 @@ import os
 import unittest
 
 ROOT=Path(__file__).resolve().parents[1]
-SPEC=importlib.util.spec_from_file_location("upper_consumer",ROOT/"tools/verify-agent19-upper-ilm-evidence.py")
+SPEC=importlib.util.spec_from_file_location("upper_consumer",ROOT/"tools/novatek/verify-upper-ilm-evidence.py")
 evidence=importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(evidence)
 

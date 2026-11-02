@@ -15,7 +15,7 @@ import unittest
 
 ROOT = Path(__file__).resolve().parent.parent
 TOOL = ROOT / "tools/build-wlanmdsp-late-tables.py"
-REGISTRY = ROOT / "sources/xiaomi-nabu/wlanmdsp/agent14-late-regions.json"
+REGISTRY = ROOT / "sources/xiaomi-nabu/wlanmdsp/late/regions.json"
 SPEC = importlib.util.spec_from_file_location("build_wlanmdsp_late_tables", TOOL)
 assert SPEC is not None and SPEC.loader is not None
 tables = importlib.util.module_from_spec(SPEC)
@@ -220,7 +220,7 @@ class WlanLateTableDependencyTests(unittest.TestCase):
             tables.dependency_for(spec, missing)
         for field, value in (("file_start", dependency.file_start + 4),
                              ("file_end", dependency.file_end - 4),
-                             ("source", "sources/xiaomi-nabu/wlanmdsp/other.S"),
+                             ("source", "sources/xiaomi-nabu/wlanmdsp/late/other.S"),
                              ("symbol", "other_entry"),
                              ("classification", "data")):
             with self.subTest(field=field):

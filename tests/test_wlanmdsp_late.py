@@ -14,7 +14,7 @@ import unittest
 
 ROOT = Path(__file__).resolve().parent.parent
 TOOL = ROOT / "tools/build-wlanmdsp-late.py"
-REGISTRY = ROOT / "sources/xiaomi-nabu/wlanmdsp/agent14-late-regions.json"
+REGISTRY = ROOT / "sources/xiaomi-nabu/wlanmdsp/late/regions.json"
 SPEC = importlib.util.spec_from_file_location("build_wlanmdsp_late", TOOL)
 assert SPEC is not None and SPEC.loader is not None
 late = importlib.util.module_from_spec(SPEC)

@@ -29,15 +29,15 @@ class WindowSlotStartup(unittest.TestCase):
     def test_assembly_mnemonics_only(self):
         for name, start, end in self.expected:
             with self.subTest(name=name):
-                p=ROOT/'sources/xiaomi-nabu/wlanmdsp'/f'agent14-late-{name}.S'
+                p=ROOT/'sources/xiaomi-nabu/wlanmdsp/late'/f'{name}.S'
                 source=p.read_text()
                 self.assertIn('agent14_late_'+name.replace('-','_')+':',source)
                 for prohibited in ('.word','.byte','.long','.incbin','.fill','.inst'):
                     self.assertNotIn(prohibited,source)
     def test_packet_preservation(self):
-        source=(ROOT/'sources/xiaomi-nabu/wlanmdsp/agent14-late-window-slot-bootstrap.S').read_text()
+        source=(ROOT/'sources/xiaomi-nabu/wlanmdsp/late/window-slot-bootstrap.S').read_text()
         self.assertIn('r4 = add(r29,#0x4); r5 = add(r29,#0x10)',source)
-        source=(ROOT/'sources/xiaomi-nabu/wlanmdsp/agent14-late-session-window-packet.S').read_text()
+        source=(ROOT/'sources/xiaomi-nabu/wlanmdsp/late/session-window-packet.S').read_text()
         self.assertIn(':endloop0',source)
         self.assertIn('r24 -= mpyi(r0,#0xff)',source)
         self.assertIn('loop0(pkt_004c,r22)',source)

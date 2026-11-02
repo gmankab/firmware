@@ -24,14 +24,14 @@ class SessionControllerHelpers(unittest.TestCase):
     def test_only_mnemonics_and_symbols(self):
         for name,_,_ in self.expected:
             with self.subTest(name=name):
-                data=(ROOT/'sources/xiaomi-nabu/wlanmdsp'/f'agent14-late-{name}.S').read_text()
+                data=(ROOT/'sources/xiaomi-nabu/wlanmdsp/late'/f'{name}.S').read_text()
                 self.assertIn('agent14_late_'+name.replace('-','_')+':',data)
                 for forbidden in ('.byte','.word','.long','.incbin','.fill','.inst'):
                     self.assertNotIn(forbidden,data)
     def test_dispatch_extender_and_controller_source_order(self):
-        a=(ROOT/'sources/xiaomi-nabu/wlanmdsp/agent14-late-session-type-dispatch.S').read_text()
+        a=(ROOT/'sources/xiaomi-nabu/wlanmdsp/late/session-type-dispatch.S').read_text()
         self.assertIn('jump ##-912',a)
-        b=(ROOT/'sources/xiaomi-nabu/wlanmdsp/agent14-late-session-controller-create.S').read_text()
+        b=(ROOT/'sources/xiaomi-nabu/wlanmdsp/late/session-controller-create.S').read_text()
         self.assertIn('r4 = #-0x1; r5 = add(r29,#0x8)',b)
         self.assertIn('callr r5',b)
 

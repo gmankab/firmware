@@ -54,7 +54,7 @@ fn run() -> Result<(), String> {
             println!("{}", novatek_upper_catalog::manifest(&novatek_upper_catalog::fragments()?)?);
             Ok(())
         }
-        _ => Err("usage: novatek-upper-ilm emit MAIN_OUTPUT | export DIRECTORY | inspect\nVerification: tools/devices/xiaomi-nabu/verify-agent20-18.py".into()),
+        _ => Err("usage: novatek-upper-ilm emit MAIN_OUTPUT | export DIRECTORY | inspect\nVerification: tools/devices/xiaomi-nabu/verify-novatek-upper.py".into()),
     }
 }
 

@@ -19,11 +19,11 @@ class WindowAndControllerInitialization(unittest.TestCase):
         self.assertEqual(sum(x.size_bytes for x in new),35344)
     def test_only_mnemonics_and_packet_order(self):
         for name,_,_ in self.expected:
-            source=(ROOT/'sources/xiaomi-nabu/wlanmdsp'/f'agent14-late-{name}.S').read_text()
+            source=(ROOT/'sources/xiaomi-nabu/wlanmdsp/late'/f'{name}.S').read_text()
             self.assertIn('agent14_late_'+name.replace('-','_')+':',source)
             for prohibited in ('.word','.long','.byte','.incbin','.fill','.inst'):
                 self.assertNotIn(prohibited,source)
-        src=(ROOT/'sources/xiaomi-nabu/wlanmdsp/agent14-late-controller-window-bind.S').read_text()
+        src=(ROOT/'sources/xiaomi-nabu/wlanmdsp/late/controller-window-bind.S').read_text()
         self.assertEqual(src.count(':mem_noshuf'),5)
         self.assertIn('memw(r16+#0x10) = r2; r2 = memw(r17+#0xc0)',src)
 if __name__=='__main__':unittest.main()

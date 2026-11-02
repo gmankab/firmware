@@ -22,7 +22,7 @@ class InterfaceStatusQueryTests(unittest.TestCase):
         self.assertEqual((now[-1].vaddr,now[-1].vaddr+now[-1].size_bytes),
                          (0xb00c5140,0xb00c55f8))
     def test_packet_source_never_embeds_reference_code(self):
-        text=(ROOT/'sources/xiaomi-nabu/wlanmdsp/agent14-late-interface-status-query.S').read_text()
+        text=(ROOT/'sources/xiaomi-nabu/wlanmdsp/late/interface-status-query.S').read_text()
         self.assertEqual(text.count('// offset 0x'),147)
         self.assertIn('{ if (!p0) call ##1402252 }',text)
         self.assertIn(':mem_noshuf',text)

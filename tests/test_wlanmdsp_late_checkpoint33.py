@@ -19,16 +19,16 @@ class WindowRecordHelpers(unittest.TestCase):
     def test_source_no_original_bytes(self):
         for name,_,_ in self.expected:
             with self.subTest(name=name):
-                source=(ROOT/'sources/xiaomi-nabu/wlanmdsp'/f'agent14-late-{name}.S').read_text()
+                source=(ROOT/'sources/xiaomi-nabu/wlanmdsp/late'/f'{name}.S').read_text()
                 self.assertIn('agent14_late_'+name.replace('-','_')+':',source)
                 for forbidden in ('.word','.long','.byte','.incbin','.inst','.fill'):
                     self.assertNotIn(forbidden,source)
     def test_preserved_hexagon_packets(self):
-        root=ROOT/'sources/xiaomi-nabu/wlanmdsp'
-        a=(root/'agent14-late-window-record-resolve.S').read_text()
-        b=(root/'agent14-late-window-record-commit.S').read_text()
-        c=(root/'agent14-late-window-record-validate-mode.S').read_text()
-        d=(root/'agent14-late-window-data-lookup.S').read_text()
+        root=ROOT/'sources/xiaomi-nabu/wlanmdsp/late'
+        a=(root/'window-record-resolve.S').read_text()
+        b=(root/'window-record-commit.S').read_text()
+        c=(root/'window-record-validate-mode.S').read_text()
+        d=(root/'window-data-lookup.S').read_text()
         self.assertIn(':mem_noshuf',a)
         self.assertEqual(b.count(':mem_noshuf'),3)
         self.assertIn('{ r2 = r0; r5 = #0x0; r1:0 = combine(#0x48,r18); r4 = memw(r17+#0x0) }',c)

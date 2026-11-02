@@ -23,14 +23,14 @@ class ControllerEventsAndFeatureQueries(unittest.TestCase):
     def test_source_only_and_packet_controls(self):
         for name,_,_ in self.expected:
             with self.subTest(name=name):
-                source=(ROOT/'sources/xiaomi-nabu/wlanmdsp'/f'agent14-late-{name}.S').read_text()
+                source=(ROOT/'sources/xiaomi-nabu/wlanmdsp/late'/f'{name}.S').read_text()
                 self.assertIn('agent14_late_'+name.replace('-','_')+':',source)
                 for invalid in ('.word','.long','.byte','.fill','.incbin','.inst'):
                     self.assertNotIn(invalid,source)
-        ev=(ROOT/'sources/xiaomi-nabu/wlanmdsp/agent14-late-controller-event-pipeline.S').read_text()
+        ev=(ROOT/'sources/xiaomi-nabu/wlanmdsp/late/controller-event-pipeline.S').read_text()
         self.assertIn('if (p0) call ##-745548',ev)
         self.assertIn('p0 = cmp.eq(r2,r4); r4 = add(r3,#1); r5 = r3',ev)
-        arr=(ROOT/'sources/xiaomi-nabu/wlanmdsp/agent14-late-session-record-slot-array.S').read_text()
+        arr=(ROOT/'sources/xiaomi-nabu/wlanmdsp/late/session-record-slot-array.S').read_text()
         self.assertIn('loop0(pkt_0040,r17)',arr)
         self.assertIn('}  :endloop0',arr)
         self.assertIn('jump ##1951620',arr)

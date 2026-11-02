@@ -31,15 +31,15 @@ class SessionCommandWindow(unittest.TestCase):
     def test_no_raw_firmware_instruction_bytes(self):
         for name,_,_ in self.expected:
             with self.subTest(name=name):
-                source=(ROOT/'sources/xiaomi-nabu/wlanmdsp'/f'agent14-late-{name}.S').read_text()
+                source=(ROOT/'sources/xiaomi-nabu/wlanmdsp/late'/f'{name}.S').read_text()
                 for directive in ('.word','.long','.byte','.incbin','.inst','.fill'):
                     self.assertNotIn(directive,source)
                 self.assertIn('agent14_late_'+name.replace('-','_')+':',source)
     def test_controller_packet_ordering(self):
-        root=ROOT/'sources/xiaomi-nabu/wlanmdsp'
-        a=(root/'agent14-late-session-command-validate.S').read_text()
-        b=(root/'agent14-late-session-link-report.S').read_text()
-        c=(root/'agent14-late-session-read-window.S').read_text()
+        root=ROOT/'sources/xiaomi-nabu/wlanmdsp/late'
+        a=(root/'session-command-validate.S').read_text()
+        b=(root/'session-link-report.S').read_text()
+        c=(root/'session-read-window.S').read_text()
         self.assertIn('{ call -2572; r1 = #0x4; r2 = #0x1; r0 = memub(r16+#0x0) }',a)
         self.assertIn('{ r2 = r0; r5 = #0x0; r1:0 = combine(#0x47,r19); r4 = memw(r18+#0x0) }',b)
         self.assertIn('{ memw(r16+#0x48) = r3; r17:16 = memd(r29+#0x8) }:mem_noshuf',c)

@@ -20,7 +20,7 @@ class RecordDispatchTests(unittest.TestCase):
                          (0x105bac,0x105e70,708,0xb00c5bac))
         self.assertEqual(sum(x.size_bytes for x in current),23724)
     def test_no_oem_opcode_arrays(self):
-        s=(ROOT/'sources/xiaomi-nabu/wlanmdsp/agent14-late-record-validate-dispatch.S').read_text()
+        s=(ROOT/'sources/xiaomi-nabu/wlanmdsp/late/record-validate-dispatch.S').read_text()
         self.assertIn('agent14_late_record_validate_dispatch:',s)
         for directive in ('.word','.long','.byte','.incbin','.inst','.fill'):
             self.assertNotIn(directive,s)

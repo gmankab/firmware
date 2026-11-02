@@ -22,7 +22,7 @@ class ControllerResponseTests(unittest.TestCase):
         self.assertEqual(after[-1].checkpoint,16)
         self.assertFalse(after[-1].packet_joins)
     def test_only_source_mnemonics_no_reference_opcodes(self):
-        p=ROOT/'sources/xiaomi-nabu/wlanmdsp/agent14-late-controller-response-pack.S'
+        p=ROOT/'sources/xiaomi-nabu/wlanmdsp/late/controller-response-pack.S'
         code=p.read_text()
         self.assertIn('r5:4 = combine(#0,#0x0)',code)
         self.assertIn('r3 = mux(p0,#0x60,#0x20)',code)
@@ -34,6 +34,6 @@ class ControllerResponseTests(unittest.TestCase):
     def test_source_digest_is_bound_to_registry(self):
         r=late.select_regions(late.load_registry(),through_checkpoint=16)[-1]
         self.assertRegex(r.sha256,r'^[0-9a-f]{64}$')
-        self.assertEqual(r.source,'sources/xiaomi-nabu/wlanmdsp/agent14-late-controller-response-pack.S')
+        self.assertEqual(r.source,'sources/xiaomi-nabu/wlanmdsp/late/controller-response-pack.S')
 
 if __name__=='__main__':unittest.main()

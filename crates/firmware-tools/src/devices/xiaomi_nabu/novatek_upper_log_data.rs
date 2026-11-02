@@ -10,7 +10,7 @@
 //! The constants are transcribed from Arm optimized-routines `math/log_data.c`
 //! at commit 189dfefe37d54c5b9d2a8bb2039091a638c691e1. No firmware bytes are
 //! inputs to these tables or to `emit`. The original C file is preserved at
-//! `reference/xiaomi-nabu/agent20-18/arm-log_data.c` with its original license.
+//! `reference/xiaomi-nabu/novatek/ilm-upper/arm-log_data.c` with its original license.
 //!
 //! This is the configuration LOG_TABLE_BITS=7, LOG_POLY_ORDER=6,
 //! LOG_POLY1_ORDER=12, HAVE_FAST_FMA=0. For x = 2^k z, the log routine uses

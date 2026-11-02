@@ -78,7 +78,7 @@ TABLES = (
     TableSpec(
         name="short-type-dispatch-table", file_start=0x2F6CD0,
         first_type=0, entry_count=19,
-        source="sources/xiaomi-nabu/wlanmdsp/agent14-late-short-type-dispatch.S",
+        source="sources/xiaomi-nabu/wlanmdsp/late/short-type-dispatch.S",
         entry_symbol="wlan_late_short_type_dispatch",
         function_file_start=0x100B5C, function_file_end=0x100D78,
         case_types=(0x0000, 0x0002, 0x0003, 0x0004, 0x0005, 0x0006,
@@ -88,7 +88,7 @@ TABLES = (
     TableSpec(
         name="wide-type-dispatch-table", file_start=0x2F6D1C,
         first_type=0x1002, entry_count=105,
-        source="sources/xiaomi-nabu/wlanmdsp/agent14-late-wide-type-dispatch.S",
+        source="sources/xiaomi-nabu/wlanmdsp/late/wide-type-dispatch.S",
         entry_symbol="wlan_late_wide_type_dispatch",
         function_file_start=0x100EB0, function_file_end=0x1012A0,
         case_types=(

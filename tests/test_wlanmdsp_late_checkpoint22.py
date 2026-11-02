@@ -23,7 +23,7 @@ class AckHelperTests(unittest.TestCase):
         self.assertEqual(now[-1].vaddr,0xb00c50d8)
         self.assertEqual(now[-1].vaddr+104,0xb00c5140)
     def test_all_instructions_are_explicit(self):
-        source=(ROOT/'sources/xiaomi-nabu/wlanmdsp/agent14-late-record-ack-thunk.S').read_text()
+        source=(ROOT/'sources/xiaomi-nabu/wlanmdsp/late/record-ack-thunk.S').read_text()
         self.assertEqual(source.count('// offset 0x'),10)
         self.assertIn('dealloc_return',source)
         self.assertIn('r1:0 = combine(#0x6,##0xc80)',source)

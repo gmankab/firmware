@@ -12,7 +12,7 @@ import sys
 import unittest
 
 ROOT = Path(__file__).resolve().parent.parent
-REGISTRY = ROOT / "sources/xiaomi-nabu/wlanmdsp/agent14-late-regions.json"
+REGISTRY = ROOT / "sources/xiaomi-nabu/wlanmdsp/late/regions.json"
 REGIONS = ROOT / "tools/build-wlanmdsp-late.py"
 _spec = importlib.util.spec_from_file_location("agent14_wlan_late_05", REGIONS)
 assert _spec and _spec.loader
@@ -42,24 +42,24 @@ class WlanHexagonStatusPacketSourceTests(unittest.TestCase):
         self.assertLessEqual(current[-1].file_end, 0x353D38)
 
     def test_far_jump_has_explicit_constant_extension(self):
-        body = (ROOT / "sources/xiaomi-nabu/wlanmdsp/"
-                "agent14-late-status-packet-epilogue.S").read_text()
+        body = (ROOT / "sources/xiaomi-nabu/wlanmdsp/late/"
+                "status-packet-epilogue.S").read_text()
         self.assertIn("jump ##0x1e3ff0", body)
         self.assertIn("r0 = r18", body)
         self.assertNotIn(".word ", body)
         self.assertNotIn(".long ", body)
 
     def test_packet_body_has_legal_nonshuffled_memory_packet(self):
-        body = (ROOT / "sources/xiaomi-nabu/wlanmdsp/"
-                "agent14-late-status-packet-body.S").read_text()
+        body = (ROOT / "sources/xiaomi-nabu/wlanmdsp/late/"
+                "status-packet-body.S").read_text()
         self.assertIn("memb(r16+#6) = r2", body)
         self.assertIn(":mem_noshuf", body)
         self.assertIn("jump 0x28", body)
         self.assertNotIn(".incbin", body)
 
     def test_status_word_helper_returns_by_dealloc_return(self):
-        src = (ROOT / "sources/xiaomi-nabu/wlanmdsp/"
-               "agent14-late-status-word-available.S").read_text()
+        src = (ROOT / "sources/xiaomi-nabu/wlanmdsp/late/"
+               "status-word-available.S").read_text()
         self.assertIn("dealloc_return", src)
         self.assertIn("r17:16 = memd(r29+#0)", src)
         self.assertIn("call 0x15556c", src)
@@ -77,7 +77,7 @@ class WlanHexagonStatusPacketSourceTests(unittest.TestCase):
         self.assertEqual(current[-1].file_end, 0x101BE4)
 
     def test_status_packet_followup_preserves_extended_call_and_nonshuffled_data(self):
-        path = ROOT / "sources/xiaomi-nabu/wlanmdsp/agent14-late-buffer-service-post.S"
+        path = ROOT / "sources/xiaomi-nabu/wlanmdsp/late/buffer-service-post.S"
         text = path.read_text()
         self.assertIn("jump ##0x1e3dfc", text)
         self.assertIn("r17 = r0; r0 = r20", text)
@@ -85,7 +85,7 @@ class WlanHexagonStatusPacketSourceTests(unittest.TestCase):
         self.assertNotIn(".word ", text)
 
     def test_status_warning_thunk_not_assumed_to_return(self):
-        path = ROOT / "sources/xiaomi-nabu/wlanmdsp/agent14-late-status-warning-thunk.S"
+        path = ROOT / "sources/xiaomi-nabu/wlanmdsp/late/status-warning-thunk.S"
         text = path.read_text()
         self.assertIn("call 0x15b3e4", text)
         self.assertNotIn("dealloc_return", text)
@@ -114,13 +114,13 @@ class WlanHexagonCheckpointSevenSourceTests(unittest.TestCase):
         self.assertLessEqual(current[-1].file_end, 0x353D38)
 
     def test_packet_order_and_far_jump_extension_are_explicit(self):
-        base = ROOT / "sources/xiaomi-nabu/wlanmdsp/"
-        first = (base / "agent14-late-interface-query-report.S").read_text()
+        base = ROOT / "sources/xiaomi-nabu/wlanmdsp/late/"
+        first = (base / "interface-query-report.S").read_text()
         self.assertIn("call 0x13f040; memb(r18+#49) = #1; r0 = memw(r16+#44) }:mem_noshuf", first)
-        fourth = (base / "agent14-late-session-aux-dispatch.S").read_text()
+        fourth = (base / "session-aux-dispatch.S").read_text()
         self.assertIn("memb(r24+#49) = #1; r0 = memw(r3+#556) }:mem_noshuf", fourth)
         self.assertIn("jump ##0x1e380c", fourth)
-        third = (base / "agent14-late-byte-counter-adjust.S").read_text()
+        third = (base / "byte-counter-adjust.S").read_text()
         self.assertIn("jump ##0x154f58", third)
         for text in (first, fourth, third):
             self.assertNotIn(".word ", text)
@@ -142,9 +142,9 @@ class WlanHexagonCheckpointEightSourceTests(unittest.TestCase):
         self.assertEqual(after[-1].file_end,0x102368)
 
     def test_memory_packet_order_and_extender_source_is_explicit(self):
-        source=ROOT/"sources/xiaomi-nabu/wlanmdsp"
-        event=(source/"agent14-late-interface-event-handler.S").read_text()
-        reply=(source/"agent14-late-status-reply.S").read_text()
+        source=ROOT/"sources/xiaomi-nabu/wlanmdsp/late"
+        event=(source/"interface-event-handler.S").read_text()
+        reply=(source/"status-reply.S").read_text()
         self.assertIn("memb(r24+#49) = #1; r0 = memw(r16+#44) }:mem_noshuf",event)
         self.assertIn("{ r0 = ##25992; r18 = r0; r16 = r1 }",reply)
         for s in (event,reply):

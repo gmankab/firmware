@@ -6,8 +6,8 @@ from pathlib import Path
 import unittest
 
 ROOT = Path(__file__).resolve().parent.parent
-REGISTRY = ROOT / 'sources/xiaomi-nabu/wlanmdsp/agent14-late-regions.json'
-ASM = ROOT / 'sources/xiaomi-nabu/wlanmdsp/agent14-late-command-parser.S'
+REGISTRY = ROOT / 'sources/xiaomi-nabu/wlanmdsp/late/regions.json'
+ASM = ROOT / 'sources/xiaomi-nabu/wlanmdsp/late/command-parser.S'
 S = importlib.util.spec_from_file_location('agent14_checkpoint09_late', ROOT / 'tools/build-wlanmdsp-late.py')
 assert S and S.loader
 import sys

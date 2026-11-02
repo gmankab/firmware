@@ -23,7 +23,7 @@ import tempfile
 
 
 ROOT = Path(__file__).resolve().parent.parent
-REGISTRY = ROOT / "sources/xiaomi-nabu/wlanmdsp/agent14-late-regions.json"
+REGISTRY = ROOT / "sources/xiaomi-nabu/wlanmdsp/late/regions.json"
 OWNED_FILE_START = 0x100000
 OWNED_FILE_END = 0x353D38
 TEXT_FILE_START = 0x40000

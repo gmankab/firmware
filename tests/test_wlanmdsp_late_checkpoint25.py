@@ -24,7 +24,7 @@ class InterpreterTests(unittest.TestCase):
         self.assertEqual(current[-1].vaddr,0xb00c5744)
         self.assertEqual(current[-1].size_bytes,1128)
     def test_named_branch_tables_and_no_reference_code_embedding(self):
-        text=(ROOT/'sources/xiaomi-nabu/wlanmdsp/agent14-late-script-operand-interpreter.S').read_text()
+        text=(ROOT/'sources/xiaomi-nabu/wlanmdsp/late/script-operand-interpreter.S').read_text()
         for directive in ('.word','.byte','.long','.incbin','.fill','.org','.inst'):
             self.assertNotIn(directive,text)
         self.assertIn('loop0(pkt_00b0,r2)',text)

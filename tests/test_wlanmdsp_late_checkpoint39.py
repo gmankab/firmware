@@ -20,12 +20,12 @@ class ControllerRecordHandler(unittest.TestCase):
     def test_mnemonics_only(self):
         for name,_,_ in self.expected:
             with self.subTest(name=name):
-                src=(ROOT/'sources/xiaomi-nabu/wlanmdsp'/f'agent14-late-{name}.S').read_text()
+                src=(ROOT/'sources/xiaomi-nabu/wlanmdsp/late'/f'{name}.S').read_text()
                 self.assertIn('agent14_late_'+name.replace('-','_')+':',src)
                 for banned in ('.word','.long','.byte','.inst','.incbin','.fill'):
                     self.assertNotIn(banned,src)
     def test_far_branch_and_duplex_packet_controls(self):
-        src=(ROOT/'sources/xiaomi-nabu/wlanmdsp/agent14-late-session-controller-record-handler.S').read_text()
+        src=(ROOT/'sources/xiaomi-nabu/wlanmdsp/late/session-controller-record-handler.S').read_text()
         self.assertIn('jump ##1953856',src)
         self.assertIn('r17 = r1; r21 = r0; r23:22 = combine',src)
         self.assertIn('r3 = add(r29,#0x14); r2 = r22; r1 = r23',src)

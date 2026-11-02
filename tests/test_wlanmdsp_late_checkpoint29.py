@@ -35,13 +35,13 @@ class SessionDescriptorHelpers(unittest.TestCase):
     def test_source_is_named_instructions_only(self):
         for name,_,_ in self.expected:
             with self.subTest(name=name):
-                text = (ROOT/'sources/xiaomi-nabu/wlanmdsp'/f'agent14-late-{name}.S').read_text()
+                text = (ROOT/'sources/xiaomi-nabu/wlanmdsp/late'/f'{name}.S').read_text()
                 for prohibited in ('.word','.long','.byte','.incbin','.inst','.fill'):
                     self.assertNotIn(prohibited,text)
                 self.assertIn(f'agent14_late_{name.replace("-","_")}:',text)
                 self.assertRegex(text,r'(?m)^\{[^\n]+\}(?:\s*:mem_noshuf|\s+:endloop0)?$')
     def test_attach_packet_order_is_explicit(self):
-        text=(ROOT/'sources/xiaomi-nabu/wlanmdsp/agent14-late-session-attach.S').read_text()
+        text=(ROOT/'sources/xiaomi-nabu/wlanmdsp/late/session-attach.S').read_text()
         self.assertIn('{ memw(r16+#0x84) = r2; r17:16 = memd(r29+#0x10) }:mem_noshuf',text)
 
 if __name__=='__main__':

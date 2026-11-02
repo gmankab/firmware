@@ -19,12 +19,12 @@ class SessionControllerDispatch(unittest.TestCase):
     def test_source_code_only(self):
         for name,_,_ in self.expected:
             with self.subTest(name=name):
-                src=(ROOT/'sources/xiaomi-nabu/wlanmdsp'/f'agent14-late-{name}.S').read_text()
+                src=(ROOT/'sources/xiaomi-nabu/wlanmdsp/late'/f'{name}.S').read_text()
                 self.assertIn('agent14_late_'+name.replace('-','_')+':',src)
                 for x in ('.word','.long','.byte','.fill','.inst','.incbin'):self.assertNotIn(x,src)
     def test_packet_control(self):
-        s=(ROOT/'sources/xiaomi-nabu/wlanmdsp/agent14-late-session-controller-dispatch.S').read_text()
+        s=(ROOT/'sources/xiaomi-nabu/wlanmdsp/late/session-controller-dispatch.S').read_text()
         self.assertIn('jump ##1955196',s)
-        f=(ROOT/'sources/xiaomi-nabu/wlanmdsp/agent14-late-session-frame-pack.S').read_text()
+        f=(ROOT/'sources/xiaomi-nabu/wlanmdsp/late/session-frame-pack.S').read_text()
         self.assertEqual(f.count(':mem_noshuf'),2)
 if __name__=='__main__':unittest.main()

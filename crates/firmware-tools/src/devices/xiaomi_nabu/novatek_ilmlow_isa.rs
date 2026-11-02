@@ -2,7 +2,7 @@
 //! Checked NDS32 instruction encoders for Agent 17's lower ILM source.
 //! Instruction words are big-endian. No OEM byte arrays are accepted here.
 //! Opcode fields were checked against Andes-contributed GNU binutils and
-//! Ghidra NDS32 SLEIGH. See docs/agent20-17-inherited-encoder-audit.md.
+//! Ghidra NDS32 SLEIGH. See docs/history/phase-2/novatek-lower/inherited-encoder-audit.md.
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Reg(u8);

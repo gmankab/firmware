@@ -32,15 +32,15 @@ class SessionModeCallbacks(unittest.TestCase):
     def test_source_mnemonics_only(self):
         for name,_,_ in self.expected:
             with self.subTest(name=name):
-                src=(ROOT/'sources/xiaomi-nabu/wlanmdsp'/f'agent14-late-{name}.S').read_text()
+                src=(ROOT/'sources/xiaomi-nabu/wlanmdsp/late'/f'{name}.S').read_text()
                 for forbidden in ('.word','.long','.byte','.incbin','.inst','.fill'):
                     self.assertNotIn(forbidden,src)
                 self.assertIn(f'agent14_late_{name.replace("-","_")}:',src)
                 self.assertRegex(src,r'(?m)^\{[^\n]+\}(?:\s*:mem_noshuf|\s+:endloop0)?$')
     def test_packet_order_fixed_by_source(self):
-        p=ROOT/'sources/xiaomi-nabu/wlanmdsp'
-        a=(p/'agent14-late-session-mode-toggle.S').read_text()
-        b=(p/'agent14-late-session-events-update.S').read_text()
+        p=ROOT/'sources/xiaomi-nabu/wlanmdsp/late'
+        a=(p/'session-mode-toggle.S').read_text()
+        b=(p/'session-events-update.S').read_text()
         self.assertIn('{ call -1068; r1 = #0x3; r2 = #0x4; r0 = memub(r16+#0x0) }',a)
         self.assertIn('{ call -1480; r1 = r18; r2 = #0x4; r0 = memub(r17+#0x3) }',b)
 if __name__=='__main__': unittest.main()

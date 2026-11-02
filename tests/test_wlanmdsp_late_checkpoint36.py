@@ -24,12 +24,12 @@ class CodecSessionCommands(unittest.TestCase):
     def test_no_embedded_reference_opcodes(self):
         for name,_,_ in self.expected:
             with self.subTest(name=name):
-                s=(ROOT/'sources/xiaomi-nabu/wlanmdsp'/f'agent14-late-{name}.S').read_text()
+                s=(ROOT/'sources/xiaomi-nabu/wlanmdsp/late'/f'{name}.S').read_text()
                 self.assertIn('agent14_late_'+name.replace('-','_')+':',s)
                 for forbidden in ('.word','.long','.byte','.incbin','.fill','.inst'):
                     self.assertNotIn(forbidden,s)
     def test_conditional_call_extender_is_explicit(self):
-        s=(ROOT/'sources/xiaomi-nabu/wlanmdsp/agent14-late-session-record-command.S').read_text()
+        s=(ROOT/'sources/xiaomi-nabu/wlanmdsp/late/session-record-command.S').read_text()
         self.assertIn('if (!p0) call ##-888',s)
         self.assertIn('r1 = #0x0; r16 = r1',s)
 

@@ -19,7 +19,7 @@ class RecordPipelineTests(unittest.TestCase):
         self.assertEqual(n[-1].size_bytes,1260)
         self.assertEqual(sum(x.size_bytes for x in n),14728)
     def test_source_preserves_loop_and_packet_memory_order(self):
-        data=(ROOT/'sources/xiaomi-nabu/wlanmdsp/agent14_late_interface_record_pipeline.S').read_text()
+        data=(ROOT/'sources/xiaomi-nabu/wlanmdsp/late/interface-record-pipeline.S').read_text()
         self.assertIn('loop0(0xc,r2)',data)
         self.assertIn('}:endloop0',data)
         self.assertIn('jump ##1973488',data)

@@ -20,7 +20,7 @@ class Agent14Checkpoint12(unittest.TestCase):
         self.assertEqual(new[-1].size_bytes,552)
         self.assertEqual(sum(r.size_bytes for r in new),11020)
     def test_far_branch_and_nonshuffled_packet_size(self):
-        p=ROOT/'sources/xiaomi-nabu/wlanmdsp/agent14-late-counted-frame-prepare.S'
+        p=ROOT/'sources/xiaomi-nabu/wlanmdsp/late/counted-frame-prepare.S'
         s=p.read_text()
         self.assertIn('jump ##1977576',s)
         self.assertIn('r21 = #0x6; r2 = #0x6; r1 = r21',s)

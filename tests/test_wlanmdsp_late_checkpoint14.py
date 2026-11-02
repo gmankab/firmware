@@ -20,7 +20,7 @@ class Agent14Checkpoint14(unittest.TestCase):
         self.assertEqual(sum(r.size_bytes for r in after),12108)
         self.assertEqual(len(after)-len(prior),1)
     def test_hardware_checksum_and_extended_error_jump(self):
-        text=(ROOT/'sources/xiaomi-nabu/wlanmdsp/agent14-late-interface-status-construct.S').read_text()
+        text=(ROOT/'sources/xiaomi-nabu/wlanmdsp/late/interface-status-construct.S').read_text()
         self.assertIn('call -884',text)
         self.assertIn('memd(r29+#0x8) = r5:4',text)
         self.assertIn('jump ##1976456',text)

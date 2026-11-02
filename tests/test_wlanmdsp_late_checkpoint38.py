@@ -20,15 +20,15 @@ class InterfaceRecordInspection(unittest.TestCase):
     def test_named_opcode_source_only(self):
         for name,_,_ in self.expected:
             with self.subTest(name=name):
-                src=(ROOT/'sources/xiaomi-nabu/wlanmdsp'/f'agent14-late-{name}.S').read_text()
+                src=(ROOT/'sources/xiaomi-nabu/wlanmdsp/late'/f'{name}.S').read_text()
                 self.assertIn('agent14_late_'+name.replace('-','_')+':',src)
                 for banned in ('.byte','.word','.long','.incbin','.fill','.inst'):
                     self.assertNotIn(banned,src)
     def test_packet_compatibility_controls(self):
-        a=(ROOT/'sources/xiaomi-nabu/wlanmdsp/agent14-late-session-record-codec-check.S').read_text()
+        a=(ROOT/'sources/xiaomi-nabu/wlanmdsp/late/session-record-codec-check.S').read_text()
         self.assertIn('r0 = ##0xb02b7a7c; r2 = r18',a)
         self.assertIn('jump ##1954388',a)
-        b=(ROOT/'sources/xiaomi-nabu/wlanmdsp/agent14-late-session-record-type-guard.S').read_text()
+        b=(ROOT/'sources/xiaomi-nabu/wlanmdsp/late/session-record-type-guard.S').read_text()
         self.assertIn('memb(r19+#0x0) = r2; r2 = memuh(r19+#0x0) } :mem_noshuf',b)
         self.assertIn('jump ##1954104',b)
 if __name__=='__main__':unittest.main()

@@ -21,7 +21,7 @@ class CommandPipelineTests(unittest.TestCase):
         self.assertEqual(now[-1].size_bytes,2124)
         self.assertEqual(sum(r.size_bytes for r in now),16852)
     def test_source_forces_extenders_and_command_packet_order(self):
-        text=(ROOT/'sources/xiaomi-nabu/wlanmdsp/agent14-late-interface-command-pipeline.S').read_text()
+        text=(ROOT/'sources/xiaomi-nabu/wlanmdsp/late/interface-command-pipeline.S').read_text()
         self.assertIn('jump:nt ##label_0450',text)
         self.assertIn('jump ##1972320',text)
         self.assertIn(':mem_noshuf',text)

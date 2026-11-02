@@ -11,7 +11,7 @@ assert SPEC and SPEC.loader
 late = importlib.util.module_from_spec(SPEC)
 sys.modules[SPEC.name] = late
 SPEC.loader.exec_module(late)
-SOURCE = ROOT/'sources/xiaomi-nabu/wlanmdsp'
+SOURCE = ROOT/'sources/xiaomi-nabu/wlanmdsp/late'
 
 class Agent14Checkpoint10Tests(unittest.TestCase):
     def test_three_adjacent_functions_and_exact_bytes(self):
@@ -25,9 +25,9 @@ class Agent14Checkpoint10Tests(unittest.TestCase):
         self.assertEqual(sum(r.size_bytes for r in after), 9820)
         self.assertEqual(after[-1].file_end, 0x102820)
     def test_far_jump_and_no_shuffling_are_explicit(self):
-        activity=(SOURCE/'agent14-late-session-activity-update.S').read_text()
-        second=(SOURCE/'agent14-late-attribute-byte-snapshot.S').read_text()
-        third=(SOURCE/'agent14-late-attribute-byte-select.S').read_text()
+        activity=(SOURCE/'session-activity-update.S').read_text()
+        second=(SOURCE/'attribute-byte-snapshot.S').read_text()
+        third=(SOURCE/'attribute-byte-select.S').read_text()
         self.assertIn('jump ##-792140',activity)
         self.assertIn(':mem_noshuf',second)
         self.assertEqual(third.count(':mem_noshuf'),2)

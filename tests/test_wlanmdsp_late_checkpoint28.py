@@ -20,12 +20,12 @@ class CodecModeHelpers(unittest.TestCase):
     def test_name_only_instructions_no_reference_data(self):
         for name in self.names:
             with self.subTest(name=name):
-                s=(ROOT/'sources/xiaomi-nabu/wlanmdsp'/f'agent14-late-{name}.S').read_text()
+                s=(ROOT/'sources/xiaomi-nabu/wlanmdsp/late'/f'{name}.S').read_text()
                 for prohibited in ('.word','.long','.byte','.incbin','.inst','.fill'):
                     self.assertNotIn(prohibited,s)
                 self.assertIn('agent14_late_'+name.replace('-','_')+':',s)
                 self.assertRegex(s,r'(?m)^\{[^\n]+\}(?::mem_noshuf|\s+:endloop0)?$')
     def test_mixed_memory_packet_uses_explicit_ordering(self):
-        s=(ROOT/'sources/xiaomi-nabu/wlanmdsp/agent14-late-codec-mode-access.S').read_text()
+        s=(ROOT/'sources/xiaomi-nabu/wlanmdsp/late/codec-mode-access.S').read_text()
         self.assertIn('memw(r18+#0x10) = #0x1; r2 = memw(r16+#0x18) }:mem_noshuf',s)
 if __name__=='__main__':unittest.main()

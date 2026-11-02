@@ -25,7 +25,7 @@ class SessionHelperTests(unittest.TestCase):
     def test_signed_source_mnemonics_without_oem_words(self):
         for name,a,b in self.expected:
             with self.subTest(name=name):
-                src=(ROOT/'sources/xiaomi-nabu/wlanmdsp'/f'agent14-late-{name}.S').read_text()
+                src=(ROOT/'sources/xiaomi-nabu/wlanmdsp/late'/f'{name}.S').read_text()
                 for forbidden in ('.word','.byte','.long','.incbin','.fill','.inst'):
                     self.assertNotIn(forbidden,src)
                 self.assertIn(f'agent14_late_{name.replace("-","_")}:',src)
