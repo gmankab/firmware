@@ -138,60 +138,114 @@ pub mod cdsp_cache_controller;
 #[path = "cdsp/common/cdsp_dma_copy.rs"]
 pub mod cdsp_dma_copy;
 
+#[path = "cdsp/early/cdsp_early_tlb.rs"]
 pub mod cdsp_early_tlb; // Agent 20-09: 0x41e0-forward continuation; integration-only registration
+#[path = "cdsp/early/cdsp_early_controllers.rs"]
 pub mod cdsp_early_controllers; // Agent 20-09: 0x4290 startup, disjoint from prior owner
+#[path = "cdsp/early/cdsp_early_copier.rs"]
 pub mod cdsp_early_copier; // Agent 20-09: 0x42bc cache-zero copier
+#[path = "cdsp/early/cdsp_early_physcopy.rs"]
 pub mod cdsp_early_physcopy; // Agent 20-09: 0x4318 physical copy
+#[path = "cdsp/early/cdsp_early_compare.rs"]
 pub mod cdsp_early_compare; // Agent 20-09: 0x4364 controller physical-memory compare
+#[path = "cdsp/early/cdsp_early_cfgbase.rs"]
 pub mod cdsp_early_cfgbase;
+#[path = "cdsp/early/cdsp_early_system_start.rs"]
 pub mod cdsp_early_system_start;
 // Agent20-09: appended CDSP interrupt/debug gate at 0x4568..0x45c0.
+#[path = "cdsp/early/cdsp_early_interrupt_debug.rs"]
 pub mod cdsp_early_interrupt_debug; // Agent 20-09: 0x43f4 CFGBASE probe, 0x4418..0x4500 structural fill
+#[path = "cdsp/early/cdsp_early_supervisor_vectors.rs"]
 pub mod cdsp_early_supervisor_vectors; // Agent 20-09 exception/interrupt vectors to 0x471c
+#[path = "cdsp/early/cdsp_early_exception_entry.rs"]
 pub mod cdsp_early_exception_entry; // Agent 20-09 exception thread context start at 0x471c
+#[path = "cdsp/early/cdsp_early_exception_context.rs"]
 pub mod cdsp_early_exception_context; // Hexagon V66 context save to 0x481c
+#[path = "cdsp/early/cdsp_early_exception_setup.rs"]
 pub mod cdsp_early_exception_setup; // Agent20-09 controller setup through 0x4860
+#[path = "cdsp/early/cdsp_early_exception_transition.rs"]
 pub mod cdsp_early_exception_transition; // Agent20-09 transition through 0x48a4
+#[path = "cdsp/early/cdsp_early_exception_wait.rs"]
 pub mod cdsp_early_exception_wait; // Agent20-09 MODECTL status/retry loop to 0x48e8
+#[path = "cdsp/early/cdsp_early_exception_finalize.rs"]
 pub mod cdsp_early_exception_finalize; // Agent20-09 SYSCFG initialization to 0x495c
+#[path = "cdsp/early/cdsp_early_context_snapshot.rs"]
 pub mod cdsp_early_context_snapshot;
+#[path = "cdsp/early/cdsp_early_l2_sync.rs"]
 pub mod cdsp_early_l2_sync;
+#[path = "cdsp/early/cdsp_early_phys_dump.rs"]
 pub mod cdsp_early_phys_dump;
+#[path = "cdsp/early/cdsp_early_runtime_maintenance.rs"]
 pub mod cdsp_early_runtime_maintenance;
+#[path = "cdsp/early/cdsp_early_memory_dispatch.rs"]
 pub mod cdsp_early_memory_dispatch;
+#[path = "cdsp/early/cdsp_early_worker_bootstrap.rs"]
 pub mod cdsp_early_worker_bootstrap;
+#[path = "cdsp/early/cdsp_early_worker_runtime.rs"]
 pub mod cdsp_early_worker_runtime;
+#[path = "cdsp/early/cdsp_early_worker_state.rs"]
 pub mod cdsp_early_worker_state;
+#[path = "cdsp/early/cdsp_early_worker_trap.rs"]
 pub mod cdsp_early_worker_trap;
+#[path = "cdsp/early/cdsp_early_worker_idle.rs"]
 pub mod cdsp_early_worker_idle;
+#[path = "cdsp/early/cdsp_early_worker_thread.rs"]
 pub mod cdsp_early_worker_thread;
+#[path = "cdsp/early/cdsp_early_worker_guard.rs"]
 pub mod cdsp_early_worker_guard;
+#[path = "cdsp/early/cdsp_early_worker_snapshot.rs"]
 pub mod cdsp_early_worker_snapshot;
+#[path = "cdsp/early/cdsp_early_worker_final_calls.rs"]
 pub mod cdsp_early_worker_final_calls;
+#[path = "cdsp/early/cdsp_early_worker_guard_exit.rs"]
 pub mod cdsp_early_worker_guard_exit;
+#[path = "cdsp/early/cdsp_early_worker_sync.rs"]
 pub mod cdsp_early_worker_sync;
+#[path = "cdsp/early/cdsp_early_worker_handoff.rs"]
 pub mod cdsp_early_worker_handoff;
+#[path = "cdsp/early/cdsp_early_worker_recovery.rs"]
 pub mod cdsp_early_worker_recovery;
+#[path = "cdsp/early/cdsp_early_revision_guard.rs"]
 pub mod cdsp_early_revision_guard;
+#[path = "cdsp/early/cdsp_early_dcache_tags.rs"]
 pub mod cdsp_early_dcache_tags;
+#[path = "cdsp/early/cdsp_early_icache_guard.rs"]
 pub mod cdsp_early_icache_guard;
+#[path = "cdsp/early/cdsp_early_icache_tags.rs"]
 pub mod cdsp_early_icache_tags;
+#[path = "cdsp/early/cdsp_early_cache_helpers.rs"]
 pub mod cdsp_early_cache_helpers;
+#[path = "cdsp/early/cdsp_early_format_guard.rs"]
 pub mod cdsp_early_format_guard;
+#[path = "cdsp/early/cdsp_early_format_guard_tail.rs"]
 pub mod cdsp_early_format_guard_tail;
+#[path = "cdsp/early/cdsp_early_format_guard_final.rs"]
 pub mod cdsp_early_format_guard_final;
+#[path = "cdsp/early/cdsp_early_hvx_init.rs"]
 pub mod cdsp_early_hvx_init;
+#[path = "cdsp/early/cdsp_early_tlb_state.rs"]
 pub mod cdsp_early_tlb_state;
+#[path = "cdsp/early/cdsp_early_controller_restoration.rs"]
 pub mod cdsp_early_controller_restoration;
+#[path = "cdsp/early/cdsp_early_supervisor_dispatch.rs"]
 pub mod cdsp_early_supervisor_dispatch;
+#[path = "cdsp/early/cdsp_early_dispatch_helpers.rs"]
 pub mod cdsp_early_dispatch_helpers;
+#[path = "cdsp/early/cdsp_early_tlb_utilities.rs"]
 pub mod cdsp_early_tlb_utilities;
+#[path = "cdsp/early/cdsp_early_tlb_encode.rs"]
 pub mod cdsp_early_tlb_encode;
+#[path = "cdsp/early/cdsp_early_tlb_control.rs"]
 pub mod cdsp_early_tlb_control;
+#[path = "cdsp/early/cdsp_early_worker_privileged_state.rs"]
 pub mod cdsp_early_worker_privileged_state;
+#[path = "cdsp/early/cdsp_early_worker_callbacks.rs"]
 pub mod cdsp_early_worker_callbacks;
+#[path = "cdsp/early/cdsp_early_worker_command.rs"]
 pub mod cdsp_early_worker_command;
+#[path = "cdsp/early/cdsp_early_worker_decision.rs"]
 pub mod cdsp_early_worker_decision;
+#[path = "cdsp/early/cdsp_early_worker_lock.rs"]
 pub mod cdsp_early_worker_lock; // Agent20-09 variable-width memory selector // Agent20-09 CDSP stop/restart and TLB save through 0x4b1c // Agent20-09 physical-state copy and cache flush to 0x4ab0 // Agent20-09 L2 cache global helper through 0x4a38 // CDSP read privileged state into exception frame to 0x4a08
 
 // Own large A32 generator groups in independent, low-memory Rust crates.
