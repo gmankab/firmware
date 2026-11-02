@@ -17,9 +17,9 @@ import subprocess
 import sys
 import tempfile
 
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = Path(__file__).resolve().parents[2]
 ADSP_ASM = ROOT / 'sources/xiaomi-nabu/adsp'
-TOOLS = ROOT / 'tools'
+TOOLS = ROOT / 'tools/adsp'
 REFERENCE_SHA256 = '4b579e5dc1333d634e5bdc93f3314e357e0e30dab7140833f6cc7aef086b1c1e'
 ELF_MACHINE_HEXAGON = 164
 SEGMENTS = (

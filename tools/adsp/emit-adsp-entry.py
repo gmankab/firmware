@@ -18,9 +18,9 @@ import sys
 import tempfile
 
 # Source modules are imported lazily by the instruction encoders. Keep this
-# executable usable both as `python tools/emit-adsp-entry.py` and when a test
+# executable usable both as `python tools/adsp/emit-adsp-entry.py` and when a test
 # imports it by file path via importlib.util.spec_from_file_location.
-ADSP_ASM = pathlib.Path(__file__).resolve().parents[1] / 'sources/xiaomi-nabu/adsp'
+ADSP_ASM = pathlib.Path(__file__).resolve().parents[2] / 'sources/xiaomi-nabu/adsp'
 _TOOLS_DIR = str(pathlib.Path(__file__).resolve().parent)
 if _TOOLS_DIR not in sys.path:
     sys.path.insert(0, _TOOLS_DIR)
