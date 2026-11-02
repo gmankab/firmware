@@ -54,7 +54,7 @@ def main() -> None:
     out = [
         '// SPDX-License-Identifier: GPL-3.0-only',
         '// Generated typed ELF header metadata; excludes executable and authentication payloads.',
-        '// Generated with tools/generate-elf-specs.py; verify every descriptor before use.',
+        '// Generated with tools/build/generate-elf-specs.py; verify every descriptor before use.',
         'use crate::elf32_prefix::{Elf32Program, Elf32Spec};',
         'pub const KNOWN_ELFS: &[Elf32Spec] = &[',
     ]

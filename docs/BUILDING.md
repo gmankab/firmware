@@ -131,10 +131,10 @@ For another device:
 4. Add synthetic tests that build without reference firmware, followed by external byte-comparison tests against the exact target image. Include reference hashes, memory offsets, and hardware version in the verification report.
 5. Work toward a complete, deterministic build. Do not claim executable compatibility solely because headers, instruction fields, or small slices match.
 
-The existing `tools/generate-elf-specs.py` can produce **metadata-only** typed Rust headers from another ELF32 firmware set. Review the generated content before including it in a device module; executable payloads and signatures are not imported.
+The existing `tools/build/generate-elf-specs.py` can produce **metadata-only** typed Rust headers from another ELF32 firmware set. Review the generated content before including it in a device module; executable payloads and signatures are not imported.
 
 ```sh
-python3 tools/generate-elf-specs.py \
+python3 tools/build/generate-elf-specs.py \
   /private/new-device/firmware /tmp/new-device-elf-specs.rs
 ```
 

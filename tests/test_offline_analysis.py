@@ -16,10 +16,10 @@ def import_script(name: str):
     spec.loader.exec_module(module)
     return module
 
-elf = import_script('elf-segment-view.py')
+elf = import_script('analysis/elf-segment-view.py')
 provenance = import_script('devices/xiaomi-nabu/verify-apk-sources.py')
-metadata_generator = import_script('generate-elf-specs.py')
-byte_budget = import_script('elf-byte-budget.py')
+metadata_generator = import_script('build/generate-elf-specs.py')
+byte_budget = import_script('analysis/elf-byte-budget.py')
 
 class ElfViewTests(unittest.TestCase):
     def make_elf(self) -> bytes:

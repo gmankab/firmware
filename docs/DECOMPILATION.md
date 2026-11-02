@@ -113,7 +113,7 @@ Recommended triage questions:
 For ELF32LE images with the Nabu-style header layout, the following script inventories **file-backed** byte ranges, without copying code:
 
 ```sh
-python3 tools/elf-byte-budget.py \
+python3 tools/analysis/elf-byte-budget.py \
   /private/firmware-tree /tmp/firmware-byte-budget.json
 ```
 
