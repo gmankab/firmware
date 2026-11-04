@@ -15,7 +15,7 @@ use arm32::{
 };
 
 pub const START:usize=0x69e44;
-pub const END:usize=0x6a73c;
+pub const END:usize=0x6a810;
 pub const FILE_MAPPING_DELTA:usize=0x4000;
 
 struct Emitter { pc:usize, bytes:Vec<u8> }
@@ -689,6 +689,66 @@ pub fn fragment()->Result<Vec<u8>,String> {
     c.ldr(R::R1,R::PC,0x4c4)?;
     c.imm(C::Al,Op::Mov,R::R0,R::R0,2)?;
     c.branch(C::Al,0x2ec94,true)?;
+    c.check(0x6a73c)?;
+    // Clamp the next subframe slot, compare unsigned deviations, and select a
+    // diagnostic path. PC-relative format strings are intentionally unowned.
+    c.ldr(r9,R::SP,0x48)?;
+    c.ldr(r10,R::SP,0x3c)?;
+    c.emit(data_register(C::Al,Op::Add,R::R0,r9,r4,Shift::Lsl,2,false)?)?;
+    c.ldr(R::R1,r9,0x70)?;
+    c.ldr(R::R0,R::R0,0x8c)?;
+    c.emit(data_register(C::Al,Op::Sub,r7,R::R0,R::R1,Shift::Lsl,0,false)?)?;
+    c.imm(C::Al,Op::Mov,R::R0,R::R0,1)?;
+    c.emit(data_register(C::Al,Op::Orr,r8,R::R0,r7,Shift::Asr,31,false)?)?;
+    c.emit(data_register(C::Al,Op::Add,r6,r8,r4,Shift::Lsl,0,false)?)?;
+    c.imm(C::Al,Op::Cmp,R::R0,r6,1)?;
+    c.branch(C::Lt,0x6a780,false)?;
+    c.imm(C::Al,Op::Cmp,R::R0,r6,127)?;
+    c.imm(C::Ge,Op::Mov,r6,R::R0,127)?;
+    c.branch(C::Al,0x6a784,false)?;
+    c.check(0x6a774)?;
+    c.ldr(r10,R::SP,0x3c)?;
+    c.ldr(r9,R::SP,0x28)?;
+    c.branch(C::Al,0x6a810,false)?;
+    c.check(0x6a780)?;
+    c.imm(C::Al,Op::Mov,r6,R::R0,0)?;
+    c.check(0x6a784)?;
+    c.emit(data_register(C::Al,Op::Add,R::R0,r9,r6,Shift::Lsl,2,false)?)?;
+    c.ldrb(R::R2,r9,4)?;
+    c.ldr(r5,R::SP,0x6c)?;
+    c.ldr(R::R1,R::PC,0x468)?;
+    c.ldr(R::new(3)?,R::R0,0x8c)?;
+    c.imm(C::Al,Op::Mov,R::R0,R::R0,2)?;
+    c.str(r8,R::SP,0)?;
+    c.str(r5,R::SP,4)?;
+    c.branch(C::Al,0x2ec94,true)?;
+    c.ldr(R::R1,R::PC,0x44c)?;
+    c.imm(C::Al,Op::Mov,R::R0,R::R0,2)?;
+    c.branch(C::Al,0x2ec94,true)?;
+    c.emit(data_register(C::Al,Op::Cmp,R::R0,r6,r5,Shift::Lsl,0,false)?)?;
+    c.branch(C::Ls,0x6a7c8,false)?;
+    c.mov(C::Al,R::new(3)?,r9)?;
+    c.ldr(r9,R::SP,0x28)?;
+    c.branch(C::Al,0x6a810,false)?;
+    c.check(0x6a7c8)?;
+    c.ldr(R::R0,r9,0x70)?;
+    c.mov(C::Al,R::new(3)?,r9)?;
+    c.ldr(r9,R::SP,0x28)?;
+    c.emit(data_register(C::Al,Op::Add,R::R1,R::new(3)?,r6,Shift::Lsl,2,false)?)?;
+    c.ldr(R::R1,R::R1,0x8c)?;
+    c.emit(data_register(C::Al,Op::Sub,R::R1,R::R1,R::R0,Shift::Lsl,0,true)?)?;
+    c.mov(C::Al,R::R2,R::R1)?;
+    c.imm(C::Mi,Op::Rsb,R::R2,R::R1,0)?;
+    c.imm(C::Al,Op::Cmp,R::R0,r7,0)?;
+    c.imm(C::Mi,Op::Rsb,r7,r7,0)?;
+    c.emit(data_register(C::Al,Op::Cmp,R::R0,R::R2,r7,Shift::Lsl,0,false)?)?;
+    c.branch(C::Ge,0x6a810,false)?;
+    c.emit(data_register(C::Al,Op::Add,R::R2,r6,r8,Shift::Lsl,0,false)?)?;
+    c.mov(C::Al,r4,r6)?;
+    c.mov(C::Al,r7,R::R1)?;
+    c.emit(data_register(C::Al,Op::Cmp,R::R0,R::R2,r5,Shift::Lsl,0,false)?)?;
+    c.mov(C::Al,r6,R::R2)?;
+    c.branch(C::Ls,0x6a7d4,false)?;
     c.check(END)?;
     Ok(c.bytes)
 }
@@ -699,6 +759,6 @@ mod tests {
     #[test]
     fn covers_bounded_function_prefix() {
         assert_eq!(fragment().unwrap().len(),END-START);
-        assert_eq!(END-START,2296);
+        assert_eq!(END-START,2508);
     }
 }
