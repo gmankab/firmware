@@ -549,6 +549,17 @@ fn run() -> Result<(), Box<dyn Error>> {
     }
     let target = PathBuf::from(&args[1]);
     match args[0].as_str() {
+        "rebuild-ath10k-metadata" => {
+            let generated = firmware_tools::devices::xiaomi_nabu::ath10k_firmware_metadata::rebuild();
+            fs::write(&target, &generated)?;
+            println!("generated {} bytes of ath10k API-v5 metadata (no executable)", generated.len());
+        }
+        "verify-ath10k-metadata" => {
+            let generated = firmware_tools::devices::xiaomi_nabu::ath10k_firmware_metadata::rebuild();
+            let reference = fs::read(&target)?;
+            if generated != reference { return Err("ath10k metadata differs from reference".into()); }
+            println!("byte-identical: {} bytes of ath10k metadata", generated.len());
+        }
         "rebuild-modemuw" => {
             fs::write(&target, build_modemuw().as_bytes())?;
             println!("generated {} bytes at {}", build_modemuw().len(), target.display());

@@ -8,6 +8,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from unittest import mock
 
 ROOT=Path(__file__).resolve().parents[1]
 sys.path.insert(0,str(ROOT))
@@ -19,10 +20,21 @@ class FirmwareCoverageTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):cls.data=load()
 
-    def test_nine_pinned_revision_records(self):
-        self.assertEqual(len(self.data['images']),9)
-        self.assertEqual(sum(i['size'] for i in self.data['images']),34723697)
-        self.assertEqual(sum(i['credit_bytes'] for i in self.data['images']),813146)
+    def test_pinned_revision_records(self):
+        self.assertEqual(len(self.data['images']),19)
+        self.assertEqual(sum(i['size'] for i in self.data['images']),35409209)
+        self.assertEqual(sum(i['credit_bytes'] for i in self.data['images']),813206)
+
+    def test_full_pinned_firmware_inventory_includes_non_executables(self):
+        expected={
+            'modemuw.jsn','firmware-5.bin','a640_zap.mbn','venus.mbn',
+            'adsp.mbn','cdsp.mbn','modem.mbn','wlanmdsp.mbn',
+            'cs35l41-dsp1-spk-prot.wmfw','novatek_nt36523_fw.bin',
+            'a630_sqe.fw','a640_gmu.bin','board-2.bin','crbtfw32.tlv','crnv32.bin',
+        }|{f'{channel}-cs35l41-dsp1-spk-prot.bin' for channel in ('BL','BR','TL','TR')}
+        self.assertEqual({i['name'] for i in self.data['images']},expected)
+        self.assertTrue(all(i['credit_bytes']==0 for i in self.data['images']
+                            if i['name'] in {'a630_sqe.fw','a640_gmu.bin','board-2.bin'}))
 
     def test_explicit_venus_gap_partition(self):
         venus=next(x for x in self.data['images'] if x['name']=='venus.mbn')
@@ -48,14 +60,49 @@ class FirmwareCoverageTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as d:
             original=Path(d)/'reference.bin';original.write_bytes(bytes(range(8)))
             generated=Path(d)/'span.bin';generated.write_bytes(bytes([2,3,4]))
-            self.assertTrue(verify_reference(fixture,'test.bin',original)['matched_pinned_revision'])
-            self.assertEqual(verify_generated_region(fixture,'test.bin',original,generated,2)['generated_bytes'],3)
+            with mock.patch.object(Path,'read_bytes',side_effect=AssertionError('unbounded read')):
+                self.assertTrue(verify_reference(fixture,'test.bin',original)['matched_pinned_revision'])
+                self.assertEqual(verify_generated_region(fixture,'test.bin',original,generated,2)['generated_bytes'],3)
             generated.write_bytes(b'xxx')
             with self.assertRaisesRegex(CoverageError,'difference'):
                 verify_generated_region(fixture,'test.bin',original,generated,2)
             original.write_bytes(bytes([255])+bytes(range(1,8)))
             with self.assertRaisesRegex(CoverageError,'SHA-256'):
                 verify_reference(fixture,'test.bin',original)
+
+    def test_failing_builder_does_not_replace_existing_firmware(self):
+        with tempfile.TemporaryDirectory() as d:
+            root=Path(d)
+            stub=root/'bad-builder'
+            stub.write_text('#!/bin/sh\nprintf corrupt > "$2"\n')
+            stub.chmod(0o755)
+            output=root/'firmware-5.bin'
+            output.write_bytes(b'keep existing verified bytes')
+            cmd=[sys.executable,'-m','tools.firmware','build','firmware-5.bin',
+                 '--firmware-tools',str(stub),'--output',str(output)]
+            result=subprocess.run(cmd,cwd=ROOT,capture_output=True,text=True)
+            self.assertEqual(result.returncode,2,result.stderr)
+            self.assertIn('size/SHA-256',result.stderr)
+            self.assertEqual(output.read_bytes(),b'keep existing verified bytes')
+            self.assertEqual(set(root.iterdir()),{stub,output})
+
+    def test_chunked_compare_crosses_megabyte_boundary(self):
+        content=bytes(range(256))*8193
+        fixture={'images':[{'name':'image.bin','size':len(content),'credit_bytes':0,
+            'sha256':hashlib.sha256(content).hexdigest()}]}
+        with tempfile.TemporaryDirectory() as d:
+            root=Path(d)
+            reference=root/'reference'
+            generated=root/'generated'
+            reference.write_bytes(content)
+            generated.write_bytes(content[37:])
+            with mock.patch.object(Path,'read_bytes',side_effect=AssertionError('unbounded read')):
+                self.assertEqual(verify_generated_region(fixture,'image.bin',reference,generated,37)['generated_bytes'],len(content)-37)
+            corrupted=bytearray(content[37:])
+            corrupted[1048576] ^= 1
+            generated.write_bytes(corrupted)
+            with self.assertRaisesRegex(CoverageError,f'0x{37+1048576:x}'):
+                verify_generated_region(fixture,'image.bin',reference,generated,37)
 
     def test_cli_disallows_missing_full_image_source(self):
         cmd=[sys.executable,'-m','tools.firmware','build','venus.mbn','--output','/tmp/forbidden-venus.mbn']

@@ -11,6 +11,15 @@ credit_bytes = 713
 credit_kind = "source"
 complete_source = true
 
+# Small ath10k API-v5 metadata file; no embedded WLAN executable.
+[[images]]
+name = "firmware-5.bin"
+size = 60
+sha256 = "fef6539e0127579536bc977be57a90d018b83f2931fedc3a8870fbe38d6c4127"
+credit_bytes = 60
+credit_kind = "metadata_only"
+complete_source = true
+
 [[images]]
 name = "a640_zap.mbn"
 size = 14256
@@ -133,3 +142,68 @@ sha256 = "8b845514621ebfd95759a0919f3aa3d825314abb478a7cad1c3fb4c6872b70b5"
 credit_bytes = 149097
 credit_kind = "reported_ilm_dlm_and_layout"
 reference_revision = "postmarketos"
+
+# Pinned but unreconstructed OEM component files from map220v/nabu-firmware.
+
+[[images]]
+name = "BL-cs35l41-dsp1-spk-prot.bin"
+size = 5340
+sha256 = "ed3b09fc202372ff099fc3d27aa8170548248e9850e3edd3557899ece4d2ded9"
+credit_bytes = 0
+credit_kind = "unreconstructed"
+
+[[images]]
+name = "BR-cs35l41-dsp1-spk-prot.bin"
+size = 5340
+sha256 = "8afd4530faa3716128b2807c6860e255c81e9aee5690c2d7fb6261185a69df55"
+credit_bytes = 0
+credit_kind = "unreconstructed"
+
+[[images]]
+name = "TL-cs35l41-dsp1-spk-prot.bin"
+size = 5340
+sha256 = "bf510d2eba58fef26c927229d08289ae39eb515c628ce05cb5da0e7a5eaa3e2c"
+credit_bytes = 0
+credit_kind = "unreconstructed"
+
+[[images]]
+name = "TR-cs35l41-dsp1-spk-prot.bin"
+size = 5340
+sha256 = "9e7e1ef1ce28059fe7b0a8c880c5c6af2eba9fea4b01365c951a30a20d076859"
+credit_bytes = 0
+credit_kind = "unreconstructed"
+
+[[images]]
+name = "a630_sqe.fw"
+size = 32304
+sha256 = "a0e1b583f620fabe32729ce367959d1960638663244d7d0cfc21b9a5215a018b"
+credit_bytes = 0
+credit_kind = "unreconstructed"
+
+[[images]]
+name = "a640_gmu.bin"
+size = 37680
+sha256 = "3ff0c02708bbe78641db887fa62f3a7f9337934d0c2ce0b961ef7c43172591d2"
+credit_bytes = 0
+credit_kind = "unreconstructed"
+
+[[images]]
+name = "board-2.bin"
+size = 461060
+sha256 = "6e208f2b608b89eb48e0ff74f768a306500b5f923d633ddbf0a205af46786ba5"
+credit_bytes = 0
+credit_kind = "unreconstructed"
+
+[[images]]
+name = "crbtfw32.tlv"
+size = 127544
+sha256 = "7211b8d753f161de526107f7d79f5dfd29a462f70ec4fe6fd88ba0ce60650ce6"
+credit_bytes = 0
+credit_kind = "unreconstructed"
+
+[[images]]
+name = "crnv32.bin"
+size = 5504
+sha256 = "0ad8ba577d718db9df2c4a4726ba8abed9756f11f2510239275d00b0ffa8f9ed"
+credit_bytes = 0
+credit_kind = "unreconstructed"

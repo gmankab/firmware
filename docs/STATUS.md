@@ -7,6 +7,7 @@ Generated from `reference/xiaomi-nabu/coverage.toml` by `python3 tools/firmware.
 | Firmware | Original bytes | Reported generated/modelled | Not credited |
 | --- | ---: | ---: | ---: |
 | `modemuw.jsn` | 713 | 713 | 0 |
+| `firmware-5.bin` | 60 | 60 | 0 |
 | `a640_zap.mbn` | 14,256 | 7,856 | 6,400 |
 | `venus.mbn` | 1,159,200 | 529,056 | 630,144 |
 | `adsp.mbn` | 14,430,684 | 31,608 | 14,399,076 |
@@ -15,7 +16,16 @@ Generated from `reference/xiaomi-nabu/coverage.toml` by `python3 tools/firmware.
 | `wlanmdsp.mbn` | 4,331,136 | 52,836 | 4,278,300 |
 | `cs35l41-dsp1-spk-prot.wmfw` | 34,236 | 10,488 | 23,748 |
 | `novatek_nt36523_fw.bin` | 196,608 | 149,097 | 47,511 |
-| **Total** | **34,723,697** | **813,146** | **33,910,551** |
+| `BL-cs35l41-dsp1-spk-prot.bin` | 5,340 | 0 | 5,340 |
+| `BR-cs35l41-dsp1-spk-prot.bin` | 5,340 | 0 | 5,340 |
+| `TL-cs35l41-dsp1-spk-prot.bin` | 5,340 | 0 | 5,340 |
+| `TR-cs35l41-dsp1-spk-prot.bin` | 5,340 | 0 | 5,340 |
+| `a630_sqe.fw` | 32,304 | 0 | 32,304 |
+| `a640_gmu.bin` | 37,680 | 0 | 37,680 |
+| `board-2.bin` | 461,060 | 0 | 461,060 |
+| `crbtfw32.tlv` | 127,544 | 0 | 127,544 |
+| `crnv32.bin` | 5,504 | 0 | 5,504 |
+| **Total** | **35,409,209** | **813,206** | **34,596,003** |
 
 ## Venus first executable segment
 
@@ -32,9 +42,11 @@ Reported source/layout: **529,056 / 1,059,316 bytes**; uncovered: **530,260 byte
 
 ## Important limits
 
-- `modemuw.jsn` is the only independently complete original file in this ledger.
+- `modemuw.jsn` and the metadata-only `firmware-5.bin` are independently complete; the latter has no WLAN executable.
 - A640 exact whole-file reproduction requires externally supplied original OEM authentication bytes.
 - Cirrus HALO program bytes are still not independently decompiled; reference-assisted repacking is not firmware reconstruction.
 - Several reference-dependent verification tests are skipped without supplied original firmwares and ISA toolchains.
+- Novatek's pinned postmarketOS revision differs from the same-name older map220v image; verify with --override.
+- The manifest includes all 19 source files, including nine presently unreconstructed binaries.
 - The historical checkpoint-50 service source is absent from this recovered Git tree.
 - No complete newly signed firmware build or hardware boot verification is claimed.

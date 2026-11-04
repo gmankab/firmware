@@ -1,5 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 //! Xiaomi Pad 5 (`nabu`) reference image metadata and build settings.
+#[path = "ath10k/firmware_metadata.rs"]
+pub mod ath10k_firmware_metadata;
 #[path = "a640/a640_shader.rs"]
 pub mod a640_shader;
 #[path = "a640/a640_launch.rs"]

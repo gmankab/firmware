@@ -81,29 +81,48 @@ def image_for(data: dict[str, Any], name: str) -> dict[str, Any]:
     raise CoverageError(f"unknown firmware image: {name}")
 
 
+def _hash_file(path: Path) -> tuple[int, str]:
+    """Hash without materializing an OEM firmware image in memory."""
+    digest = hashlib.sha256()
+    size = 0
+    with path.open('rb') as source:
+        for chunk in iter(lambda: source.read(1024 * 1024), b''):
+            size += len(chunk)
+            digest.update(chunk)
+    return size, digest.hexdigest()
+
+
 def verify_reference(data: dict[str,Any],name:str,original:Path) -> dict[str,Any]:
     image=image_for(data,name)
-    raw=original.read_bytes()
-    if len(raw)!=image["size"]:
-        raise CoverageError(f"{name}: reference size {len(raw)} differs from pinned {image['size']}")
-    actual=hashlib.sha256(raw).hexdigest()
-    if actual!=image["sha256"]:
+    size, actual=_hash_file(original)
+    if size!=image['size']:
+        raise CoverageError(f"{name}: reference size {size} differs from pinned {image['size']}")
+    if actual!=image['sha256']:
         raise CoverageError(f"{name}: reference SHA-256 mismatch {actual}")
-    return {"name":name,"reference_bytes":len(raw),"sha256":actual,"matched_pinned_revision":True}
+    return {"name":name,"reference_bytes":size,"sha256":actual,"matched_pinned_revision":True}
 
 
 def verify_generated_region(data:dict[str,Any],name:str,reference:Path,generated:Path,offset:int) -> dict[str,Any]:
-    verify_reference(data,name,reference)
-    whole=reference.read_bytes()
-    payload=generated.read_bytes()
-    if offset < 0 or not payload or offset+len(payload)>len(whole):
-        raise CoverageError("generated region outside reference or empty")
-    fragment=whole[offset:offset+len(payload)]
-    for idx,(a,b) in enumerate(zip(payload,fragment)):
-        if a!=b:
-            raise CoverageError(f"{name}: first generated/reference difference at file 0x{offset+idx:x}")
-    return {"name":name,"file_offset":offset,"generated_bytes":len(payload),"matched":True,
-            "generated_sha256":hashlib.sha256(payload).hexdigest()}
+    original=verify_reference(data,name,reference)
+    length=generated.stat().st_size
+    if offset < 0 or not length or offset+length>original['reference_bytes']:
+        raise CoverageError('generated region outside reference or empty')
+    digest=hashlib.sha256()
+    consumed=0
+    with reference.open('rb') as source, generated.open('rb') as candidate:
+        source.seek(offset)
+        while part := candidate.read(1024 * 1024):
+            expected=source.read(len(part))
+            if part != expected:
+                diff=next((i for i,(a,b) in enumerate(zip(part, expected)) if a!=b),
+                          min(len(part),len(expected)))
+                raise CoverageError(f"{name}: first generated/reference difference at file 0x{offset+consumed+diff:x}")
+            digest.update(part)
+            consumed+=len(part)
+    if consumed!=length:
+        raise CoverageError(f'{name}: generated file changed during verification')
+    return {"name":name,"file_offset":offset,"generated_bytes":length,"matched":True,
+            "generated_sha256":digest.hexdigest()}
 
 
 def status(data: dict[str,Any]) -> str:
@@ -126,10 +145,12 @@ def status(data: dict[str,Any]) -> str:
     for x in missing:
         lines.append(f"| `0x{x['start']:x}–0x{x['end']:x}` | {x['bytes']:,} |")
     lines.extend(["", "## Important limits", "",
-                  "- `modemuw.jsn` is the only independently complete original file in this ledger.",
+                  "- `modemuw.jsn` and the metadata-only `firmware-5.bin` are independently complete; the latter has no WLAN executable.",
                   "- A640 exact whole-file reproduction requires externally supplied original OEM authentication bytes.",
                   "- Cirrus HALO program bytes are still not independently decompiled; reference-assisted repacking is not firmware reconstruction.",
                   "- Several reference-dependent verification tests are skipped without supplied original firmwares and ISA toolchains.",
+                  "- Novatek's pinned postmarketOS revision differs from the same-name older map220v image; verify with --override.",
+                  "- The manifest includes all 19 source files, including nine presently unreconstructed binaries.",
                   "- The historical checkpoint-50 service source is absent from this recovered Git tree.",
                   "- No complete newly signed firmware build or hardware boot verification is claimed.",""])
     return "\n".join(lines)
