@@ -9,7 +9,7 @@ if [ "$#" -lt 1 ] || [ "$#" -gt 2 ] || [ ! -f "$1" ]; then
 fi
 REF=$(realpath "$1")
 OUTPUT=${2:-}
-ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
+ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)
 cd "$ROOT"
 export CARGO_BUILD_JOBS=${CARGO_BUILD_JOBS:-1}
 # This large historical branch compiles in a 4 GiB environment at opt-level 0.

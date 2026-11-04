@@ -32,6 +32,19 @@ class ToolOrganizationTests(unittest.TestCase):
                 self.assertEqual(subprocess.run(['bash','-n',str(p)],capture_output=True).returncode,0)
                 self.assertEqual(subprocess.run(['bash',str(p)],capture_output=True,timeout=3).returncode,2)
 
+    def test_venus_verifiers_resolve_workspace_from_another_directory(self):
+        scripts = ('verify-venus-controller-complete.sh', 'venus-bridge-verify-full-gap.sh')
+        for name in scripts:
+            with self.subTest(script=name):
+                script = ROOT / 'tools/venus' / name
+                content = script.read_text()
+                prelude = content.split('cd "$ROOT"', 1)[0]
+                command = prelude.replace('${BASH_SOURCE[0]}', '$0') + '\nprintf "%s" "$ROOT"\n'
+                result = subprocess.run(['bash', '-c', command, str(script), str(script)],
+                                        cwd='/', capture_output=True, text=True)
+                self.assertEqual(result.returncode, 0, result.stderr)
+                self.assertEqual(result.stdout, str(ROOT))
+
     def test_repo_relative_paths_follow_new_directory_depth(self):
         for item in self.records:
             content = (ROOT / item['to']).read_text()

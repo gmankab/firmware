@@ -10,7 +10,7 @@ if (( $# < 1 || $# > 2 )); then
 fi
 REFERENCE=$1
 SERVICE=${2:-}
-ROOT=$(cd "$(dirname "$0")/.." && pwd)
+ROOT=$(cd "$(dirname "$0")/../.." && pwd)
 cd "$ROOT"
 WORK=$(mktemp -d)
 trap 'rm -rf "$WORK"' EXIT
