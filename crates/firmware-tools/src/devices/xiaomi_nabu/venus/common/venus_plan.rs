@@ -155,7 +155,7 @@ mod tests {
             actual[span].fill(true);
         }
         let credit = field(record, "credit_bytes").unwrap().parse::<usize>().unwrap();
-        assert_eq!(credit, 532788);
+        assert_eq!(credit, 533128);
         assert_eq!(expected.iter().filter(|&&filled| filled).count(), credit);
 
         assert_eq!(actual.iter().zip(&expected).position(|(a, b)| a != b), None);
@@ -176,6 +176,28 @@ mod tests {
             .or_else(|| std::env::var_os("VENUS_REFERENCE")) else { return };
         let reference = std::fs::read(path).unwrap();
         compare_pinned_reference(&reference).unwrap();
+    }
+
+    #[test]
+    fn full_file_rejects_corrupted_generated_region() {
+        let Some(path) = std::env::var_os("NABU_VENUS_REFERENCE")
+            .or_else(|| std::env::var_os("VENUS_REFERENCE")) else { return };
+        let reference = std::fs::read(path).unwrap();
+        compare_pinned_reference(&reference).unwrap();
+        let source = full_file().unwrap();
+        let mut corrupted = ImagePlan::new(source.total_bytes()).unwrap();
+        let target = source.regions().iter()
+            .find(|region| region.name == "venus_upper_controller_continuation").unwrap();
+        for region in source.regions() {
+            let mut bytes = source.generated_slice(region.offset..region.offset + region.len).unwrap();
+            if region.name == target.name {
+                bytes[0] ^= 1;
+            }
+            corrupted.place(&region.name, region.offset, &bytes).unwrap();
+        }
+        assert_eq!(corrupted.compare_known(&reference).unwrap_err(),
+            format!("byte mismatch in {} at image offset {} (0x{:x})",
+                target.name, target.offset, target.offset));
     }
 
     #[test]

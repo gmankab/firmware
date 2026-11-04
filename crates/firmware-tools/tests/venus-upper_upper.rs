@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // Standalone optional-reference tests: no OEM firmware is committed.
-#[path = "../src/devices/xiaomi_nabu/venus/upper/venus_upper.rs"]
-mod upper;
+use firmware_tools::devices::xiaomi_nabu::venus_plan::venus_upper as upper;
 
 #[test]
 fn scaled_dimensions_rebuild_and_optional_reference() {
@@ -18,8 +17,7 @@ fn scaled_dimensions_rebuild_and_optional_reference() {
     }
 }
 
-#[path = "../src/devices/xiaomi_nabu/venus/upper/venus_upper_control_flags.rs"]
-mod control_flags;
+use firmware_tools::devices::xiaomi_nabu::venus_plan::venus_upper_control_flags as control_flags;
 
 #[test]
 fn control_flags_fragment_matches_optional_reference(){
@@ -32,8 +30,7 @@ fn control_flags_fragment_matches_optional_reference(){
     }
 }
 
-#[path = "../src/devices/xiaomi_nabu/venus/upper/venus_upper_color_unpack.rs"]
-mod color_unpack;
+use firmware_tools::devices::xiaomi_nabu::venus_plan::venus_upper_color_unpack as color_unpack;
 #[test]
 fn color_unpack_matches_optional_reference(){
     let bytes=color_unpack::fragment().expect("typed unpack routine");
@@ -45,8 +42,7 @@ fn color_unpack_matches_optional_reference(){
     }
 }
 
-#[path = "../src/devices/xiaomi_nabu/venus/upper/venus_upper_quality.rs"]
-mod quality;
+use firmware_tools::devices::xiaomi_nabu::venus_plan::venus_upper_quality as quality;
 #[test]
 fn quality_tier_and_allocators_match_optional_reference(){
     let bytes=quality::fragment().expect("quality-tier and allocation typed A32");
@@ -58,8 +54,7 @@ fn quality_tier_and_allocators_match_optional_reference(){
     }
 }
 
-#[path = "../src/devices/xiaomi_nabu/venus/upper/venus_upper_record_metrics.rs"]
-mod record_metrics;
+use firmware_tools::devices::xiaomi_nabu::venus_plan::venus_upper_record_metrics as record_metrics;
 #[test]
 fn rolling_record_metrics_matches_optional_reference(){
     let bytes=record_metrics::fragment().expect("typed 64-bit metrics");
@@ -71,8 +66,7 @@ fn rolling_record_metrics_matches_optional_reference(){
     }
 }
 
-#[path = "../src/devices/xiaomi_nabu/venus/upper/venus_upper_magnitude.rs"]
-mod magnitude;
+use firmware_tools::devices::xiaomi_nabu::venus_plan::venus_upper_magnitude as magnitude;
 #[test]
 fn magnitude_bucket_matches_optional_reference(){
     let b=magnitude::fragment().unwrap();assert_eq!(b.len(),magnitude::END-magnitude::START);
@@ -83,8 +77,7 @@ fn magnitude_bucket_matches_optional_reference(){
     }
 }
 
-#[path="../src/devices/xiaomi_nabu/venus/upper/venus_upper_alt_occupancy.rs"]
-mod alt_occupancy;
+use firmware_tools::devices::xiaomi_nabu::venus_plan::venus_upper_alt_occupancy as alt_occupancy;
 #[test]
 fn alternate_occupancy_matches_optional_reference(){
     let bytes=alt_occupancy::fragment().unwrap();
@@ -96,8 +89,7 @@ fn alternate_occupancy_matches_optional_reference(){
     }
 }
 
-#[path="../src/devices/xiaomi_nabu/venus/upper/venus_upper_occupancy_commit.rs"]
-mod occupancy_commit;
+use firmware_tools::devices::xiaomi_nabu::venus_plan::venus_upper_occupancy_commit as occupancy_commit;
 #[test]
 fn committed_occupancy_matches_optional_reference(){
     let bytes=occupancy_commit::fragment().unwrap();
@@ -109,8 +101,7 @@ fn committed_occupancy_matches_optional_reference(){
     }
 }
 
-#[path="../src/devices/xiaomi_nabu/venus/upper/venus_upper_record_append.rs"]
-mod record_append;
+use firmware_tools::devices::xiaomi_nabu::venus_plan::venus_upper_record_append as record_append;
 #[test]fn record_append_matches_optional_reference(){
     let bytes=record_append::fragment().unwrap();
     assert_eq!(bytes.len(),record_append::END-record_append::START);
@@ -120,8 +111,7 @@ mod record_append;
     }
 }
 
-#[path="../src/devices/xiaomi_nabu/venus/upper/venus_upper_record_select.rs"]
-mod record_select;
+use firmware_tools::devices::xiaomi_nabu::venus_plan::venus_upper_record_select as record_select;
 #[test]fn controller_record_selection_matches_optional_reference(){
     let b=record_select::fragment().unwrap();assert_eq!(b.len(),record_select::END-record_select::START);
     if let Some(ref_name)=std::env::var_os("NABU_VENUS_REFERENCE"){
@@ -166,8 +156,7 @@ fn merged_controller_interval_is_strictly_gapless(){
     }
 }
 
-#[path="../src/devices/xiaomi_nabu/venus/upper/venus_upper_controller_limits.rs"]
-mod controller_limits;
+use firmware_tools::devices::xiaomi_nabu::venus_plan::venus_upper_controller_limits as controller_limits;
 #[test]fn controller_limits_prefix_matches_optional_reference(){
     let p=controller_limits::fragment().unwrap();
     assert_eq!(p.len(),controller_limits::END-controller_limits::START);
@@ -178,29 +167,23 @@ mod controller_limits;
     }
 }
 
-#[path="../src/devices/xiaomi_nabu/venus/upper/venus_upper_controller_limits_tail.rs"]
-mod controller_limits_tail;
-#[path="../src/devices/xiaomi_nabu/venus/upper/venus_upper_throughput_tiers.rs"]
-mod throughput_tiers;
-#[path="../src/devices/xiaomi_nabu/venus/upper/venus_upper_controller_alloc.rs"]
-mod controller_alloc;
-#[path="../src/devices/xiaomi_nabu/venus/upper/venus_upper_controller_run_prefix.rs"]
-mod controller_run_prefix;
-#[path="../src/devices/xiaomi_nabu/venus/upper/venus_upper_controller_run_tail.rs"]
-mod controller_run_tail;
-#[path="../src/devices/xiaomi_nabu/venus/upper/venus_upper_controller_small_helpers.rs"]
-mod controller_small_helpers;
+use firmware_tools::devices::xiaomi_nabu::venus_plan::venus_upper_controller_limits_tail as controller_limits_tail;
+use firmware_tools::devices::xiaomi_nabu::venus_plan::venus_upper_throughput_tiers as throughput_tiers;
+use firmware_tools::devices::xiaomi_nabu::venus_plan::venus_upper_controller_alloc as controller_alloc;
+use firmware_tools::devices::xiaomi_nabu::venus_plan::venus_upper_controller_run_prefix as controller_run_prefix;
+use firmware_tools::devices::xiaomi_nabu::venus_plan::venus_upper_controller_run_tail as controller_run_tail;
+use firmware_tools::devices::xiaomi_nabu::venus_plan::venus_upper_controller_small_helpers as controller_small_helpers;
 
 #[test]
 fn controller_continuation_bounds_and_control_flow() {
     use firmware_tools::devices::xiaomi_nabu::venus_upper_controller_continuation as continuation;
     let bytes = continuation::fragment().unwrap();
     assert_eq!(continuation::START, 0x68000);
-    assert_eq!(continuation::END, 0x680cc);
+    assert_eq!(continuation::END, 0x68220);
     assert_eq!(continuation::FILE_MAPPING_DELTA, 0x4000);
-    assert_eq!(bytes.len(), 204);
-    assert_eq!(bytes.len() / 4, 51);
-    assert_eq!(continuation::END - 0x68038, 148);
+    assert_eq!(bytes.len(), 544);
+    assert_eq!(bytes.len() / 4, 136);
+    assert_eq!(continuation::END - 0x680cc, 340);
     for (offset, expected) in [
         (0, arm32::branch(arm32::Condition::Al, 0x68000, 0x6800c, false).unwrap()),
         (28, arm32::branch_exchange_immediate(0x6801c, 0x83c4c).unwrap()),
@@ -239,6 +222,53 @@ fn controller_continuation_weighted_loop_operands() {
         assert_eq!(&bytes[offset..offset + 4], &expected.to_le_bytes());
     }
     assert_eq!(0x680b0 + 8 + 0xfec, 0x690a4);
+}
+
+#[test]
+fn controller_continuation_table_initialization_and_tiers() {
+    use arm32::{Condition as C, DataOp as Op, Register as R};
+    use firmware_tools::devices::xiaomi_nabu::venus_upper_controller_continuation as continuation;
+    let bytes = continuation::fragment().unwrap();
+    let r8 = R::new(8).unwrap();
+    for (at, expected) in [
+        (0x680cc, arm32::data_immediate(C::Al, Op::Mov, R::R1, R::R0, 0).unwrap()),
+        (0x680dc, arm32::transfer_byte(C::Al, false, R::R1, r8, 0x9c).unwrap()),
+        (0x680e0, arm32::transfer_byte(C::Al, false, R::R2, r8, 0x9d).unwrap()),
+        (0x680e4, arm32::branch(C::Ne, 0x680e4, 0x6814c, false).unwrap()),
+        (0x68154, arm32::data_immediate(C::Al, Op::Cmp, R::R0, R::R1, 0xf00).unwrap()),
+        (0x68158, arm32::branch(C::Cc, 0x68158, 0x68198, false).unwrap()),
+        (0x68194, arm32::branch(C::Al, 0x68194, 0x68214, false).unwrap()),
+        (0x68198, arm32::data_immediate(C::Al, Op::Cmp, R::R0, R::R1, 0x780).unwrap()),
+        (0x6819c, arm32::branch(C::Cc, 0x6819c, 0x681dc, false).unwrap()),
+        (0x681d8, arm32::branch(C::Al, 0x681d8, 0x68214, false).unwrap()),
+        (0x68214, arm32::data_immediate(C::Al, Op::Add, R::R0, r8, 0x1cc).unwrap()),
+        (0x68218, arm32::data_immediate(C::Al, Op::Mov, R::R2, R::R0, 0x58).unwrap()),
+    ] {
+        let offset = at - continuation::START;
+        assert_eq!(&bytes[offset..offset + 4], &expected.to_le_bytes());
+    }
+    for at in [
+        0x680f8, 0x68108, 0x68118, 0x68128, 0x68138, 0x68148,
+        0x68168, 0x6817c, 0x6818c, 0x681ac, 0x681c0, 0x681d0,
+        0x681e8, 0x681fc, 0x6820c, 0x6821c,
+    ] {
+        let offset = at - continuation::START;
+        let expected = arm32::branch(C::Al, at as u32, 0x471c, true).unwrap();
+        assert_eq!(&bytes[offset..offset + 4], &expected.to_le_bytes());
+    }
+    for (at, offset, target) in [
+        (0x680e8, 0xfd8, 0x690c8), (0x680ec, 0xfd8, 0x690cc),
+        (0x6815c, 0xf98, 0x690fc), (0x681a0, 0xf50, 0x690f8),
+        (0x681dc, 0xee8, 0x690cc), (0x68210, 0xf14, 0x6912c),
+    ] {
+        assert_eq!(at + 8 + offset, target);
+        assert!(target >= continuation::END);
+        let register = if at == 0x680e8 { R::new(6).unwrap() }
+            else if at == 0x680ec { R::R0 } else { R::R1 };
+        let expected = arm32::transfer_word(C::Al, true, register, R::PC, offset as i32).unwrap();
+        let index = at - continuation::START;
+        assert_eq!(&bytes[index..index + 4], &expected.to_le_bytes());
+    }
 }
 
 #[test]

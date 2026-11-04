@@ -6,7 +6,7 @@ use arm32::{
 };
 
 pub const START: usize = 0x68000;
-pub const END: usize = 0x680cc;
+pub const END: usize = 0x68220;
 pub const FILE_MAPPING_DELTA: usize = 0x4000;
 
 struct Code {
@@ -91,6 +91,65 @@ pub fn fragment() -> Result<Vec<u8>, String> {
     c.emit(mov_shifted_register(C::Al, R::R0, r6, Shift::Lsr, 5)?)?;
     c.branch(C::Gt, 0x68084)?;
     c.branch(C::Al, 0x67ee4)?;
+
+    c.emit(data_immediate(C::Al, Op::Mov, R::R1, R::R0, 0)?)?;
+    c.emit(data_immediate(C::Al, Op::Mov, R::R2, R::R0, 1)?)?;
+    c.emit(transfer_word(C::Al, false, R::R1, r8, 0x94)?)?;
+    c.emit(data_immediate(C::Al, Op::Cmp, R::R0, R::R0, 0x2000)?)?;
+    c.emit(arm32::transfer_byte(C::Al, false, R::R1, r8, 0x9c)?)?;
+    c.emit(arm32::transfer_byte(C::Al, false, R::R2, r8, 0x9d)?)?;
+    c.branch(C::Ne, 0x6814c)?;
+    c.emit(transfer_word(C::Al, true, r6, R::PC, 0xfd8)?)?;
+    c.emit(transfer_word(C::Al, true, R::R0, R::PC, 0xfd8)?)?;
+    c.emit(data_immediate(C::Al, Op::Mov, R::R2, R::R0, 0x370)?)?;
+    c.emit(mov_register(C::Al, R::R1, r6))?;
+    c.emit(branch(C::Al, c.at as u32, 0x471c, true)?)?;
+    for destination_offset in [0xff4, 0xfe8] {
+        c.emit(transfer_word(C::Al, true, R::R0, R::PC, destination_offset)?)?;
+        c.emit(mov_register(C::Al, R::R1, r6))?;
+        c.emit(data_immediate(C::Al, Op::Mov, R::R2, R::R0, 0x370)?)?;
+        c.emit(branch(C::Al, c.at as u32, 0x471c, true)?)?;
+    }
+    for literal_offset in [0xfdc, 0xfd4, 0xfcc] {
+        c.emit(transfer_word(C::Al, true, R::R0, R::PC, literal_offset)?)?;
+        c.emit(transfer_word(C::Al, true, R::R1, R::PC, literal_offset)?)?;
+        c.emit(data_immediate(C::Al, Op::Mov, R::R2, R::R0, 0x1b8)?)?;
+        c.emit(branch(C::Al, c.at as u32, 0x471c, true)?)?;
+    }
+    c.emit(transfer_word(C::Al, true, R::R1, r8, 0x54)?)?;
+    c.emit(data_immediate(C::Al, Op::Add, R::R0, r8, 0xa8)?)?;
+    c.emit(data_immediate(C::Al, Op::Cmp, R::R0, R::R1, 0xf00)?)?;
+    c.branch(C::Cc, 0x68198)?;
+    for (tier, primary, secondary, tertiary, final_source) in [
+        (0, 0xf98, 0xf9c, 0xf90, 0xf84),
+        (1, 0xf50, 0xf50, 0xf54, 0xf48),
+        (2, 0xee8, 0xf0c, 0xf20, 0xf14),
+    ] {
+        if tier == 1 {
+            c.emit(data_immediate(C::Al, Op::Cmp, R::R0, R::R1, 0x780)?)?;
+            c.branch(C::Cc, 0x681dc)?;
+        }
+        c.emit(transfer_word(C::Al, true, R::R1, R::PC, primary)?)?;
+        c.emit(data_immediate(C::Al, Op::Mov, R::R2, R::R0, 0xb0)?)?;
+        c.emit(data_immediate(C::Al, Op::Add, R::R1, R::R1, 0xb0)?)?;
+        c.emit(branch(C::Al, c.at as u32, 0x471c, true)?)?;
+        c.emit(transfer_word(C::Al, true, R::R1, R::PC, secondary)?)?;
+        c.emit(data_immediate(C::Al, Op::Add, R::R0, r8, 0x224)?)?;
+        c.emit(data_immediate(C::Al, Op::Mov, R::R2, R::R0, 0x58)?)?;
+        c.emit(data_immediate(C::Al, Op::Add, R::R1, R::R1, 0x58)?)?;
+        c.emit(branch(C::Al, c.at as u32, 0x471c, true)?)?;
+        c.emit(transfer_word(C::Al, true, R::R1, R::PC, tertiary)?)?;
+        c.emit(data_immediate(C::Al, Op::Add, R::R0, r8, 0x174)?)?;
+        c.emit(data_immediate(C::Al, Op::Mov, R::R2, R::R0, 0x58)?)?;
+        c.emit(branch(C::Al, c.at as u32, 0x471c, true)?)?;
+        c.emit(transfer_word(C::Al, true, R::R1, R::PC, final_source)?)?;
+        if tier != 2 {
+            c.branch(C::Al, 0x68214)?;
+        }
+    }
+    c.emit(data_immediate(C::Al, Op::Add, R::R0, r8, 0x1cc)?)?;
+    c.emit(data_immediate(C::Al, Op::Mov, R::R2, R::R0, 0x58)?)?;
+    c.emit(branch(C::Al, c.at as u32, 0x471c, true)?)?;
 
     if c.at != END {
         return Err(format!("controller continuation ended at 0x{:x}, expected 0x{END:x}", c.at));
