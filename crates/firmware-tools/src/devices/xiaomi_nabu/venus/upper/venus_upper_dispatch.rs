@@ -4,6 +4,7 @@
 //! firmware. Execution continues after END; external literals are unowned.
 use arm32::{
     branch, branch_exchange_immediate, data_immediate, data_register,
+    load_halfword, multiply_accumulate, transfer_word_postindexed,
     data_register_shifted_by_register, mov_register,
     mov_shifted_register, multiply_register, push_registers, store_halfword,
     transfer_doubleword, transfer_halfword_register, transfer_multiple, BlockMode,
@@ -14,7 +15,7 @@ use arm32::{
 };
 
 pub const START:usize=0x69e44;
-pub const END:usize=0x6a468;
+pub const END:usize=0x6a590;
 pub const FILE_MAPPING_DELTA:usize=0x4000;
 
 struct Emitter { pc:usize, bytes:Vec<u8> }
@@ -497,6 +498,82 @@ pub fn fragment()->Result<Vec<u8>,String> {
     c.emit(data_register(C::Al,Op::Add,R::R1,R::R1,R::R2,Shift::Lsl,2,false)?)?;
     c.imm(C::Al,Op::Sub,R::R1,R::R1,4)?;
     c.str(R::R1,R::SP,0x40)?;
+    c.check(0x6a468)?;
+    // Build run counts from controller state and accumulate packed slots.
+    c.imm(C::Al,Op::Mov,R::R1,R::R0,0)?;
+    c.ldr(R::R0,R::R0,0x4c)?;
+    c.str(R::R0,R::SP,0x4c)?;
+    c.imm(C::Al,Op::Add,R::R0,R::R2,1)?;
+    c.str(R::R0,R::SP,0x68)?;
+    c.imm(C::Al,Op::Mov,R::R0,R::R0,0)?;
+    c.str(R::R0,R::SP,0x84)?;
+    c.imm(C::Al,Op::Mov,R::R0,R::R0,0)?;
+    c.str(R::R0,R::SP,0x80)?;
+    c.str(R::R1,R::SP,0x74)?;
+    c.ldr(R::R0,R::SP,0x54)?;
+    c.ldr(R::R1,R::SP,0x58)?;
+    c.ldr(R::R2,R::SP,0x4c)?;
+    c.str(r7,R::SP,0x78)?;
+    c.str(R::new(3)?,R::SP,0x7c)?;
+    c.emit(data_register(C::Al,Op::Cmp,R::R0,R::R0,r5,Shift::Lsl,0,false)?)?;
+    c.ldr(R::R0,R::SP,0x64)?;
+    c.emit(multiply_accumulate(C::Al,r7,r5,R::R1,R::R2)?)?;
+    c.ldr(R::R1,R::R12,0x80)?;
+    c.str(r5,R::SP,0x8c)?;
+    c.imm(C::Hi,Op::Add,R::R0,R::R0,1)?;
+    c.imm(C::Al,Op::Cmp,R::R0,R::R1,0)?;
+    c.str(R::R1,R::SP,0x88)?;
+    c.branch(C::Eq,0x6a590,false)?;
+    c.emit(data_register(C::Al,Op::And,R::R0,R::R0,r10,Shift::Lsl,0,false)?)?;
+    c.imm(C::Al,Op::Mov,R::R1,R::R0,0)?;
+    c.imm(C::Al,Op::Add,R::R0,R::R0,7)?;
+    c.emit(mov_shifted_register(C::Al,R::R0,R::R0,Shift::Lsr,3)?)?;
+    c.str(R::R0,R::SP,0x98)?;
+    c.ldr(R::R0,R::SP,0x98)?;
+    c.str(R::R1,R::SP,0x90)?;
+    c.imm(C::Al,Op::Cmp,R::R0,R::R0,0)?;
+    c.branch(C::Eq,0x6a578,false)?;
+    c.imm(C::Al,Op::Mov,R::R1,R::R0,0)?;
+    c.mov(C::Al,R::R2,r5)?;
+    c.mov(C::Al,R::R0,R::R2)?;
+    c.imm(C::Al,Op::Mov,R::R12,R::R0,0)?;
+    c.str(R::R1,R::SP,0xa0)?;
+    c.str(R::R2,R::SP,0x9c)?;
+    c.str(r7,R::SP,0xa4)?;
+    c.emit(data_register(C::Al,Op::And,R::LR,R::R0,r10,Shift::Lsl,0,false)?)?;
+    c.emit(transfer_word_postindexed(C::Al,true,R::new(3)?,r7,4)?)?;
+    c.imm(C::Al,Op::Add,R::R12,R::R12,1)?;
+    c.emit(data_register(C::Al,Op::Add,R::R1,r8,R::LR,Shift::Lsl,1,false)?)?;
+    c.imm(C::Al,Op::Cmp,R::R0,R::R12,4)?;
+    c.emit(load_halfword(C::Al,r5,R::R1,0)?)?;
+    c.emit(data_register(C::Al,Op::And,R::R2,R::new(3)?,r4,Shift::Lsl,0,false)?)?;
+    c.emit(data_register(C::Al,Op::And,R::new(3)?,r4,R::new(3)?,Shift::Lsr,16,false)?)?;
+    c.emit(data_register(C::Al,Op::Add,R::R2,R::R2,r5,Shift::Lsl,0,false)?)?;
+    c.emit(store_halfword(C::Al,R::R2,R::R1,0)?)?;
+    c.emit(data_register(C::Al,Op::Add,R::R1,r6,R::R0,Shift::Lsl,0,false)?)?;
+    c.emit(data_register(C::Al,Op::Add,R::R0,R::R0,r9,Shift::Lsl,0,false)?)?;
+    c.emit(data_register(C::Al,Op::And,R::R1,R::R1,r10,Shift::Lsl,0,false)?)?;
+    c.emit(data_register(C::Al,Op::Add,R::R1,r8,R::R1,Shift::Lsl,1,false)?)?;
+    c.emit(load_halfword(C::Al,R::R2,R::R1,0)?)?;
+    c.emit(data_register(C::Al,Op::Add,R::R2,R::new(3)?,R::R2,Shift::Lsl,0,false)?)?;
+    c.emit(store_halfword(C::Al,R::R2,R::R1,0)?)?;
+    c.branch(C::Ne,0x6a508,false)?;
+    c.ldr(R::R0,R::SP,0x94)?;
+    c.ldr(R::R2,R::SP,0x9c)?;
+    c.ldr(R::R1,R::SP,0xa0)?;
+    c.ldr(r7,R::SP,0xa4)?;
+    c.emit(data_register(C::Al,Op::Add,R::R2,R::R2,R::R0,Shift::Lsl,0,false)?)?;
+    c.ldr(R::R0,R::SP,0x98)?;
+    c.imm(C::Al,Op::Add,R::R1,R::R1,1)?;
+    c.imm(C::Al,Op::Add,r7,r7,16)?;
+    c.emit(data_register(C::Al,Op::Cmp,R::R0,R::R1,R::R0,Shift::Lsl,0,false)?)?;
+    c.branch(C::Ne,0x6a4f4,false)?;
+    c.ldr(R::R1,R::SP,0x90)?;
+    c.ldr(R::R0,R::SP,0x88)?;
+    c.ldr(r5,R::SP,0x8c)?;
+    c.imm(C::Al,Op::Add,R::R1,R::R1,1)?;
+    c.emit(data_register(C::Al,Op::Cmp,R::R0,R::R1,R::R0,Shift::Lsl,0,false)?)?;
+    c.branch(C::Cc,0x6a4dc,false)?;
     c.check(END)?;
     Ok(c.bytes)
 }
@@ -507,6 +584,6 @@ mod tests {
     #[test]
     fn covers_bounded_function_prefix() {
         assert_eq!(fragment().unwrap().len(),END-START);
-        assert_eq!(END-START,1572);
+        assert_eq!(END-START,1868);
     }
 }
