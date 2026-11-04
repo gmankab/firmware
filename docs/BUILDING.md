@@ -12,7 +12,7 @@ python3 -m unittest discover -s tests -p 'test_*.py'
 cargo fmt --all --check
 ```
 
-`tools/verify.sh` runs the build and synthetic tests. These do not require OEM firmware and are appropriate for CI. Rust's high-level code and encoder test results should remain reproducible without depending on private files.
+`tools/verify.sh` delegates to the local low-memory offline gate (`tools/check-local.sh --full`), honoring `CARGO_TARGET_DIR`. The Nabu verifier uses the same target directory for the release binary. These do not require OEM firmware and are appropriate for CI. Rust's high-level code and encoder test results should remain reproducible without depending on private files.
 
 ## Generate and verify outputs
 
