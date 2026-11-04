@@ -50,6 +50,16 @@ pub mod venus_upper_scaled_accumulation;
 pub mod venus_upper_candidate_bounds;
 #[path = "venus/upper/venus_upper_adjustment_records.rs"]
 pub mod venus_upper_adjustment_records;
+#[path = "venus/upper/venus_upper_target_bits_clamps.rs"]
+pub mod venus_upper_target_bits_clamps;
+#[path = "venus/upper/venus_upper_mode_qp_selection.rs"]
+pub mod venus_upper_mode_qp_selection;
+#[path = "venus/upper/venus_upper_qp_commit_caps.rs"]
+pub mod venus_upper_qp_commit_caps;
+#[path = "venus/upper/venus_upper_history_qp_candidates.rs"]
+pub mod venus_upper_history_qp_candidates;
+#[path = "venus/upper/venus_upper_scene_target_model.rs"]
+pub mod venus_upper_scene_target_model;
 #[path = "cirrus/coeff_profiles.rs"]
 pub mod cirrus_coeff_profiles;
 #[path = "a640/a640_shader.rs"]

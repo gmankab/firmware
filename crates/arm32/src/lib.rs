@@ -234,6 +234,15 @@ pub fn multiply_long(condition: Condition, signed: bool, lo: Register,
         | (hi.number()<<16) | (lo.number()<<12) | (rs.number()<<8) | rm.number())
 }
 
+pub fn unsigned_multiply_long_accumulate(condition: Condition, lo: Register,
+                                         hi: Register, rm: Register, rs: Register) -> Result<u32, String> {
+    if [lo, hi, rm, rs].contains(&Register::PC) || lo == hi {
+        return Err("invalid ARM32 UMLAL destination or PC register".into());
+    }
+    Ok(cond(condition) | 0x00a0_0090
+        | (hi.number()<<16) | (lo.number()<<12) | (rs.number()<<8) | rm.number())
+}
+
 /// A32 register-offset halfword transfer, pre-indexed without writeback.
 /// A32 uses a different addressing-field layout from word loads/stores:
 /// the register offset is only Rm (no barrel shift), with bits 7 and 4 set.
@@ -619,6 +628,24 @@ pub fn push_registers(condition: Condition, registers: u16) -> Result<u32, Strin
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn unsigned_long_accumulate_encoding_and_validation() {
+        let r5 = Register::new(5).unwrap();
+        assert_eq!(unsigned_multiply_long_accumulate(Condition::Al,
+            Register::R0, r5, Register::R2, Register::R2).unwrap(), 0xe0a5_0292);
+        assert_eq!(unsigned_multiply_long_accumulate(Condition::Al,
+            Register::R12, Register::R1, Register::R0, Register::R2).unwrap(), 0xe0a1_c290);
+        assert_eq!(unsigned_multiply_long_accumulate(Condition::Ne,
+            Register::R0, Register::R1, Register::R0, Register::R1).unwrap(), 0x10a1_0190);
+        assert!(unsigned_multiply_long_accumulate(Condition::Al,
+            Register::R0, Register::R0, Register::R1, Register::R2).is_err());
+        for slot in 0..4 {
+            let mut regs = [Register::R0, Register::R1, Register::R2, r5];
+            regs[slot] = Register::PC;
+            assert!(unsigned_multiply_long_accumulate(Condition::Al,
+                regs[0], regs[1], regs[2], regs[3]).is_err());
+        }
+    }
     #[test]
     fn smulbb_encoding_and_register_validation() {
         let r6 = Register::new(6).unwrap();
