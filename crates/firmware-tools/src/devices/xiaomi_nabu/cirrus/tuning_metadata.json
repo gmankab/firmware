@@ -1,0 +1,14 @@
+{
+"amplifier_gain": 18.5,
+"amplifier_model": "CS35L41B",
+"client_name": "LabSuite",
+"client_tuning_name": "BL_SPKC_ACT128+PDL",
+"client_version": "6.51.0",
+"feature_blocks": "Convert Q Format to Sample Left, Convert Q Format to Sample Right, Convert Q Format to Sample Voltage, Convert Q Format to Sample Current, Mix, Protect Lite, Actisonic, Piano Distortion Limiter, Convert Q Format to Sample Vpmon, Picl, Convert Sample to Q Format Left, Convert Sample to Q Format Right, Convert Sample to Q Format Left Cal, Convert Sample to Q Format Right Cal",
+"internal_buffer_size": 32,
+"platform": "halo",
+"platform_id": 1236,
+"sample_rate": 48000,
+"signal_chain": "CS35L41B Mono Superset",
+"signal_chain_version": "7.1"
+}

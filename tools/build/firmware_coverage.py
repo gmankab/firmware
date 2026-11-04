@@ -146,6 +146,7 @@ def status(data: dict[str,Any]) -> str:
         lines.append(f"| `0x{x['start']:x}–0x{x['end']:x}` | {x['bytes']:,} |")
     lines.extend(["", "## Important limits", "",
                   "- `modemuw.jsn` and the metadata-only `firmware-5.bin` are independently complete; the latter has no WLAN executable.",
+                  "- The four 5,340-byte Cirrus WMDR coefficient configuration files are byte-identical from numeric tables, not HALO executable code.",
                   "- A640 exact whole-file reproduction requires externally supplied original OEM authentication bytes.",
                   "- Cirrus HALO program bytes are still not independently decompiled; reference-assisted repacking is not firmware reconstruction.",
                   "- Several reference-dependent verification tests are skipped without supplied original firmwares and ISA toolchains.",

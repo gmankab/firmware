@@ -88,6 +88,8 @@ def main(argv: list[str] | None = None) -> int:
                 raise CoverageError(f"{args.image}: full independent source build unavailable; refusing to substitute original bytes")
             commands={"modemuw.jsn": ["rebuild-modemuw"],
                       "firmware-5.bin": ["rebuild-ath10k-metadata"]}
+            for speaker in ('BL','BR','TL','TR'):
+                commands[f'{speaker}-cs35l41-dsp1-spk-prot.bin']=['rebuild-cirrus-tuning',speaker]
             cmd=commands.get(args.image)
             if cmd is None:
                 raise CoverageError(f"{args.image}: complete-source builder not implemented")

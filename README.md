@@ -62,3 +62,20 @@ memory guidelines in the repository organization guide.
 
 See [repository organization](docs/REPOSITORY_LAYOUT.md) and
 [current generated status](docs/STATUS.md).
+
+### Cirrus WMDR tuning data
+
+The four `BL`, `BR`, `TL`, and `TR` speaker coefficient packages are generated
+by `crates/firmware-tools/src/devices/xiaomi_nabu/cirrus/coeff_profiles.rs`.
+They share a typed table of 1,476 little-endian 24-bit coefficient values,
+channel-specific overrides and a JSON tuning descriptor. These are **data
+re-encodings**, not independent acoustic calibration or HALO DSP decompilation.
+
+```
+python3 -m tools.firmware build BL-cs35l41-dsp1-spk-prot.bin \
+  --firmware-tools /path/to/firmware-tools \
+  --output /tmp/BL-cs35l41-dsp1-spk-prot.bin
+```
+
+The build command compares size and SHA-256 with the pinned source revision
+before atomically replacing an existing destination.

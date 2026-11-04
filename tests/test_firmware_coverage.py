@@ -23,7 +23,36 @@ class FirmwareCoverageTests(unittest.TestCase):
     def test_pinned_revision_records(self):
         self.assertEqual(len(self.data['images']),19)
         self.assertEqual(sum(i['size'] for i in self.data['images']),35409209)
-        self.assertEqual(sum(i['credit_bytes'] for i in self.data['images']),813206)
+        self.assertEqual(sum(i['credit_bytes'] for i in self.data['images']),834566)
+
+    def test_four_tuning_profiles_are_independently_complete_data(self):
+        for speaker in ('BL','BR','TL','TR'):
+            image=next(i for i in self.data['images'] if i['name']==f'{speaker}-cs35l41-dsp1-spk-prot.bin')
+            self.assertTrue(image['complete_source'])
+            self.assertEqual(image['credit_bytes'],image['size'])
+            self.assertEqual(image['credit_kind'],'typed_wmdr_coefficients_and_metadata')
+
+    def test_cirrus_cli_argument_dispatch(self):
+        with tempfile.TemporaryDirectory() as d:
+            root=Path(d)
+            stub=root/'builder'
+            stub.write_text('#!/bin/sh\n'
+                'test "$1" = rebuild-cirrus-tuning || exit 2\n'
+                'printf "%s" "$2" > "$3"\n')
+            stub.chmod(0o755)
+            for speaker in ('BL','BR','TL','TR'):
+                target=f'{speaker}-cs35l41-dsp1-spk-prot.bin'
+                source=speaker.encode()
+                manifest=root/f'{speaker}.toml'
+                manifest.write_text('schema_version=1\n[[images]]\n'
+                    f'name="{target}"\nsize=2\ncredit_bytes=2\ncomplete_source=true\n'
+                    f'sha256="{hashlib.sha256(source).hexdigest()}"\n')
+                output=root/f'output-{speaker}'
+                process=subprocess.run([sys.executable,'-m','tools.firmware','--manifest',str(manifest),
+                    'build',target,'--firmware-tools',str(stub),'--output',str(output)],
+                    cwd=ROOT,text=True,capture_output=True)
+                self.assertEqual(process.returncode,0,process.stderr)
+                self.assertEqual(output.read_bytes(),source)
 
     def test_full_pinned_firmware_inventory_includes_non_executables(self):
         expected={

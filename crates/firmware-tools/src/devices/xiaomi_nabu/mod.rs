@@ -2,6 +2,8 @@
 //! Xiaomi Pad 5 (`nabu`) reference image metadata and build settings.
 #[path = "ath10k/firmware_metadata.rs"]
 pub mod ath10k_firmware_metadata;
+#[path = "cirrus/coeff_profiles.rs"]
+pub mod cirrus_coeff_profiles;
 #[path = "a640/a640_shader.rs"]
 pub mod a640_shader;
 #[path = "a640/a640_launch.rs"]

@@ -5,6 +5,22 @@ use firmware_tools::{elf32_prefix::write_elf32_first_page, devices::xiaomi_nabu:
 
 fn run() -> Result<(), Box<dyn Error>> {
     let args: Vec<String> = env::args().skip(1).collect();
+    if args.len() == 3 && matches!(args[0].as_str(), "rebuild-cirrus-tuning" | "verify-cirrus-tuning") {
+        use firmware_tools::devices::xiaomi_nabu::cirrus_coeff_profiles as cirrus;
+        let speaker = cirrus::Speaker::parse(&args[1])?;
+        let generated = cirrus::rebuild(speaker);
+        if args[0] == "rebuild-cirrus-tuning" {
+            fs::write(&args[2], &generated)?;
+            println!("rebuilt {} WMDR speaker tuning ({} bytes; no DSP executable)", speaker.as_str(), generated.len());
+        } else {
+            let reference=fs::read(&args[2])?;
+            if reference!=generated {
+                return Err(format!("{} speaker tuning differs from reference",speaker.as_str()).into());
+            }
+            println!("byte-identical: {} WMDR speaker tuning ({} bytes)",speaker.as_str(), generated.len());
+        }
+        return Ok(());
+    }
     if args.len() == 2 && args[0] == "emit-venus-contiguous-boot" {
         let output = firmware_tools::devices::xiaomi_nabu::venus_plan::first_contiguous_region()?
             .build_complete()?;
