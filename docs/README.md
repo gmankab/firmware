@@ -71,7 +71,7 @@ cargo run --offline --locked -p firmware-tools -- a640-container-coverage
 
 ## Guides
 
-- [Decompilation handbook](DECOMPILATION.md) — thorough, reproducible workflow for new firmware files and new devices: triage, processor identification, Ghidra, LLVM, Rizin, Freedreno, custom containers, interpretation and verification.
+- [Decompilation handbook](DECOMPILATION.md) — thorough, reproducible workflow for new firmware files and new devices: triage, processor identification, Ghidra, REA, LLVM, Rizin, Freedreno, custom containers, interpretation and verification.
 - [Building and validating](BUILDING.md) — Rust targets, reproducible builds, checksum checks, tests, adding support for a device, and device authentication considerations.
 - [Current status](STATUS.md) — measured rebuild coverage, blocked components, and the next implementation milestones.
 
