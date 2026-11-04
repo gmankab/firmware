@@ -5,6 +5,7 @@ use arm32::{
 
 pub const START: usize = 0x6d998;
 pub const END: usize = 0x6e098;
+#[cfg(test)]
 const FILE_MAPPING_DELTA: usize = 0x4000;
 const CODE_BYTES: usize = 1780;
 const DATA_BYTES: usize = 12;

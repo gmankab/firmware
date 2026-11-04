@@ -7,6 +7,7 @@ use arm32::{
 
 pub const START: usize = 0xaba0;
 pub const END: usize = 0xadb0;
+#[cfg(test)]
 const FILE_BASE: usize = 0x4000;
 const DIAGNOSTIC_ADDRESS: usize = 0xada8;
 const HEAP_DIAGNOSTIC: u32 = 0x000e37d7;

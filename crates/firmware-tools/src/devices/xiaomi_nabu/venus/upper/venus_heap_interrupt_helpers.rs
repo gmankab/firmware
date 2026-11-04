@@ -8,6 +8,7 @@ use arm32::{
 
 pub const START: usize = 0xd3e0;
 pub const END: usize = 0xd790;
+#[cfg(test)]
 const FILE_MAPPING_DELTA: usize = 0x4000;
 const CODE_BYTES: usize = 888;
 const DATA_BYTES: usize = 56;
