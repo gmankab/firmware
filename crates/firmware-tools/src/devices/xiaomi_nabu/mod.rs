@@ -98,6 +98,14 @@ pub mod venus_service_state_dispatch;
 pub mod venus_service_loop_setup;
 #[path = "venus/upper/venus_service_register_output.rs"]
 pub mod venus_service_register_output;
+#[path = "venus/upper/venus_descriptor_state_writer.rs"]
+pub mod venus_descriptor_state_writer;
+#[path = "venus/upper/venus_descriptor_context_writer.rs"]
+pub mod venus_descriptor_context_writer;
+#[path = "venus/upper/venus_descriptor_argument_writer.rs"]
+pub mod venus_descriptor_argument_writer;
+#[path = "venus/upper/venus_descriptor_flag_writer.rs"]
+pub mod venus_descriptor_flag_writer;
 #[path = "venus/upper/venus_vppsg_lifecycle.rs"]
 pub mod venus_vppsg_lifecycle;
 #[path = "venus/upper/venus_vppsg_object_transform.rs"]
