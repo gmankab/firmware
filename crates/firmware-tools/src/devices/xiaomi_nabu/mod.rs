@@ -8,6 +8,8 @@ pub mod ath10k_board2_metadata;
 pub mod qca_bluetooth_tlv;
 #[path = "a640/gmu_prefix.rs"]
 pub mod a640_gmu_prefix;
+#[path = "venus/upper/venus_upper_dispatch.rs"]
+pub mod venus_upper_dispatch;
 #[path = "cirrus/coeff_profiles.rs"]
 pub mod cirrus_coeff_profiles;
 #[path = "a640/a640_shader.rs"]

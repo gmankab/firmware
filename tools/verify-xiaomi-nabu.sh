@@ -21,6 +21,7 @@ EXE="$TARGET_DIR/release/firmware-tools"
 "$EXE" verify-a640-routines "$QCOM/a640_zap.mbn"
 "$EXE" verify-a640-complete "$QCOM/a640_zap.mbn"
 "$EXE" verify-venus-contiguous-boot "$QCOM/venus.mbn"
+"$EXE" verify-venus-upper-dispatch "$QCOM/venus.mbn"
 # Optional reference types: compare if present, without silently requiring
 # alternative vendor directory structures in old extracted firmware trees.
 ATH10K="$FW/ath10k/WCN3990/hw1.0"

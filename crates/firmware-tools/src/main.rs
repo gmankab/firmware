@@ -48,6 +48,22 @@ fn run() -> Result<(), Box<dyn Error>> {
         }
         return Ok(());
     }
+    if args.len()==2 && matches!(args[0].as_str(), "emit-venus-upper-dispatch" | "verify-venus-upper-dispatch") {
+        use firmware_tools::devices::xiaomi_nabu::venus_upper_dispatch as dispatch;
+        let bytes=dispatch::fragment()?;
+        if args[0]=="emit-venus-upper-dispatch" {
+            fs::write(&args[1],&bytes)?;
+            println!("emitted {} typed ARM32 bytes of incomplete Venus controller function",bytes.len());
+        } else {
+            let mut original=fs::File::open(&args[1])?;
+            original.seek(SeekFrom::Start((dispatch::START+dispatch::FILE_MAPPING_DELTA) as u64))?;
+            let mut reference=vec![0;bytes.len()];
+            original.read_exact(&mut reference)?;
+            if reference!=bytes { return Err("Venus upper dispatch differs from pinned reference".into()); }
+            println!("byte-identical: {} Venus ARM32 bytes at 0x{:x} (incomplete routine)",bytes.len(),dispatch::START);
+        }
+        return Ok(());
+    }
     if args.len() == 2 && args[0] == "emit-venus-contiguous-boot" {
         let output = firmware_tools::devices::xiaomi_nabu::venus_plan::first_contiguous_region()?
             .build_complete()?;

@@ -109,3 +109,12 @@ The first two complete blocks form a **400-byte contiguous prefix**, which can
 be emitted with `firmware-tools emit-gmu-first-two-blocks OUTPUT`.
 `verify-gmu-framing ORIGINAL` checks all 480 modeled bytes. The remaining
 37,200 bytes, including GMU executable code, are not reconstructed.
+
+### Venus upper-controller dispatch (partial A32)
+
+The Rust A32 emitter `venus/upper/venus_upper_dispatch.rs` builds an exact
+function prefix at runtime `0x69e44–0x69f30`; the continuation, PC-relative
+literal data and rest of `venus.mbn` remain external. Run
+`firmware-tools verify-venus-upper-dispatch /private/venus.mbn` to compare
+those instructions against the original. This is **not** a rebuilt Venus
+firmware image.
