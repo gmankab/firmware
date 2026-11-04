@@ -80,6 +80,16 @@ pub mod venus_heap_lifetime;
 pub mod venus_heap_allocation;
 #[path = "venus/upper/venus_heap_bin_traversal.rs"]
 pub mod venus_heap_bin_traversal;
+#[path = "venus/upper/venus_heap_release.rs"]
+pub mod venus_heap_release;
+#[path = "venus/upper/venus_heap_reallocation.rs"]
+pub mod venus_heap_reallocation;
+#[path = "venus/upper/venus_heap_queries_iterator.rs"]
+pub mod venus_heap_queries_iterator;
+#[path = "venus/upper/venus_heap_statistics_callbacks.rs"]
+pub mod venus_heap_statistics_callbacks;
+#[path = "venus/upper/venus_heap_interrupt_helpers.rs"]
+pub mod venus_heap_interrupt_helpers;
 #[path = "venus/upper/venus_vppsg_lifecycle.rs"]
 pub mod venus_vppsg_lifecycle;
 #[path = "venus/upper/venus_vppsg_object_transform.rs"]

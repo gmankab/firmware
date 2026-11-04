@@ -82,6 +82,7 @@ pub fn full_file() -> Result<ImagePlan, String> {
         venus_runtime_late, venus_runtime_mid, venus_upper_dispatch, venus_upper_controller_continuation, venus_upper_controller_parameters,
         venus_upper_controller_type_selection, venus_upper_controller_aggregate,
         venus_upper_controller_budget_entry, venus_upper_controller_budget_records, venus_upper_controller_thresholds, venus_upper_controller_epilogue, venus_upper_weighted_metrics, venus_upper_frame_distortion, venus_upper_ring_ingestion, venus_upper_update_entry, venus_upper_allocation_transition, venus_upper_state_smoothing, venus_upper_indexed_transition, venus_upper_selector_state, venus_upper_paired_accumulator, venus_upper_scaled_accumulation, venus_upper_candidate_bounds, venus_upper_adjustment_records, venus_upper_target_bits_clamps, venus_upper_mode_qp_selection, venus_upper_qp_commit_caps, venus_upper_history_qp_candidates, venus_upper_scene_target_model, venus_upper_subgop_transition, venus_upper_adaptive_rate_update, venus_upper_history_packed_tables, venus_upper_frame_output_record, venus_upper_history_lookup_helpers, venus_heap_bin_classifiers, venus_heap_free_insertion, venus_heap_lifetime, venus_heap_allocation, venus_heap_bin_traversal, venus_vppsg_lifecycle, venus_vppsg_object_transform, venus_vsp_task_generation, venus_vppsg_task_packing, venus_tail_program};
+    use super::{venus_heap_release, venus_heap_reallocation, venus_heap_queries_iterator, venus_heap_statistics_callbacks, venus_heap_interrupt_helpers};
     let size = crate::firmware_manifest_identity::canonical_image("venus.mbn")?.size;
     let mut plan = ImagePlan::new(size)?;
     plan.place("venus_boot", venus_boot::FILE_OFFSET, &venus_boot::first_page()?)?;
@@ -152,6 +153,11 @@ pub fn full_file() -> Result<ImagePlan, String> {
     place!(venus_heap_lifetime, venus_heap_lifetime::START);
     place!(venus_heap_allocation, venus_heap_allocation::START);
     place!(venus_heap_bin_traversal, venus_heap_bin_traversal::START);
+    place!(venus_heap_release, venus_heap_release::START);
+    place!(venus_heap_reallocation, venus_heap_reallocation::START);
+    place!(venus_heap_queries_iterator, venus_heap_queries_iterator::START);
+    place!(venus_heap_statistics_callbacks, venus_heap_statistics_callbacks::START);
+    place!(venus_heap_interrupt_helpers, venus_heap_interrupt_helpers::START);
     place!(venus_vppsg_lifecycle, venus_vppsg_lifecycle::START);
     place!(venus_vppsg_object_transform, venus_vppsg_object_transform::START);
     place!(venus_vsp_task_generation, venus_vsp_task_generation::START);
@@ -197,7 +203,7 @@ mod tests {
             actual[span].fill(true);
         }
         let credit = field(record, "credit_bytes").unwrap().parse::<usize>().unwrap();
-        assert_eq!(credit, 573260);
+        assert_eq!(credit, 579692);
         assert_eq!(expected.iter().filter(|&&filled| filled).count(), credit);
 
         assert_eq!(actual.iter().zip(&expected).position(|(a, b)| a != b), None);

@@ -32,7 +32,7 @@ external_authentication_bytes = 6400
 name = "venus.mbn"
 size = 1159200
 sha256 = "9d4af65d7ede845e900f1b29ff425b7a8e2947056e695e246e58a2091445a085"
-credit_bytes = 573260
+credit_bytes = 579692
 credit_kind = "reported_source_and_literal_data"
 
 [images.executable_load]
@@ -47,9 +47,9 @@ label = "boot and bridge"
 
 [[images.regions]]
 start = 0xaa0c
-end = 0xbe70
+end = 0xd790
 provenance = "reported_reconstructed"
-label = "heap bins, allocation and lifetime"
+label = "heap bins, allocation, release, iterators and interrupt callbacks"
 
 [[images.regions]]
 start = 0x12e5c
