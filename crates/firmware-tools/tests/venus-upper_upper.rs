@@ -196,17 +196,49 @@ fn controller_continuation_bounds_and_control_flow() {
     use firmware_tools::devices::xiaomi_nabu::venus_upper_controller_continuation as continuation;
     let bytes = continuation::fragment().unwrap();
     assert_eq!(continuation::START, 0x68000);
-    assert_eq!(continuation::END, 0x68038);
-    assert_eq!(bytes.len(), 56);
-    assert_eq!(bytes.len() / 4, 14);
+    assert_eq!(continuation::END, 0x680cc);
+    assert_eq!(continuation::FILE_MAPPING_DELTA, 0x4000);
+    assert_eq!(bytes.len(), 204);
+    assert_eq!(bytes.len() / 4, 51);
+    assert_eq!(continuation::END - 0x68038, 148);
     for (offset, expected) in [
         (0, arm32::branch(arm32::Condition::Al, 0x68000, 0x6800c, false).unwrap()),
         (28, arm32::branch_exchange_immediate(0x6801c, 0x83c4c).unwrap()),
         (48, arm32::branch(arm32::Condition::Cc, 0x68030, 0x67fd4, false).unwrap()),
         (52, arm32::branch(arm32::Condition::Al, 0x68034, 0x67f54, false).unwrap()),
+        (84, arm32::branch(arm32::Condition::Lt, 0x68054, 0x67ee4, false).unwrap()),
+        (104, arm32::branch_exchange_immediate(0x68068, 0x83c4c).unwrap()),
+        (136, arm32::branch(arm32::Condition::Eq, 0x68088, 0x69b10, false).unwrap()),
+        (196, arm32::branch(arm32::Condition::Gt, 0x680c4, 0x68084, false).unwrap()),
+        (200, arm32::branch(arm32::Condition::Al, 0x680c8, 0x67ee4, false).unwrap()),
     ] {
         assert_eq!(&bytes[offset..offset + 4], &expected.to_le_bytes());
     }
+}
+
+#[test]
+fn controller_continuation_weighted_loop_operands() {
+    use arm32::{Condition as C, DataOp as Op, Register as R, Shift};
+    use firmware_tools::devices::xiaomi_nabu::venus_upper_controller_continuation as continuation;
+    let bytes = continuation::fragment().unwrap();
+    let r3 = R::new(3).unwrap();
+    let r4 = R::new(4).unwrap();
+    let r5 = R::new(5).unwrap();
+    let r6 = R::new(6).unwrap();
+    let r7 = R::new(7).unwrap();
+    for (at, expected) in [
+        (0x6804c, arm32::mov_shifted_register(C::Al, r5, r4, Shift::Asr, 16).unwrap()),
+        (0x6807c, arm32::data_register(C::Al, Op::Add, R::R2, R::R2, r4, Shift::Asr, 14, false).unwrap()),
+        (0x680a0, arm32::transfer_word(C::Al, false, r4, R::R2, -24).unwrap()),
+        (0x680a4, arm32::multiply_accumulate(C::Al, r4, r7, R::R0, r3).unwrap()),
+        (0x680b0, arm32::transfer_word(C::Al, true, r3, R::PC, 0xfec).unwrap()),
+        (0x680b8, arm32::multiply_long(C::Al, false, r7, r6, R::R0, r3).unwrap()),
+        (0x680c0, arm32::mov_shifted_register(C::Al, R::R0, r6, Shift::Lsr, 5).unwrap()),
+    ] {
+        let offset = at - continuation::START;
+        assert_eq!(&bytes[offset..offset + 4], &expected.to_le_bytes());
+    }
+    assert_eq!(0x680b0 + 8 + 0xfec, 0x690a4);
 }
 
 #[test]

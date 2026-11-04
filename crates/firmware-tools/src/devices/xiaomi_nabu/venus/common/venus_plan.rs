@@ -155,7 +155,7 @@ mod tests {
             actual[span].fill(true);
         }
         let credit = field(record, "credit_bytes").unwrap().parse::<usize>().unwrap();
-        assert_eq!(credit, 532640);
+        assert_eq!(credit, 532788);
         assert_eq!(expected.iter().filter(|&&filled| filled).count(), credit);
 
         assert_eq!(actual.iter().zip(&expected).position(|(a, b)| a != b), None);
