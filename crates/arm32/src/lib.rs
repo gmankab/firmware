@@ -443,7 +443,7 @@ fn modified_immediate(value: u32) -> Result<u32, String> {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum DataOp { And = 0, Eor = 1, Sub = 2, Rsb = 3, Add = 4, Sbc = 6, Rsc = 7, Tst = 8, Teq = 9, Cmp = 10, Cmn = 11, Orr = 12, Mov = 13, Bic = 14, Mvn = 15 }
+pub enum DataOp { And = 0, Eor = 1, Sub = 2, Rsb = 3, Add = 4, Adc = 5, Sbc = 6, Rsc = 7, Tst = 8, Teq = 9, Cmp = 10, Cmn = 11, Orr = 12, Mov = 13, Bic = 14, Mvn = 15 }
 
 pub fn data_immediate(condition: Condition, op: DataOp, rd: Register, rn: Register,
                       value: u32) -> Result<u32, String> {
@@ -884,6 +884,8 @@ mod tests {
     #[test]
     fn immediate_and_transfer_encoding_and_rejections() {
         assert_eq!(data_immediate(Condition::Al, DataOp::And, Register::R1, Register::R1, 1).unwrap(), 0xe201_1001);
+        assert_eq!(data_immediate(Condition::Al, DataOp::Adc, Register::R1, Register::R1, 0).unwrap(), 0xe2a1_1000);
+        assert_eq!(data_immediate(Condition::Al, DataOp::Adc, Register::new(7).unwrap(), Register::new(7).unwrap(), 0).unwrap(), 0xe2a7_7000);
         assert_eq!(data_immediate(Condition::Al, DataOp::Cmp, Register::R0, Register::R1, 0).unwrap(), 0xe351_0000);
         assert_eq!(transfer_word(Condition::Al, true, Register::R0, Register::PC, -12).unwrap(), 0xe51f_000c);
         assert_eq!(transfer_word(Condition::Al, false, Register::R1, Register::R0, 0).unwrap(), 0xe580_1000);
