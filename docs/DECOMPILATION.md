@@ -33,7 +33,7 @@ Install unblob via uv
 uv tool install unblob
 ```
 
-Install a Rust toolchain (`rustc`, `cargo` and optionally `rustfmt`). The current source builds with Rust 1.99.1. For headless Ghidra install **JDK 21 or newer as supported by the release**; Ghidra 12.1.4 requires JDK 21. Consult the [12.1.4 setup guide](https://www.ghidradocs.com/12.1.4_PUBLIC/GettingStarted.html).
+Install a Rust toolchain (`rustc`, `cargo` and optionally `rustfmt`) matching `rust-toolchain.toml`. For headless Ghidra, use the latest JDK and check its compatibility against the installed Ghidra release's requirements. Use the newest system Python for Unblob; fall back only after observing a specific incompatibility.
 
 Use a predictable directory layout **outside the Git checkout**:
 
@@ -56,24 +56,32 @@ xxd -l 128 /path/to/original-firmware
 
 [REA](https://github.com/morluto/rea) exposes local analysis tools through MCP. It helps inspect firmware regions, extract containers and investigate supported native executables with Ghidra
 
-The following setup uses the `fedora-toolbox-45` container. Substitute your container name from `toolbox list --containers`. Toolbox shares your home directory with the host; `/usr` and `/opt` below belong to the container.
+The MCP configuration uses default toolbox, without a Fedora release pin. Run the installation commands below inside it (`toolbox enter` from the host). Toolbox shares your home directory with the host; `/usr` and `/opt` below belong to the container.
 
 Acquire REA from a trusted directory outside the target repository:
 
 ```sh
-npm install --global rea-agents@latest
+cd /tmp
+sudo npm install --global rea-agents@latest
 ```
 
-```bash
+Install Ghidra from the [official releases](https://github.com/NationalSecurityAgency/ghidra/releases), verify its release checksum, and extract it inside toolbox. Give the installed directory a stable alias; substitute the actual extracted path:
+
+```sh
+sudo ln -sfn /absolute/path/to/extracted-ghidra /opt/ghidra
 env \
-  GHIDRA_INSTALL_DIR=/opt/ghidra_12.1.4_PUBLIC \
-  JAVA_HOME=/usr/lib/jvm/java-25-openjdk \
-  REA_ANALYSIS_PROVIDER=ghidra /usr/local/bin/rea doctor --provider ghidra --json
+  GHIDRA_INSTALL_DIR=/opt/ghidra \
+  JAVA_HOME=/usr/lib/jvm/java \
+  REA_ANALYSIS_PROVIDER=ghidra rea doctor --provider ghidra --json
 ```
+
+When upgrading Ghidra, repoint `/opt/ghidra`; no repository edits are needed. `/usr/lib/jvm/java` follows Fedora's selected JDK. Update REA with `sudo npm install --global rea-agents@latest` and Unblob with `uv tool upgrade unblob`.
+
+Latest releases are a preference, not a compatibility guarantee. REA can explicitly reject a newer Ghidra or Node.js release, and Ghidra can impose Java requirements. Run the scoped doctor check after updates. If it reports an incompatibility, update REA first; if unresolved, report the error before selecting a supported fallback. Do not disable version validation. Record exact tool versions in analysis evidence rather than hardcoding them into the setup.
 
 ### Enable REA MCP for maki
 
-See `.maki/mcp.toml` file in repo root. Restart Maki and open `/mcp` to check REA's connection
+See `.maki/mcp.toml` in the repository root. It launches `rea` on the default toolbox's `PATH`, uses the stable Ghidra and Java aliases above, and resolves Unblob from `$HOME/.local/bin/unblob`. No user-name substitution is required. Trust the project folder, restart Maki and open `/mcp` to check REA's connection. If you also have a global `~/.config/maki/mcp.toml`, remove or synchronize its REA entry to avoid conflicting configurations.
 
 ## 2. Acquire and verify the exact reference revision
 
@@ -171,7 +179,7 @@ Install Ghidra from [NSA's Ghidra releases](https://github.com/NationalSecurityA
 For a single ELF, first try direct headless analysis:
 
 ```sh
-GHIDRA=/opt/ghidra_12.1.4_PUBLIC    # adjust to the installed directory
+GHIDRA=/opt/ghidra
 mkdir -p /private/ghidra/projects
 "$GHIDRA/support/analyzeHeadless" /private/ghidra/projects first_image \
   -import /private/firmware.elf \
