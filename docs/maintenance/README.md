@@ -5,6 +5,9 @@ This directory retains verified **one-way migration ledgers**. Its JSON files
 record where source files were before a reorganization; historic names are
 provenance, **not supported imports or command-line locations**.
 
+For bounded archive inspection, low-memory compilation, ChatGPT session
+resets, and checkpoint recovery, see [Long-running firmware sessions](long-running-sessions.md).
+
 ## Source and tooling migrations
 
 | Scope | Ledger | Validation |
