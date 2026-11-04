@@ -113,7 +113,7 @@ be emitted with `firmware-tools emit-gmu-first-two-blocks OUTPUT`.
 ### Venus upper-controller dispatch (partial A32)
 
 The Rust A32 emitter `venus/upper/venus_upper_dispatch.rs` builds an exact
-function prefix at runtime `0x69e44–0x6a1d4`; the continuation, PC-relative
+function prefix at runtime `0x69e44–0x6a400`; the continuation, PC-relative
 literal data and rest of `venus.mbn` remain external. Run
 `firmware-tools verify-venus-upper-dispatch /private/venus.mbn` to compare
 those instructions against the original. This is **not** a rebuilt Venus

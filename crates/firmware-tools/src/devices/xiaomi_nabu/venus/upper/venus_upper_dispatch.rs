@@ -3,16 +3,18 @@
 //! This interval is a verified function prefix, **not** complete executable
 //! firmware. Execution continues after END; external literals are unowned.
 use arm32::{
-    branch, branch_exchange_immediate, data_immediate, data_register, mov_register,
+    branch, branch_exchange_immediate, data_immediate, data_register,
+    data_register_shifted_by_register, mov_register,
     mov_shifted_register, multiply_register, push_registers, store_halfword,
-    transfer_doubleword, transfer_multiple, BlockMode,
+    transfer_doubleword, transfer_halfword_register, transfer_multiple, BlockMode,
     signed_multiply_accumulate_bottom_halves, transfer_byte, transfer_byte_register,
-    transfer_word, transfer_word_register, transfer_word_register_preindexed_writeback,
+    transfer_word, transfer_word_preindexed_writeback, transfer_word_register,
+    transfer_word_register_preindexed_writeback,
     Condition as C, DataOp as Op, Register as R, Shift,
 };
 
 pub const START:usize=0x69e44;
-pub const END:usize=0x6a1d4;
+pub const END:usize=0x6a400;
 pub const FILE_MAPPING_DELTA:usize=0x4000;
 
 struct Emitter { pc:usize, bytes:Vec<u8> }
@@ -320,6 +322,153 @@ pub fn fragment()->Result<Vec<u8>,String> {
     c.imm(C::Al,Op::Orr,R::R1,R::R1,2048)?;
     c.branch(C::Al,0x17b0,true)?;
     c.branch(C::Al,0x6abec,false)?;
+    c.check(0x6a1d4)?;
+    // Controller configuration: block base addresses and scalar metadata.
+    c.imm(C::Al,Op::Mov,R::R0,R::R0,872)?;
+    c.imm(C::Al,Op::Mov,R::R1,R::R0,0)?;
+    c.mov(C::Al,r4,R::LR)?;
+    c.imm(C::Al,Op::Orr,R::R0,R::R0,4096)?;
+    c.emit(data_register(C::Al,Op::Add,R::R0,r9,R::R0,Shift::Lsl,0,false)?)?;
+    c.str(R::R0,R::SP,0xa4)?;
+    c.ldr(R::R0,R::R12,0)?;
+    c.emit(transfer_doubleword(C::Al,true,r6,r8,224)?)?;
+    c.ldr(R::R2,R::R12,0x54)?;
+    c.ldr(R::new(3)?,R::R12,0x58)?;
+    c.imm(C::Al,Op::Cmp,R::R0,R::R0,4096)?;
+    c.emit(mov_shifted_register(C::Al,r5,r6,Shift::Lsl,1)?)?;
+    c.imm(C::Eq,Op::Mov,R::R1,R::R0,1)?;
+    c.emit(data_register_shifted_by_register(C::Al,Op::Mov,R::R0,R::R0,r7,
+        Shift::Lsr,R::R1,false)?)?;
+    c.imm(C::Al,Op::Eor,r7,R::R1,31)?;
+    c.emit(data_register_shifted_by_register(C::Al,Op::Mov,r6,R::R0,r6,
+        Shift::Lsr,R::R1,false)?)?;
+    c.emit(multiply_register(C::Al,R::R1,R::new(3)?,R::R2)?)?;
+    c.emit(data_register_shifted_by_register(C::Al,Op::Orr,r5,R::R0,r5,
+        Shift::Lsl,r7,false)?)?;
+    c.ldrb(r7,R::R12,0x7e)?;
+    c.imm(C::Al,Op::Mov,R::R0,R::R0,255)?;
+    c.mov(C::Al,R::new(3)?,r6)?;
+    c.mov(C::Al,R::R2,r5)?;
+    c.imm(C::Al,Op::Cmp,R::R0,r7,0)?;
+    c.imm(C::Ne,Op::Mov,R::R0,R::R0,1020)?;
+    c.branch(C::Al,0x6758c,true)?;
+    c.ldr(R::R1,r8,0xf4)?;
+    c.ldr(R::R2,R::SP,0xa4)?;
+    c.ldr(R::R12,R::SP,0x70)?;
+    c.str(R::R1,R::R2,0)?;
+    c.imm(C::Al,Op::Mov,R::R1,R::R0,884)?;
+    c.str(R::R0,R::SP,0x1c)?;
+    c.imm(C::Al,Op::Orr,R::R1,R::R1,4096)?;
+    c.emit(transfer_word_register(C::Al,false,R::R0,r9,R::R1,Shift::Lsl,0)?)?;
+    c.imm(C::Al,Op::Mov,R::R1,R::R0,880)?;
+    c.ldrb(R::R0,R::R12,0x21)?;
+    c.imm(C::Al,Op::Orr,R::R1,R::R1,4096)?;
+    c.emit(transfer_halfword_register(C::Al,false,R::R0,r9,R::R1)?)?;
+    c.imm(C::Al,Op::Mov,R::R1,R::R0,876)?;
+    c.ldr(R::R0,r8,0xec)?;
+    c.check(0x6a270)?;
+    // Populate per-mode register windows and staged state records.
+    c.imm(C::Al,Op::Orr,R::R1,R::R1,4096)?;
+    c.emit(transfer_word_register(C::Al,false,R::R0,r9,R::R1,Shift::Lsl,0)?)?;
+    c.imm(C::Al,Op::Mov,R::R0,R::R0,868)?;
+    c.str(r6,R::SP,0x14)?;
+    c.imm(C::Al,Op::Orr,R::R0,R::R0,4096)?;
+    c.emit(transfer_word_register(C::Al,false,r6,r9,R::R0,Shift::Lsl,0)?)?;
+    c.imm(C::Al,Op::Mov,R::R0,R::R0,864)?;
+    c.str(r5,R::SP,0x18)?;
+    c.imm(C::Al,Op::Orr,R::R0,R::R0,4096)?;
+    c.emit(transfer_word_register(C::Al,false,r5,r9,R::R0,Shift::Lsl,0)?)?;
+    c.imm(C::Al,Op::Add,R::R0,r9,772)?;
+    let fields=R::R1.bit()|R::R2.bit()|R::new(3)?.bit()|r6.bit()|r7.bit();
+    c.emit(transfer_multiple(C::Al,true,r10,fields,
+        BlockMode::IncrementAfter,true)?)?;
+    c.imm(C::Al,Op::Add,R::R0,R::R0,4096)?;
+    c.emit(transfer_multiple(C::Al,false,R::R0,fields,
+        BlockMode::IncrementAfter,true)?)?;
+    c.emit(transfer_multiple(C::Al,true,r10,fields,
+        BlockMode::IncrementAfter,false)?)?;
+    c.emit(transfer_multiple(C::Al,false,R::R0,fields,
+        BlockMode::IncrementAfter,false)?)?;
+    c.imm(C::Al,Op::Add,R::R0,r9,828)?;
+    c.emit(transfer_multiple(C::Al,true,r4,fields,
+        BlockMode::IncrementAfter,false)?)?;
+    c.imm(C::Al,Op::Add,R::R0,R::R0,4096)?;
+    c.emit(transfer_multiple(C::Al,false,R::R0,fields,
+        BlockMode::IncrementAfter,false)?)?;
+    for (value,offset) in [(824,0x80),(848,0x98),(852,0x9c),(856,0xa4)] {
+        c.imm(C::Al,Op::Mov,R::R1,R::R0,value)?;
+        c.ldr(R::R0,r8,offset)?;
+        c.imm(C::Al,Op::Orr,R::R1,R::R1,4096)?;
+        c.emit(transfer_word_register(C::Al,false,R::R0,r9,R::R1,Shift::Lsl,0)?)?;
+    }
+    c.check(0x6a300)?;
+    // Optional input state: four-slot loop copying scalar/control fields.
+    c.ldrb(R::R0,R::R12,0x8a)?;
+    c.ldr(r4,R::SP,0x3c)?;
+    c.imm(C::Al,Op::Cmp,R::R0,R::R0,0)?;
+    c.branch(C::Eq,0x6a384,false)?;
+    c.emit(transfer_doubleword(C::Al,true,R::R0,r8,168)?)?;
+    c.imm(C::Al,Op::Add,R::R2,r8,208)?;
+    c.imm(C::Al,Op::Mov,R::new(3)?,R::R0,0)?;
+    c.emit(transfer_doubleword(C::Al,false,R::R0,r4,56)?)?;
+    c.imm(C::Al,Op::Mov,R::R1,R::R0,932)?;
+    c.ldrb(R::R0,r8,0xd4)?;
+    c.imm(C::Al,Op::Orr,R::R1,R::R1,4096)?;
+    c.emit(transfer_byte_register(C::Al,false,R::R0,r9,R::R1,Shift::Lsl,0)?)?;
+    c.imm(C::Al,Op::Add,R::R1,r9,928)?;
+    c.emit(transfer_byte(C::Al,false,R::R0,r4,0x68)?)?;
+    c.imm(C::Al,Op::Add,R::R0,r9,908)?;
+    c.imm(C::Al,Op::Add,R::R0,R::R0,4096)?;
+    c.imm(C::Al,Op::Add,R::R1,R::R1,4096)?;
+    c.emit(data_register(C::Al,Op::Add,r7,R::R2,R::new(3)?,Shift::Lsl,2,false)?)?;
+    c.emit(data_register(C::Al,Op::Add,r5,r4,R::new(3)?,Shift::Lsl,2,false)?)?;
+    c.ldr(r6,r7,-0x20)?;
+    c.str(r6,R::R0,-0x10)?;
+    c.str(r6,r5,0x40)?;
+    c.emit(data_register(C::Al,Op::Add,r6,r4,R::new(3)?,Shift::Lsl,0,false)?)?;
+    c.ldr(r7,r7,-0x10)?;
+    c.str(r7,R::R0,0)?;
+    c.str(r7,r5,0x50)?;
+    c.imm(C::Al,Op::Add,R::R0,R::R0,4)?;
+    c.emit(transfer_byte_register(C::Al,true,r7,R::R2,R::new(3)?,Shift::Lsl,0)?)?;
+    c.emit(transfer_byte_register(C::Al,false,r7,R::R1,R::new(3)?,Shift::Lsl,0)?)?;
+    c.imm(C::Al,Op::Add,R::new(3)?,R::new(3)?,1)?;
+    c.emit(transfer_byte(C::Al,false,r7,r6,0x64)?)?;
+    c.imm(C::Al,Op::Cmp,R::R0,R::new(3)?,4)?;
+    c.branch(C::Ne,0x6a344,false)?;
+    c.check(0x6a384)?;
+    // Initialize the next controller buffer and call two typed service edges.
+    c.str(r9,R::SP,0x28)?;
+    c.str(r8,R::SP,0x38)?;
+    c.imm(C::Al,Op::Add,R::R0,R::R12,940)?;
+    c.imm(C::Al,Op::Mov,r5,R::R0,0)?;
+    c.imm(C::Al,Op::Mov,R::R1,R::R0,0)?;
+    c.imm(C::Al,Op::Mov,R::R2,R::R0,512)?;
+    c.ldrb(r6,R::R12,0x284)?;
+    c.ldr(r4,R::R12,0x3c)?;
+    c.imm(C::Al,Op::Add,r8,R::R0,1024)?;
+    c.str(r5,R::R12,0x2e8)?;
+    c.mov(C::Al,R::R0,r8)?;
+    c.branch(C::Al,0x31ec,true)?;
+    c.ldr(r7,R::SP,0x70)?;
+    c.mov(C::Al,R::R0,r4)?;
+    c.mov(C::Al,R::R1,r6)?;
+    c.emit(transfer_word_preindexed_writeback(C::Al,false,r5,r7,0x5c8)?)?;
+    c.str(r5,r7,0xc)?;
+    c.str(r5,r7,4)?;
+    c.emit(branch_exchange_immediate(c.pc as u32,0x83c4c)?)?;
+    c.str(R::R0,R::SP,0x64)?;
+    c.mov(C::Al,R::R0,r7)?;
+    c.mov(C::Al,R::R1,r6)?;
+    c.emit(transfer_word_preindexed_writeback(C::Al,false,r5,R::R0,8)?)?;
+    c.str(r7,R::SP,0x60)?;
+    c.str(R::R0,R::SP,0x5c)?;
+    c.ldr(R::R0,r7,-0x348)?;
+    c.emit(branch_exchange_immediate(c.pc as u32,0x83c4c)?)?;
+    c.ldr(R::R12,R::SP,0x70)?;
+    c.ldr(R::R2,R::SP,0x6c)?;
+    c.imm(C::Al,Op::Cmp,R::R0,r6,0)?;
+    c.str(R::R0,R::SP,0x58)?;
     c.check(END)?;
     Ok(c.bytes)
 }
@@ -330,6 +479,6 @@ mod tests {
     #[test]
     fn covers_bounded_function_prefix() {
         assert_eq!(fragment().unwrap().len(),END-START);
-        assert_eq!(END-START,912);
+        assert_eq!(END-START,1468);
     }
 }
