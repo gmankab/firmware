@@ -15,7 +15,7 @@ use arm32::{
 };
 
 pub const START:usize=0x69e44;
-pub const END:usize=0x6a590;
+pub const END:usize=0x6a680;
 pub const FILE_MAPPING_DELTA:usize=0x4000;
 
 struct Emitter { pc:usize, bytes:Vec<u8> }
@@ -574,6 +574,71 @@ pub fn fragment()->Result<Vec<u8>,String> {
     c.imm(C::Al,Op::Add,R::R1,R::R1,1)?;
     c.emit(data_register(C::Al,Op::Cmp,R::R0,R::R1,R::R0,Shift::Lsl,0,false)?)?;
     c.branch(C::Cc,0x6a4dc,false)?;
+    c.check(0x6a590)?;
+    // Pack the controller's 64-element temporary input buffer, then propagate
+    // previous accumulation rows into the destination arrays.
+    c.imm(C::Al,Op::Add,r5,R::SP,168)?;
+    c.imm(C::Al,Op::Mov,R::R1,R::R0,0)?;
+    c.imm(C::Al,Op::Mov,R::R2,R::R0,1024)?;
+    c.mov(C::Al,R::R0,r5)?;
+    c.branch(C::Al,0x31ec,true)?;
+    c.ldr(R::R12,R::SP,0x70)?;
+    c.ldr(R::R0,R::R12,0)?;
+    c.imm(C::Al,Op::Cmp,R::R0,R::R0,4096)?;
+    c.branch(C::Ne,0x6a610,false)?;
+    c.ldr(R::R0,R::SP,0x48)?;
+    c.imm(C::Al,Op::Mov,R::R1,R::R0,0xc10000)?;
+    c.imm(C::Al,Op::Mov,R::R2,R::R0,0)?;
+    c.mov(C::Al,R::LR,r7)?;
+    c.mov(C::Al,R::new(3)?,r7)?;
+    c.imm(C::Al,Op::Orr,R::R1,R::R1,0xff000000)?;
+    c.ldrb(R::R0,R::R0,9)?;
+    c.emit(data_register(C::Al,Op::Add,R::R1,R::R1,R::R0,Shift::Lsl,16,false)?)?;
+    c.imm(C::Al,Op::Cmp,R::R0,R::R0,63)?;
+    c.emit(mov_shifted_register(C::Hi,R::R2,R::R1,Shift::Asr,16)?)?;
+    c.emit(data_register(C::Al,Op::Add,R::R0,r5,R::R2,Shift::Lsl,2,false)?)?;
+    c.imm(C::Al,Op::Sub,R::R1,R::R2,1)?;
+    c.imm(C::Al,Op::Add,r5,R::R2,63)?;
+    c.ldr(R::R2,R::SP,0x6c)?;
+    c.emit(transfer_word_postindexed(C::Al,true,r7,R::new(3)?,4)?)?;
+    c.imm(C::Al,Op::Add,R::R1,R::R1,1)?;
+    c.emit(data_register(C::Al,Op::Cmp,R::R0,R::R1,r5,Shift::Lsl,0,false)?)?;
+    c.emit(transfer_word_postindexed(C::Al,false,r7,R::R0,4)?)?;
+    c.branch(C::Lt,0x6a5ec,false)?;
+    c.imm(C::Al,Op::Add,r5,R::SP,168)?;
+    c.imm(C::Al,Op::Mov,R::R0,R::R0,64)?;
+    c.mov(C::Al,R::R1,r5)?;
+    c.branch(C::Al,0x6a640,false)?;
+    c.check(0x6a610)?;
+    c.mov(C::Al,R::R1,r5)?;
+    c.ldr(R::R2,R::SP,0x6c)?;
+    c.ldr(r5,R::SP,0x68)?;
+    c.imm(C::Al,Op::Mov,R::R0,R::R0,0)?;
+    c.mov(C::Al,R::LR,r7)?;
+    c.emit(transfer_word_postindexed(C::Al,true,R::new(3)?,r7,4)?)?;
+    c.imm(C::Al,Op::Add,R::R0,R::R0,1)?;
+    c.emit(data_register(C::Al,Op::Cmp,R::R0,R::R0,r5,Shift::Lsl,0,false)?)?;
+    c.emit(transfer_word_postindexed(C::Al,false,R::new(3)?,R::R1,4)?)?;
+    c.branch(C::Ne,0x6a624,false)?;
+    c.mov(C::Al,R::R0,r5)?;
+    c.imm(C::Al,Op::Add,R::R1,R::SP,168)?;
+    c.check(0x6a640)?;
+    c.emit(transfer_word_register(C::Al,true,R::R1,R::R1,R::R2,Shift::Lsl,2)?)?;
+    c.ldr(R::new(3)?,R::SP,0x50)?;
+    c.emit(data_register(C::Al,Op::Add,R::LR,R::LR,R::R0,Shift::Lsl,2,false)?)?;
+    c.imm(C::Al,Op::Cmp,R::R0,R::R2,0)?;
+    c.str(R::R1,R::new(3)?,0)?;
+    c.branch(C::Eq,0x6a680,false)?;
+    c.ldr(R::R0,R::SP,0x44)?;
+    c.ldr(R::new(3)?,R::SP,0x40)?;
+    c.ldr(r7,R::SP,0x68)?;
+    c.ldr(r5,R::new(3)?,0)?;
+    c.imm(C::Al,Op::Sub,r7,r7,1)?;
+    c.imm(C::Al,Op::Cmp,R::R0,r7,1)?;
+    c.emit(data_register(C::Al,Op::Add,R::R1,r5,R::R1,Shift::Lsl,0,false)?)?;
+    c.emit(transfer_word_postindexed(C::Al,false,R::R1,R::new(3)?,-4)?)?;
+    c.emit(transfer_word_postindexed(C::Al,false,R::R1,R::R0,-4)?)?;
+    c.branch(C::Gt,0x6a664,false)?;
     c.check(END)?;
     Ok(c.bytes)
 }
@@ -584,6 +649,6 @@ mod tests {
     #[test]
     fn covers_bounded_function_prefix() {
         assert_eq!(fragment().unwrap().len(),END-START);
-        assert_eq!(END-START,1868);
+        assert_eq!(END-START,2108);
     }
 }
