@@ -2,8 +2,8 @@
 
 pub const IMAGE_BYTES: usize = 37_680;
 pub const INITIAL_PREFIX_BYTES: usize = 400;
-pub const MODELLED_BYTES: usize = 540;
-pub const STARTUP_BYTES: usize = 60;
+pub const MODELLED_BYTES: usize = 684;
+pub const STARTUP_BYTES: usize = 204;
 const BLOCKS: [(u32,u32);7] = [
     (0x0,48), (0x200,320), (0x400,14_524), (0x4000,14_936),
     (0x40000,6_944), (0x43fe0,20), (0x57000,776),
@@ -77,7 +77,7 @@ fn adr_sub_w(dst:u8,from:u32,to:u32)->[u16;2] {
      (((distance>>8) as u16&7)<<12)|(u16::from(dst)<<8)|(distance as u16&255)]
 }
 fn tst_immediate_w(register:u8,value:u8)->[u16;2] {
-    assert!(register<13);
+    assert!(register<13 || register==14);
     [0xf010|u16::from(register),0x0f00|u16::from(value)]
 }
 fn it_ne()->u16 { 0xbf18 }
@@ -93,6 +93,71 @@ fn bx(register:u8)->u16 {
     assert!(register<15);
     0x4700|(u16::from(register)<<3)
 }
+#[derive(Clone,Copy)]
+enum Condition { Eq=0, Hs=2, Mi=4, Hi=8 }
+#[derive(Clone,Copy)]
+enum ItBlock { One=8, Then=4, Else=12 }
+fn it(condition:Condition,block:ItBlock)->u16 {
+    0xbf00|((condition as u16)<<4)|block as u16
+}
+fn b_cond(condition:Condition,from:u32,to:u32)->u16 {
+    let delta=i64::from(to)-i64::from(from)-4;
+    assert!(from%2==0 && to%2==0 && (-256..=254).contains(&delta));
+    0xd000|((condition as u16)<<8)|u16::from((delta/2) as i8 as u8)
+}
+fn b_cond_w(condition:Condition,from:u32,to:u32)->[u16;2] {
+    let delta=i64::from(to)-i64::from(from)-4;
+    assert!(from%2==0 && to%2==0 && (-1_048_576..=1_048_574).contains(&delta));
+    let imm=delta as u32;
+    [(0xf000|(((imm>>20)&1)<<10)|((condition as u32)<<6)|((imm>>12)&0x3f)) as u16,
+     (0x8000|(((imm>>18)&1)<<13)|(((imm>>19)&1)<<11)|((imm>>1)&0x7ff)) as u16]
+}
+fn subs_immediate(register:u8,value:u8)->u16 {
+    assert!(register<8);
+    0x3800|(u16::from(register)<<8)|u16::from(value)
+}
+fn movs_immediate(register:u8,value:u8)->u16 {
+    assert!(register<8);
+    0x2000|(u16::from(register)<<8)|u16::from(value)
+}
+fn cmp_immediate(register:u8,value:u8)->u16 {
+    assert!(register<8);
+    0x2800|(u16::from(register)<<8)|u16::from(value)
+}
+fn lsls_immediate(dst:u8,src:u8,shift:u8)->u16 {
+    assert!(dst<8 && src<8 && shift<32);
+    (u16::from(shift)<<6)|(u16::from(src)<<3)|u16::from(dst)
+}
+fn ldm(base:u8,registers:u8)->u16 {
+    assert!(base<8 && registers!=0 && registers&(1u8<<base)==0);
+    0xc800|(u16::from(base)<<8)|u16::from(registers)
+}
+fn stm(base:u8,registers:u8)->u16 {
+    assert!(base<8 && registers!=0);
+    assert!(registers&(1u8<<base)==0 || registers.trailing_zeros()==u32::from(base));
+    0xc000|(u16::from(base)<<8)|u16::from(registers)
+}
+fn ldr_word(dst:u8,base:u8,offset:u8)->u16 {
+    assert!(dst<8 && base<8 && offset<=124 && offset%4==0);
+    0x6800|((u16::from(offset)>>2)<<6)|(u16::from(base)<<3)|u16::from(dst)
+}
+fn push(registers:u16)->u16 {
+    assert!(registers!=0 && registers&!0x40ff==0);
+    0xb400|((registers>>6)&0x100)|(registers&0xff)
+}
+fn pop(registers:u16)->u16 {
+    assert!(registers!=0 && registers&!0x80ff==0);
+    0xbc00|((registers>>7)&0x100)|(registers&0xff)
+}
+fn mov_register(dst:u8,src:u8)->u16 {
+    assert!(dst<15 && src<15);
+    0x4600|((u16::from(dst)&8)<<4)|(u16::from(src)<<3)|(u16::from(dst)&7)
+}
+fn mrs_special(dst:u8,kind:u8)->[u16;2] {
+    assert!(dst<13 && matches!(kind,8|9));
+    [0xf3ef,0x8000|(u16::from(dst)<<8)|u16::from(kind)]
+}
+fn wfi()->u16 { 0xbf30 }
 fn push16(out:&mut Vec<u8>,word:u16) { out.extend_from_slice(&word.to_le_bytes()); }
 fn push32(out:&mut Vec<u8>,words:[u16;2]) { for word in words { push16(out,word); } }
 
@@ -156,6 +221,69 @@ pub fn startup()->Vec<u8> {
     for address in [0x3c7cu32,0x3cbc] {
         out.extend_from_slice(&(address-0x434).to_le_bytes());
     }
+    assert_eq!(out.len(),0x43c-0x400);
+    push16(&mut out,subs_immediate(2,16));
+    push16(&mut out,it(Condition::Hs,ItBlock::Then));
+    push16(&mut out,ldm(0,0x78));
+    push16(&mut out,stm(1,0x78));
+    push16(&mut out,b_cond(Condition::Hi,0x444,0x43c));
+    push16(&mut out,lsls_immediate(2,2,29));
+    push16(&mut out,it(Condition::Hs,ItBlock::Then));
+    push16(&mut out,ldm(0,0x30));
+    push16(&mut out,stm(1,0x30));
+    push16(&mut out,it(Condition::Mi,ItBlock::Then));
+    push16(&mut out,ldr_word(4,0,0));
+    push16(&mut out,str_word(4,1,0));
+    push16(&mut out,bx(14));
+    assert_eq!(out.len(),0x456-0x400);
+    out.extend_from_slice(&0u16.to_le_bytes());
+    assert_eq!(out.len(),0x458-0x400);
+    for register in 3..=6 { push16(&mut out,movs_immediate(register,0)); }
+    push16(&mut out,subs_immediate(2,16));
+    push16(&mut out,it(Condition::Hs,ItBlock::One));
+    push16(&mut out,stm(1,0x78));
+    push16(&mut out,b_cond(Condition::Hi,0x466,0x460));
+    push16(&mut out,lsls_immediate(2,2,29));
+    push16(&mut out,it(Condition::Hs,ItBlock::One));
+    push16(&mut out,stm(1,0x30));
+    push16(&mut out,it(Condition::Mi,ItBlock::One));
+    push16(&mut out,str_word(3,1,0));
+    push16(&mut out,bx(14));
+    assert_eq!(out.len(),0x474-0x400);
+    push16(&mut out,cmp_immediate(1,100));
+    push32(&mut out,b_cond_w(Condition::Eq,0x476,0x6b0));
+    push16(&mut out,movs_immediate(0,0));
+    push16(&mut out,bx(14));
+    assert_eq!(out.len(),0x47e-0x400);
+    push16(&mut out,push(0x401f));
+    push32(&mut out,ldm_w(13,3,false));
+    push32(&mut out,bl(0x484,0x1020));
+    push32(&mut out,bl(0x488,0xa2c));
+    push16(&mut out,pop(0x801f));
+    assert_eq!(out.len(),0x48e-0x400);
+    push16(&mut out,push(0x4010));
+    push32(&mut out,bl(0x490,0xafe));
+    push16(&mut out,pop(0x8010));
+    assert_eq!(out.len(),0x496-0x400);
+    push32(&mut out,bl(0x496,0xba0));
+    push16(&mut out,mov_register(1,2));
+    push32(&mut out,bl(0x49c,0x47e));
+    push32(&mut out,bl(0x4a0,0x2c9c));
+    push32(&mut out,bl(0x4a4,0xf8c));
+    push16(&mut out,push(3));
+    push32(&mut out,bl(0x4aa,0x48e));
+    push16(&mut out,pop(3));
+    push32(&mut out,bl(0x4b0,0x2b24));
+    assert_eq!(out.len(),0x4b4-0x400);
+    push32(&mut out,tst_immediate_w(14,4));
+    push16(&mut out,it(Condition::Eq,ItBlock::Else));
+    push32(&mut out,mrs_special(0,8));
+    push32(&mut out,mrs_special(0,9));
+    push16(&mut out,mov_register(1,14));
+    push32(&mut out,bl(0x4c4,0x46c0));
+    push16(&mut out,wfi());
+    push16(&mut out,bx(14));
+    assert_eq!(out.len(),0x4cc-0x400);
     assert_eq!(out.len(),STARTUP_BYTES);
     out
 }
@@ -210,10 +338,64 @@ mod tests {
         assert_eq!(vector_table().len(),320);
         assert_eq!(spans().len(),7);
         assert_eq!(first_two_blocks().len(),400);
-        assert_eq!(startup().len(),60);
+        assert_eq!(startup().len(),204);
         assert_eq!(spans()[2].offset+16,416);
-        assert_eq!(spans()[2].data.len(),76);
-        assert_eq!(MODELLED_BYTES,540);
+        assert_eq!(spans()[2].data.len(),220);
+        assert_eq!(MODELLED_BYTES,684);
+    }
+
+    #[test]
+    fn startup_extension_encoding_and_bounds() {
+        assert_eq!(it(Condition::Hs,ItBlock::Then),0xbf24);
+        assert_eq!(it(Condition::Eq,ItBlock::Else),0xbf0c);
+        assert_eq!(b_cond_w(Condition::Eq,0x476,0x6b0),[0xf000,0x811b]);
+        assert_eq!(b_cond_w(Condition::Eq,0x100000,4),[0xf400,0x8000]);
+        assert_eq!(b_cond_w(Condition::Eq,0,0x100002),[0xf03f,0xafff]);
+        assert_eq!(subs_immediate(2,16),0x3a10);
+        assert_eq!(movs_immediate(3,0),0x2300);
+        assert_eq!(lsls_immediate(2,2,29),0x0752);
+        assert_eq!(ldm(0,0x78),0xc878);
+        assert_eq!(stm(1,0x78),0xc178);
+        assert_eq!(push(0x401f),0xb51f);
+        assert_eq!(pop(0x801f),0xbd1f);
+        assert_eq!(mrs_special(0,8),[0xf3ef,0x8008]);
+        assert_eq!(mrs_special(0,9),[0xf3ef,0x8009]);
+        assert_eq!(startup()[0x56..0x58],[0,0]);
+        assert_eq!(0x400+startup().len(),0x4cc);
+        assert_eq!(spans()[2].offset+spans()[2].data.len(),0x4cc-0x260);
+        for encode in [
+            || { b_cond(Condition::Hi,1,4); },
+            || { b_cond(Condition::Hi,0,260); },
+            || { b_cond_w(Condition::Eq,0,0x100004); },
+            || { b_cond_w(Condition::Eq,0x100002,4); },
+            || { b_cond_w(Condition::Eq,0,5); },
+            || { subs_immediate(8,0); },
+            || { movs_immediate(8,0); },
+            || { cmp_immediate(8,0); },
+            || { lsls_immediate(8,0,0); },
+            || { lsls_immediate(0,8,0); },
+            || { lsls_immediate(0,0,32); },
+            || { ldm(8,1); },
+            || { ldm(0,0); },
+            || { ldm(0,1); },
+            || { stm(8,1); },
+            || { stm(0,0); },
+            || { stm(1,3); },
+            || { ldr_word(8,0,0); },
+            || { ldr_word(0,8,0); },
+            || { ldr_word(0,0,126); },
+            || { ldr_word(0,0,2); },
+            || { push(0); },
+            || { push(0x8000); },
+            || { pop(0); },
+            || { pop(0x4000); },
+            || { mov_register(15,0); },
+            || { mov_register(0,15); },
+            || { mrs_special(13,8); },
+            || { mrs_special(0,7); },
+        ] {
+            assert!(std::panic::catch_unwind(encode).is_err());
+        }
     }
 
     #[test]

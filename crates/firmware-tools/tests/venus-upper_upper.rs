@@ -179,11 +179,11 @@ fn controller_continuation_bounds_and_control_flow() {
     use firmware_tools::devices::xiaomi_nabu::venus_upper_controller_continuation as continuation;
     let bytes = continuation::fragment().unwrap();
     assert_eq!(continuation::START, 0x68000);
-    assert_eq!(continuation::END, 0x68458);
+    assert_eq!(continuation::END, 0x68718);
     assert_eq!(continuation::FILE_MAPPING_DELTA, 0x4000);
-    assert_eq!(bytes.len(), 1112);
-    assert_eq!(bytes.len() / 4, 278);
-    assert_eq!(continuation::END - 0x68220, 568);
+    assert_eq!(bytes.len(), 1816);
+    assert_eq!(bytes.len() / 4, 454);
+    assert_eq!(continuation::END - 0x68458, 704);
     for (offset, expected) in [
         (0, arm32::branch(arm32::Condition::Al, 0x68000, 0x6800c, false).unwrap()),
         (28, arm32::branch_exchange_immediate(0x6801c, 0x83c4c).unwrap()),

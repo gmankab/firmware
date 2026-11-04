@@ -6,7 +6,7 @@ use arm32::{
 };
 
 pub const START: usize = 0x68000;
-pub const END: usize = 0x68458;
+pub const END: usize = 0x68718;
 pub const FILE_MAPPING_DELTA: usize = 0x4000;
 
 struct Code {
@@ -295,8 +295,209 @@ pub fn fragment() -> Result<Vec<u8>, String> {
     c.emit(data_immediate(C::Al, Op::Mov, R::R0, R::R0, 1)?)?;
     c.emit(branch(C::Al, c.at as u32, 0x2ec94, true)?)?;
 
+    c.emit(data_immediate(C::Al, Op::Mov, R::R0, R::R0, 0)?)?;
+    c.emit(data_immediate(C::Al, Op::Mov, R::R2, R::R0, 0x18)?)?;
+    for offset in [0x658, 0x65c] {
+        c.emit(transfer_word(C::Al, false, R::R0, r8, offset)?)?;
+    }
+    for offset in [0x634, 0x638, 0x63c] {
+        c.emit(transfer_word(C::Al, true, R::R1, r6, 0x174)?)?;
+        c.emit(transfer_word(C::Al, false, R::R1, r8, offset)?)?;
+        c.emit(transfer_word(C::Al, true, R::R1, r6, 0x1cc)?)?;
+        c.emit(transfer_word(C::Al, false, R::R1, r8, offset + 12)?)?;
+    }
+    for offset in [0xa0, 0x9e, 0xa2] {
+        c.emit(arm32::store_halfword(C::Al, R::R0, r8, offset)?)?;
+    }
+    c.emit(data_immediate(C::Al, Op::Add, R::R0, r8, 0x15c)?)?;
+    c.emit(data_immediate(C::Al, Op::Mov, R::R1, R::R0, 0)?)?;
+    c.emit(branch(C::Al, c.at as u32, 0x31ec, true)?)?;
+    c.emit(arm32::transfer_byte(C::Al, true, R::R0, r9, 0x8f8)?)?;
+    c.emit(arm32::transfer_byte(C::Al, false, R::R0, r8, 0x27d)?)?;
+    c.emit(transfer_word(C::Al, true, R::R0, r9, 0x408)?)?;
+    c.emit(transfer_word(C::Al, false, R::R0, r8, 0x280)?)?;
+    c.emit(transfer_word(C::Al, true, R::R0, r9, 0x18)?)?;
+    c.emit(arm32::transfer_byte(C::Al, false, R::R0, r8, 0x284)?)?;
+    c.emit(arm32::transfer_byte(C::Al, true, R::R0, r8, 0x25)?)?;
+    c.emit(data_immediate(C::Al, Op::Cmp, R::R0, R::R0, 1)?)?;
+    c.branch(C::Hi, 0x68500)?;
+    c.emit(transfer_word(C::Al, true, R::R0, r8, 0x70)?)?;
+    c.emit(transfer_word(C::Al, true, R::R2, R::SP, 0x38)?)?;
+    c.emit(data_immediate(C::Al, Op::Cmp, R::R0, R::R0, 0)?)?;
+    c.branch(C::Eq, 0x684f4)?;
+    c.emit(transfer_word(C::Al, true, R::R1, r8, 0x60)?)?;
+    c.emit(data_register(C::Al, Op::Add, R::R1, R::R1, R::R1, Shift::Lsl, 1, false)?)?;
+    c.emit(data_register(C::Al, Op::Cmp, R::R0, R::R0, R::R1, Shift::Lsl, 0, false)?)?;
+    c.emit(transfer_word(C::Cc, false, R::R1, r8, 0x70)?)?;
+    c.emit(data_immediate(C::Al, Op::Mov, R::R0, R::R0, 0)?)?;
+    c.emit(transfer_word(C::Al, false, R::R0, r8, 0x74)?)?;
+    c.branch(C::Al, 0x6853c)?;
+    c.emit(transfer_word(C::Al, true, R::R0, r8, 0x74)?)?;
+    c.emit(transfer_word(C::Al, true, R::R2, R::SP, 0x38)?)?;
+    c.emit(data_immediate(C::Al, Op::Cmp, R::R0, R::R0, 0)?)?;
+    c.branch(C::Eq, 0x68524)?;
+    c.emit(transfer_word(C::Al, true, R::R1, r8, 0x48)?)?;
+    c.emit(data_register(C::Al, Op::Add, R::R1, R::R1, R::R1, Shift::Lsl, 1, false)?)?;
+    c.emit(data_register(C::Al, Op::Cmp, R::R0, R::R0, R::R1, Shift::Lsr, 1, false)?)?;
+    c.emit(mov_shifted_register(C::Cc, R::R0, R::R1, Shift::Lsr, 1)?)?;
+    c.emit(transfer_word(C::Cc, false, R::R0, r8, 0x74)?)?;
+    c.emit(transfer_word(C::Al, true, R::R0, r8, 0x70)?)?;
+    c.emit(data_immediate(C::Al, Op::Cmp, R::R0, R::R0, 0)?)?;
+    c.branch(C::Eq, 0x6853c)?;
+    c.emit(transfer_word(C::Al, true, R::R1, r8, 0x48)?)?;
+    c.emit(data_register(C::Al, Op::Cmp, R::R0, R::R0, R::R1, Shift::Lsl, 0, false)?)?;
+    c.emit(transfer_word(C::Cc, false, R::R1, r8, 0x70)?)?;
+    c.emit(data_immediate(C::Al, Op::Mov, R::R1, R::R0, 0x234)?)?;
+    c.emit(data_immediate(C::Al, Op::Add, R::R0, r8, 0xa80)?)?;
+    c.emit(data_immediate(C::Al, Op::Add, R::R2, R::R2, 4)?)?;
+    c.emit(transfer_word(C::Al, false, R::R0, R::SP, 0x28)?)?;
+    c.emit(data_immediate(C::Al, Op::Orr, R::R1, R::R1, 0x1000)?)?;
+    c.emit(data_immediate(C::Al, Op::Mov, R::R0, R::R0, 0)?)?;
+    c.emit(arm32::transfer_word_register(C::Al, false, R::R0, r8, R::R1, Shift::Lsl, 0)?)?;
+    c.emit(data_immediate(C::Al, Op::Add, R::R1, r8, 0x23c)?)?;
+    c.emit(data_immediate(C::Al, Op::Add, R::R1, R::R1, 0x1000)?)?;
+    c.emit(arm32::transfer_word_postindexed(C::Al, true, r3, R::R2, 4)?)?;
+    c.emit(data_immediate(C::Al, Op::Add, R::R0, R::R0, 1)?)?;
+    c.emit(data_immediate(C::Al, Op::Cmp, R::R0, R::R0, 6)?)?;
+    c.emit(arm32::transfer_word_postindexed(C::Al, false, r3, R::R1, 4)?)?;
+    c.branch(C::Ne, 0x68560)?;
+    c.emit(transfer_word(C::Al, true, R::R0, r8, 0x5c)?)?;
+    c.emit(data_immediate(C::Al, Op::Mov, R::R1, R::R0, 0x258)?)?;
+    c.emit(data_immediate(C::Al, Op::Orr, R::R1, R::R1, 0x1000)?)?;
+    c.emit(arm32::transfer_word_register(C::Al, false, R::R0, r8, R::R1, Shift::Lsl, 0)?)?;
+    for (destination, source, value) in [
+        (0x260, 0x64, R::R12),
+        (0x264, 0x68, R::LR),
+        (0x254, 0x74, r3),
+        (0x25c, 0x70, r6),
+    ] {
+        c.emit(data_immediate(C::Al, Op::Mov, R::R0, R::R0, destination)?)?;
+        c.emit(transfer_word(C::Al, true, value, r8, source)?)?;
+        c.emit(data_immediate(C::Al, Op::Orr, R::R0, R::R0, 0x1000)?)?;
+        c.emit(arm32::transfer_word_register(C::Al, false, value, r8, R::R0, Shift::Lsl, 0)?)?;
+    }
+    c.emit(arm32::transfer_byte(C::Al, true, R::R0, r8, 0x25)?)?;
+    c.emit(data_immediate(C::Al, Op::Cmp, R::R0, R::R0, 6)?)?;
+    c.branch(C::Cc, 0x685ec)?;
+    c.emit(arm32::transfer_byte(C::Al, true, R::R1, r8, 0x89)?)?;
+    c.emit(data_immediate(C::Al, Op::Cmp, R::R0, R::R1, 1)?)?;
+    c.branch(C::Ne, 0x685f8)?;
+    c.emit(transfer_word(C::Al, true, R::R1, r8, 0)?)?;
+    c.emit(data_immediate(C::Al, Op::Cmp, R::R0, R::R1, 0x1000)?)?;
+    c.branch(C::Eq, 0x685f4)?;
+    c.branch(C::Al, 0x68600)?;
+    c.emit(data_immediate(C::Al, Op::Cmp, R::R0, R::R0, 5)?)?;
+    c.branch(C::Ne, 0x68608)?;
+    c.emit(arm32::transfer_byte(C::Al, true, R::R1, r8, 0x89)?)?;
+    c.emit(data_immediate(C::Al, Op::Cmp, R::R0, R::R1, 0)?)?;
+    c.branch(C::Ne, 0x68608)?;
+    c.emit(data_immediate(C::Al, Op::Mov, R::R0, R::R0, 3)?)?;
+    c.emit(arm32::transfer_byte(C::Al, false, R::R0, r8, 0x25)?)?;
+    c.emit(transfer_word(C::Al, true, R::R1, R::PC, 0xf98)?)?;
+    c.emit(transfer_word(C::Al, true, r7, R::PC, 0xf98)?)?;
+    c.emit(arm32::transfer_word_register(C::Al, true, R::R1, R::R1, R::R0, Shift::Lsl, 2)?)?;
+    c.emit(arm32::transfer_byte_register(C::Al, true, r7, r7, R::R0, Shift::Lsl, 0)?)?;
+    c.emit(transfer_word(C::Al, false, R::R1, r8, 0x2a0)?)?;
+    c.emit(transfer_word(C::Al, true, R::R1, R::PC, 0xff8)?)?;
+    c.emit(arm32::transfer_word_register(C::Al, true, R::R1, R::R1, R::R0, Shift::Lsl, 2)?)?;
+    c.emit(transfer_word(C::Al, false, R::R1, r8, 0x2a4)?)?;
+    c.emit(transfer_word(C::Al, true, R::R1, R::PC, 0xff0)?)?;
+    c.emit(arm32::transfer_byte_register(C::Al, true, R::R1, R::R1, R::R0, Shift::Lsl, 0)?)?;
+    for (value, offset) in [(R::R1, 0x2a8), (r7, 0x2a9), (R::R1, 0x2aa)] {
+        c.emit(arm32::transfer_byte(C::Al, false, value, r8, offset)?)?;
+    }
+    c.emit(transfer_word(C::Al, true, R::R1, R::PC, 0xfe0)?)?;
+    c.emit(arm32::transfer_byte_register(C::Al, true, r5, R::R1, R::R0, Shift::Lsl, 0)?)?;
+    c.emit(transfer_word(C::Al, true, R::R1, R::PC, 0xfdc)?)?;
+    c.emit(arm32::transfer_byte_register(C::Al, true, r7, R::R1, R::R0, Shift::Lsl, 0)?)?;
+    c.emit(arm32::transfer_byte(C::Al, false, r5, r8, 0x2ab)?)?;
+    c.emit(arm32::transfer_byte(C::Al, false, r7, r8, 0x2ac)?)?;
+    c.emit(transfer_word(C::Al, true, R::R1, r8, 0)?)?;
+    c.emit(data_immediate(C::Al, Op::Cmp, R::R0, R::R1, 0x1000)?)?;
+    c.branch(C::Ne, 0x6868c)?;
+    c.emit(data_immediate(C::Al, Op::Cmp, R::R0, R::R0, 3)?)?;
+    c.branch(C::Cc, 0x68674)?;
+    c.emit(mov_shifted_register(C::Al, r5, r5, Shift::Lsl, 1)?)?;
+    c.emit(mov_shifted_register(C::Al, r7, r7, Shift::Lsl, 1)?)?;
+    c.branch(C::Al, 0x68684)?;
+    c.emit(data_immediate(C::Al, Op::Cmp, R::R0, R::R0, 2)?)?;
+    c.branch(C::Eq, 0x6868c)?;
+    c.emit(data_immediate(C::Al, Op::Mov, r5, R::R0, 0x12)?)?;
+    c.emit(data_immediate(C::Al, Op::Mov, r7, R::R0, 4)?)?;
+    c.emit(arm32::transfer_byte(C::Al, false, r5, r8, 0x2ab)?)?;
+    c.emit(arm32::transfer_byte(C::Al, false, r7, r8, 0x2ac)?)?;
+    c.emit(transfer_word(C::Al, true, r4, R::PC, 0xf98)?)?;
+    c.emit(mov_register(C::Al, r10, r8))?;
+    c.emit(data_immediate(C::Al, Op::Cmp, R::R0, r6, 0)?)?;
+    c.emit(arm32::transfer_byte_register(C::Al, true, r4, r4, R::R0, Shift::Lsl, 0)?)?;
+    c.emit(arm32::transfer_byte(C::Al, false, r4, r8, 0x2ad)?)?;
+    c.emit(data_immediate(C::Al, Op::Mov, r4, R::R0, 0)?)?;
+    c.emit(arm32::transfer_word_preindexed_writeback(C::Al, false, r4, r10, 0x758)?)?;
+    c.emit(transfer_word(C::Al, false, r4, r10, 4)?)?;
+    c.emit(transfer_word(C::Al, true, r4, r10, -0x710)?)?;
+    c.branch(C::Eq, 0x686dc)?;
+    c.emit(data_register(C::Al, Op::Cmp, R::R0, r3, r4, Shift::Lsl, 0, false)?)?;
+    c.branch(C::Ls, 0x686f4)?;
+    c.emit(data_register(C::Al, Op::Sub, R::R0, r3, r4, Shift::Lsl, 0, false)?)?;
+    c.emit(data_immediate(C::Al, Op::Mov, R::R2, R::R0, 0)?)?;
+    c.emit(data_register(C::Al, Op::Sub, r4, r3, r4, Shift::Lsl, 0, true)?)?;
+    c.emit(data_immediate(C::Al, Op::Sbc, r3, R::R2, 0)?)?;
+    c.emit(data_register(C::Al, Op::Cmp, R::R0, R::R0, r6, Shift::Lsl, 0, false)?)?;
+    c.emit(mov_register(C::Cs, r3, R::R2))?;
+    c.emit(mov_register(C::Cc, r6, r4))?;
+    c.branch(C::Al, 0x68710)?;
+    c.emit(data_register(C::Al, Op::Cmp, R::R0, r3, r4, Shift::Lsl, 0, false)?)?;
+    c.branch(C::Ls, 0x686fc)?;
+    c.emit(data_immediate(C::Al, Op::Mov, R::R0, R::R0, 0)?)?;
+    c.emit(data_register(C::Al, Op::Sub, r6, r3, r4, Shift::Lsl, 0, true)?)?;
+    c.emit(data_immediate(C::Al, Op::Sbc, r3, R::R0, 0)?)?;
+    c.branch(C::Al, 0x68710)?;
+    c.emit(data_immediate(C::Al, Op::Mov, r3, R::R0, 0)?)?;
+    c.branch(C::Al, 0x68710)?;
+    c.emit(data_immediate(C::Al, Op::Cmp, R::R0, R::R0, 1)?)?;
+    c.branch(C::Hi, 0x68718)?;
+    c.emit(data_immediate(C::Al, Op::Mov, R::R0, R::R0, 0)?)?;
+    c.emit(data_register(C::Al, Op::Mov, r3, R::R0, R::R0, Shift::Lsr, 1, true)?)?;
+    c.emit(arm32::rotate_right_with_extend(C::Al, r6, r4, false)?)?;
+    c.emit(transfer_word(C::Al, false, r6, r10, 0)?)?;
+    c.emit(transfer_word(C::Al, false, r3, r10, 4)?)?;
+
     if c.at != END {
         return Err(format!("controller continuation ended at 0x{:x}, expected 0x{END:x}", c.at));
     }
     Ok(c.bytes)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn appended_controller_extent_and_carry_chain() {
+        let bytes = fragment().unwrap();
+        assert_eq!(END, 0x68718);
+        assert_eq!(bytes.len(), END - START);
+        assert_eq!(END - 0x68458, 704);
+        let instruction = |at: usize| {
+            u32::from_le_bytes(bytes[at - START..at - START + 4].try_into().unwrap())
+        };
+        assert_eq!(instruction(0x68708), data_register(
+            C::Al, Op::Mov, R::new(3).unwrap(), R::R0, R::R0, Shift::Lsr, 1, true,
+        ).unwrap());
+        assert_eq!(instruction(0x6870c), arm32::rotate_right_with_extend(
+            C::Al, R::new(6).unwrap(), R::new(4).unwrap(), false,
+        ).unwrap());
+    }
+
+    #[test]
+    fn appended_controller_matches_optional_canonical_reference() {
+        let Some(path) = std::env::var_os("VENUS_REFERENCE") else { return };
+        let reference = std::fs::read(path).unwrap();
+        assert_eq!(crate::wmfw_sha256::hex_digest(&reference),
+            "9d4af65d7ede845e900f1b29ff425b7a8e2947056e695e246e58a2091445a085");
+        let bytes = fragment().unwrap();
+        assert_eq!(&bytes[..], &reference[START + FILE_MAPPING_DELTA..END + FILE_MAPPING_DELTA]);
+        assert_eq!(&bytes[0x68458 - START..],
+            &reference[0x68458 + FILE_MAPPING_DELTA..END + FILE_MAPPING_DELTA]);
+    }
 }

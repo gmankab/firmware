@@ -12,6 +12,12 @@ pub mod a640_gmu_prefix;
 pub mod venus_upper_dispatch;
 #[path = "venus/upper/venus_upper_controller_continuation.rs"]
 pub mod venus_upper_controller_continuation;
+#[path = "venus/upper/venus_upper_controller_parameters.rs"]
+pub mod venus_upper_controller_parameters;
+#[path = "venus/upper/venus_upper_controller_type_selection.rs"]
+pub mod venus_upper_controller_type_selection;
+#[path = "venus/upper/venus_upper_controller_aggregate.rs"]
+pub mod venus_upper_controller_aggregate;
 #[path = "cirrus/coeff_profiles.rs"]
 pub mod cirrus_coeff_profiles;
 #[path = "a640/a640_shader.rs"]

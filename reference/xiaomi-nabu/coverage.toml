@@ -32,7 +32,7 @@ external_authentication_bytes = 6400
 name = "venus.mbn"
 size = 1159200
 sha256 = "9d4af65d7ede845e900f1b29ff425b7a8e2947056e695e246e58a2091445a085"
-credit_bytes = 533696
+credit_bytes = 536844
 credit_kind = "reported_source_and_literal_data"
 
 [images.executable_load]
@@ -71,7 +71,7 @@ label = "middle runtime"
 
 [[images.regions]]
 start = 0x40000
-end = 0x68458
+end = 0x690a4
 provenance = "reported_reconstructed"
 label = "controller"
 
@@ -194,9 +194,9 @@ credit_kind = "unreconstructed"
 name = "a640_gmu.bin"
 size = 37680
 sha256 = "3ff0c02708bbe78641db887fa62f3a7f9337934d0c2ce0b961ef7c43172591d2"
-credit_bytes = 540
+credit_bytes = 684
 credit_kind = "typed_gmu_load_headers_reset_vectors_startup"
-external_gmu_payload_bytes = 37140
+external_gmu_payload_bytes = 36996
 
 [[images]]
 name = "board-2.bin"
