@@ -32,6 +32,14 @@ pub mod venus_upper_weighted_metrics;
 pub mod venus_upper_frame_distortion;
 #[path = "venus/upper/venus_upper_ring_ingestion.rs"]
 pub mod venus_upper_ring_ingestion;
+#[path = "venus/upper/venus_upper_update_entry.rs"]
+pub mod venus_upper_update_entry;
+#[path = "venus/upper/venus_upper_allocation_transition.rs"]
+pub mod venus_upper_allocation_transition;
+#[path = "venus/upper/venus_upper_state_smoothing.rs"]
+pub mod venus_upper_state_smoothing;
+#[path = "venus/upper/venus_upper_indexed_transition.rs"]
+pub mod venus_upper_indexed_transition;
 #[path = "cirrus/coeff_profiles.rs"]
 pub mod cirrus_coeff_profiles;
 #[path = "a640/a640_shader.rs"]

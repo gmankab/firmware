@@ -81,7 +81,7 @@ pub fn full_file() -> Result<ImagePlan, String> {
     use super::{venus_runtime_bridge, venus_runtime_forward, venus_runtime_seam,
         venus_runtime_late, venus_runtime_mid, venus_upper_dispatch, venus_upper_controller_continuation, venus_upper_controller_parameters,
         venus_upper_controller_type_selection, venus_upper_controller_aggregate,
-        venus_upper_controller_budget_entry, venus_upper_controller_budget_records, venus_upper_controller_thresholds, venus_upper_controller_epilogue, venus_upper_weighted_metrics, venus_upper_frame_distortion, venus_upper_ring_ingestion, venus_tail_program};
+        venus_upper_controller_budget_entry, venus_upper_controller_budget_records, venus_upper_controller_thresholds, venus_upper_controller_epilogue, venus_upper_weighted_metrics, venus_upper_frame_distortion, venus_upper_ring_ingestion, venus_upper_update_entry, venus_upper_allocation_transition, venus_upper_state_smoothing, venus_upper_indexed_transition, venus_tail_program};
     let size = crate::firmware_manifest_identity::canonical_image("venus.mbn")?.size;
     let mut plan = ImagePlan::new(size)?;
     plan.place("venus_boot", venus_boot::FILE_OFFSET, &venus_boot::first_page()?)?;
@@ -128,6 +128,10 @@ pub fn full_file() -> Result<ImagePlan, String> {
     place!(venus_upper_weighted_metrics, venus_upper_weighted_metrics::START);
     place!(venus_upper_frame_distortion, venus_upper_frame_distortion::START);
     place!(venus_upper_ring_ingestion, venus_upper_ring_ingestion::START);
+    place!(venus_upper_update_entry, venus_upper_update_entry::START);
+    place!(venus_upper_allocation_transition, venus_upper_allocation_transition::START);
+    place!(venus_upper_state_smoothing, venus_upper_state_smoothing::START);
+    place!(venus_upper_indexed_transition, venus_upper_indexed_transition::START);
     place!(venus_tail_program, venus_tail_program::START);
     Ok(plan)
 }
@@ -160,7 +164,7 @@ mod tests {
             expected[span].fill(true);
             groups += 1;
         }
-        assert_eq!(groups, 12);
+        assert_eq!(groups, 13);
         let mut actual = vec![false; plan.total_bytes()];
         for region in plan.regions() {
             assert_eq!(region.origin, crate::image_plan::RegionOrigin::Generated);
@@ -169,7 +173,7 @@ mod tests {
             actual[span].fill(true);
         }
         let credit = field(record, "credit_bytes").unwrap().parse::<usize>().unwrap();
-        assert_eq!(credit, 542780);
+        assert_eq!(credit, 546832);
         assert_eq!(expected.iter().filter(|&&filled| filled).count(), credit);
 
         assert_eq!(actual.iter().zip(&expected).position(|(a, b)| a != b), None);
