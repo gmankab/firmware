@@ -4,6 +4,7 @@
 from __future__ import annotations
 import argparse
 import hashlib
+import filecmp
 import json
 import os
 from pathlib import Path
@@ -16,6 +17,61 @@ if __package__ in (None, ""):
 
 from tools.build.firmware_coverage import (DEFAULT_MANIFEST,PROJECT_ROOT,CoverageError,
     holes,image_for,load,status,verify_generated_region,verify_reference)
+
+
+def build_source(ledger: dict, name: str, output: Path, firmware_tools: str) -> None:
+    image=image_for(ledger,name)
+    if not image.get("complete_source",False):
+        raise CoverageError(f"{name}: full independent source build unavailable; refusing to substitute original bytes")
+    commands={"modemuw.jsn": ["rebuild-modemuw"],
+              "firmware-5.bin": ["rebuild-ath10k-metadata"]}
+    for speaker in ('BL','BR','TL','TR'):
+        commands[f'{speaker}-cs35l41-dsp1-spk-prot.bin']=['rebuild-cirrus-tuning',speaker]
+    cmd=commands.get(name)
+    if cmd is None:
+        raise CoverageError(f"{name}: complete-source builder not implemented")
+    output.parent.mkdir(parents=True, exist_ok=True)
+    with tempfile.NamedTemporaryFile(dir=output.parent,
+            prefix=f'.{output.name}.', delete=False) as handle:
+        staged=Path(handle.name)
+    try:
+        subprocess.run([firmware_tools,*cmd,str(staged)],check=True)
+        size=staged.stat().st_size
+        with staged.open('rb') as stream:
+            digest=hashlib.file_digest(stream,'sha256').hexdigest()
+        if size!=image['size'] or digest!=image['sha256']:
+            raise CoverageError(f'{name}: generated size/SHA-256 differs from pinned reference')
+        os.replace(staged,output)
+    finally:
+        staged.unlink(missing_ok=True)
+
+
+def verify_reproducible(ledger: dict) -> None:
+    images=[image for image in ledger['images'] if image.get('complete_source',False)]
+    if len(images)!=6:
+        raise CoverageError(f"expected six complete-source images, found {len(images)}")
+    with tempfile.TemporaryDirectory(prefix='firmware-reproducible-') as directory:
+        root=Path(directory)
+        for attempt in ('first','second'):
+            target=root/attempt/'target'
+            env=os.environ.copy()
+            env['CARGO_TARGET_DIR']=str(target)
+            env['CARGO_INCREMENTAL']='0'
+            for key in ('RUSTC_WRAPPER','RUSTC_WORKSPACE_WRAPPER','CARGO_BUILD_TARGET'):
+                env.pop(key,None)
+            subprocess.run(['cargo','build','--package','firmware-tools',
+                            '--bin','firmware-tools','--offline','--locked',
+                            '--jobs','1','--target-dir',str(target)],
+                           cwd=PROJECT_ROOT,env=env,check=True)
+            for image in images:
+                build_source(ledger,image['name'],root/attempt/image['name'],
+                             str(target/'debug'/'firmware-tools'))
+        for image in images:
+            name=image['name']
+            if not filecmp.cmp(root/'first'/name,root/'second'/name,shallow=False):
+                raise CoverageError(f'{name}: independent build outputs differ')
+    print('verified six complete-source images from two fresh isolated Cargo builds '
+          '(same current toolchain)')
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -39,6 +95,7 @@ def main(argv: list[str] | None = None) -> int:
     build=sub.add_parser("build",help="build only a fully independent supported reference file")
     build.add_argument("image");build.add_argument("--output",type=Path,required=True)
     build.add_argument("--firmware-tools",default="firmware-tools",help="path to the existing Rust CLI binary")
+    sub.add_parser("verify-reproducible",help="verify six complete-source images with two fresh isolated Cargo builds (same current toolchain)")
     args=parser.parse_args(argv)
     try:
         ledger=load(args.manifest)
@@ -82,33 +139,10 @@ def main(argv: list[str] | None = None) -> int:
                 print("firmware status document matches pinned coverage manifest")
             elif args.write:status_path.write_text(output);print(f"updated {status_path}")
             else:print(output,end="")
+        elif args.action=="verify-reproducible":
+            verify_reproducible(ledger)
         elif args.action=="build":
-            image=image_for(ledger,args.image)
-            if not image.get("complete_source",False):
-                raise CoverageError(f"{args.image}: full independent source build unavailable; refusing to substitute original bytes")
-            commands={"modemuw.jsn": ["rebuild-modemuw"],
-                      "firmware-5.bin": ["rebuild-ath10k-metadata"]}
-            for speaker in ('BL','BR','TL','TR'):
-                commands[f'{speaker}-cs35l41-dsp1-spk-prot.bin']=['rebuild-cirrus-tuning',speaker]
-            cmd=commands.get(args.image)
-            if cmd is None:
-                raise CoverageError(f"{args.image}: complete-source builder not implemented")
-            args.output.parent.mkdir(parents=True, exist_ok=True)
-            # Build next to the destination, verify, then replace it atomically.
-            # A failing builder must not overwrite a previously valid output.
-            with tempfile.NamedTemporaryFile(dir=args.output.parent,
-                    prefix=f'.{args.output.name}.', delete=False) as handle:
-                staged=Path(handle.name)
-            try:
-                subprocess.run([args.firmware_tools,*cmd,str(staged)],check=True)
-                size=staged.stat().st_size
-                with staged.open('rb') as stream:
-                    digest=hashlib.file_digest(stream,'sha256').hexdigest()
-                if size!=image['size'] or digest!=image['sha256']:
-                    raise CoverageError(f'{args.image}: generated size/SHA-256 differs from pinned reference')
-                os.replace(staged,args.output)
-            finally:
-                staged.unlink(missing_ok=True)
+            build_source(ledger,args.image,args.output,args.firmware_tools)
         return 0
     except (CoverageError,OSError,subprocess.CalledProcessError) as e:
         print(f"firmware: {e}",file=sys.stderr)

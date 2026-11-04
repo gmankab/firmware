@@ -32,6 +32,15 @@ class ToolOrganizationTests(unittest.TestCase):
                 self.assertEqual(subprocess.run(['bash','-n',str(p)],capture_output=True).returncode,0)
                 self.assertEqual(subprocess.run(['bash',str(p)],capture_output=True,timeout=3).returncode,2)
 
+    def test_full_gate_requires_isolated_source_builds(self):
+        script = (ROOT / 'tools/check-local.sh').read_text()
+        full_gate = script.split('if [[ "${1:-}" == \'--full\' ]]; then', 1)[1].split('\nfi', 1)[0]
+        self.assertIn('python3 -m tools.firmware verify-reproducible', full_gate)
+        self.assertLess(script.index('./tools/low-memory-build.sh build'),
+                        script.index('FIRMWARE_TOOLS_INTEGRATION=1'))
+        self.assertLess(script.index('FIRMWARE_TOOLS_INTEGRATION=1'),
+                        script.index('python3 -m unittest discover'))
+
     def test_verifiers_resolve_workspace_from_another_directory(self):
         scripts = ('venus/verify-venus-controller-complete.sh', 'venus/venus-bridge-verify-full-gap.sh',
                    'halo/verify-halo-pm.sh')

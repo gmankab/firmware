@@ -12,9 +12,16 @@ if git ls-files | grep -Ei '(^|/)[^/]*agent[^/]*($|/)' >/dev/null; then
     exit 1
 fi
 python3 -m tools.firmware status --check
-python3 -m unittest discover -s tests -p 'test_*.py'
+./tools/low-memory-build.sh build
+TARGET_DIR="${CARGO_TARGET_DIR:-$PWD/target}"
+if [[ "$TARGET_DIR" != /* ]]; then
+    TARGET_DIR="$PWD/$TARGET_DIR"
+fi
+FIRMWARE_TOOLS_BIN="$TARGET_DIR/debug/firmware-tools" FIRMWARE_TOOLS_INTEGRATION=1 \
+    python3 -m unittest discover -s tests -p 'test_*.py'
 if [[ "${1:-}" == '--full' ]]; then
     ./tools/low-memory-build.sh test
     ./tools/low-memory-build.sh release
+    python3 -m tools.firmware verify-reproducible
 fi
 printf '%s\n' 'Local quality gate passed.'

@@ -21,10 +21,48 @@ class FirmwareCoverageTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):cls.data=load()
 
+    def _firmware_tools_binary(self):
+        supplied = os.environ.get('FIRMWARE_TOOLS_BIN')
+        if not supplied:
+            message = ('set FIRMWARE_TOOLS_BIN to a freshly built firmware-tools executable '
+                       '(tools/check-local.sh builds once and enables '
+                       'FIRMWARE_TOOLS_INTEGRATION=1); no cached target binary is used')
+            if os.environ.get('FIRMWARE_TOOLS_INTEGRATION') == '1':
+                self.fail(message)
+            self.skipTest(message)
+        executable = Path(supplied).resolve()
+        self.assertTrue(executable.is_file() and os.access(executable, os.X_OK),
+                        f'FIRMWARE_TOOLS_BIN must be an executable file: {executable}')
+        return executable
+
+    def test_real_builder_requires_explicit_binary(self):
+        with mock.patch.dict(os.environ, {}, clear=True):
+            with self.assertRaisesRegex(unittest.SkipTest, 'freshly built'):
+                self._firmware_tools_binary()
+
+    def test_strict_integration_requires_binary(self):
+        with mock.patch.dict(os.environ, {'FIRMWARE_TOOLS_INTEGRATION': '1'}, clear=True):
+            with self.assertRaisesRegex(AssertionError, 'FIRMWARE_TOOLS_BIN'):
+                self._firmware_tools_binary()
+
+    def test_real_builder_rejects_invalid_explicit_binary(self):
+        with tempfile.TemporaryDirectory() as directory:
+            nonexecutable = Path(directory) / 'not-executable'
+            nonexecutable.write_text('not an executable')
+            for path in (Path(directory), Path(directory) / 'missing', nonexecutable):
+                with self.subTest(path=path), mock.patch.dict(
+                        os.environ, {'FIRMWARE_TOOLS_BIN': str(path)}, clear=True):
+                    with self.assertRaisesRegex(AssertionError, 'executable file'):
+                        self._firmware_tools_binary()
+
+    def test_real_builder_resolves_explicit_binary(self):
+        with mock.patch.dict(os.environ, {'FIRMWARE_TOOLS_BIN': sys.executable}, clear=True):
+            self.assertEqual(self._firmware_tools_binary(), Path(sys.executable).resolve())
+
     def test_pinned_revision_records(self):
         self.assertEqual(len(self.data['images']),19)
         self.assertEqual(sum(i['size'] for i in self.data['images']),35409209)
-        self.assertEqual(sum(i['credit_bytes'] for i in self.data['images']),841458)
+        self.assertEqual(sum(i['credit_bytes'] for i in self.data['images']),842026)
 
     def test_gmu_reset_prefix_is_not_entire_firmware(self):
         image=next(x for x in self.data['images'] if x['name']=='a640_gmu.bin')
@@ -96,13 +134,13 @@ class FirmwareCoverageTests(unittest.TestCase):
         self.assertIn({'start':0x69e44,'end':0x6ac0c,
                        'provenance':'reported_reconstructed',
                        'label':'upper controller dispatch, record copies and service buffer setup (incomplete)'},venus['regions'])
-        self.assertEqual(venus['credit_bytes'],533128)
+        self.assertEqual(venus['credit_bytes'],533696)
 
     def test_explicit_venus_gap_partition(self):
         venus=next(x for x in self.data['images'] if x['name']=='venus.mbn')
         gaps=holes(venus['regions'],0,venus['executable_load']['runtime_end'])
         self.assertEqual(len(gaps),6)
-        self.assertEqual(sum(g['bytes'] for g in gaps),526188)
+        self.assertEqual(sum(g['bytes'] for g in gaps),525620)
         self.assertEqual((gaps[0]['start'],gaps[0]['end']),(0xaa0c,0x12e5c))
 
     def test_overlap_and_out_of_bounds_fails_closed(self):
@@ -236,9 +274,7 @@ class FirmwareCoverageTests(unittest.TestCase):
                 verify_generated_region(fixture,'image.bin',reference,generated,37)
 
     def test_all_complete_source_builds_match_pinned_hashes_reproducibly(self):
-        executable = ROOT / 'target/debug/firmware-tools'
-        if not executable.is_file():
-            self.skipTest('build firmware-tools before real-builder integration tests')
+        executable = self._firmware_tools_binary()
         with tempfile.TemporaryDirectory() as directory:
             for image in self.data['images']:
                 if not image.get('complete_source', False):
@@ -259,9 +295,7 @@ class FirmwareCoverageTests(unittest.TestCase):
                     self.assertEqual(*outputs)
 
     def test_venus_sparse_cli_rejects_wrong_reference(self):
-        executable = ROOT / 'target/debug/firmware-tools'
-        if not executable.is_file():
-            self.skipTest('build firmware-tools before real-builder integration tests')
+        executable = self._firmware_tools_binary()
         image = next(x for x in self.data['images'] if x['name'] == 'venus.mbn')
         with tempfile.TemporaryDirectory() as directory:
             reference = Path(directory) / 'venus.mbn'
@@ -278,12 +312,10 @@ class FirmwareCoverageTests(unittest.TestCase):
             self.assertEqual(list(Path(directory).iterdir()), [reference])
 
     def test_venus_sparse_cli_matches_optional_pinned_reference(self):
+        executable = self._firmware_tools_binary()
         reference = os.environ.get('NABU_VENUS_REFERENCE') or os.environ.get('VENUS_REFERENCE')
         if reference is None:
             self.skipTest('set NABU_VENUS_REFERENCE to test pinned Venus sparse verification')
-        executable = ROOT / 'target/debug/firmware-tools'
-        if not executable.is_file():
-            self.skipTest('build firmware-tools before real-builder integration tests')
         image = next(x for x in self.data['images'] if x['name'] == 'venus.mbn')
         content = Path(reference).read_bytes()
         with tempfile.TemporaryDirectory() as directory:
