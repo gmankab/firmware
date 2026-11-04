@@ -14,6 +14,14 @@ const CALLBACK_COMPARE: u32 = 0x0000_d2a8;
 const DIAGNOSTIC_ADDRESS: u32 = 0x000e_37d7;
 const COOKIE_TABLE: u32 = 0x0010_3ae8;
 const FAILURE_CALLBACK_SLOT: u32 = 0x0010_3ba4;
+const DATA_WORDS: [(usize, u32); 6] = [
+    (0xb284, CALLBACK_COMPARE),
+    (0xb288, DIAGNOSTIC_ADDRESS),
+    (0xb874, DIAGNOSTIC_ADDRESS),
+    (0xb878, CALLBACK_COMPARE),
+    (0xb87c, COOKIE_TABLE),
+    (0xb880, FAILURE_CALLBACK_SLOT),
+];
 
 fn r(number: u8) -> R {
     R::new(number).expect("A32 register")
@@ -44,8 +52,8 @@ impl Code {
     }
 
     fn data(&mut self, expected: usize, value: u32) -> Result<(), String> {
-        if !matches!(expected, 0xb284 | 0xb288 | 0xb874 | 0xb878 | 0xb87c | 0xb880) {
-            return Err(format!("heap allocation data outside pool: {expected:#x}"));
+        if !DATA_WORDS.contains(&(expected, value)) {
+            return Err(format!("heap allocation invalid data pair: {expected:#x} = {value:#x}"));
         }
         self.check(expected)?;
         self.bytes.extend_from_slice(&value.to_le_bytes());
@@ -539,6 +547,56 @@ mod tests {
             let mut c = Code { at, bytes: Vec::new() };
             assert!(c.emit(data_immediate(C::Al, Op::Mov, R::R0, R::R0, 0).unwrap()).is_err());
             assert!(c.bytes.is_empty());
+        }
+    }
+
+    #[test]
+    fn data_requires_exact_address_value_pairs() {
+        for (at, value) in DATA_WORDS {
+            for wrong in [value ^ 1, 0, u32::MAX, CALLBACK_COMPARE,
+                DIAGNOSTIC_ADDRESS, COOKIE_TABLE, FAILURE_CALLBACK_SLOT]
+                .into_iter().filter(|wrong| *wrong != value)
+            {
+                let mut c = Code { at, bytes: Vec::new() };
+                assert!(c.data(at, wrong).is_err());
+                assert_eq!(c.at, at);
+                assert!(c.bytes.is_empty());
+            }
+            let mut c = Code { at, bytes: Vec::new() };
+            assert!(c.data(at + 1, value).is_err());
+            assert_eq!(c.at, at);
+            assert!(c.bytes.is_empty());
+            let mut misplaced = Code { at: at + 4, bytes: Vec::new() };
+            assert!(misplaced.data(at, value).is_err());
+            assert_eq!(misplaced.at, at + 4);
+            assert!(misplaced.bytes.is_empty());
+            c.data(at, value).unwrap();
+            assert_eq!(c.at, at + 4);
+            assert_eq!(c.bytes, value.to_le_bytes());
+        }
+    }
+
+    #[test]
+    fn register_blx_sites_and_flag_consumers() {
+        let bytes = fragment().unwrap();
+        for (at, word) in [
+            (0xb388, 0xe12f_ff31u32),
+            (0xb3a8, 0xe12f_ff31),
+            (0xb3bc, 0xe12f_ff34),
+            (0xb3d0, 0xe12f_ff31),
+            (0xb3e8, 0xe12f_ff31),
+            (0xb3fc, 0xe12f_ff31),
+            (0xb824, 0xe12f_ff31),
+            (0xb860, 0xe12f_ff32),
+            (0xb7e0, 0xe212_200f),
+            (0xb7e4, 0x1aff_ffd8),
+            (0xb804, 0xe254_4001),
+            (0xb808, 0xcaff_ffb7),
+            (0xb828, 0xe258_8001),
+            (0xb82c, 0x0a00_0003),
+        ] {
+            assert_eq!(&bytes[at - START..at - START + 4], &word.to_le_bytes(),
+                "instruction at {at:#x}");
         }
     }
 

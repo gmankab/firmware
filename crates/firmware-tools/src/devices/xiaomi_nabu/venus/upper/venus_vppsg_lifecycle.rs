@@ -42,8 +42,16 @@ impl TypedA32 {
     }
 
     fn word(&mut self, value: u32, data: bool) -> Result<(), String> {
-        let protected = matches!(self.at, CONTEXT_TABLE_SLOT | SOURCE_SLOT | DESTROY_FORMAT_SLOT | NEWLINE_SLOT);
-        if !(START..END).contains(&self.at) || self.at % 4 != 0 || protected != data {
+        let expected = match self.at {
+            CONTEXT_TABLE_SLOT => Some(CONTEXT_TABLE),
+            SOURCE_SLOT => Some(SOURCE),
+            DESTROY_FORMAT_SLOT => Some(DESTROY_FORMAT),
+            NEWLINE_SLOT => Some(NEWLINE),
+            _ => None,
+        };
+        if !(START..END).contains(&self.at) || self.at % 4 != 0
+            || if data { expected != Some(value) } else { expected.is_some() }
+        {
             return Err(format!("invalid VppSg {} address {:#x}", if data { "data" } else { "code" }, self.at));
         }
         self.bytes.extend_from_slice(&value.to_le_bytes());
@@ -215,12 +223,59 @@ mod tests {
             let data = matches!(at, CONTEXT_TABLE_SLOT | SOURCE_SLOT | DESTROY_FORMAT_SLOT | NEWLINE_SLOT);
             let mut c = TypedA32 { at, bytes: Vec::new() };
             assert_eq!(c.emit(bx(C::Al, R::LR)).is_err(), data);
-            let mut c = TypedA32 { at, bytes: Vec::new() };
-            assert_eq!(c.literal_data(at, CONTEXT_TABLE).is_ok(), data);
+            for (slot, value) in [
+                (CONTEXT_TABLE_SLOT, CONTEXT_TABLE),
+                (SOURCE_SLOT, SOURCE),
+                (DESTROY_FORMAT_SLOT, DESTROY_FORMAT),
+                (NEWLINE_SLOT, NEWLINE),
+            ] {
+                let mut c = TypedA32 { at, bytes: Vec::new() };
+                assert_eq!(c.literal_data(at, value).is_ok(), at == slot);
+                if at == slot {
+                    assert_eq!(c.at, at + 4);
+                    assert_eq!(c.bytes, value.to_le_bytes());
+                } else {
+                    assert_eq!(c.at, at);
+                    assert!(c.bytes.is_empty());
+                }
+                let mut c = TypedA32 { at, bytes: Vec::new() };
+                assert!(c.literal_data(at, value ^ 1).is_err());
+                assert_eq!(c.at, at);
+                assert!(c.bytes.is_empty());
+            }
         }
         let mut c = TypedA32 { at: END, bytes: Vec::new() };
         assert!(c.emit(bx(C::Al, R::LR)).is_err());
         assert!(c.literal_data(END, NEWLINE).is_err());
+    }
+
+    #[test]
+    fn ands_flags_and_consumers() {
+        for (condition, expected) in [(C::Al, 0xe21060ff), (C::Ne, 0x121060ff)] {
+            let mut c = TypedA32 { at: START, bytes: Vec::new() };
+            c.emit(data_immediate_with_flags(condition, Op::And, r(6), r(0), 0xff, true).unwrap()).unwrap();
+            assert_eq!(word(&c.bytes, START), expected);
+            assert_ne!(expected & (1 << 20), 0);
+            assert_eq!(data_immediate(condition, Op::And, r(6), r(0), 0xff).unwrap(), expected & !(1 << 20));
+        }
+        let bytes = fragment().unwrap();
+        assert_eq!(word(&bytes, 0x74b74), 0xe3500000);
+        assert_eq!(word(&bytes, 0x74b78), 0x15d403df);
+        assert_eq!(word(&bytes, 0x74b7c), 0x15d413e0);
+        assert_eq!(word(&bytes, 0x74b80), 0x10800001);
+        assert_eq!(word(&bytes, 0x74b84), 0x12800001);
+        assert_eq!(word(&bytes, 0x74b88), 0x121060ff);
+        assert_eq!(word(&bytes, 0x74b8c), branch(C::Eq, 0x74b8c, 0x74bac, false).unwrap());
+        assert_eq!(word(&bytes, 0x74ba4), 0xe1550006);
+        assert_eq!(word(&bytes, 0x74ba8), branch(C::Ne, 0x74ba8, 0x74b98, false).unwrap());
+        for (at, rd, slot) in [
+            (0x74ab8, 3, CONTEXT_TABLE_SLOT),
+            (0x74b18, 2, SOURCE_SLOT),
+            (0x74bb4, 1, DESTROY_FORMAT_SLOT),
+            (0x74bc8, 1, NEWLINE_SLOT),
+        ] {
+            assert_eq!(word(&bytes, at), transfer_word(C::Al, true, r(rd), R::PC, slot as i32 - at as i32 - 8).unwrap());
+        }
     }
 
     #[test]

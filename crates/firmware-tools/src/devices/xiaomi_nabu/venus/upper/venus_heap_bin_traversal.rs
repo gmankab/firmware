@@ -473,6 +473,19 @@ mod tests {
     }
 
     #[test]
+    fn unconditional_decrements_preserve_flags_until_consumers() {
+        let bytes = fragment().unwrap();
+        for (at, base, offset) in [(0xbbb4, r(1), 12), (0xbcb4, r(2), 60)] {
+            assert_eq!(word(&bytes, at), data_immediate_with_flags(
+                C::Al, Op::Sub, r(0), r(0), 1, true).unwrap());
+            assert_eq!(word(&bytes, at + 4), transfer_word(
+                C::Al, false, r(0), base, offset).unwrap());
+            assert_eq!(word(&bytes, at + 8), branch(
+                C::Ne, (at + 8) as u32, 0xbccc, false).unwrap());
+        }
+    }
+
+    #[test]
     fn optional_canonical_reference() {
         let Some(path) = std::env::var_os("NABU_VENUS_REFERENCE")
             .or_else(|| std::env::var_os("VENUS_REFERENCE")) else { return; };

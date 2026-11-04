@@ -195,6 +195,54 @@ mod tests {
         assert_eq!(bytes.len(), CODE_BYTES + DATA_BYTES);
     }
 
+    fn word(bytes: &[u8], at: usize) -> u32 {
+        u32::from_le_bytes(bytes[at - START..at - START + 4].try_into().unwrap())
+    }
+
+    #[test]
+    fn conditional_compare_chain() {
+        let bytes = fragment().unwrap();
+        for (at, expected) in [
+            (0x74c8c, data_immediate(C::Al, Op::Cmp, r(0), r(6), 0).unwrap()),
+            (0x74c90, transfer_word(C::Ne, true, r(0), r(5), 0x110).unwrap()),
+            (0x74c94, data_immediate(C::Ne, Op::Cmp, r(0), r(0), 0).unwrap()),
+            (0x74c98, branch(C::Eq, 0x74c98, 0x74dec, false).unwrap()),
+        ] {
+            assert_eq!(word(&bytes, at), expected, "{at:#x}");
+        }
+    }
+
+    #[test]
+    fn doubleword_load_and_paired_stores() {
+        let bytes = fragment().unwrap();
+        for (at, expected) in [
+            (0x74cfc, transfer_doubleword(C::Al, true, r(0), r(5), 0xc0).unwrap()),
+            (0x74d00, transfer_word(C::Al, false, r(0), r(6), 0x110).unwrap()),
+            (0x74d04, transfer_word(C::Al, false, r(1), r(6), 0x114).unwrap()),
+        ] {
+            assert_eq!(word(&bytes, at), expected, "{at:#x}");
+        }
+    }
+
+    #[test]
+    fn loop_compare_flags_survive_until_backedge() {
+        let bytes = fragment().unwrap();
+        for (at, expected) in [
+            (0x74d64, data_register(C::Al, Op::Cmp, r(0), r(3), r(0), Shift::Lsl, 0, false).unwrap()),
+            (0x74d68, data_register(C::Al, Op::Sub, r(7), r(4), r(7), Shift::Lsl, 0, false).unwrap()),
+            (0x74d6c, transfer_word(C::Al, false, r(7), r(1), 0).unwrap()),
+            (0x74d70, transfer_word(C::Al, true, r(7), r(2), 4).unwrap()),
+            (0x74d74, transfer_word(C::Al, true, r(4), r(5), 0x1a4).unwrap()),
+            (0x74d78, data_immediate(C::Al, Op::Add, r(2), r(2), 8).unwrap()),
+            (0x74d7c, data_register(C::Al, Op::Add, r(7), r(4), r(7), Shift::Lsl, 0, false).unwrap()),
+            (0x74d80, transfer_word(C::Al, false, r(7), r(1), 0x40).unwrap()),
+            (0x74d84, data_immediate(C::Al, Op::Add, r(1), r(1), 4).unwrap()),
+            (0x74d88, branch(C::Cc, 0x74d88, 0x74d58, false).unwrap()),
+        ] {
+            assert_eq!(word(&bytes, at), expected, "{at:#x}");
+        }
+    }
+
     #[test]
     fn authenticated_reference_when_available() {
         let Some(path) = std::env::var_os("NABU_VENUS_REFERENCE")
