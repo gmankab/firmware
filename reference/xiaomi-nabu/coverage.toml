@@ -203,12 +203,14 @@ external_calibration_bytes = 459552
 name = "crbtfw32.tlv"
 size = 127544
 sha256 = "7211b8d753f161de526107f7d79f5dfd29a462f70ec4fe6fd88ba0ce60650ce6"
-credit_bytes = 0
-credit_kind = "unreconstructed"
+credit_bytes = 28
+credit_kind = "typed_patch_header_only"
+external_bt_patch_bytes = 127516
 
 [[images]]
 name = "crnv32.bin"
 size = 5504
 sha256 = "0ad8ba577d718db9df2c4a4726ba8abed9756f11f2510239275d00b0ffa8f9ed"
-credit_bytes = 0
-credit_kind = "unreconstructed"
+credit_bytes = 744
+credit_kind = "typed_tag_headers_only"
+external_bt_tag_values_bytes = 4760

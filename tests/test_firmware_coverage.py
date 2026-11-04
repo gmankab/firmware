@@ -23,7 +23,17 @@ class FirmwareCoverageTests(unittest.TestCase):
     def test_pinned_revision_records(self):
         self.assertEqual(len(self.data['images']),19)
         self.assertEqual(sum(i['size'] for i in self.data['images']),35409209)
-        self.assertEqual(sum(i['credit_bytes'] for i in self.data['images']),836074)
+        self.assertEqual(sum(i['credit_bytes'] for i in self.data['images']),836846)
+
+    def test_bluetooth_headers_do_not_claim_patch_or_nvm_values(self):
+        patch=next(x for x in self.data['images'] if x['name']=='crbtfw32.tlv')
+        nvm=next(x for x in self.data['images'] if x['name']=='crnv32.bin')
+        self.assertEqual(patch['credit_bytes'],28)
+        self.assertEqual(patch['external_bt_patch_bytes'],127516)
+        self.assertEqual(nvm['credit_bytes'],744)
+        self.assertEqual(nvm['external_bt_tag_values_bytes'],4760)
+        self.assertFalse(patch.get('complete_source',False))
+        self.assertFalse(nvm.get('complete_source',False))
 
     def test_board2_framing_is_not_calibration(self):
         board=next(x for x in self.data['images'] if x['name']=='board-2.bin')

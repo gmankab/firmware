@@ -592,6 +592,29 @@ fn run() -> Result<(), Box<dyn Error>> {
     }
     let target = PathBuf::from(&args[1]);
     match args[0].as_str() {
+        "emit-qca-bt-patch-header" => {
+            use firmware_tools::devices::xiaomi_nabu::qca_bluetooth_tlv as bt;
+            let data=bt::patch_prefix();
+            fs::write(&target,&data)?;
+            println!("emitted {} Bluetooth patch header bytes (no executable)",data.len());
+        }
+        "verify-qca-bt-patch-header" => {
+            use firmware_tools::devices::xiaomi_nabu::qca_bluetooth_tlv as bt;
+            let n=verify_sparse(&target,bt::PATCH_BYTES as u64,[(0,bt::patch_prefix())])?;
+            println!("byte-identical: {n} bytes of Bluetooth patch metadata; executable omitted");
+        }
+        "emit-qca-bt-nvm-prefix" => {
+            use firmware_tools::devices::xiaomi_nabu::qca_bluetooth_tlv as bt;
+            let data=bt::nvm_prefix();
+            fs::write(&target,&data)?;
+            println!("emitted {} Bluetooth NVM framing bytes (not a usable NVM)",data.len());
+        }
+        "verify-qca-bt-nvm-headers" => {
+            use firmware_tools::devices::xiaomi_nabu::qca_bluetooth_tlv as bt;
+            let n=verify_sparse(&target,bt::NVM_BYTES as u64,
+                bt::nvm_spans().into_iter().map(|span|(span.offset,span.data)))?;
+            println!("byte-identical: {n} bytes of NVM framing; 61 opaque tag values omitted");
+        }
         "emit-board2-prefix" => {
             use firmware_tools::devices::xiaomi_nabu::ath10k_board2_metadata as board;
             let prefix=board::first_prefix();

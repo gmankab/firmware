@@ -91,3 +91,12 @@ remaining 459,552 calibration bytes are **not** reconstructed.
 framing spans without reading the calibration payloads. The
 `emit-board2-prefix` output is only 68 bytes and **cannot be loaded** as
 firmware.
+
+### Qualcomm Bluetooth TLV header source
+
+Rust encoders reconstruct only the 28-byte `crbtfw32.tlv` patch header and
+744 bytes of `crnv32.bin` sparse record framing: one envelope, two tag sets,
+61 tag headers. The executable patch and all tag values remain external.
+`firmware-tools verify-qca-bt-nvm-headers /private/crnv32.bin` checks these
+spans without loading the full NVM into memory; `verify-qca-bt-patch-header`
+checks the patch framing. No partial output is intended for installation.

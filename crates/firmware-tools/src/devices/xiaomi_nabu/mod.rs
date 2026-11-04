@@ -4,6 +4,8 @@
 pub mod ath10k_firmware_metadata;
 #[path = "ath10k/board2_metadata.rs"]
 pub mod ath10k_board2_metadata;
+#[path = "bluetooth/qca_tlv_headers.rs"]
+pub mod qca_bluetooth_tlv;
 #[path = "cirrus/coeff_profiles.rs"]
 pub mod cirrus_coeff_profiles;
 #[path = "a640/a640_shader.rs"]
