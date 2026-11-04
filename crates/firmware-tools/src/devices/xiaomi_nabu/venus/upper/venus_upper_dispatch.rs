@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
-//! Typed A32 source for the initial part of an upper Venus controller routine.
-//! This interval is a verified function prefix, **not** complete executable
-//! firmware. Execution continues after END; external literals are unowned.
+//! Typed A32 source for an upper Venus controller routine and its literal pool.
+//! The routine returns before the trailing data; this is **not** complete
+//! executable firmware. Referenced diagnostic strings remain external.
 use arm32::{
     branch, branch_exchange_immediate, data_immediate, data_register,
     data_immediate_with_flags, rotate_right_with_extend,
@@ -16,17 +16,37 @@ use arm32::{
 };
 
 pub const START:usize=0x69e44;
-pub const END:usize=0x6abf4;
+pub const CODE_END:usize=0x6abf4;
+pub const LITERAL_POOL_START:usize=CODE_END;
+pub const LITERAL_POOL_END:usize=0x6ac0c;
+pub const LITERAL_POOL_WORD_COUNT:usize=6;
+pub const END:usize=LITERAL_POOL_END;
 pub const FILE_MAPPING_DELTA:usize=0x4000;
+
+const RATE_CONTROL_SOURCE_PATH_ADDRESS:u32=0xf2e4c;
+const MAX_QP_FORMAT_ADDRESS:u32=0xf2eb1;
+const NEWLINE_STRING_ADDRESS:u32=0xe2788;
+const RHO_QP_TABLE_FORMAT_ADDRESS:u32=0xf2eba;
+const AVG_QP_NNZ_TABLE_FORMAT_ADDRESS:u32=0xf2f07;
+const PSNR_VALUES_FORMAT_ADDRESS:u32=0xf2f2e;
 
 struct Emitter { pc:usize, bytes:Vec<u8> }
 impl Emitter {
     fn new()->Self { Self { pc:START, bytes:Vec::with_capacity(END-START) } }
     fn emit(&mut self,code:u32)->Result<(),String> {
-        if self.pc>=END || self.pc&3!=0 {
-            return Err(format!("Venus dispatch out of 0x{START:x}..0x{END:x}: 0x{:x}",self.pc));
+        if self.pc>=CODE_END || self.pc&3!=0 {
+            return Err(format!("Venus dispatch code out of 0x{START:x}..0x{CODE_END:x}: 0x{:x}",self.pc));
         }
         self.bytes.extend_from_slice(&code.to_le_bytes());
+        self.pc+=4;
+        Ok(())
+    }
+    fn literal_word(&mut self,address:usize,value:u32)->Result<(),String> {
+        self.check(address)?;
+        if !(LITERAL_POOL_START..LITERAL_POOL_END).contains(&address) || address&3!=0 {
+            return Err(format!("Venus dispatch literal out of pool: 0x{address:x}"));
+        }
+        self.bytes.extend_from_slice(&value.to_le_bytes());
         self.pc+=4;
         Ok(())
     }
@@ -692,7 +712,7 @@ pub fn fragment()->Result<Vec<u8>,String> {
     c.branch(C::Al,0x2ec94,true)?;
     c.check(0x6a73c)?;
     // Clamp the next subframe slot, compare unsigned deviations, and select a
-    // diagnostic path. PC-relative format strings are intentionally unowned.
+    // diagnostic path. Pool-owned pointers reference external format strings.
     c.ldr(r9,R::SP,0x48)?;
     c.ldr(r10,R::SP,0x3c)?;
     c.emit(data_register(C::Al,Op::Add,R::R0,r9,r4,Shift::Lsl,2,false)?)?;
@@ -1010,6 +1030,13 @@ pub fn fragment()->Result<Vec<u8>,String> {
     c.branch(C::Al,0x2038,true)?;
     c.imm(C::Al,Op::Sub,R::SP,R::new(11)?,0x1c)?;
     c.emit(transfer_multiple(C::Al,true,R::SP,(preserved&!R::LR.bit())|R::PC.bit(),BlockMode::IncrementAfter,true)?)?;
+    c.check(CODE_END)?;
+    c.literal_word(0x6abf4,RATE_CONTROL_SOURCE_PATH_ADDRESS)?;
+    c.literal_word(0x6abf8,MAX_QP_FORMAT_ADDRESS)?;
+    c.literal_word(0x6abfc,NEWLINE_STRING_ADDRESS)?;
+    c.literal_word(0x6ac00,RHO_QP_TABLE_FORMAT_ADDRESS)?;
+    c.literal_word(0x6ac04,AVG_QP_NNZ_TABLE_FORMAT_ADDRESS)?;
+    c.literal_word(0x6ac08,PSNR_VALUES_FORMAT_ADDRESS)?;
     c.check(END)?;
     Ok(c.bytes)
 }
@@ -1093,8 +1120,8 @@ mod tests {
         assert_eq!(word(&bytes,0x6abdc),transfer_byte(C::Ne,false,R::R0,R::R2,4).unwrap());
         assert_eq!(word(&bytes,0x6abe8),branch(C::Al,0x6abe8,0x2038,true).unwrap());
         assert_eq!(word(&bytes,0x6abec),data_immediate(C::Al,Op::Sub,R::SP,R::new(11).unwrap(),0x1c).unwrap());
-        assert_eq!(word(&bytes,END-4),transfer_multiple(C::Al,true,R::SP,restored,BlockMode::IncrementAfter,true).unwrap());
-        assert_eq!(END,0x6abf4);
+        assert_eq!(word(&bytes,CODE_END-4),transfer_multiple(C::Al,true,R::SP,restored,BlockMode::IncrementAfter,true).unwrap());
+        assert_eq!(CODE_END,0x6abf4);
     }
 
     #[test]
@@ -1107,9 +1134,53 @@ mod tests {
     }
 
     #[test]
-    fn covers_bounded_function_prefix() {
+    fn covers_function_and_trailing_data() {
         assert_eq!(fragment().unwrap().len(),END-START);
-        assert_eq!(END-START,3504);
-        assert_eq!(END-0x6abb8,60);
+        assert_eq!(CODE_END-START,3504);
+        assert_eq!(CODE_END-0x6abb8,60);
+        assert_eq!(LITERAL_POOL_START,CODE_END);
+        assert_eq!(LITERAL_POOL_START,0x6abf4);
+        assert_eq!(LITERAL_POOL_END,0x6ac0c);
+        assert_eq!(LITERAL_POOL_END-LITERAL_POOL_START,24);
+        assert_eq!(LITERAL_POOL_WORD_COUNT,6);
+        assert_eq!(LITERAL_POOL_WORD_COUNT*4,LITERAL_POOL_END-LITERAL_POOL_START);
+        assert_eq!(END,LITERAL_POOL_END);
+        assert_eq!(END-START,3528);
+    }
+
+    #[test]
+    fn literal_pool_is_data_not_instructions() {
+        let mut c=Emitter::new();
+        assert!(c.literal_word(START,RATE_CONTROL_SOURCE_PATH_ADDRESS).is_err());
+        c.pc=CODE_END;
+        assert!(c.emit(mov_register(C::Al,R::R0,R::R0)).is_err());
+        assert!(c.literal_word(LITERAL_POOL_START, RATE_CONTROL_SOURCE_PATH_ADDRESS).is_ok());
+        c.pc=LITERAL_POOL_END;
+        assert!(c.literal_word(LITERAL_POOL_END,0).is_err());
+        assert!(c.emit(0).is_err());
+        c.pc=LITERAL_POOL_START+1;
+        assert!(c.literal_word(LITERAL_POOL_START+1,0).is_err());
+    }
+
+    #[test]
+    fn literal_loads_resolve_to_semantic_addresses() {
+        let bytes=fragment().unwrap();
+        for (pc,rd,address,value) in [
+            (0x69e60,R::R2,0x6abf4,RATE_CONTROL_SOURCE_PATH_ADDRESS),
+            (0x6a014,R::R2,0x6abf4,RATE_CONTROL_SOURCE_PATH_ADDRESS),
+            (0x6a058,R::R2,0x6abf4,RATE_CONTROL_SOURCE_PATH_ADDRESS),
+            (0x6a1bc,R::R2,0x6abf4,RATE_CONTROL_SOURCE_PATH_ADDRESS),
+            (0x6a724,R::R1,0x6abf8,MAX_QP_FORMAT_ADDRESS),
+            (0x6a730,R::R1,0x6abfc,NEWLINE_STRING_ADDRESS),
+            (0x6a790,R::R1,0x6ac00,RHO_QP_TABLE_FORMAT_ADDRESS),
+            (0x6a7a8,R::R1,0x6abfc,NEWLINE_STRING_ADDRESS),
+            (0x6a814,R::R1,0x6ac04,AVG_QP_NNZ_TABLE_FORMAT_ADDRESS),
+            (0x6a828,R::R1,0x6abfc,NEWLINE_STRING_ADDRESS),
+            (0x6a8b0,R::R1,0x6ac08,PSNR_VALUES_FORMAT_ADDRESS),
+            (0x6a8d4,R::R1,0x6abfc,NEWLINE_STRING_ADDRESS),
+        ] {
+            assert_eq!(word(&bytes,pc),transfer_word(C::Al,true,rd,R::PC,(address-pc-8) as i32).unwrap());
+            assert_eq!(word(&bytes,address),value);
+        }
     }
 }

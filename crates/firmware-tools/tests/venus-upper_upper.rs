@@ -190,6 +190,38 @@ mod controller_run_prefix;
 mod controller_run_tail;
 #[path="../src/devices/xiaomi_nabu/venus/upper/venus_upper_controller_small_helpers.rs"]
 mod controller_small_helpers;
+
+#[test]
+fn controller_continuation_bounds_and_control_flow() {
+    use firmware_tools::devices::xiaomi_nabu::venus_upper_controller_continuation as continuation;
+    let bytes = continuation::fragment().unwrap();
+    assert_eq!(continuation::START, 0x68000);
+    assert_eq!(continuation::END, 0x68038);
+    assert_eq!(bytes.len(), 56);
+    assert_eq!(bytes.len() / 4, 14);
+    for (offset, expected) in [
+        (0, arm32::branch(arm32::Condition::Al, 0x68000, 0x6800c, false).unwrap()),
+        (28, arm32::branch_exchange_immediate(0x6801c, 0x83c4c).unwrap()),
+        (48, arm32::branch(arm32::Condition::Cc, 0x68030, 0x67fd4, false).unwrap()),
+        (52, arm32::branch(arm32::Condition::Al, 0x68034, 0x67f54, false).unwrap()),
+    ] {
+        assert_eq!(&bytes[offset..offset + 4], &expected.to_le_bytes());
+    }
+}
+
+#[test]
+fn controller_continuation_matches_pinned_reference_when_available() {
+    use firmware_tools::devices::xiaomi_nabu::venus_upper_controller_continuation as continuation;
+    if let Some(reference) = std::env::var_os("NABU_VENUS_REFERENCE") {
+        let original = std::fs::read(reference).unwrap();
+        assert_eq!(firmware_tools::wmfw_sha256::hex_digest(&original),
+            "9d4af65d7ede845e900f1b29ff425b7a8e2947056e695e246e58a2091445a085");
+        let bytes = continuation::fragment().unwrap();
+        let start = continuation::START + continuation::FILE_MAPPING_DELTA;
+        let end = continuation::END + continuation::FILE_MAPPING_DELTA;
+        assert_eq!(bytes.as_slice(), original.get(start..end).unwrap());
+    }
+}
 #[test]fn controller_limits_tail_matches_optional_reference(){
     let b=controller_limits_tail::fragment().unwrap();
     assert_eq!(b.len(),controller_limits_tail::END-controller_limits_tail::START);

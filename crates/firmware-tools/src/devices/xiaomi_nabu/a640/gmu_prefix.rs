@@ -1,13 +1,9 @@
 // SPDX-License-Identifier: GPL-3.0-only
-//! Independently encoded Adreno A640 GMU load headers, Cortex-M reset code,
-//! and exception vectors. Later GMU executable/data payloads remain absent.
-//!
-//! The first two blocks (400 contiguous bytes) are complete and independent;
-//! the other five blocks contribute only their typed 16-byte load headers.
 
 pub const IMAGE_BYTES: usize = 37_680;
 pub const INITIAL_PREFIX_BYTES: usize = 400;
-pub const MODELLED_BYTES: usize = 480;
+pub const MODELLED_BYTES: usize = 540;
+pub const STARTUP_BYTES: usize = 60;
 const BLOCKS: [(u32,u32);7] = [
     (0x0,48), (0x200,320), (0x400,14_524), (0x4000,14_936),
     (0x40000,6_944), (0x43fe0,20), (0x57000,776),
@@ -39,11 +35,68 @@ fn b_w(from:u32,to:u32)->[u16;2] {
     [(0xf000|(s<<10)|((imm>>12)&0x3ff)) as u16,
      (0x9000|(j1<<13)|0x1000|(j2<<11)|((imm>>1)&0x7ff)) as u16]
 }
+fn bl(from:u32,to:u32)->[u16;2] {
+    assert!(from%2==0 && to%2==0);
+    let mut words=b_w(from,to);
+    words[1]|=0x4000;
+    words
+}
+fn adr(register:u8,from:u32,to:u32)->u16 {
+    let pc=(from.checked_add(4).unwrap())&!3;
+    let distance=to.checked_sub(pc).unwrap();
+    assert!(register<8 && from%2==0 && distance<=1020 && distance%4==0);
+    0xa000|(u16::from(register)<<8)|(distance as u16>>2)
+}
+fn ldm_w(base:u8,registers:u16,writeback:bool)->[u16;2] {
+    assert!(base<15 && registers.count_ones()>=2 && registers&0xa000==0);
+    assert!(!writeback || registers&(1u16<<base)==0);
+    [0xe890|(u16::from(writeback)<<5)|u16::from(base),registers]
+}
+fn add_register(dst:u8,src:u8)->u16 {
+    assert!(dst<15 && src<15);
+    0x4400|((u16::from(dst)&8)<<4)|(u16::from(src)<<3)|(u16::from(dst)&7)
+}
+fn sub_immediate_w(dst:u8,src:u8,value:u8)->[u16;2] {
+    assert!(dst<13 && src<13);
+    [0xf1a0|u16::from(src),(u16::from(dst)<<8)|u16::from(value)]
+}
+fn cmp_register(lhs:u8,rhs:u8)->u16 {
+    assert!(lhs<15 && rhs<15);
+    0x4500|((u16::from(lhs)&8)<<4)|(u16::from(rhs)<<3)|(u16::from(lhs)&7)
+}
+fn bne(from:u32,to:u32)->u16 {
+    let delta=i64::from(to)-i64::from(from)-4;
+    assert!(from%2==0 && to%2==0 && (-256..=254).contains(&delta));
+    0xd100|u16::from((delta/2) as i8 as u8)
+}
+fn adr_sub_w(dst:u8,from:u32,to:u32)->[u16;2] {
+    let pc=from.checked_add(4).unwrap()&!3;
+    let distance=pc.checked_sub(to).unwrap();
+    assert!(dst<15 && dst!=13 && from%2==0 && distance<=4095);
+    [0xf2af|(((distance>>11) as u16)<<10),
+     (((distance>>8) as u16&7)<<12)|(u16::from(dst)<<8)|(distance as u16&255)]
+}
+fn tst_immediate_w(register:u8,value:u8)->[u16;2] {
+    assert!(register<13);
+    [0xf010|u16::from(register),0x0f00|u16::from(value)]
+}
+fn it_ne()->u16 { 0xbf18 }
+fn sub_register(dst:u8,lhs:u8,rhs:u8)->u16 {
+    assert!(dst<8 && lhs<8 && rhs<8);
+    0x1a00|(u16::from(rhs)<<6)|(u16::from(lhs)<<3)|u16::from(dst)
+}
+fn orr_immediate_w(dst:u8,src:u8,value:u8)->[u16;2] {
+    assert!(dst<13 && src<13);
+    [0xf040|u16::from(src),(u16::from(dst)<<8)|u16::from(value)]
+}
+fn bx(register:u8)->u16 {
+    assert!(register<15);
+    0x4700|(u16::from(register)<<3)
+}
 fn push16(out:&mut Vec<u8>,word:u16) { out.extend_from_slice(&word.to_le_bytes()); }
 fn push32(out:&mut Vec<u8>,words:[u16;2]) { for word in words { push16(out,word); } }
 
 /// Reset vectors, typed Thumb-2 prologue and PC-relative MMIO literal pool.
-/// The branch targets GMU ITCM 0x400, whose implementation is not yet built.
 pub fn reset_block()->Vec<u8> {
     let mut out=Vec::with_capacity(48);
     out.extend_from_slice(&0x43f80u32.to_le_bytes()); // initial MSP
@@ -80,6 +133,33 @@ pub fn vector_table()->Vec<u8> {
     out
 }
 
+pub fn startup()->Vec<u8> {
+    let mut out=Vec::with_capacity(STARTUP_BYTES);
+    push32(&mut out,bl(0x400,0x408));
+    push32(&mut out,bl(0x404,0x496));
+    push16(&mut out,adr(0,0x408,0x434));
+    push32(&mut out,ldm_w(0,(1<<10)|(1<<11),false));
+    push16(&mut out,add_register(10,0));
+    push16(&mut out,add_register(11,0));
+    push32(&mut out,sub_immediate_w(7,10,1));
+    push16(&mut out,cmp_register(10,11));
+    push16(&mut out,bne(0x418,0x41e));
+    push32(&mut out,bl(0x41a,0x496));
+    push32(&mut out,adr_sub_w(14,0x41e,0x417));
+    push32(&mut out,ldm_w(10,(1<<0)|(1<<1)|(1<<2)|(1<<3),true));
+    push32(&mut out,tst_immediate_w(3,1));
+    push16(&mut out,it_ne());
+    push16(&mut out,sub_register(3,7,3));
+    push32(&mut out,orr_immediate_w(3,3,1));
+    push16(&mut out,bx(3));
+    assert_eq!(out.len(),0x434-0x400);
+    for address in [0x3c7cu32,0x3cbc] {
+        out.extend_from_slice(&(address-0x434).to_le_bytes());
+    }
+    assert_eq!(out.len(),STARTUP_BYTES);
+    out
+}
+
 fn header(address:u32,size:u32)->Vec<u8> {
     let mut out=Vec::with_capacity(16);
     for word in [address,size,LOAD_MARKER,LOAD_MARKER] {
@@ -88,7 +168,6 @@ fn header(address:u32,size:u32)->Vec<u8> {
     out
 }
 
-/// Seven sparse spans: all headers plus the first two block payloads.
 pub fn spans()->Vec<Span> {
     let mut result=Vec::with_capacity(7);
     let mut offset=0;
@@ -97,6 +176,7 @@ pub fn spans()->Vec<Span> {
         match index {
             0=>data.extend_from_slice(&reset_block()),
             1=>data.extend_from_slice(&vector_table()),
+            2=>data.extend_from_slice(&startup()),
             _=>{},
         }
         result.push(Span{offset,data});
@@ -130,5 +210,45 @@ mod tests {
         assert_eq!(vector_table().len(),320);
         assert_eq!(spans().len(),7);
         assert_eq!(first_two_blocks().len(),400);
+        assert_eq!(startup().len(),60);
+        assert_eq!(spans()[2].offset+16,416);
+        assert_eq!(spans()[2].data.len(),76);
+        assert_eq!(MODELLED_BYTES,540);
+    }
+
+    #[test]
+    fn startup_operand_bounds() {
+        for encode in [
+            || { adr(8,0x408,0x434); },
+            || { adr(0,0x408,0x435); },
+            || { bl(0x401,0x408); },
+            || { bl(0x400,0x1000404); },
+            || { ldm_w(10,(1<<10)|(1<<11),true); },
+            || { ldm_w(0,0xa001,false); },
+            || { add_register(15,0); },
+            || { sub_immediate_w(13,0,1); },
+            || { cmp_register(0,15); },
+            || { bne(0x418,0x51c); },
+            || { adr_sub_w(14,0x41e,0x421); },
+            || { tst_immediate_w(13,1); },
+            || { sub_register(8,0,0); },
+            || { orr_immediate_w(13,0,1); },
+            || { bx(15); },
+        ] {
+            assert!(std::panic::catch_unwind(encode).is_err());
+        }
+    }
+
+    #[test]
+    #[ignore = "requires authenticated OEM image in GMU_REFERENCE"]
+    fn modelled_spans_match_reference() {
+        let reference=std::fs::read(std::env::var_os("GMU_REFERENCE").unwrap()).unwrap();
+        assert_eq!(reference.len(),IMAGE_BYTES);
+        assert_eq!(crate::wmfw_sha256::hex_digest(&reference),
+                   "3ff0c02708bbe78641db887fa62f3a7f9337934d0c2ce0b961ef7c43172591d2");
+        for span in spans() {
+            assert_eq!(span.data,reference[span.offset..span.offset+span.data.len()],
+                       "span at file offset {:#x}",span.offset);
+        }
     }
 }

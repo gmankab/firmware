@@ -23,12 +23,12 @@ class FirmwareCoverageTests(unittest.TestCase):
     def test_pinned_revision_records(self):
         self.assertEqual(len(self.data['images']),19)
         self.assertEqual(sum(i['size'] for i in self.data['images']),35409209)
-        self.assertEqual(sum(i['credit_bytes'] for i in self.data['images']),840830)
+        self.assertEqual(sum(i['credit_bytes'] for i in self.data['images']),840970)
 
     def test_gmu_reset_prefix_is_not_entire_firmware(self):
         image=next(x for x in self.data['images'] if x['name']=='a640_gmu.bin')
-        self.assertEqual(image['credit_bytes'],480)
-        self.assertEqual(image['external_gmu_payload_bytes'],37200)
+        self.assertEqual(image['credit_bytes'],540)
+        self.assertEqual(image['external_gmu_payload_bytes'],37140)
         self.assertEqual(image['credit_bytes']+image['external_gmu_payload_bytes'],image['size'])
         self.assertFalse(image.get('complete_source',False))
 
@@ -92,16 +92,16 @@ class FirmwareCoverageTests(unittest.TestCase):
 
     def test_dispatch_prefix_is_credited_but_not_a_complete_function(self):
         venus=next(x for x in self.data['images'] if x['name']=='venus.mbn')
-        self.assertIn({'start':0x69e44,'end':0x6abf4,
+        self.assertIn({'start':0x69e44,'end':0x6ac0c,
                        'provenance':'reported_reconstructed',
                        'label':'upper controller dispatch, record copies and service buffer setup (incomplete)'},venus['regions'])
-        self.assertEqual(venus['credit_bytes'],532560)
+        self.assertEqual(venus['credit_bytes'],532640)
 
     def test_explicit_venus_gap_partition(self):
         venus=next(x for x in self.data['images'] if x['name']=='venus.mbn')
         gaps=holes(venus['regions'],0,venus['executable_load']['runtime_end'])
         self.assertEqual(len(gaps),6)
-        self.assertEqual(sum(g['bytes'] for g in gaps),526756)
+        self.assertEqual(sum(g['bytes'] for g in gaps),526676)
         self.assertEqual((gaps[0]['start'],gaps[0]['end']),(0xaa0c,0x12e5c))
 
     def test_overlap_and_out_of_bounds_fails_closed(self):

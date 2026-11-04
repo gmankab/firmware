@@ -10,6 +10,8 @@ pub mod qca_bluetooth_tlv;
 pub mod a640_gmu_prefix;
 #[path = "venus/upper/venus_upper_dispatch.rs"]
 pub mod venus_upper_dispatch;
+#[path = "venus/upper/venus_upper_controller_continuation.rs"]
+pub mod venus_upper_controller_continuation;
 #[path = "cirrus/coeff_profiles.rs"]
 pub mod cirrus_coeff_profiles;
 #[path = "a640/a640_shader.rs"]
