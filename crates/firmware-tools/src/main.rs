@@ -30,6 +30,38 @@ fn verify_sparse(file: &std::path::Path, expected_len: u64,
     Ok(total)
 }
 
+fn venus_reference_identity() -> Result<(usize, &'static str), Box<dyn Error>> {
+    let records = include_str!("../../../reference/xiaomi-nabu/coverage.toml");
+    let record = records.split("[[images]]").find(|record| {
+        record.lines().any(|line| line.trim() == "name = \"venus.mbn\"")
+    }).ok_or("missing canonical Venus reference record")?;
+    let field = |name: &str| record.lines().find_map(|line| {
+        let (key, value) = line.split_once('=')?;
+        (key.trim() == name).then_some(value.trim())
+    });
+    let size = field("size").ok_or("missing Venus reference size")?.parse()?;
+    let sha256 = field("sha256").and_then(|value| value.strip_prefix('"')?.strip_suffix('"'))
+        .ok_or("missing Venus reference SHA-256")?;
+    Ok((size, sha256))
+}
+
+fn verify_venus_upper_dispatch(reference: &[u8], bytes: &[u8]) -> Result<(), Box<dyn Error>> {
+    use firmware_tools::devices::xiaomi_nabu::venus_upper_dispatch as dispatch;
+    let (size, sha256) = venus_reference_identity()?;
+    if reference.len() != size {
+        return Err("wrong full Venus reference length".into());
+    }
+    if firmware_tools::wmfw_sha256::hex_digest(reference) != sha256 {
+        return Err("Venus reference SHA-256 differs from canonical record".into());
+    }
+    let offset = dispatch::START + dispatch::FILE_MAPPING_DELTA;
+    let end = offset.checked_add(bytes.len()).ok_or("Venus dispatch offset overflow")?;
+    if reference.get(offset..end) != Some(bytes) {
+        return Err("Venus upper dispatch differs from pinned reference".into());
+    }
+    Ok(())
+}
+
 fn run() -> Result<(), Box<dyn Error>> {
     let args: Vec<String> = env::args().skip(1).collect();
     if args.len() == 3 && matches!(args[0].as_str(), "rebuild-cirrus-tuning" | "verify-cirrus-tuning") {
@@ -55,11 +87,8 @@ fn run() -> Result<(), Box<dyn Error>> {
             fs::write(&args[1],&bytes)?;
             println!("emitted {} typed ARM32 bytes of incomplete Venus controller function",bytes.len());
         } else {
-            let mut original=fs::File::open(&args[1])?;
-            original.seek(SeekFrom::Start((dispatch::START+dispatch::FILE_MAPPING_DELTA) as u64))?;
-            let mut reference=vec![0;bytes.len()];
-            original.read_exact(&mut reference)?;
-            if reference!=bytes { return Err("Venus upper dispatch differs from pinned reference".into()); }
+            let reference=fs::read(&args[1])?;
+            verify_venus_upper_dispatch(&reference, &bytes)?;
             println!("byte-identical: {} Venus ARM32 bytes at 0x{:x} (incomplete routine)",bytes.len(),dispatch::START);
         }
         return Ok(());
@@ -739,6 +768,45 @@ fn run() -> Result<(), Box<dyn Error>> {
     }
     Ok(())
 }
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use firmware_tools::devices::xiaomi_nabu::venus_upper_dispatch as dispatch;
+
+    #[test]
+    fn venus_upper_dispatch_rejects_matching_slice_with_wrong_identity() {
+        let bytes = dispatch::fragment().unwrap();
+        let (size, _) = venus_reference_identity().unwrap();
+        let offset = dispatch::START + dispatch::FILE_MAPPING_DELTA;
+        let end = offset + bytes.len();
+        let mut reference = vec![0; size];
+        reference[offset..end].copy_from_slice(&bytes);
+        reference[0] ^= 1;
+        assert_eq!(&reference[offset..end], bytes.as_slice());
+        assert_eq!(verify_venus_upper_dispatch(&reference, &bytes).unwrap_err().to_string(),
+            "Venus reference SHA-256 differs from canonical record");
+        reference.truncate(end);
+        assert_eq!(&reference[offset..end], bytes.as_slice());
+        assert_eq!(verify_venus_upper_dispatch(&reference, &bytes).unwrap_err().to_string(),
+            "wrong full Venus reference length");
+    }
+
+    #[test]
+    fn venus_upper_dispatch_matches_optional_canonical_reference() {
+        let Some(path) = env::var_os("VENUS_REFERENCE") else { return };
+        let reference = fs::read(path).unwrap();
+        let bytes = dispatch::fragment().unwrap();
+        verify_venus_upper_dispatch(&reference, &bytes).unwrap();
+        let mut changed = reference.clone();
+        changed[0] ^= 1;
+        assert!(verify_venus_upper_dispatch(&changed, &bytes).is_err());
+        assert!(verify_venus_upper_dispatch(&reference[..reference.len() - 1], &bytes).is_err());
+        let mut changed_bytes = bytes;
+        changed_bytes[0] ^= 1;
+        assert!(verify_venus_upper_dispatch(&reference, &changed_bytes).is_err());
+    }
+}
+
 fn main() {
     if let Err(e) = run() {
         eprintln!("error: {e}");

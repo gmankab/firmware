@@ -15,7 +15,7 @@ use arm32::{
 };
 
 pub const START:usize=0x69e44;
-pub const END:usize=0x6a8e4;
+pub const END:usize=0x6a9b0;
 pub const FILE_MAPPING_DELTA:usize=0x4000;
 
 struct Emitter { pc:usize, bytes:Vec<u8> }
@@ -806,6 +806,59 @@ pub fn fragment()->Result<Vec<u8>,String> {
     c.imm(C::Al,Op::Mov,R::R0,R::R0,1)?;
     c.branch(C::Al,0x2ec94,true)?;
     c.ldr(r7,R::SP,0x70)?;
+    c.check(0x6a8e4)?;
+    c.ldr(R::R0,r4,0)?;
+    c.imm(C::Al,Op::Add,R::R0,R::R0,1)?;
+    c.str(R::R0,r4,0)?;
+    c.ldr(R::R1,R::SP,0x30)?;
+    c.ldr(R::R2,R::SP,0x2c)?;
+    c.emit(data_register(C::Al,Op::Add,R::R1,R::R1,R::R2,Shift::Lsl,0,false)?)?;
+    c.ldrb(R::R2,r7,0x9c)?;
+    c.emit(data_register(C::Al,Op::Add,R::R1,R::R1,R::R2,Shift::Lsl,0,false)?)?;
+    c.imm(C::Al,Op::Add,R::R1,R::R1,1)?;
+    c.emit(data_register(C::Al,Op::Cmp,R::R0,R::R0,R::R1,Shift::Lsl,0,false)?)?;
+    c.imm(C::Cs,Op::Mov,R::R0,R::R0,0)?;
+    c.emit(transfer_word(C::Cs,false,R::R0,r4,0)?)?;
+    c.ldr(R::R0,r7,0x18)?;
+    c.imm(C::Al,Op::Cmp,R::R0,R::R0,1)?;
+    c.branch(C::Ne,0x6a954,false)?;
+    c.ldrb(R::R0,r7,0x20)?;
+    c.imm(C::Al,Op::Cmp,R::R0,R::R0,0)?;
+    c.branch(C::Eq,0x6a954,false)?;
+    c.ldr(R::R0,r5,0x24)?;
+    c.imm(C::Al,Op::Mov,R::R1,R::R0,0x2fc)?;
+    c.imm(C::Al,Op::Mov,R::R2,R::R0,0x1300)?;
+    c.imm(C::Al,Op::Orr,R::R1,R::R1,0x1000)?;
+    c.emit(transfer_word_register(C::Al,false,R::R0,r9,R::R1,Shift::Lsl,0)?)?;
+    c.ldr(R::R1,r5,0x28)?;
+    c.emit(transfer_word_register(C::Al,false,R::R1,r9,R::R2,Shift::Lsl,0)?)?;
+    c.str(R::R1,r10,0xc4)?;
+    c.str(R::R0,r10,0xd4)?;
+    c.branch(C::Al,0x6abb8,false)?;
+    c.check(0x6a954)?;
+    c.ldr(R::R0,r5,0x24)?;
+    c.imm(C::Al,Op::Mov,R::R1,R::R0,0x2f4)?;
+    c.imm(C::Al,Op::Orr,R::R1,R::R1,0x1000)?;
+    c.emit(transfer_word_register(C::Al,false,R::R0,r9,R::R1,Shift::Lsl,0)?)?;
+    c.imm(C::Al,Op::Mov,R::R1,R::R0,0x2f8)?;
+    c.ldr(R::R2,r5,0x28)?;
+    c.imm(C::Al,Op::Orr,R::R1,R::R1,0x1000)?;
+    c.emit(data_register(C::Al,Op::Add,r4,R::R2,R::R0,Shift::Lsl,0,false)?)?;
+    c.emit(transfer_word_register(C::Al,false,R::R2,r9,R::R1,Shift::Lsl,0)?)?;
+    c.str(R::R2,r10,0)?;
+    c.emit(transfer_multiple(C::Al,false,r10,R::R0.bit()|r4.bit(),BlockMode::IncrementBefore,false)?)?;
+    c.str(R::R2,r7,0x2ec)?;
+    c.str(R::R0,r7,0x2f0)?;
+    c.imm(C::Al,Op::Mov,R::R0,R::R0,1)?;
+    c.str(r4,r7,0x2e0)?;
+    c.emit(transfer_byte(C::Al,false,R::R0,r7,0x2d4)?)?;
+    c.ldr(R::new(3)?,r10,0xc8)?;
+    c.emit(transfer_doubleword(C::Al,false,R::R2,r10,0xc8)?)?;
+    c.ldr(R::R1,r5,12)?;
+    c.str(R::R1,r10,0xc0)?;
+    c.emit(transfer_byte(C::Al,false,R::R0,r10,0xd0)?)?;
+    c.ldrb(R::R0,r5,0xf0)?;
+    c.emit(transfer_byte(C::Al,false,R::R0,r10,0xb8)?)?;
     c.check(END)?;
     Ok(c.bytes)
 }
@@ -813,9 +866,42 @@ pub fn fragment()->Result<Vec<u8>,String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn word(bytes:&[u8],pc:usize)->u32 {
+        u32::from_le_bytes(bytes[pc-START..pc-START+4].try_into().unwrap())
+    }
+
+    #[test]
+    fn continuation_branches_preserve_targets() {
+        let bytes=fragment().unwrap();
+        for (pc,condition,target) in [
+            (0x6a91c,C::Ne,0x6a954),
+            (0x6a928,C::Eq,0x6a954),
+            (0x6a950,C::Al,0x6abb8),
+        ] {
+            let instruction=word(&bytes,pc);
+            assert_eq!(instruction>>28,condition as u32);
+            assert_eq!((instruction>>24)&15,10);
+            let displacement=((instruction<<8) as i32)>>6;
+            assert_eq!((pc as i32+8+displacement) as usize,target);
+        }
+    }
+
+    #[test]
+    fn continuation_keeps_conditional_wrap_and_store_modes() {
+        let bytes=fragment().unwrap();
+        let r4=R::new(4).unwrap();
+        let r10=R::new(10).unwrap();
+        assert_eq!(word(&bytes,0x6a90c),data_immediate(C::Cs,Op::Mov,R::R0,R::R0,0).unwrap());
+        assert_eq!(word(&bytes,0x6a910),transfer_word(C::Cs,false,R::R0,r4,0).unwrap());
+        assert_eq!(word(&bytes,0x6a97c),transfer_multiple(C::Al,false,r10,R::R0.bit()|r4.bit(),BlockMode::IncrementBefore,false).unwrap());
+        assert_eq!(word(&bytes,0x6a998),transfer_doubleword(C::Al,false,R::R2,r10,0xc8).unwrap());
+        assert_eq!(word(&bytes,END-4),transfer_byte(C::Al,false,R::R0,r10,0xb8).unwrap());
+    }
     #[test]
     fn covers_bounded_function_prefix() {
         assert_eq!(fragment().unwrap().len(),END-START);
-        assert_eq!(END-START,2720);
+        assert_eq!(END-START,2924);
+        assert_eq!(END-0x6a8e4,204);
     }
 }

@@ -22,6 +22,15 @@ class CoverageError(ValueError):
 
 
 def holes(regions: list[dict[str, Any]], start: int, end: int) -> list[dict[str, int]]:
+    if type(start) is not int or type(end) is not int or not 0 <= start <= end:
+        raise CoverageError("invalid coverage window")
+    if not isinstance(regions, list) or any(
+        not isinstance(region, dict)
+        or type(region.get("start")) is not int
+        or type(region.get("end")) is not int
+        for region in regions
+    ):
+        raise CoverageError("invalid coverage regions")
     current = start
     missing = []
     for region in sorted(regions, key=lambda item: item["start"]):
@@ -39,39 +48,52 @@ def holes(regions: list[dict[str, Any]], start: int, end: int) -> list[dict[str,
 
 
 def load(path: Path = DEFAULT_MANIFEST) -> dict[str, Any]:
-    data = tomllib.loads(path.read_text(encoding="utf-8"))
-    if data.get("schema_version") != 1:
+    try:
+        data = tomllib.loads(path.read_text(encoding="utf-8"))
+    except (tomllib.TOMLDecodeError, UnicodeDecodeError) as error:
+        raise CoverageError(f"invalid coverage manifest: {error}") from error
+    if type(data.get("schema_version")) is not int or data["schema_version"] != 1:
         raise CoverageError("unsupported coverage manifest schema")
     images = data.get("images")
     if not isinstance(images, list) or not images:
         raise CoverageError("firmware image table is empty")
     seen: set[str] = set()
     for image in images:
+        if not isinstance(image, dict):
+            raise CoverageError("invalid firmware image table")
         name = image.get("name", "")
-        if not name or name in seen or Path(name).name != name:
+        if not isinstance(name, str) or not name or name in seen or name in (".", "..") or Path(name).name != name:
             raise CoverageError(f"duplicate or invalid image name {name!r}")
         seen.add(name)
         size, credit = image.get("size"), image.get("credit_bytes")
-        if not isinstance(size,int) or not 0 < size or not isinstance(credit,int) or not 0 <= credit <= size:
+        if type(size) is not int or not 0 < size or type(credit) is not int or not 0 <= credit <= size:
             raise CoverageError(f"invalid byte counts for {name}")
         sha = image.get("sha256", "")
-        if len(sha) != 64 or any(c not in "0123456789abcdef" for c in sha):
+        if not isinstance(sha, str) or len(sha) != 64 or any(c not in "0123456789abcdef" for c in sha):
             raise CoverageError(f"invalid SHA-256 for {name}")
         external_fields=("external_authentication_bytes","external_dsp_payload_bytes",
                          "external_calibration_bytes","external_bt_patch_bytes",
                          "external_bt_tag_values_bytes", "external_gmu_payload_bytes")
         for field in external_fields:
             value=image.get(field,0)
-            if not isinstance(value,int) or value<0 or value>size:
+            if type(value) is not int or value<0 or value>size:
                 raise CoverageError(f"invalid external byte count: {name}")
         if credit+sum(image.get(field,0) for field in external_fields)>size:
             raise CoverageError(f"credit and external dependencies exceed image size: {name}")
+        if type(image.get("complete_source", False)) is not bool:
+            raise CoverageError(f"invalid complete-source assertion: {name}")
         if image.get("complete_source", False) and (
             credit!=size or any(image.get(field,0) for field in external_fields)
         ):
             raise CoverageError(f"incorrect complete-source assertion: {name}")
         if "executable_load" in image:
             info = image["executable_load"]
+            if not isinstance(info, dict):
+                raise CoverageError(f"invalid executable load: {name}")
+            base, end = info.get("file_base"), info.get("runtime_end")
+            if (type(base) is not int or type(end) is not int
+                    or base < 0 or end <= 0 or base + end > size):
+                raise CoverageError(f"executable load outside image: {name}")
             regions = image.get("regions", [])
             gaps = holes(regions, 0, info["runtime_end"])
             union = sum(r["end"]-r["start"] for r in regions)
@@ -111,24 +133,40 @@ def verify_reference(data: dict[str,Any],name:str,original:Path) -> dict[str,Any
 
 
 def verify_generated_region(data:dict[str,Any],name:str,reference:Path,generated:Path,offset:int) -> dict[str,Any]:
-    original=verify_reference(data,name,reference)
+    image=image_for(data,name)
     length=generated.stat().st_size
-    if offset < 0 or not length or offset+length>original['reference_bytes']:
+    if offset < 0 or not length or offset+length>image['size']:
         raise CoverageError('generated region outside reference or empty')
     digest=hashlib.sha256()
+    reference_digest=hashlib.sha256()
+    reference_size=0
     consumed=0
     with reference.open('rb') as source, generated.open('rb') as candidate:
-        source.seek(offset)
+        while reference_size<offset:
+            part=source.read(min(1024 * 1024,offset-reference_size))
+            if not part:
+                break
+            reference_digest.update(part)
+            reference_size+=len(part)
         while part := candidate.read(1024 * 1024):
             expected=source.read(len(part))
+            reference_digest.update(expected)
+            reference_size+=len(expected)
             if part != expected:
                 diff=next((i for i,(a,b) in enumerate(zip(part, expected)) if a!=b),
                           min(len(part),len(expected)))
                 raise CoverageError(f"{name}: first generated/reference difference at file 0x{offset+consumed+diff:x}")
             digest.update(part)
             consumed+=len(part)
+        for part in iter(lambda: source.read(1024 * 1024), b''):
+            reference_digest.update(part)
+            reference_size+=len(part)
     if consumed!=length:
         raise CoverageError(f'{name}: generated file changed during verification')
+    if reference_size!=image['size']:
+        raise CoverageError(f"{name}: reference size {reference_size} differs from pinned {image['size']}")
+    if reference_digest.hexdigest()!=image['sha256']:
+        raise CoverageError(f"{name}: reference SHA-256 mismatch {reference_digest.hexdigest()}")
     return {"name":name,"file_offset":offset,"generated_bytes":length,"matched":True,
             "generated_sha256":digest.hexdigest()}
 
@@ -147,7 +185,7 @@ def status(data: dict[str,Any]) -> str:
                   "## Venus first executable segment", ""])
     venus=image_for(data,"venus.mbn")
     code=venus["executable_load"]
-    missing=holes(venus["regions"],0,code["runtime_end"])
+    missing=holes(venus.get("regions", []),0,code["runtime_end"])
     lines.extend([f"Reported source/layout: **{venus['credit_bytes']:,} / {code['runtime_end']:,} bytes**; uncovered: **{sum(x['bytes'] for x in missing):,} bytes**.","",
                   "| Uncovered ARM runtime addresses | Bytes |", "| --- | ---: |"])
     for x in missing:

@@ -23,7 +23,7 @@ class FirmwareCoverageTests(unittest.TestCase):
     def test_pinned_revision_records(self):
         self.assertEqual(len(self.data['images']),19)
         self.assertEqual(sum(i['size'] for i in self.data['images']),35409209)
-        self.assertEqual(sum(i['credit_bytes'] for i in self.data['images']),840046)
+        self.assertEqual(sum(i['credit_bytes'] for i in self.data['images']),840250)
 
     def test_gmu_reset_prefix_is_not_entire_firmware(self):
         image=next(x for x in self.data['images'] if x['name']=='a640_gmu.bin')
@@ -92,16 +92,16 @@ class FirmwareCoverageTests(unittest.TestCase):
 
     def test_dispatch_prefix_is_credited_but_not_a_complete_function(self):
         venus=next(x for x in self.data['images'] if x['name']=='venus.mbn')
-        self.assertIn({'start':0x69e44,'end':0x6a8e4,
+        self.assertIn({'start':0x69e44,'end':0x6a9b0,
                        'provenance':'reported_reconstructed',
                        'label':'upper controller dispatch, record copies and service buffer setup (incomplete)'},venus['regions'])
-        self.assertEqual(venus['credit_bytes'],531776)
+        self.assertEqual(venus['credit_bytes'],531980)
 
     def test_explicit_venus_gap_partition(self):
         venus=next(x for x in self.data['images'] if x['name']=='venus.mbn')
         gaps=holes(venus['regions'],0,venus['executable_load']['runtime_end'])
         self.assertEqual(len(gaps),6)
-        self.assertEqual(sum(g['bytes'] for g in gaps),527540)
+        self.assertEqual(sum(g['bytes'] for g in gaps),527336)
         self.assertEqual((gaps[0]['start'],gaps[0]['end']),(0xaa0c,0x12e5c))
 
     def test_overlap_and_out_of_bounds_fails_closed(self):
@@ -109,6 +109,75 @@ class FirmwareCoverageTests(unittest.TestCase):
                       [{'start':0,'end':13}], [{'start':10,'end':10}]):
             with self.subTest(spans=spans),self.assertRaises(CoverageError):
                 holes(spans,0,12)
+
+    def test_invalid_coverage_window_fails_closed(self):
+        for start, end in ((4, 3), (-1, 4), (False, 4), (0, 4.5)):
+            with self.subTest(start=start, end=end), self.assertRaises(CoverageError):
+                holes([], start, end)
+
+    def test_manifest_rejects_boolean_counts_and_completion_flags(self):
+        cases = ('size=true\ncredit_bytes=1',
+                 'size=1\ncredit_bytes=true',
+                 'size=1\ncredit_bytes=1\ncomplete_source="false"',
+                 'size=2\ncredit_bytes=1\nexternal_authentication_bytes=true')
+        with tempfile.TemporaryDirectory() as directory:
+            manifest = Path(directory) / 'coverage.toml'
+            for fields in cases:
+                with self.subTest(fields=fields):
+                    manifest.write_text('schema_version=1\n[[images]]\nname="test.bin"\n'
+                                        + fields + '\nsha256="' + '0' * 64 + '"\n')
+                    with self.assertRaises(CoverageError):
+                        load(manifest)
+
+    def test_manifest_rejects_executable_load_outside_image(self):
+        with tempfile.TemporaryDirectory() as directory:
+            manifest = Path(directory) / 'coverage.toml'
+            for file_base, runtime_end in ((-1, 4), (5, 4), (0, 9), (0, -1)):
+                with self.subTest(file_base=file_base, runtime_end=runtime_end):
+                    manifest.write_text('schema_version=1\n[[images]]\nname="test.bin"\n'
+                                        'size=8\ncredit_bytes=0\nsha256="' + '0' * 64 +
+                                        '"\n[images.executable_load]\n'
+                                        f'file_base={file_base}\nruntime_end={runtime_end}\n')
+                    with self.assertRaises(CoverageError):
+                        load(manifest)
+
+    def test_malformed_manifest_cli_reports_error_without_traceback(self):
+        cases = ('schema_version=1\nimages=[1]',
+                 'schema_version=true\nimages=[]',
+                 'schema_version=1\n[[images]]\nname=42',
+                 'schema_version=1\n[[images]]\nname=".."',
+                 'schema_version=1\n[[images]]\nname="test.bin"\nsize=8\n'
+                 'credit_bytes=0\nsha256=42',
+                 'schema_version=1\n[[images]]\nname="test.bin"\nsize=8\n'
+                 'credit_bytes=0\nsha256="' + '0' * 64 + '"\nexecutable_load={}',
+                 'schema_version=1\n[[images]]\nname="test.bin"\nsize=8\n'
+                 'credit_bytes=0\nsha256="' + '0' * 64 + '"\n'
+                 'regions=[{}]\nexecutable_load={file_base=0,runtime_end=8}',
+                 'not valid TOML')
+        with tempfile.TemporaryDirectory() as directory:
+            manifest = Path(directory) / 'coverage.toml'
+            for content in cases:
+                with self.subTest(content=content):
+                    manifest.write_text(content)
+                    result = subprocess.run([sys.executable, '-m', 'tools.firmware',
+                                             '--manifest', str(manifest), 'images'],
+                                            cwd=ROOT, capture_output=True, text=True)
+                    self.assertEqual(result.returncode, 2, result.stderr)
+                    self.assertIn('firmware:', result.stderr)
+                    self.assertNotIn('Traceback', result.stderr)
+
+    def test_optional_coverage_metadata_has_consistent_defaults(self):
+        with tempfile.TemporaryDirectory() as directory:
+            manifest = Path(directory) / 'coverage.toml'
+            manifest.write_text('schema_version=1\n[[images]]\nname="venus.mbn"\n'
+                                'size=8\ncredit_bytes=0\nsha256="' + '0' * 64 + '"\n'
+                                '[images.executable_load]\nfile_base=0\nruntime_end=8\n')
+            self.assertIn('0x0–0x8', status(load(manifest)))
+            result = subprocess.run([sys.executable, '-m', 'tools.firmware',
+                                     '--manifest', str(manifest), 'coverage', '--json'],
+                                    cwd=ROOT, capture_output=True, text=True)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertEqual(json.loads(result.stdout)[0]['credit_kind'], 'unspecified')
 
     def test_status_deterministic_and_generated_file_current(self):
         expected=status(self.data)
@@ -164,6 +233,29 @@ class FirmwareCoverageTests(unittest.TestCase):
             generated.write_bytes(corrupted)
             with self.assertRaisesRegex(CoverageError,f'0x{37+1048576:x}'):
                 verify_generated_region(fixture,'image.bin',reference,generated,37)
+
+    def test_all_complete_source_builds_match_pinned_hashes_reproducibly(self):
+        executable = ROOT / 'target/debug/firmware-tools'
+        if not executable.is_file():
+            self.skipTest('build firmware-tools before real-builder integration tests')
+        with tempfile.TemporaryDirectory() as directory:
+            for image in self.data['images']:
+                if not image.get('complete_source', False):
+                    continue
+                with self.subTest(image=image['name']):
+                    outputs = []
+                    for run in range(2):
+                        output = Path(directory) / str(run) / image['name']
+                        process = subprocess.run(
+                            [sys.executable, '-m', 'tools.firmware', 'build', image['name'],
+                             '--output', str(output), '--firmware-tools', str(executable)],
+                            cwd=ROOT, capture_output=True, text=True)
+                        self.assertEqual(process.returncode, 0, process.stderr)
+                        content = output.read_bytes()
+                        self.assertEqual(len(content), image['size'])
+                        self.assertEqual(hashlib.sha256(content).hexdigest(), image['sha256'])
+                        outputs.append(content)
+                    self.assertEqual(*outputs)
 
     def test_cli_disallows_missing_full_image_source(self):
         cmd=[sys.executable,'-m','tools.firmware','build','venus.mbn','--output','/tmp/forbidden-venus.mbn']

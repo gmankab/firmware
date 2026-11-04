@@ -48,7 +48,7 @@ def main(argv: list[str] | None = None) -> int:
             images=[image_for(ledger,args.image)] if args.image else ledger["images"]
             summary=[]
             for i in images:
-                record={"image":i["name"],"original_bytes":i["size"],"reported_generated_or_modelled_bytes":i["credit_bytes"],"not_credited_bytes":i["size"]-i["credit_bytes"],"credit_kind":i["credit_kind"]}
+                record={"image":i["name"],"original_bytes":i["size"],"reported_generated_or_modelled_bytes":i["credit_bytes"],"not_credited_bytes":i["size"]-i["credit_bytes"],"credit_kind":i.get("credit_kind", "unspecified")}
                 if "executable_load" in i:
                     record["uncovered_executable_intervals"]=holes(i.get("regions",[]),0,i["executable_load"]["runtime_end"])
                 summary.append(record)
