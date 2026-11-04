@@ -155,7 +155,7 @@ pub fn fragment()->Result<Vec<u8>,String>{
  }
  #[test]fn private_reference_matches_if_provided(){
   let b=fragment().unwrap();
-  if let Ok(path)=std::env::var("AGENT04_PRIVATE_VENUS"){
+  if let Ok(path)=std::env::var("NABU_VENUS_REFERENCE").or_else(|_| std::env::var("AGENT04_PRIVATE_VENUS")){
    let image=std::fs::read(path).unwrap();let refb=&image[FILE_OFFSET..FILE_OFFSET+b.len()];
    if let Some(i)=b.iter().zip(refb).position(|(a,c)|a!=c){panic!("A32 mismatch at 0x{:x}",START+i);}
   }

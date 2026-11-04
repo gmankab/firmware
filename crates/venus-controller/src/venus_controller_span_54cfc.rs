@@ -962,7 +962,7 @@ pub fn fragment()->Result<Vec<u8>,String>{
  #[test]fn partial_codec_policy_is_adjacent(){assert_eq!(fragment().unwrap().len(),END-START);}
  #[test]fn compare_private_firmware_and_emit_when_requested(){
    let b=fragment().unwrap();
-   if let Ok(path)=std::env::var("AGENT04_PRIVATE_VENUS"){
+   if let Ok(path)=std::env::var("NABU_VENUS_REFERENCE").or_else(|_| std::env::var("AGENT04_PRIVATE_VENUS")){
      let fw=std::fs::read(path).unwrap();let original=&fw[FILE_OFFSET..FILE_OFFSET+b.len()];
      if let Some(i)=b.iter().zip(original).position(|(a,c)|a!=c){panic!("byte mismatch at runtime {:#x}: {:02x} != {:02x}",START+i,b[i],original[i]);}
    }

@@ -264,7 +264,7 @@
         if let Some(path)=std::env::var_os("AGENT20_06_EMIT_BIN"){
             std::fs::write(path,&output).unwrap();
         }
-        if let Some(path)=std::env::var_os("AGENT20_06_REFERENCE_VENUS"){
+        if let Some(path)=std::env::var_os("NABU_VENUS_REFERENCE").or_else(|| std::env::var_os("AGENT20_06_REFERENCE_VENUS")){
             let original=std::fs::read(path).unwrap();
             let expected=original.get(FILE_OFFSET..FILE_OFFSET+output.len())
                 .expect("original reference does not contain the owned interval");

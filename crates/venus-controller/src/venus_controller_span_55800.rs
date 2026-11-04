@@ -1078,7 +1078,7 @@ pub fn fragment()->Result<Vec<u8>,String>{
  assert!(emit_halfword_register(C::Al,true,R::R0,R::R0,R::R1,true).is_err());
  }
  #[test]fn exact_private_reference_when_present(){
-  if let Ok(path)=std::env::var("AGENT04_PRIVATE_VENUS"){
+  if let Ok(path)=std::env::var("NABU_VENUS_REFERENCE").or_else(|_| std::env::var("AGENT04_PRIVATE_VENUS")){
    let bytes=std::fs::read(path).unwrap();let frag=fragment().unwrap();
    assert_eq!(&frag[..],&bytes[FILE_OFFSET..FILE_OFFSET+frag.len()]);
   }

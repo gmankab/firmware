@@ -527,7 +527,7 @@ pub fn fragment()->Result<Vec<u8>,String>{
  }
  #[test]fn compare_reference_if_private_path_provided(){
   let b=fragment().unwrap();
-  if let Ok(path)=std::env::var("AGENT04_PRIVATE_VENUS"){
+  if let Ok(path)=std::env::var("NABU_VENUS_REFERENCE").or_else(|_| std::env::var("AGENT04_PRIVATE_VENUS")){
    let orig=std::fs::read(path).unwrap();let reference=&orig[FILE_OFFSET..FILE_OFFSET+b.len()];
    if let Some(i)=b.iter().zip(reference).position(|(a,c)|a!=c){panic!("mismatch at runtime {:#x}: {:02x} != {:02x}",START+i,b[i],reference[i]);}
   }

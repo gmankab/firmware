@@ -2041,7 +2041,7 @@ pub fn fragment()->Result<Vec<u8>,String>{let mut c=Code::new();emit_controller_
 #[cfg(test)]mod tests{use super::*;
  #[test]fn chunk_len_and_bounds(){assert_eq!(fragment().unwrap().len(),END-START);assert!(END<=0x68000);}
  #[test]fn original_firmware_byte_comparison_when_present(){
-  if let Ok(path)=std::env::var("AGENT04_PRIVATE_VENUS"){
+  if let Ok(path)=std::env::var("NABU_VENUS_REFERENCE").or_else(|_| std::env::var("AGENT04_PRIVATE_VENUS")){
    let reference=std::fs::read(path).unwrap();let generated=fragment().unwrap();
    assert_eq!(&generated[..],&reference[FILE_OFFSET..FILE_OFFSET+generated.len()]);
   }

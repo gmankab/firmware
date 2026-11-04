@@ -733,7 +733,7 @@ pub fn fragment()->Result<Vec<u8>,String>{
  }
  #[test]fn compares_private_reference_when_available(){
    let b=fragment().unwrap();
-   if let Ok(reference)=std::env::var("AGENT04_PRIVATE_VENUS") {
+   if let Ok(reference)=std::env::var("NABU_VENUS_REFERENCE").or_else(|_| std::env::var("AGENT04_PRIVATE_VENUS")) {
      let original=std::fs::read(reference).unwrap();
      let ref_bytes=&original[FILE_OFFSET..FILE_OFFSET+b.len()];
      if let Some(i)=b.iter().zip(ref_bytes).position(|(a,c)|a!=c) {

@@ -1097,7 +1097,7 @@ pub fn fragment()->Result<Vec<u8>,String>{
  }
  #[test]fn check_private_firmware_when_available(){
   let b=fragment().unwrap();
-  if let Ok(path)=std::env::var("AGENT04_PRIVATE_VENUS"){
+  if let Ok(path)=std::env::var("NABU_VENUS_REFERENCE").or_else(|_| std::env::var("AGENT04_PRIVATE_VENUS")){
     let ref_bytes=std::fs::read(path).unwrap();
     let orig=&ref_bytes[FILE_OFFSET..FILE_OFFSET+b.len()];
     if let Some(i)=b.iter().zip(orig).position(|(a,c)|a!=c){

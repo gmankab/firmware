@@ -569,7 +569,7 @@ pub fn fragment()->Result<Vec<u8>,String>{
    assert!(transfer_byte_register_writeback(C::Al,true,R::R2,R::R2,R::R1,Shift::Lsl,0).is_err());
  }
  #[test]fn compare_original_when_provided(){
-   if let Ok(path)=std::env::var("AGENT04_PRIVATE_VENUS"){
+   if let Ok(path)=std::env::var("NABU_VENUS_REFERENCE").or_else(|_| std::env::var("AGENT04_PRIVATE_VENUS")){
       let original=std::fs::read(path).unwrap();let bytes=fragment().unwrap();
       assert_eq!(&bytes[..],&original[FILE_OFFSET..FILE_OFFSET+bytes.len()]);
    }
