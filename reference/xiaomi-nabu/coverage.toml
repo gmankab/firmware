@@ -195,8 +195,9 @@ credit_kind = "unreconstructed"
 name = "board-2.bin"
 size = 461060
 sha256 = "6e208f2b608b89eb48e0ff74f768a306500b5f923d633ddbf0a205af46786ba5"
-credit_bytes = 0
-credit_kind = "unreconstructed"
+credit_bytes = 1508
+credit_kind = "structured_headers_only"
+external_calibration_bytes = 459552
 
 [[images]]
 name = "crbtfw32.tlv"

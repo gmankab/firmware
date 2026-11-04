@@ -23,7 +23,15 @@ class FirmwareCoverageTests(unittest.TestCase):
     def test_pinned_revision_records(self):
         self.assertEqual(len(self.data['images']),19)
         self.assertEqual(sum(i['size'] for i in self.data['images']),35409209)
-        self.assertEqual(sum(i['credit_bytes'] for i in self.data['images']),834566)
+        self.assertEqual(sum(i['credit_bytes'] for i in self.data['images']),836074)
+
+    def test_board2_framing_is_not_calibration(self):
+        board=next(x for x in self.data['images'] if x['name']=='board-2.bin')
+        self.assertEqual(board['credit_bytes'],1508)
+        self.assertEqual(board['credit_kind'],'structured_headers_only')
+        self.assertEqual(board['external_calibration_bytes'],459552)
+        self.assertEqual(board['credit_bytes']+board['external_calibration_bytes'],board['size'])
+        self.assertFalse(board.get('complete_source',False))
 
     def test_four_tuning_profiles_are_independently_complete_data(self):
         for speaker in ('BL','BR','TL','TR'):
@@ -63,7 +71,7 @@ class FirmwareCoverageTests(unittest.TestCase):
         }|{f'{channel}-cs35l41-dsp1-spk-prot.bin' for channel in ('BL','BR','TL','TR')}
         self.assertEqual({i['name'] for i in self.data['images']},expected)
         self.assertTrue(all(i['credit_bytes']==0 for i in self.data['images']
-                            if i['name'] in {'a630_sqe.fw','a640_gmu.bin','board-2.bin'}))
+                            if i['name'] in {'a630_sqe.fw','a640_gmu.bin'}))
 
     def test_explicit_venus_gap_partition(self):
         venus=next(x for x in self.data['images'] if x['name']=='venus.mbn')

@@ -1,7 +1,34 @@
 // SPDX-License-Identifier: GPL-3.0-only
 use firmware_tools::{build_modemuw, machine_name, make_ghidra_bootstrap_view, parse_elf32, parse_novatek_candidate, parse_wmfw, qcom_mdt_hash_segments, wmfw_type_name};
-use std::{env, error::Error, fs, path::PathBuf};
+use std::{env, error::Error, fs, io::{Read,Seek,SeekFrom}, path::PathBuf};
 use firmware_tools::{elf32_prefix::write_elf32_first_page, devices::xiaomi_nabu::elf_specs::KNOWN_ELFS, wmfw_metadata::{build_wmfw_header, verify_wmfw_structure}};
+
+/// Compare sparse typed framing without reading full firmware payloads.
+fn verify_sparse(file: &std::path::Path, expected_len: u64,
+    spans: impl IntoIterator<Item=(usize,Vec<u8>)>) -> Result<usize,Box<dyn Error>> {
+    let mut reference=fs::File::open(file)?;
+    if reference.metadata()?.len()!=expected_len {
+        return Err(format!("wrong full image length for {}",file.display()).into());
+    }
+    let mut end=0;
+    let mut total=0;
+    for (offset,data) in spans {
+        let start=offset as u64;
+        let next=start.checked_add(data.len() as u64).ok_or("metadata span overflow")?;
+        if start<end || next>expected_len || data.is_empty() {
+            return Err(format!("invalid framing span at 0x{offset:x}").into());
+        }
+        reference.seek(SeekFrom::Start(start))?;
+        let mut current=vec![0u8;data.len()];
+        reference.read_exact(&mut current)?;
+        if current!=data {
+            return Err(format!("framing differs at file offset 0x{offset:x}").into());
+        }
+        total+=data.len();
+        end=next;
+    }
+    Ok(total)
+}
 
 fn run() -> Result<(), Box<dyn Error>> {
     let args: Vec<String> = env::args().skip(1).collect();
@@ -565,6 +592,18 @@ fn run() -> Result<(), Box<dyn Error>> {
     }
     let target = PathBuf::from(&args[1]);
     match args[0].as_str() {
+        "emit-board2-prefix" => {
+            use firmware_tools::devices::xiaomi_nabu::ath10k_board2_metadata as board;
+            let prefix=board::first_prefix();
+            fs::write(&target,&prefix)?;
+            println!("emitted {} ath10k board header bytes (calibration unavailable)",prefix.len());
+        }
+        "verify-board2-framing" => {
+            use firmware_tools::devices::xiaomi_nabu::ath10k_board2_metadata as board;
+            let matched=verify_sparse(&target,board::IMAGE_BYTES as u64,
+                board::framing_spans().into_iter().map(|span|(span.offset,span.data)))?;
+            println!("byte-identical: {matched} bytes of ath10k board framing; calibration omitted");
+        }
         "rebuild-ath10k-metadata" => {
             let generated = firmware_tools::devices::xiaomi_nabu::ath10k_firmware_metadata::rebuild();
             fs::write(&target, &generated)?;

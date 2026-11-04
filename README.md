@@ -79,3 +79,15 @@ python3 -m tools.firmware build BL-cs35l41-dsp1-spk-prot.bin \
 
 The build command compares size and SHA-256 with the pinned source revision
 before atomically replacing an existing destination.
+
+### ath10k board archive framing
+
+`board-2.bin` contains 18 WCN3990 calibration records. The Rust module
+`ath10k/board2_metadata.rs` independently encodes 1,508 bytes of outer
+framing, board names, and nested TLV headers at exact source offsets. The
+remaining 459,552 calibration bytes are **not** reconstructed.
+
+`firmware-tools verify-board2-framing /private/board-2.bin` verifies the
+framing spans without reading the calibration payloads. The
+`emit-board2-prefix` output is only 68 bytes and **cannot be loaded** as
+firmware.

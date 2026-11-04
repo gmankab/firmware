@@ -22,10 +22,10 @@ Generated from `reference/xiaomi-nabu/coverage.toml` by `python3 tools/firmware.
 | `TR-cs35l41-dsp1-spk-prot.bin` | 5,340 | 5,340 | 0 |
 | `a630_sqe.fw` | 32,304 | 0 | 32,304 |
 | `a640_gmu.bin` | 37,680 | 0 | 37,680 |
-| `board-2.bin` | 461,060 | 0 | 461,060 |
+| `board-2.bin` | 461,060 | 1,508 | 459,552 |
 | `crbtfw32.tlv` | 127,544 | 0 | 127,544 |
 | `crnv32.bin` | 5,504 | 0 | 5,504 |
-| **Total** | **35,409,209** | **834,566** | **34,574,643** |
+| **Total** | **35,409,209** | **836,074** | **34,573,135** |
 
 ## Venus first executable segment
 
@@ -44,6 +44,7 @@ Reported source/layout: **529,056 / 1,059,316 bytes**; uncovered: **530,260 byte
 
 - `modemuw.jsn` and the metadata-only `firmware-5.bin` are independently complete; the latter has no WLAN executable.
 - The four 5,340-byte Cirrus WMDR coefficient configuration files are byte-identical from numeric tables, not HALO executable code.
+- `board-2.bin` has 1,508 typed TLV/name framing bytes; 459,552 OEM calibration bytes remain external.
 - A640 exact whole-file reproduction requires externally supplied original OEM authentication bytes.
 - Cirrus HALO program bytes are still not independently decompiled; reference-assisted repacking is not firmware reconstruction.
 - Several reference-dependent verification tests are skipped without supplied original firmwares and ISA toolchains.

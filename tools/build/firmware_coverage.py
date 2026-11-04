@@ -57,11 +57,18 @@ def load(path: Path = DEFAULT_MANIFEST) -> dict[str, Any]:
         sha = image.get("sha256", "")
         if len(sha) != 64 or any(c not in "0123456789abcdef" for c in sha):
             raise CoverageError(f"invalid SHA-256 for {name}")
-        if image.get("complete_source", False) and (credit != size or image.get("external_authentication_bytes", 0)):
-            raise CoverageError(f"incorrect complete-source assertion: {name}")
-        for external_field in ("external_authentication_bytes", "external_dsp_payload_bytes"):
-            if image.get(external_field, 0) < 0 or image.get(external_field, 0) > size:
+        external_fields=("external_authentication_bytes","external_dsp_payload_bytes",
+                         "external_calibration_bytes")
+        for field in external_fields:
+            value=image.get(field,0)
+            if not isinstance(value,int) or value<0 or value>size:
                 raise CoverageError(f"invalid external byte count: {name}")
+        if credit+sum(image.get(field,0) for field in external_fields)>size:
+            raise CoverageError(f"credit and external dependencies exceed image size: {name}")
+        if image.get("complete_source", False) and (
+            credit!=size or any(image.get(field,0) for field in external_fields)
+        ):
+            raise CoverageError(f"incorrect complete-source assertion: {name}")
         if "executable_load" in image:
             info = image["executable_load"]
             regions = image.get("regions", [])
@@ -147,6 +154,7 @@ def status(data: dict[str,Any]) -> str:
     lines.extend(["", "## Important limits", "",
                   "- `modemuw.jsn` and the metadata-only `firmware-5.bin` are independently complete; the latter has no WLAN executable.",
                   "- The four 5,340-byte Cirrus WMDR coefficient configuration files are byte-identical from numeric tables, not HALO executable code.",
+                  "- `board-2.bin` has 1,508 typed TLV/name framing bytes; 459,552 OEM calibration bytes remain external.",
                   "- A640 exact whole-file reproduction requires externally supplied original OEM authentication bytes.",
                   "- Cirrus HALO program bytes are still not independently decompiled; reference-assisted repacking is not firmware reconstruction.",
                   "- Several reference-dependent verification tests are skipped without supplied original firmwares and ISA toolchains.",
