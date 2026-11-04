@@ -6,6 +6,7 @@ pub mod a640_microcode;
 pub use ir3;
 pub use qrisc::{codec as qrisc_codec, program as qrisc_program, a640 as a640_routines};
 pub mod image_plan;
+pub mod firmware_manifest_identity;
 pub mod sha384;
 pub mod qcom_mbn;
 pub mod qcom_mbn_validation;

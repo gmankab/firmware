@@ -31,18 +31,8 @@ fn verify_sparse(file: &std::path::Path, expected_len: u64,
 }
 
 fn venus_reference_identity() -> Result<(usize, &'static str), Box<dyn Error>> {
-    let records = include_str!("../../../reference/xiaomi-nabu/coverage.toml");
-    let record = records.split("[[images]]").find(|record| {
-        record.lines().any(|line| line.trim() == "name = \"venus.mbn\"")
-    }).ok_or("missing canonical Venus reference record")?;
-    let field = |name: &str| record.lines().find_map(|line| {
-        let (key, value) = line.split_once('=')?;
-        (key.trim() == name).then_some(value.trim())
-    });
-    let size = field("size").ok_or("missing Venus reference size")?.parse()?;
-    let sha256 = field("sha256").and_then(|value| value.strip_prefix('"')?.strip_suffix('"'))
-        .ok_or("missing Venus reference SHA-256")?;
-    Ok((size, sha256))
+    let identity = firmware_tools::firmware_manifest_identity::canonical_image("venus.mbn")?;
+    Ok((identity.size, identity.sha256))
 }
 
 fn verify_venus_upper_dispatch(reference: &[u8], bytes: &[u8]) -> Result<(), Box<dyn Error>> {

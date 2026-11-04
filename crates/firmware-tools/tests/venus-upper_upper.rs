@@ -179,11 +179,11 @@ fn controller_continuation_bounds_and_control_flow() {
     use firmware_tools::devices::xiaomi_nabu::venus_upper_controller_continuation as continuation;
     let bytes = continuation::fragment().unwrap();
     assert_eq!(continuation::START, 0x68000);
-    assert_eq!(continuation::END, 0x68220);
+    assert_eq!(continuation::END, 0x68458);
     assert_eq!(continuation::FILE_MAPPING_DELTA, 0x4000);
-    assert_eq!(bytes.len(), 544);
-    assert_eq!(bytes.len() / 4, 136);
-    assert_eq!(continuation::END - 0x680cc, 340);
+    assert_eq!(bytes.len(), 1112);
+    assert_eq!(bytes.len() / 4, 278);
+    assert_eq!(continuation::END - 0x68220, 568);
     for (offset, expected) in [
         (0, arm32::branch(arm32::Condition::Al, 0x68000, 0x6800c, false).unwrap()),
         (28, arm32::branch_exchange_immediate(0x6801c, 0x83c4c).unwrap()),
@@ -268,6 +268,106 @@ fn controller_continuation_table_initialization_and_tiers() {
         let expected = arm32::transfer_word(C::Al, true, register, R::PC, offset as i32).unwrap();
         let index = at - continuation::START;
         assert_eq!(&bytes[index..index + 4], &expected.to_le_bytes());
+    }
+}
+
+#[test]
+fn controller_continuation_selection_thresholds_and_adjustments() {
+    use arm32::{Condition as C, DataOp as Op, Register as R, Shift};
+    use firmware_tools::devices::xiaomi_nabu::venus_upper_controller_continuation as continuation;
+    let bytes = continuation::fragment().unwrap();
+    let r3 = R::new(3).unwrap();
+    let r4 = R::new(4).unwrap();
+    let r6 = R::new(6).unwrap();
+    let r7 = R::new(7).unwrap();
+    let r8 = R::new(8).unwrap();
+    let r9 = R::new(9).unwrap();
+    let r10 = R::new(10).unwrap();
+    for (at, expected) in [
+        (0x68220, arm32::data_immediate(C::Al, Op::Mov, R::R0, R::R0, 34).unwrap()),
+        (0x68224, arm32::transfer_word(C::Al, false, R::R0, r8, 0x98).unwrap()),
+        (0x68234, arm32::transfer_byte(C::Al, false, r10, r8, 0x64c).unwrap()),
+        (0x68238, arm32::data_register(C::Al, Op::Add, r6, r8, r10, Shift::Lsl, 2, false).unwrap()),
+        (0x68244, arm32::transfer_byte(C::Al, false, r10, r8, 0x158).unwrap()),
+        (0x68248, arm32::transfer_byte(C::Al, true, R::R0, r8, 0x9d).unwrap()),
+        (0x68264, arm32::transfer_word(C::Al, true, r8, r3, 0x54).unwrap()),
+        (0x68274, arm32::mov_shifted_register(C::Al, r7, r8, Shift::Lsr, 7).unwrap()),
+        (0x68278, arm32::mov_shifted_register(C::Al, R::R0, r8, Shift::Lsr, 8).unwrap()),
+        (0x68288, arm32::data_immediate(C::Hi, Op::Mov, R::R2, R::R0, 2).unwrap()),
+        (0x682a8, arm32::mov_register(C::Eq, r9, R::R2)),
+        (0x682d8, arm32::mov_register(C::Eq, r7, R::R2)),
+        (0x682e0, arm32::multiply_register(C::Al, r3, R::R1, R::R2).unwrap()),
+        (0x682e4, arm32::multiply_register(C::Al, R::R1, r8, R::R12).unwrap()),
+        (0x682e8, arm32::data_register(C::Al, Op::Add, R::R0, r3, R::R1, Shift::Lsr, 1, false).unwrap()),
+        (0x68320, arm32::data_immediate(C::Ls, Op::Mov, R::R1, R::R0, 2).unwrap()),
+        (0x68330, arm32::mov_register(C::Hi, r4, R::R1)),
+        (0x68344, arm32::signed_multiply_bottom_halves(C::Al, R::R1, R::R2, R::R1).unwrap()),
+        (0x68348, arm32::data_immediate(C::Al, Op::And, R::R2, R::R1, 0xfe).unwrap()),
+        (0x68374, arm32::data_immediate(C::Al, Op::Mov, R::R1, R::R0, 126).unwrap()),
+        (0x68378, arm32::data_immediate(C::Al, Op::Mov, R::R0, R::R0, 0).unwrap()),
+        (0x6837c, arm32::data_immediate(C::Al, Op::Orr, R::R1, R::R1, 0x400).unwrap()),
+        (0x683b4, arm32::data_immediate(C::Al, Op::Sub, R::R0, r8, 0x780).unwrap()),
+        (0x683c4, arm32::transfer_word(C::Al, true, r8, R::SP, 60).unwrap()),
+        (0x683d8, arm32::transfer_word(C::Al, true, r9, R::SP, 36).unwrap()),
+        (0x683fc, arm32::transfer_word_register(C::Al, true, R::R2, R::R0, r10, Shift::Lsl, 2).unwrap()),
+        (0x68408, arm32::data_immediate(C::Ls, Op::Sub, R::R2, R::R2, 0x37).unwrap()),
+        (0x68424, arm32::data_immediate(C::Ls, Op::Sub, R::R2, R::R2, 0x37).unwrap()),
+        (0x68434, arm32::data_immediate(C::Al, Op::Sub, R::R2, R::R0, 0x73).unwrap()),
+        (0x68438, arm32::transfer_word(C::Al, true, r9, R::SP, 36).unwrap()),
+        (0x68444, arm32::transfer_word(C::Al, false, R::R2, r8, 0x94).unwrap()),
+    ] {
+        let offset = at - continuation::START;
+        assert_eq!(&bytes[offset..offset + 4], &expected.to_le_bytes(), "runtime {at:#x}");
+    }
+}
+
+#[test]
+fn controller_continuation_selection_branches_and_external_literals() {
+    use arm32::{Condition as C, Register as R};
+    use firmware_tools::devices::xiaomi_nabu::venus_upper_controller_continuation as continuation;
+    let bytes = continuation::fragment().unwrap();
+    for (at, condition, target, link) in [
+        (0x6822c, C::Al, 0x67900, true),
+        (0x68250, C::Eq, 0x68458, false),
+        (0x68304, C::Ls, 0x68338, false),
+        (0x6834c, C::Ne, 0x68360, false),
+        (0x68354, C::Cc, 0x68388, false),
+        (0x6835c, C::Al, 0x683a4, false),
+        (0x68364, C::Cc, 0x68398, false),
+        (0x6836c, C::Al, 0x683a4, false),
+        (0x68380, C::Al, 0x17b0, true),
+        (0x68384, C::Al, 0x67f54, false),
+        (0x68394, C::Al, 0x683a4, false),
+        (0x683b0, C::Al, 0x471c, true),
+        (0x683c0, C::Hi, 0x68410, false),
+        (0x683cc, C::Ls, 0x6842c, false),
+        (0x683f8, C::Ls, 0x69b24, false),
+        (0x6840c, C::Al, 0x6843c, false),
+        (0x68428, C::Al, 0x68438, false),
+        (0x68448, C::Al, 0x2ec94, true),
+        (0x68454, C::Al, 0x2ec94, true),
+    ] {
+        let offset = at - continuation::START;
+        let expected = arm32::branch(condition, at as u32, target, link).unwrap();
+        assert_eq!(&bytes[offset..offset + 4], &expected.to_le_bytes(), "runtime {at:#x}");
+    }
+    let offset = 0x682ec - continuation::START;
+    assert_eq!(&bytes[offset..offset + 4], &arm32::branch_exchange_immediate(0x682ec, 0x83c4c).unwrap().to_le_bytes());
+    for (at, condition, register, target) in [
+        (0x68358, C::Al, R::R1, 0x69114),
+        (0x68368, C::Al, R::R1, 0x69110),
+        (0x68370, C::Al, R::R2, 0x68a6c),
+        (0x6838c, C::Cc, R::R1, 0x69104),
+        (0x68390, C::Cs, R::R1, 0x6910c),
+        (0x6839c, C::Cc, R::R1, 0x69100),
+        (0x683a0, C::Cs, R::R1, 0x69108),
+        (0x6843c, C::Al, R::R1, 0x69284),
+        (0x6844c, C::Al, R::R1, 0x69288),
+    ] {
+        assert!(target >= continuation::END);
+        let expected = arm32::transfer_word(condition, true, register, R::PC, (target - at - 8) as i32).unwrap();
+        let offset = at - continuation::START;
+        assert_eq!(&bytes[offset..offset + 4], &expected.to_le_bytes(), "runtime {at:#x}");
     }
 }
 
