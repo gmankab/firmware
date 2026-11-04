@@ -52,6 +52,29 @@ xxd -l 128 /path/to/original-firmware
 
 **Avoid working on a mutable firmware file.** A reference image modified in-place makes later comparisons meaningless. Copy it once, hash it, and treat that copy as read-only.
 
+### Install REA
+
+[REA](https://github.com/morluto/rea) exposes local analysis tools through MCP. It helps inspect firmware regions, extract containers and investigate supported native executables with Ghidra
+
+The following setup uses the `fedora-toolbox-45` container. Substitute your container name from `toolbox list --containers`. Toolbox shares your home directory with the host; `/usr` and `/opt` below belong to the container.
+
+Acquire REA from a trusted directory outside the target repository:
+
+```sh
+npm install --global rea-agents@latest
+```
+
+```bash
+env \
+  GHIDRA_INSTALL_DIR=/opt/ghidra_12.1.4_PUBLIC \
+  JAVA_HOME=/usr/lib/jvm/java-25-openjdk \
+  REA_ANALYSIS_PROVIDER=ghidra /usr/local/bin/rea doctor --provider ghidra --json
+```
+
+### Enable REA MCP for maki
+
+See `.maki/mcp.toml` file in repo root. Restart Maki and open `/mcp` to check REA's connection
+
 ## 2. Acquire and verify the exact reference revision
 
 For Xiaomi Nabu, use the firmware payload contained in the corresponding postmarketOS package, not an arbitrarily named upstream clone. In the verified Nabu package, the Novatek file differs from one upstream checkout. Extract the package to a private directory. For an Alpine APK that is actually a gzip-compressed tarball:
