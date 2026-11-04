@@ -40,6 +40,16 @@ pub mod venus_upper_allocation_transition;
 pub mod venus_upper_state_smoothing;
 #[path = "venus/upper/venus_upper_indexed_transition.rs"]
 pub mod venus_upper_indexed_transition;
+#[path = "venus/upper/venus_upper_selector_state.rs"]
+pub mod venus_upper_selector_state;
+#[path = "venus/upper/venus_upper_paired_accumulator.rs"]
+pub mod venus_upper_paired_accumulator;
+#[path = "venus/upper/venus_upper_scaled_accumulation.rs"]
+pub mod venus_upper_scaled_accumulation;
+#[path = "venus/upper/venus_upper_candidate_bounds.rs"]
+pub mod venus_upper_candidate_bounds;
+#[path = "venus/upper/venus_upper_adjustment_records.rs"]
+pub mod venus_upper_adjustment_records;
 #[path = "cirrus/coeff_profiles.rs"]
 pub mod cirrus_coeff_profiles;
 #[path = "a640/a640_shader.rs"]
