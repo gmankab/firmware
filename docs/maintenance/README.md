@@ -24,6 +24,11 @@ provenance, **not supported imports or command-line locations**.
 | WLAN V66 packet parser | `wlan-packet-parser-relocation.json` | `tests/test_wlan_packet_tool_location.py` |
 | ADSP shared V66 encoder and emitters | `adsp-tool-ownership.json` | `tests/test_adsp_tool_ownership.py` |
 
+Dated `docs/history/**/progress.md` reports are being retired from HEAD:
+Git history retains their exact bytes, and the `retired_historical_files`
+SHA-256 ledger distinguishes archived destinations from missing migrations.
+Technical research and verification evidence remain in the working tree.
+
 To prevent another proliferation of wrapper scripts, new command-line
 entry points should live in the owning firmware/tool directory. Only stable
 public entry points remain directly under `tools/`. Changes must update actual

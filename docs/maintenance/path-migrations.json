@@ -1055,5 +1055,17 @@
     "modified_text_files": 389,
     "updated_references": 2216,
     "controller_owned_modules": 55
+  },
+  "retired_historical_files": {
+    "docs/history/phase-1/adsp/progress.md": "124c29c2487fffcb6e7c7a6044d049937b59792f16e9949dbeb5cf81cde994f5",
+    "docs/history/phase-1/cdsp/progress.md": "153680fa2e20bcbe514143fd04e0bc25fad632e2f65acaf5e3735a4601b9a763",
+    "docs/history/phase-1/halo/progress.md": "ef0a0c4f2657769d30fea465a8d4055765bc705935c58dac2607702f23a40d0d",
+    "docs/history/phase-1/mbn/progress.md": "a9ce806718f225444d09bc4f8cec0bb5195e15948bad267fbabdc8fcca28a276",
+    "docs/history/phase-1/modem/progress.md": "44c5ad9ab2eb1bf5db2dae501e781c69115ac304a57882f4885de055ae243989",
+    "docs/history/phase-1/novatek/progress.md": "199db7f4223ccbfe1709be6e40ade3e61bbb082c7a6953bfca828216b1199904",
+    "docs/history/phase-1/venus-bridge/progress.md": "7734783370e6bf08b1fcd6bed02dbda9b4b19c0a1a3f3266d1656d73eb357e8b",
+    "docs/history/phase-1/venus-forward/progress.md": "57fb1a292506356155da6d02b925056cf73bf179447cff1ed2de7a863673077d",
+    "docs/history/phase-1/venus-late/progress.md": "2b939aa0de3c9c0503a59f1d6c249e32af4012b273788ec5dc7dfea6afdf16ab",
+    "docs/history/phase-1/wlanmdsp/progress.md": "7e93451f234ec858d4378c2033579a228797419a7f4f946a9495d623c19a2179"
   }
 }

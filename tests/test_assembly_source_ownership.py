@@ -37,7 +37,9 @@ class AssemblySourceOwnershipTests(unittest.TestCase):
                     self.assertIn(dest, tracked)
                     self.assertEqual(file_sha256(ROOT / dest), expected)
                     self.assertNotIn('tools/' + component.lower() + '/' + basename, tracked)
-            self.assertTrue(all((ROOT / path).exists() for path in changed.values()))
+            archived = manifest.get('retired_historical_files', {})
+            self.assertTrue(all((ROOT / path).exists() for path in changed.values()
+                                if path not in archived))
 
 
 if __name__ == '__main__':

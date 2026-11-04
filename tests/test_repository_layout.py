@@ -23,11 +23,22 @@ class RepositoryLayoutTests(unittest.TestCase):
         changed=self.plan['implemented_path_renames']
         self.assertEqual(len(changed),1029)
         self.assertEqual(len(changed),len(set(changed.values())))
+        retired=self.plan.get('retired_historical_files',{})
+        self.assertTrue(set(retired).issubset(set(changed.values())))
+        for path, sha256 in retired.items():
+            with self.subTest(archived=path):
+                self.assertTrue(path.startswith('docs/history/phase-'))
+                self.assertTrue(path.endswith('/progress.md'))
+                self.assertEqual(len(sha256),64)
+                self.assertTrue(all(ch in '0123456789abcdef' for ch in sha256))
+                self.assertNotIn(path,self.paths)
+                self.assertFalse((ROOT/path).exists())
         for old,new in changed.items():
             with self.subTest(old=old):
-                self.assertIn(new,self.paths)
+                if new not in retired:
+                    self.assertIn(new,self.paths)
+                    self.assertTrue((ROOT/new).is_file())
                 self.assertNotIn(old,self.paths)
-                self.assertTrue((ROOT/new).is_file())
 
     def test_missing_sources_are_not_fabricated(self):
         self.assertEqual(len(self.plan['unavailable_paths']),16)
