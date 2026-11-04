@@ -15,7 +15,7 @@ use arm32::{
 };
 
 pub const START:usize=0x69e44;
-pub const END:usize=0x6a680;
+pub const END:usize=0x6a73c;
 pub const FILE_MAPPING_DELTA:usize=0x4000;
 
 struct Emitter { pc:usize, bytes:Vec<u8> }
@@ -639,6 +639,56 @@ pub fn fragment()->Result<Vec<u8>,String> {
     c.emit(transfer_word_postindexed(C::Al,false,R::R1,R::new(3)?,-4)?)?;
     c.emit(transfer_word_postindexed(C::Al,false,R::R1,R::R0,-4)?)?;
     c.branch(C::Gt,0x6a664,false)?;
+    c.check(0x6a680)?;
+    // Sum two 64-bit counters with carry, update low/high halves, then rotate
+    // the controller's running history and trigger its diagnostic helpers.
+    c.ldr(R::R1,R::LR,0)?;
+    c.ldr(R::new(3)?,R::SP,0x84)?;
+    c.ldr(R::R0,R::SP,0x60)?;
+    c.emit(data_register(C::Al,Op::Add,R::new(3)?,R::new(3)?,R::R1,Shift::Lsl,0,true)?)?;
+    c.ldr(R::R1,R::SP,0x80)?;
+    c.str(R::new(3)?,R::SP,0x84)?;
+    c.imm(C::Al,Op::Adc,R::R1,R::R1,0)?;
+    c.str(R::R1,R::SP,0x80)?;
+    c.str(R::new(3)?,R::R0,0)?;
+    c.str(R::R1,R::R0,4)?;
+    c.ldr(R::R1,R::LR,4)?;
+    c.ldr(R::new(3)?,R::SP,0x7c)?;
+    c.ldr(r7,R::SP,0x78)?;
+    c.ldr(R::R0,R::SP,0x5c)?;
+    c.emit(data_register(C::Al,Op::Add,R::new(3)?,R::new(3)?,R::R1,Shift::Lsl,0,true)?)?;
+    c.imm(C::Al,Op::Adc,r7,r7,0)?;
+    c.emit(transfer_multiple(C::Al,false,R::R0,R::new(3)?.bit()|r7.bit(),BlockMode::IncrementAfter,false)?)?;
+    c.ldr(R::R0,R::LR,8)?;
+    c.ldr(R::R1,R::R12,0x2e8)?;
+    c.emit(data_register(C::Al,Op::Add,R::R0,R::R1,R::R0,Shift::Lsl,0,false)?)?;
+    c.str(R::R0,R::R12,0x2e8)?;
+    c.ldr(R::R1,R::SP,0x74)?;
+    c.ldr(r5,R::SP,0x8c)?;
+    c.imm(C::Al,Op::Add,R::R1,R::R1,1)?;
+    c.imm(C::Al,Op::Add,r5,r5,1)?;
+    c.imm(C::Al,Op::And,R::R0,R::R1,255)?;
+    c.emit(data_register(C::Al,Op::Cmp,R::R0,R::R0,r6,Shift::Lsl,0,false)?)?;
+    c.branch(C::Cc,0x6a48c,false)?;
+    c.ldr(R::R1,R::SP,0x48)?;
+    c.ldr(R::R0,R::R1,0x78)?;
+    c.mov(C::Al,R::new(3)?,R::R1)?;
+    c.str(R::R0,R::R1,0x7c)?;
+    c.ldr(R::R0,R::R1,0x74)?;
+    c.str(R::R0,R::R1,0x78)?;
+    c.ldr(R::R0,R::R1,0x70)?;
+    c.str(R::R0,R::R1,0x74)?;
+    c.ldr(R::R0,R::R12,0x2e8)?;
+    c.str(R::R0,R::new(3)?,0x70)?;
+    c.imm(C::Al,Op::Cmp,R::R0,R::R0,0)?;
+    c.ldrb(r4,R::new(3)?,2)?;
+    c.branch(C::Eq,0x6a774,false)?;
+    c.ldr(R::R1,R::PC,0x4cc)?;
+    c.imm(C::Al,Op::Mov,R::R0,R::R0,2)?;
+    c.branch(C::Al,0x2ec94,true)?;
+    c.ldr(R::R1,R::PC,0x4c4)?;
+    c.imm(C::Al,Op::Mov,R::R0,R::R0,2)?;
+    c.branch(C::Al,0x2ec94,true)?;
     c.check(END)?;
     Ok(c.bytes)
 }
@@ -649,6 +699,6 @@ mod tests {
     #[test]
     fn covers_bounded_function_prefix() {
         assert_eq!(fragment().unwrap().len(),END-START);
-        assert_eq!(END-START,2108);
+        assert_eq!(END-START,2296);
     }
 }
