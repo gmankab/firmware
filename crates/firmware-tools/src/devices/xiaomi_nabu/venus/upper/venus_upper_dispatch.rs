@@ -4,6 +4,7 @@
 //! firmware. Execution continues after END; external literals are unowned.
 use arm32::{
     branch, branch_exchange_immediate, data_immediate, data_register,
+    data_immediate_with_flags, rotate_right_with_extend,
     load_halfword, multiply_accumulate, transfer_word_postindexed,
     data_register_shifted_by_register, mov_register,
     mov_shifted_register, multiply_register, push_registers, store_halfword,
@@ -15,7 +16,7 @@ use arm32::{
 };
 
 pub const START:usize=0x69e44;
-pub const END:usize=0x6a9b0;
+pub const END:usize=0x6abb8;
 pub const FILE_MAPPING_DELTA:usize=0x4000;
 
 struct Emitter { pc:usize, bytes:Vec<u8> }
@@ -859,6 +860,140 @@ pub fn fragment()->Result<Vec<u8>,String> {
     c.emit(transfer_byte(C::Al,false,R::R0,r10,0xd0)?)?;
     c.ldrb(R::R0,r5,0xf0)?;
     c.emit(transfer_byte(C::Al,false,R::R0,r10,0xb8)?)?;
+    c.check(0x6a9b0)?;
+    c.imm(C::Al,Op::Mov,R::R0,R::R0,65536)?;
+    c.ldrb(R::R1,r7,0x30)?;
+    c.imm(C::Al,Op::Cmp,R::R0,R::R1,0)?;
+    c.branch(C::Ne,0x6aa08,false)?;
+    c.ldrb(R::R1,r7,0x27c)?;
+    c.imm(C::Al,Op::Cmp,R::R0,R::R1,0)?;
+    c.branch(C::Eq,0x6aa08,false)?;
+    c.ldr(R::R1,r5,0x2c)?;
+    c.imm(C::Al,Op::Cmp,R::R0,r4,0)?;
+    c.str(R::R1,r10,0x10)?;
+    c.ldr(R::R1,r5,0x30)?;
+    c.str(R::R1,r10,0xc)?;
+    c.str(R::R1,r10,0x14)?;
+    c.branch(C::Eq,0x6aa08,false)?;
+    c.imm(C::Al,Op::Mov,R::R0,R::R0,0)?;
+    c.imm(C::Al,Op::Mov,R::new(3)?,R::R0,0)?;
+    c.emit(data_register(C::Al,Op::Mov,R::R2,R::R0,R::R0,Shift::Lsr,1,true)?)?;
+    c.emit(rotate_right_with_extend(C::Al,R::R0,r4,false)?)?;
+    c.emit(data_register(C::Al,Op::Add,R::R0,R::R0,R::R1,Shift::Lsl,16,true)?)?;
+    c.emit(data_register(C::Al,Op::Adc,R::R1,R::R2,R::R1,Shift::Lsr,16,false)?)?;
+    c.mov(C::Al,R::R2,r4)?;
+    c.branch(C::Al,0x8187c,true)?;
+    c.check(0x6aa08)?;
+    c.str(R::R0,r10,0x20)?;
+    c.ldr(r6,r5,0xf4)?;
+    c.mov(C::Al,R::R0,r6)?;
+    c.emit(branch_exchange_immediate(c.pc as u32,0x82f74)?)?;
+    c.mov(C::Al,r7,R::R0)?;
+    c.mov(C::Al,R::R0,r4)?;
+    c.emit(branch_exchange_immediate(c.pc as u32,0x82f74)?)?;
+    c.mov(C::Al,R::R1,R::R0)?;
+    c.mov(C::Al,R::R0,r7)?;
+    c.emit(branch_exchange_immediate(c.pc as u32,0x837e0)?)?;
+    c.imm(C::Al,Op::Mov,R::R1,R::R0,46661632)?;
+    c.imm(C::Al,Op::Orr,R::R1,R::R1,1073741824)?;
+    c.emit(branch_exchange_immediate(c.pc as u32,0x83608)?)?;
+    c.mov(C::Al,r7,R::R0)?;
+    c.imm(C::Al,Op::Add,R::R0,r6,1)?;
+    c.emit(branch_exchange_immediate(c.pc as u32,0x82f74)?)?;
+    c.mov(C::Al,R::R1,R::R0)?;
+    c.mov(C::Al,R::R0,r7)?;
+    c.emit(branch_exchange_immediate(c.pc as u32,0x82988)?)?;
+    c.emit(branch_exchange_immediate(c.pc as u32,0x82c5c)?)?;
+    c.emit(store_halfword(C::Al,R::R0,r10,0x2a)?)?;
+    c.ldr(R::R0,R::SP,0x70)?;
+    c.ldr(R::R1,R::SP,0x20)?;
+    c.ldrb(r6,r5,8)?;
+    c.ldr(R::new(3)?,R::R0,0x2c0)?;
+    c.ldr(R::R2,R::R0,12)?;
+    c.ldr(r7,R::R0,0x2c4)?;
+    c.ldr(R::R1,R::R1,0)?;
+    c.emit(data_register(C::Al,Op::Sub,R::new(3)?,R::new(3)?,r4,Shift::Lsl,0,true)?)?;
+    c.imm(C::Al,Op::Sbc,r7,r7,0)?;
+    c.imm(C::Al,Op::Cmp,R::R0,R::R2,0)?;
+    c.str(R::new(3)?,R::R0,0x2c0)?;
+    c.str(r7,R::R0,0x2c4)?;
+    c.branch(C::Eq,0x6aaa4,false)?;
+    c.emit(data_register(C::Al,Op::Add,R::R1,R::R1,r6,Shift::Lsl,3,false)?)?;
+    c.emit(transfer_doubleword(C::Al,true,R::R2,R::R1,0x98)?)?;
+    c.emit(data_register(C::Al,Op::Sub,R::R2,R::R2,r4,Shift::Lsl,0,true)?)?;
+    c.imm(C::Al,Op::Sbc,R::new(3)?,R::new(3)?,0)?;
+    c.emit(transfer_doubleword(C::Al,false,R::R2,R::R1,0x98)?)?;
+    c.check(0x6aaa4)?;
+    c.ldr(R::R1,R::R0,0x760)?;
+    c.ldr(R::R2,R::R0,0x764)?;
+    c.imm(C::Al,Op::Mov,R::new(3)?,R::R0,0)?;
+    c.emit(data_register(C::Al,Op::Sub,R::R1,R::R1,r4,Shift::Lsl,0,true)?)?;
+    c.emit(data_immediate_with_flags(C::Al,Op::Sbc,R::R2,R::R2,0,true)?)?;
+    c.imm(C::Cc,Op::Mov,R::new(3)?,R::R0,1)?;
+    c.imm(C::Al,Op::Cmp,R::R0,R::new(3)?,0)?;
+    c.imm(C::Ne,Op::Mov,R::R1,R::R0,0)?;
+    c.imm(C::Ne,Op::Mov,R::R2,R::R0,0)?;
+    c.str(R::R1,R::R0,0x760)?;
+    c.str(R::R2,R::R0,0x764)?;
+    c.ldr(R::R1,R::SP,0x24)?;
+    c.ldrb(R::new(3)?,r5,1)?;
+    c.ldr(R::R2,R::R1,0)?;
+    c.mov(C::Al,R::R1,r4)?;
+    c.emit(transfer_multiple(C::Al,false,R::SP,r6.bit()|r10.bit(),BlockMode::IncrementAfter,false)?)?;
+    c.branch(C::Al,0x6ac0c,true)?;
+    c.ldr(r7,R::SP,0x70)?;
+    c.ldrb(R::R0,r7,0x30)?;
+    c.imm(C::Al,Op::Cmp,R::R0,R::R0,0)?;
+    c.branch(C::Ne,0x6ab24,false)?;
+    c.ldrb(R::R0,r5,1)?;
+    c.ldrb(R::R2,r5,8)?;
+    c.ldr(R::new(3)?,R::SP,0x1c)?;
+    c.ldrb(R::R1,r5,0)?;
+    c.str(R::new(3)?,R::SP,0)?;
+    c.emit(transfer_multiple(C::Al,false,R::SP,R::R0.bit()|R::R2.bit()|r10.bit(),BlockMode::IncrementBefore,false)?)?;
+    c.mov(C::Al,R::R0,r7)?;
+    c.ldr(R::R2,R::SP,0x18)?;
+    c.ldr(R::new(3)?,R::SP,0x14)?;
+    c.branch(C::Al,0x6af2c,true)?;
+    c.ldr(r7,R::SP,0x70)?;
+    c.check(0x6ab24)?;
+    c.ldrb(R::R0,r7,0x20)?;
+    c.imm(C::Al,Op::Cmp,R::R0,R::R0,1)?;
+    c.branch(C::Ne,0x6abb8,false)?;
+    c.ldr(R::R1,r5,0x2c)?;
+    c.imm(C::Al,Op::Mov,R::R0,R::R0,0x2fc)?;
+    c.imm(C::Al,Op::Mov,r6,R::R0,0)?;
+    c.imm(C::Al,Op::Orr,R::R0,R::R0,0x1000)?;
+    c.emit(data_register(C::Al,Op::Mov,R::new(3)?,R::R0,r6,Shift::Lsr,1,true)?)?;
+    c.emit(transfer_word_register(C::Al,false,R::R1,r9,R::R0,Shift::Lsl,0)?)?;
+    c.imm(C::Al,Op::Mov,R::R0,R::R0,0x1300)?;
+    c.ldr(r4,r5,0x30)?;
+    c.emit(transfer_word_register(C::Al,false,r4,r9,R::R0,Shift::Lsl,0)?)?;
+    c.emit(data_register(C::Al,Op::Add,R::R0,r4,R::R1,Shift::Lsl,0,false)?)?;
+    c.str(r4,r10,0xc)?;
+    c.str(R::R1,r10,0x10)?;
+    c.str(R::R0,r10,0x14)?;
+    c.str(R::R1,r7,0x2f4)?;
+    c.str(r4,r7,0x2f8)?;
+    c.str(R::R0,r7,0x300)?;
+    c.ldr(R::R2,r10,4)?;
+    c.emit(rotate_right_with_extend(C::Al,R::R0,R::R2,false)?)?;
+    c.imm(C::Al,Op::Add,R::R2,R::R2,1)?;
+    c.emit(data_register(C::Al,Op::Add,R::R0,R::R0,R::R1,Shift::Lsl,16,true)?)?;
+    c.emit(data_register(C::Al,Op::Adc,R::R1,R::new(3)?,R::R1,Shift::Lsr,16,false)?)?;
+    c.imm(C::Al,Op::Mov,R::new(3)?,R::R0,0)?;
+    c.branch(C::Al,0x8187c,true)?;
+    c.str(R::R0,r10,0xdc)?;
+    c.emit(data_register(C::Al,Op::Mov,R::R1,R::R0,r6,Shift::Lsr,1,true)?)?;
+    c.imm(C::Al,Op::Mov,R::new(3)?,R::R0,0)?;
+    c.ldr(R::R2,r10,0)?;
+    c.emit(rotate_right_with_extend(C::Al,R::R0,R::R2,false)?)?;
+    c.imm(C::Al,Op::Add,R::R2,R::R2,1)?;
+    c.emit(data_register(C::Al,Op::Add,R::R0,R::R0,r4,Shift::Lsl,16,true)?)?;
+    c.emit(data_register(C::Al,Op::Adc,R::R1,R::R1,r4,Shift::Lsr,16,false)?)?;
+    c.branch(C::Al,0x8187c,true)?;
+    c.ldr(r7,R::SP,0x70)?;
+    c.str(R::R0,r10,0xe0)?;
     c.check(END)?;
     Ok(c.bytes)
 }
@@ -878,6 +1013,12 @@ mod tests {
             (0x6a91c,C::Ne,0x6a954),
             (0x6a928,C::Eq,0x6a954),
             (0x6a950,C::Al,0x6abb8),
+            (0x6a9bc,C::Ne,0x6aa08),
+            (0x6a9c8,C::Eq,0x6aa08),
+            (0x6a9e4,C::Eq,0x6aa08),
+            (0x6aa8c,C::Eq,0x6aaa4),
+            (0x6aaf4,C::Ne,0x6ab24),
+            (0x6ab2c,C::Ne,END),
         ] {
             let instruction=word(&bytes,pc);
             assert_eq!(instruction>>28,condition as u32);
@@ -896,12 +1037,40 @@ mod tests {
         assert_eq!(word(&bytes,0x6a910),transfer_word(C::Cs,false,R::R0,r4,0).unwrap());
         assert_eq!(word(&bytes,0x6a97c),transfer_multiple(C::Al,false,r10,R::R0.bit()|r4.bit(),BlockMode::IncrementBefore,false).unwrap());
         assert_eq!(word(&bytes,0x6a998),transfer_doubleword(C::Al,false,R::R2,r10,0xc8).unwrap());
-        assert_eq!(word(&bytes,END-4),transfer_byte(C::Al,false,R::R0,r10,0xb8).unwrap());
+        assert_eq!(word(&bytes,0x6a9ac),transfer_byte(C::Al,false,R::R0,r10,0xb8).unwrap());
+        assert_eq!(word(&bytes,END-4),transfer_word(C::Al,false,R::R0,r10,0xe0).unwrap());
     }
+    #[test]
+    fn continuation_preserves_carry_chains_and_interworking() {
+        let bytes=fragment().unwrap();
+        let r3=R::new(3).unwrap();
+        let r4=R::new(4).unwrap();
+        let r6=R::new(6).unwrap();
+        let r10=R::new(10).unwrap();
+        assert_eq!(word(&bytes,0x6a9f0),data_register(C::Al,Op::Mov,R::R2,R::R0,R::R0,Shift::Lsr,1,true).unwrap());
+        assert_eq!(word(&bytes,0x6a9f4),rotate_right_with_extend(C::Al,R::R0,r4,false).unwrap());
+        assert_eq!(word(&bytes,0x6a9f8),data_register(C::Al,Op::Add,R::R0,R::R0,R::R1,Shift::Lsl,16,true).unwrap());
+        assert_eq!(word(&bytes,0x6a9fc),data_register(C::Al,Op::Adc,R::R1,R::R2,R::R1,Shift::Lsr,16,false).unwrap());
+        assert_eq!(word(&bytes,0x6aab4),data_immediate_with_flags(C::Al,Op::Sbc,R::R2,R::R2,0,true).unwrap());
+        assert_eq!(word(&bytes,0x6aab8),data_immediate(C::Cc,Op::Mov,r3,R::R0,1).unwrap());
+        assert_eq!(word(&bytes,0x6aae0),transfer_multiple(C::Al,false,R::SP,r6.bit()|r10.bit(),BlockMode::IncrementAfter,false).unwrap());
+        assert_eq!(word(&bytes,0x6ab0c),transfer_multiple(C::Al,false,R::SP,R::R0.bit()|R::R2.bit()|r10.bit(),BlockMode::IncrementBefore,false).unwrap());
+        for (pc,target) in [
+            (0x6aa14,0x82f74), (0x6aa20,0x82f74),
+            (0x6aa2c,0x837e0), (0x6aa38,0x83608),
+            (0x6aa44,0x82f74), (0x6aa50,0x82988), (0x6aa54,0x82c5c),
+        ] {
+            assert_eq!(word(&bytes,pc),branch_exchange_immediate(pc as u32,target).unwrap());
+        }
+        for pc in [0x6aa04,0x6ab88,0x6abac] {
+            assert_eq!(word(&bytes,pc),branch(C::Al,pc as u32,0x8187c,true).unwrap());
+        }
+    }
+
     #[test]
     fn covers_bounded_function_prefix() {
         assert_eq!(fragment().unwrap().len(),END-START);
-        assert_eq!(END-START,2924);
-        assert_eq!(END-0x6a8e4,204);
+        assert_eq!(END-START,3444);
+        assert_eq!(END-0x6a9b0,520);
     }
 }
