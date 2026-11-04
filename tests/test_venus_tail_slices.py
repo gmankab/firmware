@@ -1,8 +1,9 @@
 # SPDX-License-Identifier: GPL-3.0-only
 """Byte-for-byte source integrity for function-bounded Venus tail sections.
 
-No private firmware is needed: the manifest proves we preserved the original
-Rust source exactly, and runtime Rust unit tests check the emitted ARM words.
+No private firmware is needed: the manifest records current Rust source identity
+and historical source provenance separately. Runtime Rust unit tests check the
+emitted ARM words.
 """
 from __future__ import annotations
 
@@ -22,22 +23,40 @@ class VenusTailSourceLayoutTests(unittest.TestCase):
     def setUpClass(cls):
         cls.index = json.loads((PARTS / 'manifest.json').read_text())
         cls.main = (SRC / 'venus_tail_program.rs').read_bytes()
+        cls.header = cls.main.split(
+            b'\n// Firmware routines and literal pools remain in their original item namespace.', 1
+        )[0]
+        cls.source = cls.header + b''.join(
+            (SRC / entry['path']).read_bytes() for entry in cls.index['sections']
+        )
 
-    def test_all_section_checksums_and_original_file_are_exact(self):
+    def test_all_section_checksums_and_current_source_are_exact(self):
         idx = self.index
         anchor = b'\n// Firmware routines and literal pools remain in their original item namespace.'
         self.assertIn(anchor, self.main)
-        header = self.main.split(anchor, 1)[0]
-        self.assertEqual(hashlib.sha256(header).hexdigest(), idx['main_header_sha256'])
-        reconstructed = bytearray(header)
+        self.assertEqual(hashlib.sha256(self.header).hexdigest(), idx['main_header_sha256'])
         for entry in idx['sections']:
             with self.subTest(path=entry['path']):
                 contents = (SRC / entry['path']).read_bytes()
                 self.assertEqual(len(contents), entry['bytes'])
                 self.assertEqual(hashlib.sha256(contents).hexdigest(), entry['sha256'])
-                reconstructed.extend(contents)
-        self.assertEqual(len(reconstructed), idx['original_source_bytes'])
-        self.assertEqual(hashlib.sha256(reconstructed).hexdigest(), idx['source_sha256'])
+        self.assertEqual(len(self.source), idx['source_bytes'])
+        self.assertEqual(hashlib.sha256(self.source).hexdigest(), idx['source_sha256'])
+        self.assertEqual(len(self.source.splitlines()), idx['source_lines'])
+
+    def test_historical_source_provenance_before_reference_env_change(self):
+        original = self.index['original_source']
+        self.assertEqual(original['predates_commit'], 'e77edbd5ca79de8105d97ba207674d052d3cbe65')
+        current_lookup = (
+            b'std::env::var_os("NABU_VENUS_REFERENCE")'
+            b'.or_else(|| std::env::var_os("AGENT20_06_REFERENCE_VENUS"))'
+        )
+        original_lookup = b'std::env::var_os("AGENT20_06_REFERENCE_VENUS")'
+        self.assertEqual(self.source.count(current_lookup), 1)
+        historical = self.source.replace(current_lookup, original_lookup, 1)
+        self.assertEqual(len(historical), original['bytes'])
+        self.assertEqual(hashlib.sha256(historical).hexdigest(), original['sha256'])
+        self.assertEqual(len(historical.splitlines()), original['lines'])
 
     def test_expansion_order_and_section_count_are_fixed(self):
         names = re.findall(rb'include!\("(parts/section_\d{3}\.rs)"\);', self.main)

@@ -32,11 +32,12 @@ class ToolOrganizationTests(unittest.TestCase):
                 self.assertEqual(subprocess.run(['bash','-n',str(p)],capture_output=True).returncode,0)
                 self.assertEqual(subprocess.run(['bash',str(p)],capture_output=True,timeout=3).returncode,2)
 
-    def test_venus_verifiers_resolve_workspace_from_another_directory(self):
-        scripts = ('verify-venus-controller-complete.sh', 'venus-bridge-verify-full-gap.sh')
+    def test_verifiers_resolve_workspace_from_another_directory(self):
+        scripts = ('venus/verify-venus-controller-complete.sh', 'venus/venus-bridge-verify-full-gap.sh',
+                   'halo/verify-halo-pm.sh')
         for name in scripts:
             with self.subTest(script=name):
-                script = ROOT / 'tools/venus' / name
+                script = ROOT / 'tools' / name
                 content = script.read_text()
                 prelude = content.split('cd "$ROOT"', 1)[0]
                 command = prelude.replace('${BASH_SOURCE[0]}', '$0') + '\nprintf "%s" "$ROOT"\n'

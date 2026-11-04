@@ -6,7 +6,7 @@ if [ "$#" -ne 1 ]; then
   echo "usage: $0 /private/cs35l41-dsp1-spk-prot.wmfw" >&2
   exit 2
 fi
-ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
+ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/../.." && pwd)
 REF=$1
 if [ ! -f "$REF" ]; then echo "missing WMFW input: $REF" >&2; exit 2; fi
 TMP=$(mktemp -d)

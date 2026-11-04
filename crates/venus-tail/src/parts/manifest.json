@@ -1,9 +1,15 @@
 {
-  "source_sha256": "39a02c31bc6eb513797dbc310192d6f0057e4403e88e67038989e194a0496a3a",
+  "source_sha256": "e28d498566503df3e30ab9ea50f0987b65bc81cef84e51a8948913baf1d627bd",
+  "source_bytes": 3134077,
+  "original_source": {
+    "predates_commit": "e77edbd5ca79de8105d97ba207674d052d3cbe65",
+    "sha256": "39a02c31bc6eb513797dbc310192d6f0057e4403e88e67038989e194a0496a3a",
+    "bytes": 3134024,
+    "lines": 63602
+  },
   "section_count": 92,
   "source_lines": 63602,
   "maximum_section_lines": 1641,
-  "original_source_bytes": 3134024,
   "main_header_sha256": "428ffcaabaf9f09c4478a08d3fc8ec9aa61e9d194936b3282ca94d59da9ddbd5",
   "sections": [
     {
@@ -463,8 +469,8 @@
     },
     {
       "path": "parts/section_092.rs",
-      "bytes": 38010,
-      "sha256": "98da48979c903f626834c5511b1ff7787b53b9c4aaa3d28c4309d21794c9c025"
+      "bytes": 38063,
+      "sha256": "3180bbaaecd4a4dcb1722b9df54737b3b0ccd86b95377a2565b6873a265ebc4c"
     }
   ]
 }
