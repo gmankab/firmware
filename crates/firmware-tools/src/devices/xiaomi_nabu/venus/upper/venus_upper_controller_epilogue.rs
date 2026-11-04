@@ -411,6 +411,14 @@ mod tests {
     }
 
     #[test]
+    fn ands_sets_flags() {
+        let bytes = fragment().unwrap();
+        let opcode = word(&bytes, 0x69908);
+        assert_eq!(opcode, data_immediate_with_flags(C::Al, Op::And, r(8), r(0), 0xff, true).unwrap());
+        assert_ne!(opcode & (1 << 20), 0);
+    }
+
+    #[test]
     fn branch_edges_and_cold_blocks() {
         let bytes = fragment().unwrap();
         for (at, condition, target) in [

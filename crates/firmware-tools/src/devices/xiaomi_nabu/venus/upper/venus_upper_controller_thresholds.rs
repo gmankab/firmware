@@ -8,6 +8,17 @@ pub const START: usize = 0x69498;
 pub const END: usize = 0x697a0;
 pub const FILE_BASE: usize = 0x4000;
 
+const LOOKUP_TABLE_F2788: u32 = 0x000f2788;
+const LOOKUP_TABLE_F27B8: u32 = 0x000f27b8;
+const LOOKUP_TABLE_F27A0: u32 = 0x000f27a0;
+const INTERIOR_BYTE_TABLE_F27BE: u32 = 0x000f27be;
+const INTERIOR_BYTE_TABLE_F27C4: u32 = 0x000f27c4;
+const INTERIOR_BYTE_TABLE_F27CA: u32 = 0x000f27ca;
+const INTERIOR_BYTE_TABLE_F27D0: u32 = 0x000f27d0;
+const SIGNED_MINUS_1000: i32 = -1000;
+const PROTECTED_RANGES: [(usize, usize); 3] =
+    [(0x695a8, 0x695b0), (0x6961c, 0x69630), (0x696e8, 0x696ec)];
+
 struct Code {
     at: usize,
     bytes: Vec<u8>,
@@ -32,13 +43,30 @@ impl Code {
         }
     }
 
-    fn emit(&mut self, word: u32) -> Result<(), String> {
+    fn write_word(&mut self, word: u32, data: bool) -> Result<(), String> {
         if self.at < START || self.at >= END || self.at % 4 != 0 {
             return Err(format!("invalid partial A32 address 0x{:x}", self.at));
+        }
+        let protected = PROTECTED_RANGES
+            .iter()
+            .any(|&(start, end)| (start..end).contains(&self.at));
+        if protected != data {
+            return Err(format!(
+                "invalid controller thresholds word kind at 0x{:x}",
+                self.at
+            ));
         }
         self.bytes.extend(word.to_le_bytes());
         self.at += 4;
         Ok(())
+    }
+
+    fn emit(&mut self, instruction: u32) -> Result<(), String> {
+        self.write_word(instruction, false)
+    }
+
+    fn data(&mut self, value: u32) -> Result<(), String> {
+        self.write_word(value, true)
     }
 
     fn branch(&mut self, condition: C, target: usize, link: bool) -> Result<(), String> {
@@ -151,8 +179,8 @@ pub fn fragment() -> Result<Vec<u8>, String> {
     c.branch(C::Eq, 0x69600, false)?;
     c.branch(C::Al, 0x69608, false)?;
     c.check(0x695a8)?;
-    c.emit(0x000f2788)?;
-    c.emit(0x000f27b8)?;
+    c.data(LOOKUP_TABLE_F2788)?;
+    c.data(LOOKUP_TABLE_F27B8)?;
     c.check(0x695b0)?;
     c.emit(transfer_word(C::Al, true, r(1), R::SP, 0x3c)?)?;
     c.emit(transfer_word(C::Al, true, r(5), R::SP, 0x1c)?)?;
@@ -201,8 +229,14 @@ pub fn fragment() -> Result<Vec<u8>, String> {
     c.branch(C::Ne, 0x6954c, false)?;
     c.branch(C::Al, 0x696f4, false)?;
     c.check(0x6961c)?;
-    for pointer in [0x000f27a0, 0x000f27be, 0x000f27c4, 0x000f27ca, 0x000f27d0] {
-        c.emit(pointer)?;
+    for pointer in [
+        LOOKUP_TABLE_F27A0,
+        INTERIOR_BYTE_TABLE_F27BE,
+        INTERIOR_BYTE_TABLE_F27C4,
+        INTERIOR_BYTE_TABLE_F27CA,
+        INTERIOR_BYTE_TABLE_F27D0,
+    ] {
+        c.data(pointer)?;
     }
     c.check(0x69630)?;
     c.emit(transfer_byte(C::Al, true, r(6), r(7), 0x27)?)?;
@@ -292,7 +326,7 @@ pub fn fragment() -> Result<Vec<u8>, String> {
     c.emit(transfer_word(C::Al, false, r(12), r(7), 0x6ac)?)?;
     c.branch(C::Al, 0x696f4, false)?;
     c.check(0x696e8)?;
-    c.emit((-1000i32) as u32)?;
+    c.data(SIGNED_MINUS_1000 as u32)?;
     c.check(0x696ec)?;
     c.emit(transfer_word(C::Al, false, r(2), r(7), 0x6a8)?)?;
     c.emit(transfer_word(C::Al, false, r(1), r(7), 0x6ac)?)?;
@@ -434,16 +468,43 @@ mod tests {
 
     #[test]
     fn fixed_writer_rejects_invalid_addresses() {
-        for at in [START - 4, START + 1, END] {
+        for at in [START - 4, START + 1, END - 1, END, END + 4, usize::MAX] {
             let mut c = Code {
                 at,
                 bytes: Vec::new(),
             };
             assert!(c.emit(mov_register(C::Al, R::R0, R::R0)).is_err());
+            assert!(c.data(0).is_err());
             assert_eq!(c.at, at);
             assert!(c.bytes.is_empty());
         }
         assert!(Code::new().check(END).is_err());
+    }
+
+    #[test]
+    fn instruction_and_data_writers_reject_wrong_regions() {
+        for at in (START..END).step_by(4) {
+            let mut c = Code {
+                at,
+                bytes: Vec::new(),
+            };
+            let protected = matches!(at, 0x695a8..=0x695ac | 0x6961c..=0x6962c | 0x696e8);
+            if protected {
+                assert!(c.emit(mov_register(C::Al, R::R0, R::R0)).is_err());
+                assert!(c.branch(C::Al, START, false).is_err());
+            } else {
+                assert!(c.data(0).is_err());
+            }
+            assert_eq!(c.at, at);
+            assert!(c.bytes.is_empty());
+            if protected {
+                c.data(0).unwrap();
+            } else {
+                c.emit(mov_register(C::Al, R::R0, R::R0)).unwrap();
+            }
+            assert_eq!(c.at, at + 4);
+            assert_eq!(c.bytes.len(), 4);
+        }
     }
 
     #[test]

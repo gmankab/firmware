@@ -26,6 +26,12 @@ pub mod venus_upper_controller_budget_records;
 pub mod venus_upper_controller_thresholds;
 #[path = "venus/upper/venus_upper_controller_epilogue.rs"]
 pub mod venus_upper_controller_epilogue;
+#[path = "venus/upper/venus_upper_weighted_metrics.rs"]
+pub mod venus_upper_weighted_metrics;
+#[path = "venus/upper/venus_upper_frame_distortion.rs"]
+pub mod venus_upper_frame_distortion;
+#[path = "venus/upper/venus_upper_ring_ingestion.rs"]
+pub mod venus_upper_ring_ingestion;
 #[path = "cirrus/coeff_profiles.rs"]
 pub mod cirrus_coeff_profiles;
 #[path = "a640/a640_shader.rs"]
