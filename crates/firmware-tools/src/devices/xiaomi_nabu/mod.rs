@@ -86,6 +86,8 @@ pub mod venus_vppsg_lifecycle;
 pub mod venus_vppsg_object_transform;
 #[path = "venus/upper/venus_vsp_task_generation.rs"]
 pub mod venus_vsp_task_generation;
+#[path = "venus/upper/venus_vppsg_task_packing.rs"]
+pub mod venus_vppsg_task_packing;
 #[path = "cirrus/coeff_profiles.rs"]
 pub mod cirrus_coeff_profiles;
 #[path = "a640/a640_shader.rs"]

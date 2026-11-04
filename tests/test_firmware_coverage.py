@@ -62,7 +62,7 @@ class FirmwareCoverageTests(unittest.TestCase):
     def test_pinned_revision_records(self):
         self.assertEqual(len(self.data['images']),19)
         self.assertEqual(sum(i['size'] for i in self.data['images']),35409209)
-        self.assertEqual(sum(i['credit_bytes'] for i in self.data['images']),880194)
+        self.assertEqual(sum(i['credit_bytes'] for i in self.data['images']),881734)
 
     def test_gmu_reset_prefix_is_not_entire_firmware(self):
         image=next(x for x in self.data['images'] if x['name']=='a640_gmu.bin')
@@ -134,13 +134,13 @@ class FirmwareCoverageTests(unittest.TestCase):
         self.assertIn({'start':0x69e44,'end':0x6ac0c,
                        'provenance':'reported_reconstructed',
                        'label':'upper controller dispatch, record copies and service buffer setup (incomplete)'},venus['regions'])
-        self.assertEqual(venus['credit_bytes'],571720)
+        self.assertEqual(venus['credit_bytes'],573260)
 
     def test_explicit_venus_gap_partition(self):
         venus=next(x for x in self.data['images'] if x['name']=='venus.mbn')
         gaps=holes(venus['regions'],0,venus['executable_load']['runtime_end'])
-        self.assertEqual(len(gaps),5)
-        self.assertEqual(sum(g['bytes'] for g in gaps),487596)
+        self.assertEqual(len(gaps),4)
+        self.assertEqual(sum(g['bytes'] for g in gaps),486056)
         self.assertEqual((gaps[0]['start'],gaps[0]['end']),(0xbe70,0x12e5c))
 
     def test_overlap_and_out_of_bounds_fails_closed(self):
