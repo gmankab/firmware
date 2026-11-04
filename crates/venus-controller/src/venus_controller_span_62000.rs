@@ -16,36 +16,9 @@ impl Code {
   self.bytes.extend_from_slice(&w.to_le_bytes());self.at+=4;Ok(())
  }
 }
-fn emit_byte_register_writeback(cond:C,load:bool,rd:R,rn:R,rm:R,shift:Shift,amount:u8)->Result<u32,String>{
- if rn==R::PC||rm==R::PC||(load&&rd==rn){return Err("invalid A32 byte register writeback".into())}
- Ok(arm32::transfer_byte_register(cond,load,rd,rn,rm,shift,amount)?|(1<<21))
-}
-fn emit_halfword_register(cond:C,load:bool,rd:R,base:R,index:R,writeback:bool)->Result<u32,String>{
- if [rd,base,index].contains(&R::PC)||(load&&rd==base&&writeback){return Err("unsafe A32 indexed halfword transfer".into())}
- Ok(((cond as u32)<<28)|0x0180_00b0|(if load{1<<20}else{0})|(if writeback{1<<21}else{0})|(base.number()<<16)|(rd.number()<<12)|index.number())
-}
 fn emit_signed_halfword_register(cond:C,rd:R,base:R,index:R,writeback:bool)->Result<u32,String>{
  if [rd,base,index].contains(&R::PC)||(writeback&&rd==base){return Err("invalid A32 indexed signed halfword operands".into())}
  Ok(((cond as u32)<<28)|0x0190_00f0|(if writeback{1<<21}else{0})|(base.number()<<16)|(rd.number()<<12)|index.number())
-}
-fn emit_signed_byte_postindexed(cond:C,rd:R,base:R,offset:i32)->Result<u32,String>{
- if [rd,base].contains(&R::PC)||rd==base||offset.unsigned_abs()>255 {return Err("invalid A32 signed byte postindex".into())}
- Ok(arm32::load_signed_byte(cond,rd,base,offset)? & !(1<<24))
-}
-fn emit_halfword_postindexed(cond:C,rd:R,rn:R,offset:i32)->Result<u32,String>{
- if rd==rn || [rd,rn].contains(&R::PC) {return Err("invalid A32 postindexed halfword load operands".into())}
- Ok(arm32::store_halfword_postindexed(cond,rd,rn,offset)? | (1<<20))
-}
-fn emit_umull(cond:C,lo:R,hi:R,rm:R,rs:R)->Result<u32,String>{
- if lo==hi || [lo,hi,rm,rs].contains(&R::PC){return Err("unsafe A32 UMULL operands".into())}
- Ok(((cond as u32)<<28)|0x0080_0090|(hi.number()<<16)|(lo.number()<<12)|(rs.number()<<8)|rm.number())
-}
-fn emit_adc_shifted(cond:C,rd:R,rn:R,rm:R,shift:Shift,amount:u8,flags:bool)->Result<u32,String>{
- Ok(arm32::data_register(cond,Op::Add,rd,rn,rm,shift,amount,flags)? | (1<<21))
-}
-fn emit_smull(cond:C,lo:R,hi:R,rm:R,rs:R)->Result<u32,String>{
- if lo==hi || [lo,hi,rm,rs].contains(&R::PC){return Err("unsafe A32 SMULL operands".into())}
- Ok(((cond as u32)<<28)|0x00c0_0090|(hi.number()<<16)|(lo.number()<<12)|(rs.number()<<8)|rm.number())
 }
 #[inline(never)]fn emit_controller_packet(c:&mut Code)->Result<(),String>{
  c.check(START)?;

@@ -16,22 +16,6 @@ impl Code {
   self.bytes.extend_from_slice(&w.to_le_bytes());self.at+=4;Ok(())
  }
 }
-fn emit_byte_register_writeback(cond:C,load:bool,rd:R,rn:R,rm:R,shift:Shift,amount:u8)->Result<u32,String>{
- if rn==R::PC||rm==R::PC||(load&&rd==rn){return Err("invalid A32 byte register writeback".into())}
- Ok(arm32::transfer_byte_register(cond,load,rd,rn,rm,shift,amount)?|(1<<21))
-}
-fn emit_halfword_register(cond:C,load:bool,rd:R,base:R,index:R,writeback:bool)->Result<u32,String>{
- if [rd,base,index].contains(&R::PC)||(load&&rd==base&&writeback){return Err("unsafe A32 indexed halfword transfer".into())}
- Ok(((cond as u32)<<28)|0x0180_00b0|(if load{1<<20}else{0})|(if writeback{1<<21}else{0})|(base.number()<<16)|(rd.number()<<12)|index.number())
-}
-fn emit_umull(cond:C,lo:R,hi:R,rm:R,rs:R)->Result<u32,String>{
- if lo==hi || [lo,hi,rm,rs].contains(&R::PC){return Err("unsafe A32 UMULL operands".into())}
- Ok(((cond as u32)<<28)|0x0080_0090|(hi.number()<<16)|(lo.number()<<12)|(rs.number()<<8)|rm.number())
-}
-fn emit_smull(cond:C,lo:R,hi:R,rm:R,rs:R)->Result<u32,String>{
- if lo==hi || [lo,hi,rm,rs].contains(&R::PC){return Err("unsafe A32 SMULL operands".into())}
- Ok(((cond as u32)<<28)|0x00c0_0090|(hi.number()<<16)|(lo.number()<<12)|(rs.number()<<8)|rm.number())
-}
 #[inline(never)]fn emit_controller_packet(c:&mut Code)->Result<(),String>{
  c.check(START)?;
  // Executable A32 block 0x5e000..0x5e024.
