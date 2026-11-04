@@ -12,7 +12,9 @@ Fedora dependencies:
 sudo dnf install -y \
   binutils xxd gcc gcc-c++ make pkgconf-pkg-config zstd \
   cmake meson ninja-build flex bison expat-devel libdrm-devel \
-  rust cargo rustfmt java-latest-openjdk-devel
+  rust cargo rustfmt java-latest-openjdk-devel \
+  nodejs binwalk uv python3-devel \
+  e2fsprogs squashfs-tools lzop
 ```
 
 Debian/Ubuntu dependencies:
@@ -23,6 +25,12 @@ sudo apt-get install -y \
   git ca-certificates curl file binutils xxd python3 \
   build-essential pkg-config zstd xz-utils \
   cmake meson ninja-build flex bison libexpat1-dev libdrm-dev
+```
+
+Install unblob via uv
+
+```sh
+uv tool install unblob
 ```
 
 Install a Rust toolchain (`rustc`, `cargo` and optionally `rustfmt`). The current source builds with Rust 1.99.1. For headless Ghidra install **JDK 21 or newer as supported by the release**; Ghidra 12.1.4 requires JDK 21. Consult the [12.1.4 setup guide](https://www.ghidradocs.com/12.1.4_PUBLIC/GettingStarted.html).
