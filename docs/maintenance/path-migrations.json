@@ -1071,10 +1071,14 @@
     "docs/history/phase-2/adsp-late/progress.md": "7d98280c59dc373f7e9b6087b80821e48906f02d70e8cedcc4227e7b37abc42a",
     "docs/history/phase-2/cdsp-early/progress.md": "5f7dd1219394ed161bfb87de1fcc0f46b1b84a6f75b6b44e21d9ce90ea60536f",
     "docs/history/phase-2/cdsp-late/progress.md": "59b95b14bf96882c31d00db285c46ce68cc39f73daf50d1af9599d1b1112ae8f",
+    "docs/history/phase-2/modem-early/progress.md": "55bce2248fb7ee8a34e3f179ba4018b4e168eb19f96e67a6569ee527bd103085",
+    "docs/history/phase-2/modem-late/progress.md": "f1ce1e22da37be8c520431e523379f738842096d86074cec52f97d966c2f678f",
     "docs/history/phase-2/venus-controller/progress.md": "f615cee6e129749f5f5d57085583c72044d74eb14fcb266a5b8f77ab95b7914e",
     "docs/history/phase-2/venus-mid/progress.md": "49d2bfd2d581c56d83175702b2b047d43bd9ce7d3a9bba395d78fe21443bb92c",
     "docs/history/phase-2/venus-seam/progress.md": "3b03b53c1075a01ebce9a6fe030e5c5bc203595c7775c98f2bdd2916ea8b3481",
     "docs/history/phase-2/venus-tail/progress.md": "0494884ad84dd5e2f09867dcc2123671395c89df7253e0a5cc75ce238ff70726",
-    "docs/history/phase-2/venus-upper/progress.md": "fc5b598a8ddedafb345f48cf53a89d3c4a0c6e06cb87a26c62882e2d81ecc68d"
+    "docs/history/phase-2/venus-upper/progress.md": "fc5b598a8ddedafb345f48cf53a89d3c4a0c6e06cb87a26c62882e2d81ecc68d",
+    "docs/history/phase-2/wlanmdsp-early/progress.md": "73d55377c75b2b0ff9232ffb88172b9108c3dcb996c4f86f6682175e0a8ab777",
+    "docs/history/phase-2/wlanmdsp-late/progress.md": "2813f34fff9cbe2c718c808bba2f42a3a72458c66c9d363457e4e5ea5f797265"
   }
 }
