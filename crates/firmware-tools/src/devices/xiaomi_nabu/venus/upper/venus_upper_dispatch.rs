@@ -15,7 +15,7 @@ use arm32::{
 };
 
 pub const START:usize=0x69e44;
-pub const END:usize=0x6a810;
+pub const END:usize=0x6a8e4;
 pub const FILE_MAPPING_DELTA:usize=0x4000;
 
 struct Emitter { pc:usize, bytes:Vec<u8> }
@@ -749,6 +749,63 @@ pub fn fragment()->Result<Vec<u8>,String> {
     c.emit(data_register(C::Al,Op::Cmp,R::R0,R::R2,r5,Shift::Lsl,0,false)?)?;
     c.mov(C::Al,r6,R::R2)?;
     c.branch(C::Ls,0x6a7d4,false)?;
+    c.check(0x6a810)?;
+    // Log the selected DSP slot; then update the controller queue and its
+    // rolling aggregate data for the active channel.
+    c.emit(transfer_byte(C::Al,false,r4,R::new(3)?,0x28c)?)?;
+    c.ldr(R::R1,R::PC,0x3e8)?;
+    c.imm(C::Al,Op::And,R::R2,r4,255)?;
+    c.imm(C::Al,Op::Mov,R::R0,R::R0,2)?;
+    c.ldrb(R::new(3)?,R::new(3)?,4)?;
+    c.branch(C::Al,0x2ec94,true)?;
+    c.ldr(R::R1,R::PC,0x3cc)?;
+    c.imm(C::Al,Op::Mov,R::R0,R::R0,2)?;
+    c.branch(C::Al,0x2ec94,true)?;
+    c.ldr(r5,R::SP,0x38)?;
+    c.ldr(R::R0,r5,12)?;
+    c.str(R::R0,r10,0xbc)?;
+    c.ldr(r7,R::SP,0x70)?;
+    c.ldr(r4,R::SP,0x34)?;
+    c.ldrb(R::R0,r7,0x89)?;
+    c.imm(C::Al,Op::Cmp,R::R0,R::R0,1)?;
+    c.branch(C::Ne,0x6a8e4,false)?;
+    c.ldr(R::R0,r7,0)?;
+    c.imm(C::Al,Op::Cmp,R::R0,R::R0,4096)?;
+    c.branch(C::Eq,0x6a8e4,false)?;
+    c.ldr(R::R0,r7,0x78)?;
+    c.imm(C::Al,Op::Cmp,R::R0,R::R0,0)?;
+    c.branch(C::Eq,0x6a884,false)?;
+    c.ldr(R::R1,r7,0x65c)?;
+    c.ldr(R::R0,r7,0x658)?;
+    c.emit(data_register(C::Al,Op::Add,R::R1,r7,R::R1,Shift::Lsl,2,false)?)?;
+    c.str(R::R0,R::R1,0x5f4)?;
+    c.ldr(R::R0,r7,0x65c)?;
+    c.emit(transfer_byte(C::Al,false,R::R0,r7,0x60c)?)?;
+    c.check(0x6a884)?;
+    c.ldr(R::R0,R::SP,0x1c)?;
+    c.str(R::R0,r7,0x658)?;
+    c.ldr(R::R0,r7,0x2d8)?;
+    c.str(R::R0,r7,0x65c)?;
+    c.ldr(R::R0,R::SP,0x24)?;
+    c.ldr(R::R0,R::R0,0)?;
+    c.emit(data_register(C::Al,Op::Add,R::R0,r7,R::R0,Shift::Lsl,2,false)?)?;
+    c.ldr(R::R1,R::R0,0x5e8)?;
+    c.ldr(R::R2,R::R0,0x5f4)?;
+    c.emit(data_register(C::Al,Op::Add,R::new(3)?,R::R2,R::R1,Shift::Lsl,0,false)?)?;
+    c.imm(C::Al,Op::Cmp,R::R0,R::R1,0)?;
+    c.ldr(R::R1,R::PC,0x350)?;
+    c.emit(mov_shifted_register(C::Ne,R::R2,R::new(3)?,Shift::Lsr,1)?)?;
+    c.str(R::R2,R::R0,0x5e8)?;
+    c.ldr(R::R0,r7,0x708)?;
+    c.ldr(R::R2,r7,0x6f8)?;
+    c.ldr(R::new(3)?,r7,0x700)?;
+    c.str(R::R0,R::SP,0)?;
+    c.imm(C::Al,Op::Mov,R::R0,R::R0,1)?;
+    c.branch(C::Al,0x2ec94,true)?;
+    c.ldr(R::R1,R::PC,0x320)?;
+    c.imm(C::Al,Op::Mov,R::R0,R::R0,1)?;
+    c.branch(C::Al,0x2ec94,true)?;
+    c.ldr(r7,R::SP,0x70)?;
     c.check(END)?;
     Ok(c.bytes)
 }
@@ -759,6 +816,6 @@ mod tests {
     #[test]
     fn covers_bounded_function_prefix() {
         assert_eq!(fragment().unwrap().len(),END-START);
-        assert_eq!(END-START,2508);
+        assert_eq!(END-START,2720);
     }
 }
