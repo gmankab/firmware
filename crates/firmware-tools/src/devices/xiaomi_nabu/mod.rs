@@ -60,6 +60,16 @@ pub mod venus_upper_qp_commit_caps;
 pub mod venus_upper_history_qp_candidates;
 #[path = "venus/upper/venus_upper_scene_target_model.rs"]
 pub mod venus_upper_scene_target_model;
+#[path = "venus/upper/venus_upper_subgop_transition.rs"]
+pub mod venus_upper_subgop_transition;
+#[path = "venus/upper/venus_upper_adaptive_rate_update.rs"]
+pub mod venus_upper_adaptive_rate_update;
+#[path = "venus/upper/venus_upper_history_packed_tables.rs"]
+pub mod venus_upper_history_packed_tables;
+#[path = "venus/upper/venus_upper_frame_output_record.rs"]
+pub mod venus_upper_frame_output_record;
+#[path = "venus/upper/venus_upper_history_lookup_helpers.rs"]
+pub mod venus_upper_history_lookup_helpers;
 #[path = "cirrus/coeff_profiles.rs"]
 pub mod cirrus_coeff_profiles;
 #[path = "a640/a640_shader.rs"]
