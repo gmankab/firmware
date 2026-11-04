@@ -16,7 +16,7 @@ use arm32::{
 };
 
 pub const START:usize=0x69e44;
-pub const END:usize=0x6abb8;
+pub const END:usize=0x6abf4;
 pub const FILE_MAPPING_DELTA:usize=0x4000;
 
 struct Emitter { pc:usize, bytes:Vec<u8> }
@@ -994,6 +994,22 @@ pub fn fragment()->Result<Vec<u8>,String> {
     c.branch(C::Al,0x8187c,true)?;
     c.ldr(r7,R::SP,0x70)?;
     c.str(R::R0,r10,0xe0)?;
+    c.check(0x6abb8)?;
+    c.ldr(R::R2,R::SP,0x48)?;
+    c.imm(C::Al,Op::Mov,R::R0,R::R0,1)?;
+    c.emit(transfer_byte(C::Al,false,R::R0,R::R2,1)?)?;
+    c.ldrb(R::R0,R::R2,2)?;
+    c.emit(transfer_byte(C::Al,false,R::R0,R::R2,3)?)?;
+    c.ldrb(R::R1,r7,0x8a)?;
+    c.ldrb(R::R0,r5,1)?;
+    c.imm(C::Al,Op::Cmp,R::R0,R::R1,0)?;
+    c.emit(transfer_byte(C::Al,false,R::R0,R::R2,2)?)?;
+    c.emit(transfer_byte(C::Ne,false,R::R0,R::R2,4)?)?;
+    c.ldr(R::R1,r7,0x280)?;
+    c.ldr(R::R0,r5,0x4c)?;
+    c.branch(C::Al,0x2038,true)?;
+    c.imm(C::Al,Op::Sub,R::SP,R::new(11)?,0x1c)?;
+    c.emit(transfer_multiple(C::Al,true,R::SP,(preserved&!R::LR.bit())|R::PC.bit(),BlockMode::IncrementAfter,true)?)?;
     c.check(END)?;
     Ok(c.bytes)
 }
@@ -1018,7 +1034,7 @@ mod tests {
             (0x6a9e4,C::Eq,0x6aa08),
             (0x6aa8c,C::Eq,0x6aaa4),
             (0x6aaf4,C::Ne,0x6ab24),
-            (0x6ab2c,C::Ne,END),
+            (0x6ab2c,C::Ne,0x6abb8),
         ] {
             let instruction=word(&bytes,pc);
             assert_eq!(instruction>>28,condition as u32);
@@ -1038,7 +1054,7 @@ mod tests {
         assert_eq!(word(&bytes,0x6a97c),transfer_multiple(C::Al,false,r10,R::R0.bit()|r4.bit(),BlockMode::IncrementBefore,false).unwrap());
         assert_eq!(word(&bytes,0x6a998),transfer_doubleword(C::Al,false,R::R2,r10,0xc8).unwrap());
         assert_eq!(word(&bytes,0x6a9ac),transfer_byte(C::Al,false,R::R0,r10,0xb8).unwrap());
-        assert_eq!(word(&bytes,END-4),transfer_word(C::Al,false,R::R0,r10,0xe0).unwrap());
+        assert_eq!(word(&bytes,0x6abb4),transfer_word(C::Al,false,R::R0,r10,0xe0).unwrap());
     }
     #[test]
     fn continuation_preserves_carry_chains_and_interworking() {
@@ -1068,9 +1084,32 @@ mod tests {
     }
 
     #[test]
+    fn continuation_reaches_return_before_literal_pool() {
+        let bytes=fragment().unwrap();
+        let restored=(4..=11).try_fold(R::PC.bit(),|mask,n| {
+            Ok::<u16,String>(mask|R::new(n)?.bit())
+        }).unwrap();
+        assert_eq!(word(&bytes,0x6abb8),transfer_word(C::Al,true,R::R2,R::SP,0x48).unwrap());
+        assert_eq!(word(&bytes,0x6abdc),transfer_byte(C::Ne,false,R::R0,R::R2,4).unwrap());
+        assert_eq!(word(&bytes,0x6abe8),branch(C::Al,0x6abe8,0x2038,true).unwrap());
+        assert_eq!(word(&bytes,0x6abec),data_immediate(C::Al,Op::Sub,R::SP,R::new(11).unwrap(),0x1c).unwrap());
+        assert_eq!(word(&bytes,END-4),transfer_multiple(C::Al,true,R::SP,restored,BlockMode::IncrementAfter,true).unwrap());
+        assert_eq!(END,0x6abf4);
+    }
+
+    #[test]
+    fn matches_optional_pinned_reference() {
+        let Some(path)=std::env::var_os("NABU_VENUS_REFERENCE").or_else(|| std::env::var_os("VENUS_REFERENCE")) else {return};
+        let reference=std::fs::read(path).unwrap();
+        assert_eq!(crate::wmfw_sha256::hex_digest(&reference),"9d4af65d7ede845e900f1b29ff425b7a8e2947056e695e246e58a2091445a085");
+        let bytes=fragment().unwrap();
+        assert_eq!(bytes.as_slice(),&reference[START+FILE_MAPPING_DELTA..END+FILE_MAPPING_DELTA]);
+    }
+
+    #[test]
     fn covers_bounded_function_prefix() {
         assert_eq!(fragment().unwrap().len(),END-START);
-        assert_eq!(END-START,3444);
-        assert_eq!(END-0x6a9b0,520);
+        assert_eq!(END-START,3504);
+        assert_eq!(END-0x6abb8,60);
     }
 }
