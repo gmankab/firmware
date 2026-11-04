@@ -21,11 +21,11 @@ Generated from `reference/xiaomi-nabu/coverage.toml` by `python3 tools/firmware.
 | `TL-cs35l41-dsp1-spk-prot.bin` | 5,340 | 5,340 | 0 |
 | `TR-cs35l41-dsp1-spk-prot.bin` | 5,340 | 5,340 | 0 |
 | `a630_sqe.fw` | 32,304 | 0 | 32,304 |
-| `a640_gmu.bin` | 37,680 | 0 | 37,680 |
+| `a640_gmu.bin` | 37,680 | 480 | 37,200 |
 | `board-2.bin` | 461,060 | 1,508 | 459,552 |
 | `crbtfw32.tlv` | 127,544 | 28 | 127,516 |
 | `crnv32.bin` | 5,504 | 744 | 4,760 |
-| **Total** | **35,409,209** | **836,846** | **34,572,363** |
+| **Total** | **35,409,209** | **837,326** | **34,571,883** |
 
 ## Venus first executable segment
 
@@ -46,6 +46,7 @@ Reported source/layout: **529,056 / 1,059,316 bytes**; uncovered: **530,260 byte
 - The four 5,340-byte Cirrus WMDR coefficient configuration files are byte-identical from numeric tables, not HALO executable code.
 - `board-2.bin` has 1,508 typed TLV/name framing bytes; 459,552 OEM calibration bytes remain external.
 - Qualcomm Bluetooth TLV patch/NVM metadata accounts for 28 + 744 bytes; the patch executable and 61 NVM tag values are not reconstructed.
+- The 480 GMU modeled bytes include 112 load-header bytes, a 48-byte Thumb reset block and 320-byte exception table; later 37,200 bytes are missing.
 - A640 exact whole-file reproduction requires externally supplied original OEM authentication bytes.
 - Cirrus HALO program bytes are still not independently decompiled; reference-assisted repacking is not firmware reconstruction.
 - Several reference-dependent verification tests are skipped without supplied original firmwares and ISA toolchains.

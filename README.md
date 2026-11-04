@@ -100,3 +100,12 @@ Rust encoders reconstruct only the 28-byte `crbtfw32.tlv` patch header and
 `firmware-tools verify-qca-bt-nvm-headers /private/crnv32.bin` checks these
 spans without loading the full NVM into memory; `verify-qca-bt-patch-header`
 checks the patch framing. No partial output is intended for installation.
+
+### A640 GMU reset and vector blocks
+
+`a640_gmu.bin` has seven typed 16-byte load-block headers, a 48-byte
+Cortex-M Thumb reset bootstrap, and a 320-byte exception vector table.
+The first two complete blocks form a **400-byte contiguous prefix**, which can
+be emitted with `firmware-tools emit-gmu-first-two-blocks OUTPUT`.
+`verify-gmu-framing ORIGINAL` checks all 480 modeled bytes. The remaining
+37,200 bytes, including GMU executable code, are not reconstructed.

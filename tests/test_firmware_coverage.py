@@ -23,7 +23,14 @@ class FirmwareCoverageTests(unittest.TestCase):
     def test_pinned_revision_records(self):
         self.assertEqual(len(self.data['images']),19)
         self.assertEqual(sum(i['size'] for i in self.data['images']),35409209)
-        self.assertEqual(sum(i['credit_bytes'] for i in self.data['images']),836846)
+        self.assertEqual(sum(i['credit_bytes'] for i in self.data['images']),837326)
+
+    def test_gmu_reset_prefix_is_not_entire_firmware(self):
+        image=next(x for x in self.data['images'] if x['name']=='a640_gmu.bin')
+        self.assertEqual(image['credit_bytes'],480)
+        self.assertEqual(image['external_gmu_payload_bytes'],37200)
+        self.assertEqual(image['credit_bytes']+image['external_gmu_payload_bytes'],image['size'])
+        self.assertFalse(image.get('complete_source',False))
 
     def test_bluetooth_headers_do_not_claim_patch_or_nvm_values(self):
         patch=next(x for x in self.data['images'] if x['name']=='crbtfw32.tlv')
@@ -81,7 +88,7 @@ class FirmwareCoverageTests(unittest.TestCase):
         }|{f'{channel}-cs35l41-dsp1-spk-prot.bin' for channel in ('BL','BR','TL','TR')}
         self.assertEqual({i['name'] for i in self.data['images']},expected)
         self.assertTrue(all(i['credit_bytes']==0 for i in self.data['images']
-                            if i['name'] in {'a630_sqe.fw','a640_gmu.bin'}))
+                            if i['name'] in {'a630_sqe.fw'}))
 
     def test_explicit_venus_gap_partition(self):
         venus=next(x for x in self.data['images'] if x['name']=='venus.mbn')

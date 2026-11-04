@@ -592,6 +592,18 @@ fn run() -> Result<(), Box<dyn Error>> {
     }
     let target = PathBuf::from(&args[1]);
     match args[0].as_str() {
+        "emit-gmu-first-two-blocks" => {
+            use firmware_tools::devices::xiaomi_nabu::a640_gmu_prefix as gmu;
+            let data=gmu::first_two_blocks();
+            fs::write(&target,&data)?;
+            println!("emitted {} bytes of the GMU reset/vector blocks; subsequent code missing",data.len());
+        }
+        "verify-gmu-framing" => {
+            use firmware_tools::devices::xiaomi_nabu::a640_gmu_prefix as gmu;
+            let n=verify_sparse(&target,gmu::IMAGE_BYTES as u64,
+                gmu::spans().into_iter().map(|span|(span.offset,span.data)))?;
+            println!("byte-identical: {n} GMU header, Thumb reset and exception-vector bytes; later code missing");
+        }
         "emit-qca-bt-patch-header" => {
             use firmware_tools::devices::xiaomi_nabu::qca_bluetooth_tlv as bt;
             let data=bt::patch_prefix();

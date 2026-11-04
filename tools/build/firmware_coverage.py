@@ -59,7 +59,7 @@ def load(path: Path = DEFAULT_MANIFEST) -> dict[str, Any]:
             raise CoverageError(f"invalid SHA-256 for {name}")
         external_fields=("external_authentication_bytes","external_dsp_payload_bytes",
                          "external_calibration_bytes","external_bt_patch_bytes",
-                         "external_bt_tag_values_bytes")
+                         "external_bt_tag_values_bytes", "external_gmu_payload_bytes")
         for field in external_fields:
             value=image.get(field,0)
             if not isinstance(value,int) or value<0 or value>size:
@@ -157,6 +157,7 @@ def status(data: dict[str,Any]) -> str:
                   "- The four 5,340-byte Cirrus WMDR coefficient configuration files are byte-identical from numeric tables, not HALO executable code.",
                   "- `board-2.bin` has 1,508 typed TLV/name framing bytes; 459,552 OEM calibration bytes remain external.",
                   "- Qualcomm Bluetooth TLV patch/NVM metadata accounts for 28 + 744 bytes; the patch executable and 61 NVM tag values are not reconstructed.",
+                  "- The 480 GMU modeled bytes include 112 load-header bytes, a 48-byte Thumb reset block and 320-byte exception table; later 37,200 bytes are missing.",
                   "- A640 exact whole-file reproduction requires externally supplied original OEM authentication bytes.",
                   "- Cirrus HALO program bytes are still not independently decompiled; reference-assisted repacking is not firmware reconstruction.",
                   "- Several reference-dependent verification tests are skipped without supplied original firmwares and ISA toolchains.",
