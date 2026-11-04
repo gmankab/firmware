@@ -32,7 +32,7 @@ external_authentication_bytes = 6400
 name = "venus.mbn"
 size = 1159200
 sha256 = "9d4af65d7ede845e900f1b29ff425b7a8e2947056e695e246e58a2091445a085"
-credit_bytes = 530524
+credit_bytes = 530628
 credit_kind = "reported_source_and_literal_data"
 
 [images.executable_load]
@@ -83,7 +83,7 @@ label = "upper fragment A"
 
 [[images.regions]]
 start = 0x69e44
-end = 0x6a400
+end = 0x6a468
 provenance = "reported_reconstructed"
 label = "upper controller dispatch, record copies and service buffer setup (incomplete)"
 

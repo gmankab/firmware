@@ -14,7 +14,7 @@ use arm32::{
 };
 
 pub const START:usize=0x69e44;
-pub const END:usize=0x6a400;
+pub const END:usize=0x6a468;
 pub const FILE_MAPPING_DELTA:usize=0x4000;
 
 struct Emitter { pc:usize, bytes:Vec<u8> }
@@ -469,6 +469,34 @@ pub fn fragment()->Result<Vec<u8>,String> {
     c.ldr(R::R2,R::SP,0x6c)?;
     c.imm(C::Al,Op::Cmp,R::R0,r6,0)?;
     c.str(R::R0,R::SP,0x58)?;
+    c.check(0x6a400)?;
+    // Prepare record count, protected storage masks and per-slot stack pointers.
+    c.branch(C::Eq,0x6a6f0,false)?;
+    c.ldr(R::R1,R::SP,0x64)?;
+    c.imm(C::Al,Op::Mov,r10,R::R0,255)?;
+    c.emit(mov_shifted_register(C::Al,r9,r6,Shift::Lsl,1)?)?;
+    c.imm(C::Al,Op::Mov,R::new(3)?,R::R0,0)?;
+    c.imm(C::Al,Op::Mov,r7,R::R0,0)?;
+    c.imm(C::Al,Op::Orr,r10,r10,65280)?;
+    c.emit(multiply_register(C::Al,R::R0,R::R1,r6)?)?;
+    c.emit(data_register(C::Al,Op::Sub,R::R0,r4,R::R0,Shift::Lsl,0,false)?)?;
+    c.imm(C::Al,Op::Mov,r4,R::R0,255)?;
+    c.emit(data_register(C::Al,Op::And,R::R0,R::R0,r10,Shift::Lsl,0,false)?)?;
+    c.imm(C::Al,Op::Orr,r4,r4,256)?;
+    c.str(R::R0,R::SP,0x54)?;
+    c.ldr(R::R0,R::SP,0x48)?;
+    c.emit(data_register(C::Al,Op::Add,R::R0,R::R0,R::R2,Shift::Lsl,2,false)?)?;
+    c.imm(C::Al,Op::Add,R::R1,R::R0,136)?;
+    c.imm(C::Al,Op::Add,R::R0,R::R0,140)?;
+    c.str(R::R0,R::SP,0x50)?;
+    c.emit(mov_shifted_register(C::Al,R::R0,r6,Shift::Lsl,3)?)?;
+    c.str(R::R1,R::SP,0x44)?;
+    c.imm(C::Al,Op::Add,R::R1,R::SP,168)?;
+    c.str(R::R0,R::SP,0x94)?;
+    c.ldr(R::R0,R::SP,0x38)?;
+    c.emit(data_register(C::Al,Op::Add,R::R1,R::R1,R::R2,Shift::Lsl,2,false)?)?;
+    c.imm(C::Al,Op::Sub,R::R1,R::R1,4)?;
+    c.str(R::R1,R::SP,0x40)?;
     c.check(END)?;
     Ok(c.bytes)
 }
@@ -479,6 +507,6 @@ mod tests {
     #[test]
     fn covers_bounded_function_prefix() {
         assert_eq!(fragment().unwrap().len(),END-START);
-        assert_eq!(END-START,1468);
+        assert_eq!(END-START,1572);
     }
 }
