@@ -32,7 +32,7 @@ external_authentication_bytes = 6400
 name = "venus.mbn"
 size = 1159200
 sha256 = "9d4af65d7ede845e900f1b29ff425b7a8e2947056e695e246e58a2091445a085"
-credit_bytes = 536844
+credit_bytes = 539624
 credit_kind = "reported_source_and_literal_data"
 
 [images.executable_load]
@@ -71,7 +71,7 @@ label = "middle runtime"
 
 [[images.regions]]
 start = 0x40000
-end = 0x690a4
+end = 0x69b80
 provenance = "reported_reconstructed"
 label = "controller"
 

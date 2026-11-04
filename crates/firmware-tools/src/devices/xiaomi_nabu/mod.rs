@@ -18,6 +18,14 @@ pub mod venus_upper_controller_parameters;
 pub mod venus_upper_controller_type_selection;
 #[path = "venus/upper/venus_upper_controller_aggregate.rs"]
 pub mod venus_upper_controller_aggregate;
+#[path = "venus/upper/venus_upper_controller_budget_entry.rs"]
+pub mod venus_upper_controller_budget_entry;
+#[path = "venus/upper/venus_upper_controller_budget_records.rs"]
+pub mod venus_upper_controller_budget_records;
+#[path = "venus/upper/venus_upper_controller_thresholds.rs"]
+pub mod venus_upper_controller_thresholds;
+#[path = "venus/upper/venus_upper_controller_epilogue.rs"]
+pub mod venus_upper_controller_epilogue;
 #[path = "cirrus/coeff_profiles.rs"]
 pub mod cirrus_coeff_profiles;
 #[path = "a640/a640_shader.rs"]

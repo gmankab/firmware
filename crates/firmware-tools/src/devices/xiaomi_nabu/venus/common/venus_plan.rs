@@ -80,7 +80,8 @@ fn field<'a>(record: &'a str, name: &str) -> Result<&'a str, String> {
 pub fn full_file() -> Result<ImagePlan, String> {
     use super::{venus_runtime_bridge, venus_runtime_forward, venus_runtime_seam,
         venus_runtime_late, venus_runtime_mid, venus_upper_dispatch, venus_upper_controller_continuation, venus_upper_controller_parameters,
-        venus_upper_controller_type_selection, venus_upper_controller_aggregate, venus_tail_program};
+        venus_upper_controller_type_selection, venus_upper_controller_aggregate,
+        venus_upper_controller_budget_entry, venus_upper_controller_budget_records, venus_upper_controller_thresholds, venus_upper_controller_epilogue, venus_tail_program};
     let size = crate::firmware_manifest_identity::canonical_image("venus.mbn")?.size;
     let mut plan = ImagePlan::new(size)?;
     plan.place("venus_boot", venus_boot::FILE_OFFSET, &venus_boot::first_page()?)?;
@@ -119,6 +120,10 @@ pub fn full_file() -> Result<ImagePlan, String> {
     place!(venus_upper_controller_parameters, venus_upper_controller_parameters::START);
     place!(venus_upper_controller_type_selection, venus_upper_controller_type_selection::START);
     place!(venus_upper_controller_aggregate, venus_upper_controller_aggregate::START);
+    place!(venus_upper_controller_budget_entry, venus_upper_controller_budget_entry::START);
+    place!(venus_upper_controller_budget_records, venus_upper_controller_budget_records::START);
+    place!(venus_upper_controller_thresholds, venus_upper_controller_thresholds::START);
+    place!(venus_upper_controller_epilogue, venus_upper_controller_epilogue::START);
     place!(venus_upper_dispatch, venus_upper_dispatch::START);
     place!(venus_tail_program, venus_tail_program::START);
     Ok(plan)
@@ -161,7 +166,7 @@ mod tests {
             actual[span].fill(true);
         }
         let credit = field(record, "credit_bytes").unwrap().parse::<usize>().unwrap();
-        assert_eq!(credit, 536844);
+        assert_eq!(credit, 539624);
         assert_eq!(expected.iter().filter(|&&filled| filled).count(), credit);
 
         assert_eq!(actual.iter().zip(&expected).position(|(a, b)| a != b), None);
