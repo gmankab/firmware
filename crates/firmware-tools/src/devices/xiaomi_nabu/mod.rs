@@ -90,6 +90,14 @@ pub mod venus_heap_queries_iterator;
 pub mod venus_heap_statistics_callbacks;
 #[path = "venus/upper/venus_heap_interrupt_helpers.rs"]
 pub mod venus_heap_interrupt_helpers;
+#[path = "venus/upper/venus_service_queue_helpers.rs"]
+pub mod venus_service_queue_helpers;
+#[path = "venus/upper/venus_service_state_dispatch.rs"]
+pub mod venus_service_state_dispatch;
+#[path = "venus/upper/venus_service_loop_setup.rs"]
+pub mod venus_service_loop_setup;
+#[path = "venus/upper/venus_service_register_output.rs"]
+pub mod venus_service_register_output;
 #[path = "venus/upper/venus_vppsg_lifecycle.rs"]
 pub mod venus_vppsg_lifecycle;
 #[path = "venus/upper/venus_vppsg_object_transform.rs"]

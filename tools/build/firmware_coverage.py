@@ -173,6 +173,10 @@ def verify_generated_region(data:dict[str,Any],name:str,reference:Path,generated
 
 def status(data: dict[str,Any]) -> str:
     images=data["images"]
+    gmu=next((image for image in images if image["name"] == "a640_gmu.bin"), None)
+    gmu_limit=(f"- GMU has {gmu['credit_bytes']:,} modeled load-header, reset, vector, startup and context-switch bytes; "
+               f"{gmu['external_gmu_payload_bytes']:,} payload bytes remain external."
+               if gmu else "- GMU coverage is not included in this manifest.")
     lines=["# Current firmware reconstruction status", "",
            "Generated from `reference/xiaomi-nabu/coverage.toml` by `python3 tools/firmware.py status`.", "",
            "**Caution:** counts include reported source encoding, metadata, literal tables and some modeled layout bytes. They are *not* proof of high-level source recovery, device behavior or newly valid OEM signatures.", "",
@@ -195,7 +199,7 @@ def status(data: dict[str,Any]) -> str:
                   "- The four 5,340-byte Cirrus WMDR coefficient configuration files are byte-identical from numeric tables, not HALO executable code.",
                   "- `board-2.bin` has 1,508 typed TLV/name framing bytes; 459,552 OEM calibration bytes remain external.",
                   "- Qualcomm Bluetooth TLV patch/NVM metadata accounts for 28 + 744 bytes; the patch executable and 61 NVM tag values are not reconstructed.",
-                  "- The 480 GMU modeled bytes include 112 load-header bytes, a 48-byte Thumb reset block and 320-byte exception table; later 37,200 bytes are missing.",
+                  gmu_limit,
                   "- A640 exact whole-file reproduction requires externally supplied original OEM authentication bytes.",
                   "- Cirrus HALO program bytes are still not independently decompiled; reference-assisted repacking is not firmware reconstruction.",
                   "- Several reference-dependent verification tests are skipped without supplied original firmwares and ISA toolchains.",

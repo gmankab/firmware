@@ -9,31 +9,31 @@ Generated from `reference/xiaomi-nabu/coverage.toml` by `python3 tools/firmware.
 | `modemuw.jsn` | 713 | 713 | 0 |
 | `firmware-5.bin` | 60 | 60 | 0 |
 | `a640_zap.mbn` | 14,256 | 7,856 | 6,400 |
-| `venus.mbn` | 1,159,200 | 579,692 | 579,508 |
+| `venus.mbn` | 1,159,200 | 585,492 | 573,708 |
 | `adsp.mbn` | 14,430,684 | 31,608 | 14,399,076 |
 | `cdsp.mbn` | 9,455,252 | 11,964 | 9,443,288 |
 | `modem.mbn` | 5,101,612 | 19,528 | 5,082,084 |
 | `wlanmdsp.mbn` | 4,331,136 | 52,836 | 4,278,300 |
-| `cs35l41-dsp1-spk-prot.wmfw` | 34,236 | 10,488 | 23,748 |
+| `cs35l41-dsp1-spk-prot.wmfw` | 34,236 | 10,299 | 23,937 |
 | `novatek_nt36523_fw.bin` | 196,608 | 149,097 | 47,511 |
 | `BL-cs35l41-dsp1-spk-prot.bin` | 5,340 | 5,340 | 0 |
 | `BR-cs35l41-dsp1-spk-prot.bin` | 5,340 | 5,340 | 0 |
 | `TL-cs35l41-dsp1-spk-prot.bin` | 5,340 | 5,340 | 0 |
 | `TR-cs35l41-dsp1-spk-prot.bin` | 5,340 | 5,340 | 0 |
 | `a630_sqe.fw` | 32,304 | 0 | 32,304 |
-| `a640_gmu.bin` | 37,680 | 684 | 36,996 |
+| `a640_gmu.bin` | 37,680 | 802 | 36,878 |
 | `board-2.bin` | 461,060 | 1,508 | 459,552 |
 | `crbtfw32.tlv` | 127,544 | 28 | 127,516 |
 | `crnv32.bin` | 5,504 | 744 | 4,760 |
-| **Total** | **35,409,209** | **888,166** | **34,521,043** |
+| **Total** | **35,409,209** | **893,895** | **34,515,314** |
 
 ## Venus first executable segment
 
-Reported source/layout: **579,692 / 1,059,316 bytes**; uncovered: **479,624 bytes**.
+Reported source/layout: **585,492 / 1,059,316 bytes**; uncovered: **473,824 bytes**.
 
 | Uncovered ARM runtime addresses | Bytes |
 | --- | ---: |
-| `0xd790–0x12e5c` | 22,220 |
+| `0xee38–0x12e5c` | 16,420 |
 | `0x73e10–0x74ab0` | 3,232 |
 | `0x7562c–0xa8000` | 207,316 |
 | `0xc65ac–0x1029f4` | 246,856 |
@@ -44,7 +44,7 @@ Reported source/layout: **579,692 / 1,059,316 bytes**; uncovered: **479,624 byte
 - The four 5,340-byte Cirrus WMDR coefficient configuration files are byte-identical from numeric tables, not HALO executable code.
 - `board-2.bin` has 1,508 typed TLV/name framing bytes; 459,552 OEM calibration bytes remain external.
 - Qualcomm Bluetooth TLV patch/NVM metadata accounts for 28 + 744 bytes; the patch executable and 61 NVM tag values are not reconstructed.
-- The 480 GMU modeled bytes include 112 load-header bytes, a 48-byte Thumb reset block and 320-byte exception table; later 37,200 bytes are missing.
+- GMU has 802 modeled load-header, reset, vector, startup and context-switch bytes; 36,878 payload bytes remain external.
 - A640 exact whole-file reproduction requires externally supplied original OEM authentication bytes.
 - Cirrus HALO program bytes are still not independently decompiled; reference-assisted repacking is not firmware reconstruction.
 - Several reference-dependent verification tests are skipped without supplied original firmwares and ISA toolchains.

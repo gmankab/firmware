@@ -350,6 +350,43 @@ mod tests {
     }
 
     #[test]
+    fn canonical_coverage_matches_generated_disjoint_memory_plan() {
+        let name = "cs35l41-dsp1-spk-prot.wmfw";
+        let identity = crate::firmware_manifest_identity::canonical_image(name).unwrap();
+        let manifest = include_str!(concat!(env!("CARGO_MANIFEST_DIR"),
+            "/../../reference/xiaomi-nabu/coverage.toml"));
+        let entry = manifest.split("[[images]]").find(|entry| entry.lines()
+            .any(|line| line.trim() == format!("name = \"{name}\""))).unwrap();
+        let field = |key: &str| entry.lines().filter_map(|line| line.split_once('='))
+            .find(|(name, _)| name.trim() == key).unwrap().1.trim();
+        let credit: usize = field("credit_bytes").parse().unwrap();
+        let external: usize = field("external_dsp_payload_bytes").parse().unwrap();
+        let cells = source_cells().unwrap();
+        let disjoint = counts(&cells);
+        let partial = partial_image().unwrap();
+        assert_eq!(disjoint, [3984, 69, 3, 792, 5451, 23937]);
+        assert_eq!(credit, disjoint[..5].iter().sum::<usize>());
+        assert_eq!(credit, partial.filled_bytes());
+        assert_eq!(credit, KNOWN_BYTES);
+        assert_eq!(credit, 10_299);
+        assert_eq!(external, disjoint[5]);
+        assert_eq!(external, partial.holes().iter().map(|r| r.end-r.start).sum::<usize>());
+        assert_eq!(external, EXTERNAL_BYTES);
+        assert_eq!(external, EXTERNAL_PM_BYTES + EXTERNAL_XY_BYTES);
+        assert_eq!(external, EXTERNAL_PARTS.iter().map(|p| p.end-p.start).sum::<usize>());
+        let zero_bytes: usize = wmfw_compact_y::ZERO_BYTE_RANGES.iter()
+            .map(|(start, end)| end-start).sum();
+        assert_eq!(zero_bytes - disjoint[4], CONTROL_ZERO_OVERLAP_BYTES);
+        assert_eq!(CONTROL_ZERO_OVERLAP_BYTES, 297);
+        assert_eq!(credit + external, identity.size);
+        assert_eq!(partial.total_bytes(), identity.size);
+        assert_eq!(identity.sha256, wmfw_external_payload::REFERENCE_SHA256);
+        assert_eq!(field("credit_kind"), "\"structural_and_reference_observed\"");
+        assert!(!entry.lines().any(|line| line.trim() == "complete_source = true"));
+        assert!(partial.build_complete().is_err());
+    }
+
+    #[test]
     fn typed_zero_overlap_has_single_provenance_and_nonzero_conflicts_are_atomic() {
         let mut cells = vec![None; 6];
         put_known(&mut cells, 2, &[0, 0], ByteOrigin::ReferenceObservedControlInitialization).unwrap();

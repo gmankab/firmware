@@ -2,7 +2,8 @@
 
 pub const IMAGE_BYTES: usize = 37_680;
 pub const INITIAL_PREFIX_BYTES: usize = 400;
-pub const MODELLED_BYTES: usize = 684;
+pub const MODELLED_BYTES: usize = 802;
+const PENDSV_EXTENSION_BYTES: usize = 118;
 pub const STARTUP_BYTES: usize = 204;
 const BLOCKS: [(u32,u32);7] = [
     (0x0,48), (0x200,320), (0x400,14_524), (0x4000,14_936),
@@ -16,7 +17,7 @@ fn ldr_literal(register:u8,distance:u16)->u16 {
     0x4800|(u16::from(register)<<8)|(distance>>2)
 }
 fn msr_special(register:u8,kind:u8)->[u16;2] {
-    assert!(register<16 && matches!(kind,8|9));
+    assert!(register<16 && matches!(kind,8|9|17));
     [0xf380|u16::from(register),0x8800|u16::from(kind)]
 }
 fn str_word(src:u8,base:u8,offset:u8)->u16 {
@@ -63,6 +64,10 @@ fn sub_immediate_w(dst:u8,src:u8,value:u8)->[u16;2] {
 fn cmp_register(lhs:u8,rhs:u8)->u16 {
     assert!(lhs<15 && rhs<15);
     0x4500|((u16::from(lhs)&8)<<4)|(u16::from(rhs)<<3)|(u16::from(lhs)&7)
+}
+fn cmp_register_low(lhs:u8,rhs:u8)->u16 {
+    assert!(lhs<8 && rhs<8);
+    0x4280|(u16::from(rhs)<<3)|u16::from(lhs)
 }
 fn bne(from:u32,to:u32)->u16 {
     let delta=i64::from(to)-i64::from(from)-4;
@@ -154,8 +159,26 @@ fn mov_register(dst:u8,src:u8)->u16 {
     0x4600|((u16::from(dst)&8)<<4)|(u16::from(src)<<3)|(u16::from(dst)&7)
 }
 fn mrs_special(dst:u8,kind:u8)->[u16;2] {
-    assert!(dst<13 && matches!(kind,8|9));
+    assert!(dst<13 && matches!(kind,8|9|17));
     [0xf3ef,0x8000|(u16::from(dst)<<8)|u16::from(kind)]
+}
+fn stmdb_w(base:u8,registers:u16)->[u16;2] {
+    assert!(base<15 && registers.count_ones()>=2 && registers&0xa000==0);
+    assert!(registers&(1u16<<base)==0);
+    [0xe920|u16::from(base),registers]
+}
+fn str_word_w(src:u8,base:u8,offset:u16)->[u16;2] {
+    assert!(src<15 && src!=13 && base<15 && offset<=4095);
+    [0xf8c0|u16::from(base),(u16::from(src)<<12)|offset]
+}
+fn add_immediate_w(dst:u8,src:u8,value:u8)->[u16;2] {
+    assert!(dst<13 && src<13);
+    [0xf100|u16::from(src),(u16::from(dst)<<8)|u16::from(value)]
+}
+fn b(from:u32,to:u32)->u16 {
+    let delta=i64::from(to)-i64::from(from)-4;
+    assert!(from%2==0 && to%2==0 && (-2048..=2046).contains(&delta));
+    0xe000|((delta/2) as u16&0x7ff)
 }
 fn wfi()->u16 { 0xbf30 }
 fn push16(out:&mut Vec<u8>,word:u16) { out.extend_from_slice(&word.to_le_bytes()); }
@@ -288,6 +311,61 @@ pub fn startup()->Vec<u8> {
     out
 }
 
+fn pendsv_extension()->Vec<u8> {
+    let mut out=Vec::with_capacity(PENDSV_EXTENSION_BYTES);
+    push16(&mut out,ldr_literal(1,0x52c-0x4d0));
+    push16(&mut out,ldr_word(0,1,0));
+    push16(&mut out,cmp_immediate(0,0));
+    push16(&mut out,b_cond(Condition::Eq,0x4d2,0x51a));
+    push16(&mut out,ldr_literal(0,0x530-0x4d8));
+    push16(&mut out,ldr_word(0,0,0));
+    push16(&mut out,ldr_literal(1,0x534-0x4dc));
+    push16(&mut out,ldr_word(1,1,0));
+    push16(&mut out,cmp_register_low(0,1));
+    push16(&mut out,b_cond(Condition::Eq,0x4de,0x518));
+    push16(&mut out,ldr_literal(2,0x538-0x4e4));
+    push16(&mut out,ldr_word(2,2,0));
+    push16(&mut out,cmp_immediate(2,0));
+    push16(&mut out,b_cond(Condition::Eq,0x4e6,0x518));
+    push32(&mut out,mrs_special(1,9));
+    push16(&mut out,cmp_immediate(1,0));
+    push16(&mut out,b_cond(Condition::Eq,0x4ee,0x502));
+    push32(&mut out,mrs_special(3,17));
+    push32(&mut out,stmdb_w(1,0x0ff8));
+    push32(&mut out,msr_special(1,9));
+    push16(&mut out,ldr_literal(0,0x530-0x500));
+    push16(&mut out,ldr_word(2,0,0));
+    push16(&mut out,str_word(1,2,0));
+    assert_eq!(out.len(),0x502-0x4cc);
+    push16(&mut out,ldr_literal(0,0x530-0x504));
+    push16(&mut out,ldr_literal(1,0x534-0x508));
+    push16(&mut out,ldr_word(1,1,0));
+    push16(&mut out,str_word(1,0,0));
+    push16(&mut out,ldr_word(1,1,0));
+    push32(&mut out,ldm_w(1,0x0ff8,true));
+    push32(&mut out,msr_special(3,17));
+    push32(&mut out,msr_special(1,9));
+    assert_eq!(out.len(),0x518-0x4cc);
+    push16(&mut out,bx(14));
+    assert_eq!(out.len(),0x51a-0x4cc);
+    push32(&mut out,str_word_w(1,1,1));
+    push32(&mut out,mrs_special(1,9));
+    push32(&mut out,add_immediate_w(1,1,36));
+    push32(&mut out,msr_special(1,9));
+    push16(&mut out,b(0x52a,0x502));
+    assert_eq!(out.len(),0x52c-0x4cc);
+    for address in [0x40280u32,0x40298,0x4029c,0x40288] {
+        out.extend_from_slice(&address.to_le_bytes());
+    }
+    assert_eq!(out.len(),0x53c-0x4cc);
+    push32(&mut out,b_w(0x53c,0x728));
+    assert_eq!(out.len(),0x540-0x4cc);
+    push16(&mut out,bx(14));
+    assert_eq!(out.len(),0x542-0x4cc);
+    assert_eq!(out.len(),PENDSV_EXTENSION_BYTES);
+    out
+}
+
 fn header(address:u32,size:u32)->Vec<u8> {
     let mut out=Vec::with_capacity(16);
     for word in [address,size,LOAD_MARKER,LOAD_MARKER] {
@@ -304,7 +382,12 @@ pub fn spans()->Vec<Span> {
         match index {
             0=>data.extend_from_slice(&reset_block()),
             1=>data.extend_from_slice(&vector_table()),
-            2=>data.extend_from_slice(&startup()),
+            2=>{
+                data.extend_from_slice(&startup());
+                assert_eq!(offset+data.len(),0x26c);
+                data.extend_from_slice(&pendsv_extension());
+                assert_eq!(offset+data.len(),0x2e2);
+            },
             _=>{},
         }
         result.push(Span{offset,data});
@@ -340,8 +423,8 @@ mod tests {
         assert_eq!(first_two_blocks().len(),400);
         assert_eq!(startup().len(),204);
         assert_eq!(spans()[2].offset+16,416);
-        assert_eq!(spans()[2].data.len(),220);
-        assert_eq!(MODELLED_BYTES,684);
+        assert_eq!(spans()[2].data.len(),338);
+        assert_eq!(MODELLED_BYTES,802);
     }
 
     #[test]
@@ -362,7 +445,8 @@ mod tests {
         assert_eq!(mrs_special(0,9),[0xf3ef,0x8009]);
         assert_eq!(startup()[0x56..0x58],[0,0]);
         assert_eq!(0x400+startup().len(),0x4cc);
-        assert_eq!(spans()[2].offset+spans()[2].data.len(),0x4cc-0x260);
+        assert_eq!(spans()[2].offset+16+startup().len(),0x26c);
+        assert_eq!(spans()[2].offset+spans()[2].data.len(),0x2e2);
         for encode in [
             || { b_cond(Condition::Hi,1,4); },
             || { b_cond(Condition::Hi,0,260); },
@@ -393,6 +477,59 @@ mod tests {
             || { mov_register(0,15); },
             || { mrs_special(13,8); },
             || { mrs_special(0,7); },
+        ] {
+            assert!(std::panic::catch_unwind(encode).is_err());
+        }
+    }
+
+    #[test]
+    fn pendsv_encoding_and_protected_pool() {
+        assert_eq!(cmp_register_low(0,1),0x4288);
+        assert_eq!(mrs_special(3,17),[0xf3ef,0x8311]);
+        assert_eq!(msr_special(3,17),[0xf383,0x8811]);
+        assert_eq!(stmdb_w(1,0x0ff8),[0xe921,0x0ff8]);
+        assert_eq!(str_word_w(1,1,1),[0xf8c1,0x1001]);
+        assert_eq!(str_word_w(14,14,4095),[0xf8ce,0xefff]);
+        assert_eq!(add_immediate_w(1,1,36),[0xf101,0x0124]);
+        assert_eq!(b(0x52a,0x502),0xe7ea);
+        assert_eq!(b(0x800,4),0xe400);
+        assert_eq!(b(0,0x802),0xe3ff);
+        let extension=pendsv_extension();
+        assert_eq!(extension.len(),118);
+        let mut pool=Vec::new();
+        for address in [0x40280u32,0x40298,0x4029c,0x40288] {
+            pool.extend_from_slice(&address.to_le_bytes());
+        }
+        assert_eq!(&extension[0x60..0x70],pool);
+        assert_eq!(&extension[0x4e..0x52],[0xc1,0xf8,1,0x10]);
+        assert_eq!(&extension[0x70..],[0,0xf0,0xf4,0xb8,0x70,0x47]);
+        let plan=spans();
+        let span=&plan[2];
+        assert_eq!(span.offset+16,0x1a0);
+        assert_eq!(&span.data[16..16+STARTUP_BYTES],startup());
+        assert_eq!(&span.data[0x26c-span.offset..],extension);
+        assert_eq!(plan.iter().map(|span|span.data.len()).sum::<usize>(),684+118);
+        for encode in [
+            || { cmp_register_low(8,0); },
+            || { cmp_register_low(0,8); },
+            || { msr_special(0,16); },
+            || { msr_special(16,17); },
+            || { mrs_special(0,18); },
+            || { stmdb_w(15,3); },
+            || { stmdb_w(0,2); },
+            || { stmdb_w(0,3); },
+            || { stmdb_w(0,0x2006); },
+            || { stmdb_w(0,0x8006); },
+            || { str_word_w(15,0,0); },
+            || { str_word_w(13,0,0); },
+            || { str_word_w(0,15,0); },
+            || { str_word_w(0,0,4096); },
+            || { add_immediate_w(13,0,0); },
+            || { add_immediate_w(0,13,0); },
+            || { b(1,4); },
+            || { b(0,5); },
+            || { b(0,0x804); },
+            || { b(0x802,4); },
         ] {
             assert!(std::panic::catch_unwind(encode).is_err());
         }

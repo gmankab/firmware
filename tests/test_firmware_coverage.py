@@ -62,12 +62,12 @@ class FirmwareCoverageTests(unittest.TestCase):
     def test_pinned_revision_records(self):
         self.assertEqual(len(self.data['images']),19)
         self.assertEqual(sum(i['size'] for i in self.data['images']),35409209)
-        self.assertEqual(sum(i['credit_bytes'] for i in self.data['images']),888166)
+        self.assertEqual(sum(i['credit_bytes'] for i in self.data['images']),893895)
 
     def test_gmu_reset_prefix_is_not_entire_firmware(self):
         image=next(x for x in self.data['images'] if x['name']=='a640_gmu.bin')
-        self.assertEqual(image['credit_bytes'],684)
-        self.assertEqual(image['external_gmu_payload_bytes'],36996)
+        self.assertEqual(image['credit_bytes'],802)
+        self.assertEqual(image['external_gmu_payload_bytes'],36878)
         self.assertEqual(image['credit_bytes']+image['external_gmu_payload_bytes'],image['size'])
         self.assertFalse(image.get('complete_source',False))
 
@@ -88,6 +88,14 @@ class FirmwareCoverageTests(unittest.TestCase):
         self.assertEqual(board['external_calibration_bytes'],459552)
         self.assertEqual(board['credit_bytes']+board['external_calibration_bytes'],board['size'])
         self.assertFalse(board.get('complete_source',False))
+
+    def test_wmfw_credit_uses_disjoint_memory_plan_union(self):
+        image=next(x for x in self.data['images'] if x['name']=='cs35l41-dsp1-spk-prot.wmfw')
+        self.assertEqual(image['credit_bytes'],3984+69+3+792+5451)
+        self.assertEqual(image['external_dsp_payload_bytes'],20280+3657)
+        self.assertEqual(image['credit_bytes']+image['external_dsp_payload_bytes'],image['size'])
+        self.assertEqual(image['credit_kind'],'structural_and_reference_observed')
+        self.assertFalse(image.get('complete_source',False))
 
     def test_four_tuning_profiles_are_independently_complete_data(self):
         for speaker in ('BL','BR','TL','TR'):
@@ -134,14 +142,14 @@ class FirmwareCoverageTests(unittest.TestCase):
         self.assertIn({'start':0x69e44,'end':0x6ac0c,
                        'provenance':'reported_reconstructed',
                        'label':'upper controller dispatch, record copies and service buffer setup (incomplete)'},venus['regions'])
-        self.assertEqual(venus['credit_bytes'],579692)
+        self.assertEqual(venus['credit_bytes'],585492)
 
     def test_explicit_venus_gap_partition(self):
         venus=next(x for x in self.data['images'] if x['name']=='venus.mbn')
         gaps=holes(venus['regions'],0,venus['executable_load']['runtime_end'])
         self.assertEqual(len(gaps),4)
-        self.assertEqual(sum(g['bytes'] for g in gaps),479624)
-        self.assertEqual((gaps[0]['start'],gaps[0]['end']),(0xd790,0x12e5c))
+        self.assertEqual(sum(g['bytes'] for g in gaps),473824)
+        self.assertEqual((gaps[0]['start'],gaps[0]['end']),(0xee38,0x12e5c))
 
     def test_overlap_and_out_of_bounds_fails_closed(self):
         for spans in ([{'start':0,'end':8},{'start':7,'end':12}],

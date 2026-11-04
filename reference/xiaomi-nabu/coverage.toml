@@ -32,7 +32,7 @@ external_authentication_bytes = 6400
 name = "venus.mbn"
 size = 1159200
 sha256 = "9d4af65d7ede845e900f1b29ff425b7a8e2947056e695e246e58a2091445a085"
-credit_bytes = 579692
+credit_bytes = 585492
 credit_kind = "reported_source_and_literal_data"
 
 [images.executable_load]
@@ -47,9 +47,9 @@ label = "boot and bridge"
 
 [[images.regions]]
 start = 0xaa0c
-end = 0xd790
+end = 0xee38
 provenance = "reported_reconstructed"
-label = "heap bins, allocation, release, iterators and interrupt callbacks"
+label = "heap management, interrupt callbacks and service setup/output"
 
 [[images.regions]]
 start = 0x12e5c
@@ -167,9 +167,9 @@ credit_kind = "reported_fragments_and_layout_lower_bound"
 name = "cs35l41-dsp1-spk-prot.wmfw"
 size = 34236
 sha256 = "d1bea27e41001024eb3878276292b5bcc0cda4484ffced0880e12c03ec9bac2c"
-credit_bytes = 10488
+credit_bytes = 10299
 credit_kind = "structural_and_reference_observed"
-external_dsp_payload_bytes = 23748
+external_dsp_payload_bytes = 23937
 
 [[images]]
 name = "novatek_nt36523_fw.bin"
@@ -224,9 +224,9 @@ credit_kind = "unreconstructed"
 name = "a640_gmu.bin"
 size = 37680
 sha256 = "3ff0c02708bbe78641db887fa62f3a7f9337934d0c2ce0b961ef7c43172591d2"
-credit_bytes = 684
-credit_kind = "typed_gmu_load_headers_reset_vectors_startup"
-external_gmu_payload_bytes = 36996
+credit_bytes = 802
+credit_kind = "typed_gmu_load_headers_reset_vectors_startup_context_switch"
+external_gmu_payload_bytes = 36878
 
 [[images]]
 name = "board-2.bin"
