@@ -9,7 +9,7 @@ Generated from `reference/xiaomi-nabu/coverage.toml` by `python3 tools/firmware.
 | `modemuw.jsn` | 713 | 713 | 0 |
 | `firmware-5.bin` | 60 | 60 | 0 |
 | `a640_zap.mbn` | 14,256 | 7,856 | 6,400 |
-| `venus.mbn` | 1,159,200 | 591,284 | 567,916 |
+| `venus.mbn` | 1,159,200 | 601,912 | 557,288 |
 | `adsp.mbn` | 14,430,684 | 31,608 | 14,399,076 |
 | `cdsp.mbn` | 9,455,252 | 11,964 | 9,443,288 |
 | `modem.mbn` | 5,101,612 | 19,528 | 5,082,084 |
@@ -21,19 +21,18 @@ Generated from `reference/xiaomi-nabu/coverage.toml` by `python3 tools/firmware.
 | `TL-cs35l41-dsp1-spk-prot.bin` | 5,340 | 5,340 | 0 |
 | `TR-cs35l41-dsp1-spk-prot.bin` | 5,340 | 5,340 | 0 |
 | `a630_sqe.fw` | 32,304 | 0 | 32,304 |
-| `a640_gmu.bin` | 37,680 | 802 | 36,878 |
+| `a640_gmu.bin` | 37,680 | 1,288 | 36,392 |
 | `board-2.bin` | 461,060 | 1,508 | 459,552 |
 | `crbtfw32.tlv` | 127,544 | 28 | 127,516 |
 | `crnv32.bin` | 5,504 | 744 | 4,760 |
-| **Total** | **35,409,209** | **899,687** | **34,509,522** |
+| **Total** | **35,409,209** | **910,801** | **34,498,408** |
 
 ## Venus first executable segment
 
-Reported source/layout: **591,284 / 1,059,316 bytes**; uncovered: **468,032 bytes**.
+Reported source/layout: **601,912 / 1,059,316 bytes**; uncovered: **457,404 bytes**.
 
 | Uncovered ARM runtime addresses | Bytes |
 | --- | ---: |
-| `0x104d8–0x12e5c` | 10,628 |
 | `0x73e10–0x74ab0` | 3,232 |
 | `0x7562c–0xa8000` | 207,316 |
 | `0xc65ac–0x1029f4` | 246,856 |
@@ -44,7 +43,7 @@ Reported source/layout: **591,284 / 1,059,316 bytes**; uncovered: **468,032 byte
 - The four 5,340-byte Cirrus WMDR coefficient configuration files are byte-identical from numeric tables, not HALO executable code.
 - `board-2.bin` has 1,508 typed TLV/name framing bytes; 459,552 OEM calibration bytes remain external.
 - Qualcomm Bluetooth TLV patch/NVM metadata accounts for 28 + 744 bytes; the patch executable and 61 NVM tag values are not reconstructed.
-- GMU has 802 modeled load-header, reset, vector, startup and context-switch bytes; 36,878 payload bytes remain external.
+- GMU has 1,288 modeled load-header, reset, vector, startup and context-switch bytes; 36,392 payload bytes remain external.
 - A640 exact whole-file reproduction requires externally supplied original OEM authentication bytes.
 - Cirrus HALO program bytes are still not independently decompiled; reference-assisted repacking is not firmware reconstruction.
 - Several reference-dependent verification tests are skipped without supplied original firmwares and ISA toolchains.

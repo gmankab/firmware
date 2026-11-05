@@ -106,6 +106,14 @@ pub mod venus_descriptor_context_writer;
 pub mod venus_descriptor_argument_writer;
 #[path = "venus/upper/venus_descriptor_flag_writer.rs"]
 pub mod venus_descriptor_flag_writer;
+#[path = "venus/upper/venus_descriptor_paired_variants.rs"]
+pub mod venus_descriptor_paired_variants;
+#[path = "venus/upper/venus_descriptor_multi_record.rs"]
+pub mod venus_descriptor_multi_record;
+#[path = "venus/upper/venus_descriptor_offset_variants.rs"]
+pub mod venus_descriptor_offset_variants;
+#[path = "venus/upper/venus_descriptor_dispatch_tail.rs"]
+pub mod venus_descriptor_dispatch_tail;
 #[path = "venus/upper/venus_vppsg_lifecycle.rs"]
 pub mod venus_vppsg_lifecycle;
 #[path = "venus/upper/venus_vppsg_object_transform.rs"]
