@@ -152,6 +152,14 @@ pub mod venus_hevc_hdr_metadata;
 pub mod venus_vpx_header_tables;
 #[path = "venus/upper/venus_vpx_header_commit.rs"]
 pub mod venus_vpx_header_commit;
+#[path = "venus/upper/venus_vbuffer_manager.rs"]
+pub mod venus_vbuffer_manager;
+#[path = "venus/upper/venus_vbuffer_release_queries.rs"]
+pub mod venus_vbuffer_release_queries;
+#[path = "venus/upper/venus_vbuffer_external_attach.rs"]
+pub mod venus_vbuffer_external_attach;
+#[path = "venus/upper/venus_vbuffer_array_attach.rs"]
+pub mod venus_vbuffer_array_attach;
 #[path = "venus/upper/venus_vppsg_lifecycle.rs"]
 pub mod venus_vppsg_lifecycle;
 #[path = "venus/upper/venus_vppsg_object_transform.rs"]
