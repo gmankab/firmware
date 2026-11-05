@@ -2,7 +2,7 @@
 
 pub const IMAGE_BYTES: usize = 37_680;
 pub const INITIAL_PREFIX_BYTES: usize = 400;
-pub const MODELLED_BYTES: usize = 2014;
+pub const MODELLED_BYTES: usize = 2584;
 const PENDSV_EXTENSION_BYTES: usize = 118;
 pub const STARTUP_BYTES: usize = 204;
 const BLOCKS: [(u32,u32);7] = [
@@ -349,6 +349,20 @@ fn store_byte_register(src:u8,base:u8,index:u8)->u16 {
     assert!(src<8 && base<8 && index<8);
     0x5400|(u16::from(index)<<6)|(u16::from(base)<<3)|u16::from(src)
 }
+fn stack_adjust(subtract:bool,bytes:u16)->u16 {
+    assert!(bytes<=508 && bytes%4==0);
+    0xb000|(u16::from(subtract)<<7)|(bytes>>2)
+}
+fn stack_store(src:u8,offset:u16)->u16 {
+    assert!(src<8 && offset<=1020 && offset%4==0);
+    0x9000|(u16::from(src)<<8)|(offset>>2)
+}
+fn store_pair(first:u8,second:u8,base:u8,offset:u16)->[u16;2] {
+    assert!(first<13 && second<13 && base<15 && offset<=1020 && offset%4==0);
+    [0xe9c0|u16::from(base),(u16::from(first)<<12)|(u16::from(second)<<8)|(offset>>2)]
+}
+fn cbnz(register:u8,from:u32,to:u32)->u16 { cbz(register,from,to)|0x0800 }
+fn movs_register(dst:u8,src:u8)->u16 { lsls_immediate(dst,src,0) }
 fn nop_w()->[u16;2] { [0xf3af,0x8000] }
 fn wfi()->u16 { 0xbf30 }
 fn push16(out:&mut Vec<u8>,word:u16) { out.extend_from_slice(&word.to_le_bytes()); }
@@ -991,6 +1005,227 @@ fn runtime_memory_and_formatter()->Vec<u8> {
     out
 }
 
+fn runtime_streams_and_arena()->Vec<u8> {
+    let mut out=Vec::with_capacity(570);
+    macro_rules! h { ($at:expr,$word:expr) => {{ assert_eq!(0x9fe+out.len(),$at); push16(&mut out,$word); }}; }
+    macro_rules! w { ($at:expr,$words:expr) => {{ assert_eq!(0x9fe+out.len(),$at); push32(&mut out,$words); }}; }
+    h!(0x9fe,push(0x4000));
+    h!(0xa00,stack_adjust(true,60));
+    w!(0xa02,store_pair(3,1,13,4));
+    h!(0xa06,movs_immediate(1,0));
+    h!(0xa08,stack_store(1,20));
+    h!(0xa0a,ldr_literal(1,0xa20-0xa0c));
+    h!(0xa0c,add_register(1,15));
+    w!(0xa0e,store_pair(1,0,13,12));
+    h!(0xa12,mov_register(1,2));
+    h!(0xa14,mov_register(0,13));
+    w!(0xa16,bl(0xa16,0x648));
+    h!(0xa1a,stack_adjust(false,60));
+    h!(0xa1c,pop(0x8000));
+    assert_eq!(out.len(),0xa1e-0x9fe);
+    out.resize(out.len()+2,0);
+    out.extend_from_slice(&0x9f5u32.wrapping_sub(0xa0c+4).to_le_bytes());
+    h!(0xa24,load_byte(0,0,12));
+    w!(0xa26,alu_immediate_w(Alu::And,0,0,128));
+    h!(0xa2a,bx(14));
+    h!(0xa2c,push(0x4010));
+    h!(0xa2e,ldr_literal(0,0xb38-0xa30));
+    h!(0xa30,movs_immediate(1,84));
+    w!(0xa32,bl(0xa32,0x87a));
+    h!(0xa36,ldr_literal(0,0xb3c-0xa38));
+    h!(0xa38,movs_immediate(1,84));
+    w!(0xa3a,bl(0xa3a,0x87a));
+    h!(0xa3e,ldr_literal(0,0xb40-0xa40));
+    h!(0xa40,movs_immediate(1,84));
+    w!(0xa42,bl(0xa42,0x87a));
+    h!(0xa46,ldr_literal(1,0xb44-0xa48));
+    h!(0xa48,ldr_literal(0,0xb38-0xa4c));
+    h!(0xa4a,ldr_literal(2,0xb3c-0xa4c));
+    h!(0xa4c,ldr_literal(3,0xb4c-0xa50));
+    h!(0xa4e,str_word(0,1,0));
+    h!(0xa50,ldr_literal(1,0xb48-0xa54));
+    h!(0xa52,str_word(2,1,0));
+    h!(0xa54,ldr_literal(1,0xb40-0xa58));
+    h!(0xa56,str_word(1,3,0));
+    h!(0xa58,adds_small(3,2,1));
+    h!(0xa5a,str_word(3,0,80));
+    h!(0xa5c,adds_small(0,1,1));
+    h!(0xa5e,str_word(0,2,80));
+    h!(0xa60,movs_immediate(0,1));
+    h!(0xa62,str_word(0,1,80));
+    h!(0xa64,ldr_literal(0,0xb54-0xa68));
+    h!(0xa66,ldr_literal(2,0xb38-0xa68));
+    h!(0xa68,adr(1,0xa68,0xb50));
+    h!(0xa6a,add_register(0,15));
+    w!(0xa6c,bl(0xa6c,0xe54));
+    h!(0xa70,cbnz(0,0xa70,0xa7c));
+    h!(0xa72,ldr_literal(0,0xb54-0xa74));
+    h!(0xa74,add_register(0,15));
+    h!(0xa76,subs_immediate(0,10));
+    w!(0xa78,bl(0xa78,0xfd0));
+    h!(0xa7c,ldr_literal(0,0xb5c-0xa80));
+    h!(0xa7e,ldr_literal(2,0xb3c-0xa80));
+    h!(0xa80,adr(1,0xa80,0xb58));
+    h!(0xa82,add_register(0,15));
+    w!(0xa84,bl(0xa84,0xe54));
+    h!(0xa88,cbnz(0,0xa88,0xa94));
+    h!(0xa8a,ldr_literal(0,0xb5c-0xa8c));
+    h!(0xa8c,add_register(0,15));
+    h!(0xa8e,subs_immediate(0,10));
+    w!(0xa90,bl(0xa90,0xfd0));
+    h!(0xa94,ldr_literal(0,0xb60-0xa98));
+    h!(0xa96,ldr_literal(2,0xb40-0xa98));
+    h!(0xa98,adr(1,0xa98,0xb58));
+    h!(0xa9a,add_register(0,15));
+    w!(0xa9c,bl(0xa9c,0xe54));
+    h!(0xaa0,cbnz(0,0xaa0,0xaac));
+    h!(0xaa2,ldr_literal(0,0xb60-0xaa4));
+    h!(0xaa4,add_register(0,15));
+    h!(0xaa6,subs_immediate(0,10));
+    w!(0xaa8,bl(0xaa8,0xfd0));
+    h!(0xaac,movs_immediate(3,64));
+    h!(0xaae,ldr_literal(0,0xb38-0xab0));
+    h!(0xab0,lsls_immediate(4,3,3));
+    h!(0xab2,movs_immediate(1,0));
+    h!(0xab4,mov_register(2,4));
+    w!(0xab6,bl(0xab6,0xe0e));
+    h!(0xaba,cbz(0,0xaba,0xac6));
+    h!(0xabc,ldr_literal(0,0xb54-0xac0));
+    h!(0xabe,add_register(0,15));
+    h!(0xac0,subs_immediate(0,84));
+    w!(0xac2,bl(0xac2,0xfd0));
+    h!(0xac6,ldr_literal(0,0xb3c-0xac8));
+    h!(0xac8,mov_register(2,4));
+    h!(0xaca,movs_immediate(3,64));
+    h!(0xacc,movs_immediate(1,0));
+    w!(0xace,bl(0xace,0xe0e));
+    h!(0xad2,cbz(0,0xad2,0xade));
+    h!(0xad4,ldr_literal(0,0xb5c-0xad8));
+    h!(0xad6,add_register(0,15));
+    h!(0xad8,subs_immediate(0,84));
+    w!(0xada,bl(0xada,0xfd0));
+    h!(0xade,ldr_literal(0,0xb40-0xae0));
+    h!(0xae0,mov_register(2,4));
+    h!(0xae2,movs_immediate(3,16));
+    h!(0xae4,movs_immediate(1,0));
+    w!(0xae6,bl(0xae6,0xe0e));
+    h!(0xaea,cmp_immediate(0,0));
+    h!(0xaec,b_cond(Condition::Eq,0xaec,0xafc));
+    h!(0xaee,ldr_literal(0,0xb60-0xaf0));
+    h!(0xaf0,add_register(0,15));
+    w!(0xaf2,stack_registers_w(true,0x4010));
+    h!(0xaf6,subs_immediate(0,86));
+    w!(0xaf8,b_w(0xaf8,0xfd0));
+    h!(0xafc,pop(0x8010));
+    h!(0xafe,ldr_literal(0,0xb40-0xb00));
+    h!(0xb00,push(0x4070));
+    h!(0xb02,ldr_word(0,0,80));
+    w!(0xb04,alu_immediate_w(Alu::Bic,4,0,1));
+    h!(0xb08,ldr_literal(0,0xb38-0xb0c));
+    w!(0xb0a,bl(0xb0a,0xf40));
+    h!(0xb0e,ldr_literal(0,0xb3c-0xb10));
+    w!(0xb10,bl(0xb10,0xf40));
+    h!(0xb14,ldr_literal(0,0xb40-0xb18));
+    w!(0xb16,bl(0xb16,0xf40));
+    h!(0xb1a,b(0xb1a,0xb30));
+    h!(0xb1c,ldr_word(0,4,80));
+    w!(0xb1e,alu_immediate_w(Alu::Bic,5,0,1));
+    h!(0xb22,mov_register(0,4));
+    w!(0xb24,bl(0xb24,0xf40));
+    h!(0xb28,mov_register(0,4));
+    w!(0xb2a,bl(0xb2a,0xbea));
+    h!(0xb2e,mov_register(4,5));
+    h!(0xb30,cmp_immediate(4,0));
+    h!(0xb32,b_cond(Condition::Ne,0xb32,0xb1c));
+    h!(0xb34,pop(0x8070));
+    assert_eq!(out.len(),0xb36-0x9fe);
+    out.resize(out.len()+2,0);
+    for value in [0x42228u32,0x4227c,0x422d0,0x402a4,0x402a8,0x402ac,
+                  0x72,0x2dae,0x77,0x2d9a,0x2d86] {
+        out.extend_from_slice(&value.to_le_bytes());
+    }
+    h!(0xb64,cmp_immediate(0,0));
+    h!(0xb66,b_cond(Condition::Eq,0xb66,0xb6c));
+    w!(0xb68,b_w(0xb68,0x2b24));
+    h!(0xb6c,bx(14));
+    out.resize(out.len()+2,0);
+    h!(0xb70,push(0x4010));
+    h!(0xb72,movs_immediate(1,0));
+    h!(0xb74,adr(0,0xb74,0xb80));
+    w!(0xb76,bl(0xb76,0xf9e));
+    h!(0xb7a,movs_immediate(0,1));
+    h!(0xb7c,pop(0x8010));
+    out.resize(out.len()+2,0);
+    assert_eq!(out.len(),0xb80-0x9fe);
+    out.extend_from_slice(b"SIGABRT: Abnormal termination");
+    assert_eq!(out.len(),0xb9d-0x9fe);
+    out.resize(out.len()+3,0);
+    h!(0xba0,mov_register(5,14));
+    w!(0xba2,bl(0xba2,0xfe0));
+    h!(0xba6,mov_register(14,5));
+    h!(0xba8,movs_register(5,0));
+    h!(0xbaa,mov_register(1,13));
+    h!(0xbac,mov_register(3,10));
+    w!(0xbae,alu_immediate_w(Alu::Bic,0,0,7));
+    h!(0xbb2,mov_register(13,0));
+    h!(0xbb4,stack_adjust(false,96));
+    h!(0xbb6,push(0x4020));
+    w!(0xbb8,bl(0xbb8,0x2b0c));
+    w!(0xbbc,stack_registers_w(true,0x4020));
+    w!(0xbc0,mov_immediate_w(6,0));
+    w!(0xbc4,mov_immediate_w(7,0));
+    w!(0xbc8,mov_immediate_w(8,0));
+    w!(0xbcc,mov_immediate_w(11,0));
+    w!(0xbd0,alu_immediate_w(Alu::Bic,1,1,7));
+    h!(0xbd4,mov_register(12,5));
+    w!(0xbd6,stm_w(12,0x09c0));
+    w!(0xbda,stm_w(12,0x09c0));
+    w!(0xbde,stm_w(12,0x09c0));
+    w!(0xbe2,stm_w(12,0x09c0));
+    h!(0xbe6,mov_register(13,1));
+    h!(0xbe8,bx(14));
+    h!(0xbea,push(0x4070));
+    h!(0xbec,mov_register(4,0));
+    h!(0xbee,subs_small(5,0,4));
+    w!(0xbf0,bl(0xbf0,0xfe8));
+    h!(0xbf4,ldr_word(0,0,0));
+    h!(0xbf6,cmp_immediate(4,0));
+    h!(0xbf8,it(Condition::Ne,ItBlock::Else));
+    h!(0xbfa,ldr_word(4,0,4));
+    h!(0xbfc,pop(0x8070));
+    h!(0xbfe,cmp_immediate(4,0));
+    h!(0xc00,it(Condition::Ne,ItBlock::One));
+    h!(0xc02,cmp_register_low(4,5));
+    h!(0xc04,it(Condition::Lo,ItBlock::Then));
+    h!(0xc06,mov_register(0,4));
+    h!(0xc08,ldr_word(4,4,4));
+    h!(0xc0a,b_cond(Condition::Lo,0xc0a,0xbfe));
+    h!(0xc0c,ldr_word(1,0,0));
+    h!(0xc0e,adds_register(2,1,0));
+    h!(0xc10,cmp_register_low(2,5));
+    h!(0xc12,it(Condition::Ne,ItBlock::One));
+    h!(0xc14,str_word(5,0,4));
+    h!(0xc16,b_cond(Condition::Ne,0xc16,0xc20));
+    h!(0xc18,ldr_word(2,5,0));
+    h!(0xc1a,mov_register(5,0));
+    h!(0xc1c,add_register(1,2));
+    h!(0xc1e,str_word(1,0,0));
+    h!(0xc20,ldr_word(0,5,0));
+    h!(0xc22,adds_register(1,0,5));
+    h!(0xc24,cmp_register_low(1,4));
+    h!(0xc26,it(Condition::Ne,ItBlock::Then));
+    h!(0xc28,str_word(4,5,4));
+    h!(0xc2a,pop(0x8070));
+    h!(0xc2c,ldr_word(1,4,4));
+    h!(0xc2e,str_word(1,5,4));
+    h!(0xc30,ldr_word(1,4,0));
+    h!(0xc32,add_register(0,1));
+    h!(0xc34,str_word(0,5,0));
+    h!(0xc36,pop(0x8070));
+    assert_eq!(out.len(),570);
+    out
+}
+
 fn header(address:u32,size:u32)->Vec<u8> {
     let mut out=Vec::with_capacity(16);
     for word in [address,size,LOAD_MARKER,LOAD_MARKER] {
@@ -1016,6 +1251,8 @@ pub fn spans()->Vec<Span> {
                 assert_eq!(offset+data.len(),0x4c8);
                 data.extend_from_slice(&runtime_memory_and_formatter());
                 assert_eq!(offset+data.len(),0x79e);
+                data.extend_from_slice(&runtime_streams_and_arena());
+                assert_eq!(offset+data.len(),0x9d8);
             },
             _=>{},
         }
@@ -1052,8 +1289,8 @@ mod tests {
         assert_eq!(first_two_blocks().len(),400);
         assert_eq!(startup().len(),204);
         assert_eq!(spans()[2].offset+16,416);
-        assert_eq!(spans()[2].data.len(),1550);
-        assert_eq!(MODELLED_BYTES,2014);
+        assert_eq!(spans()[2].data.len(),2120);
+        assert_eq!(MODELLED_BYTES,2584);
     }
 
     #[test]
@@ -1075,7 +1312,7 @@ mod tests {
         assert_eq!(startup()[0x56..0x58],[0,0]);
         assert_eq!(0x400+startup().len(),0x4cc);
         assert_eq!(spans()[2].offset+16+startup().len(),0x26c);
-        assert_eq!(spans()[2].offset+spans()[2].data.len(),0x79e);
+        assert_eq!(spans()[2].offset+spans()[2].data.len(),0x9d8);
         for encode in [
             || { b_cond(Condition::Hi,1,4); },
             || { b_cond(Condition::Hi,0,260); },
@@ -1137,7 +1374,7 @@ mod tests {
         assert_eq!(span.offset+16,0x1a0);
         assert_eq!(&span.data[16..16+STARTUP_BYTES],startup());
         assert_eq!(&span.data[0x26c-span.offset..0x2e2-span.offset],extension);
-        assert_eq!(plan.iter().map(|span|span.data.len()).sum::<usize>(),684+118+486+726);
+        assert_eq!(plan.iter().map(|span|span.data.len()).sum::<usize>(),684+118+486+726+570);
         for encode in [
             || { cmp_register_low(8,0); },
             || { cmp_register_low(0,8); },
@@ -1190,7 +1427,7 @@ mod tests {
         let plan=spans();
         let span=&plan[2];
         assert_eq!(&span.data[0x2e2-span.offset..0x4c8-span.offset],extension);
-        assert_eq!(span.offset+span.data.len(),0x79e);
+        assert_eq!(span.offset+span.data.len(),0x9d8);
         for encode in [
             || { alu_w(Alu::Orr,false,13,0,0,Shift::Lsl,0); },
             || { alu_w(Alu::Add,true,0,0,0,Shift::Lsl,32); },
@@ -1260,7 +1497,7 @@ mod tests {
         let plan=spans();
         let span=&plan[2];
         assert_eq!(&span.data[0x4c8-span.offset..0x79e-span.offset],extension);
-        assert_eq!(plan.iter().map(|span|span.data.len()).sum::<usize>(),2014);
+        assert_eq!(plan.iter().map(|span|span.data.len()).sum::<usize>(),2584);
         for encode in [
             || { modified_immediate(0x12345678); },
             || { alu_immediate_flags_w(Alu::Sub,true,13,1,32); },
@@ -1283,6 +1520,72 @@ mod tests {
             || { adds_register(0,8,0); },
             || { bics(8,0); },
             || { add_register(0,16); },
+        ] {
+            assert!(std::panic::catch_unwind(encode).is_err());
+        }
+    }
+
+    #[test]
+    fn runtime_streams_arena_structure_and_operands() {
+        let extension=runtime_streams_and_arena();
+        let at=|start:usize,end:usize| &extension[start-0x9fe..end-0x9fe];
+        let code=[(0x9fe,0xa1e),(0xa24,0xa2c),(0xa2c,0xafe),(0xafe,0xb36),
+                  (0xb64,0xb6e),(0xb70,0xb7e),(0xba0,0xbea),(0xbea,0xc38)];
+        let data=[(0xa1e,0xa20),(0xa20,0xa24),(0xb36,0xb38),(0xb38,0xb64),
+                  (0xb6e,0xb70),(0xb7e,0xb80),(0xb80,0xb9d),(0xb9d,0xba0)];
+        assert_eq!(code.iter().map(|(start,end)|end-start).sum::<usize>(),482);
+        assert_eq!(data.iter().map(|(start,end)|end-start).sum::<usize>(),88);
+        let mut occupied=vec![false;570];
+        for (start,end) in code.into_iter().chain(data) {
+            for byte in &mut occupied[start-0x9fe..end-0x9fe] {
+                assert!(!*byte);
+                *byte=true;
+            }
+        }
+        assert!(occupied.into_iter().all(|byte|byte));
+        assert_eq!(extension.len(),570);
+        for (start,end) in [(0xa1e,0xa20),(0xb36,0xb38),(0xb6e,0xb70),
+                            (0xb7e,0xb80),(0xb9d,0xba0)] {
+            assert!(at(start,end).iter().all(|byte|*byte==0));
+        }
+        assert_eq!(at(0xa20,0xa24),0xffffffe5u32.to_le_bytes());
+        assert_eq!((0xa0cu32+4).wrapping_add(u32::from_le_bytes(at(0xa20,0xa24).try_into().unwrap())),0x9f5);
+        for (index,value) in [0x42228u32,0x4227c,0x422d0,0x402a4,0x402a8,0x402ac,
+                              0x72,0x2dae,0x77,0x2d9a,0x2d86].into_iter().enumerate() {
+            assert_eq!(at(0xb38+index*4,0xb3c+index*4),value.to_le_bytes());
+        }
+        assert_eq!(at(0xb80,0xb9d),b"SIGABRT: Abnormal termination");
+        assert_eq!(at(0xba8,0xbaa),[5,0]);
+        assert_eq!(at(0xbb2,0xbb6),[0x85,0x46,0x18,0xb0]);
+        assert_eq!(stack_adjust(true,60),0xb08f);
+        assert_eq!(stack_adjust(false,508),0xb07f);
+        assert_eq!(stack_store(1,20),0x9105);
+        assert_eq!(store_pair(3,1,13,4),[0xe9cd,0x3101]);
+        assert_eq!(cbnz(0,0xa70,0xa7c),0xb920);
+        assert_eq!(movs_register(5,0),5);
+        let plan=spans();
+        let span=&plan[2];
+        assert_eq!(&span.data[0x79e-span.offset..0x9d8-span.offset],extension);
+        assert_eq!(span.offset+span.data.len(),0x9d8);
+        assert_eq!(plan.iter().map(|span|span.data.len()).sum::<usize>(),2584);
+        for encode in [
+            || { stack_adjust(false,510); },
+            || { stack_adjust(true,512); },
+            || { stack_store(8,0); },
+            || { stack_store(0,2); },
+            || { stack_store(0,1024); },
+            || { store_pair(13,0,1,0); },
+            || { store_pair(0,13,1,0); },
+            || { store_pair(0,1,15,0); },
+            || { store_pair(0,1,13,2); },
+            || { store_pair(0,1,13,1024); },
+            || { cbnz(8,0,4); },
+            || { cbnz(0,1,4); },
+            || { cbnz(0,0,5); },
+            || { cbnz(0,0,132); },
+            || { cbnz(0,8,4); },
+            || { movs_register(8,0); },
+            || { movs_register(0,8); },
         ] {
             assert!(std::panic::catch_unwind(encode).is_err());
         }
