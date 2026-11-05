@@ -146,6 +146,12 @@ pub mod venus_hevc_reference_sets;
 pub mod venus_hevc_parameter_records;
 #[path = "venus/upper/venus_hevc_header_writers.rs"]
 pub mod venus_hevc_header_writers;
+#[path = "venus/upper/venus_hevc_hdr_metadata.rs"]
+pub mod venus_hevc_hdr_metadata;
+#[path = "venus/upper/venus_vpx_header_tables.rs"]
+pub mod venus_vpx_header_tables;
+#[path = "venus/upper/venus_vpx_header_commit.rs"]
+pub mod venus_vpx_header_commit;
 #[path = "venus/upper/venus_vppsg_lifecycle.rs"]
 pub mod venus_vppsg_lifecycle;
 #[path = "venus/upper/venus_vppsg_object_transform.rs"]

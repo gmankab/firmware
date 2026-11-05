@@ -256,6 +256,11 @@ pub fn transfer_halfword_register(condition: Condition, load: bool,
        | (rn.number() << 16) | (rd.number() << 12) | rm.number())
 }
 
+pub fn load_signed_halfword_postindexed(condition: Condition, rd: Register,
+                                        rn: Register, signed_offset: i32) -> Result<u32, String> {
+    Ok(load_halfword_postindexed(condition, rd, rn, signed_offset)? | (1 << 6))
+}
+
 /// A32 signed halfword load with a checked signed imm8 displacement.
 /// This uses the halfword transfer's split eight-bit immediate field.
 pub fn load_signed_halfword(condition: Condition, rd: Register, rn: Register,
@@ -729,6 +734,31 @@ mod tests {
         assert!(store_halfword(Condition::Al, Register::R1,
             Register::R0, -256).is_err());
     }
+    #[test]
+    fn signed_halfword_postindexed_encoding_and_rejections() {
+        let r6 = Register::new(6).unwrap();
+        assert_eq!(load_signed_halfword_postindexed(Condition::Al,
+            Register::R1, r6, 2).unwrap(), 0xe0d6_10f2);
+        assert_eq!(load_signed_halfword_postindexed(Condition::Eq,
+            Register::R2, Register::R1, -2).unwrap(), 0x0051_20f2);
+        assert_eq!(load_signed_halfword_postindexed(Condition::Ne,
+            Register::R0, r6, 0).unwrap(), 0x10d6_00f0);
+        assert_eq!(load_signed_halfword_postindexed(Condition::Al,
+            Register::R1, r6, 255).unwrap(), 0xe0d6_1fff);
+        assert_eq!(load_signed_halfword_postindexed(Condition::Al,
+            Register::R1, r6, -255).unwrap(), 0xe056_1fff);
+        assert!(load_signed_halfword_postindexed(Condition::Al,
+            Register::R1, Register::R1, 2).is_err());
+        assert!(load_signed_halfword_postindexed(Condition::Al,
+            Register::PC, r6, 2).is_err());
+        assert!(load_signed_halfword_postindexed(Condition::Al,
+            Register::R1, Register::PC, 2).is_err());
+        for offset in [256, -256, i32::MIN, i32::MAX] {
+            assert!(load_signed_halfword_postindexed(Condition::Al,
+                Register::R1, r6, offset).is_err());
+        }
+    }
+
     #[test]
     fn signed_halfword_register_offset_encoding() {
         let r9=Register::new(9).unwrap();
