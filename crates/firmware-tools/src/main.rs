@@ -646,7 +646,7 @@ fn run() -> Result<(), Box<dyn Error>> {
             use firmware_tools::devices::xiaomi_nabu::a640_gmu_prefix as gmu;
             let n=verify_sparse(&target,gmu::IMAGE_BYTES as u64,
                 gmu::spans().into_iter().map(|span|(span.offset,span.data)))?;
-            println!("byte-identical: {n} GMU header, Thumb reset and exception-vector bytes; later code missing");
+            println!("byte-identical: {n} generated GMU header, vector and Thumb routine bytes; incomplete firmware, no complete image produced");
         }
         "emit-qca-bt-patch-header" => {
             use firmware_tools::devices::xiaomi_nabu::qca_bluetooth_tlv as bt;

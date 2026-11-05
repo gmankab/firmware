@@ -2,7 +2,7 @@
 
 pub const IMAGE_BYTES: usize = 37_680;
 pub const INITIAL_PREFIX_BYTES: usize = 400;
-pub const MODELLED_BYTES: usize = 1288;
+pub const MODELLED_BYTES: usize = 2014;
 const PENDSV_EXTENSION_BYTES: usize = 118;
 pub const STARTUP_BYTES: usize = 204;
 const BLOCKS: [(u32,u32);7] = [
@@ -54,7 +54,7 @@ fn ldm_w(base:u8,registers:u16,writeback:bool)->[u16;2] {
     [0xe890|(u16::from(writeback)<<5)|u16::from(base),registers]
 }
 fn add_register(dst:u8,src:u8)->u16 {
-    assert!(dst<15 && src<15);
+    assert!(dst<15 && src<16);
     0x4400|((u16::from(dst)&8)<<4)|(u16::from(src)<<3)|(u16::from(dst)&7)
 }
 fn sub_immediate_w(dst:u8,src:u8,value:u8)->[u16;2] {
@@ -81,9 +81,10 @@ fn adr_sub_w(dst:u8,from:u32,to:u32)->[u16;2] {
     [0xf2af|(((distance>>11) as u16)<<10),
      (((distance>>8) as u16&7)<<12)|(u16::from(dst)<<8)|(distance as u16&255)]
 }
-fn tst_immediate_w(register:u8,value:u8)->[u16;2] {
+fn tst_immediate_w(register:u8,value:u32)->[u16;2] {
     assert!(register<13 || register==14);
-    [0xf010|u16::from(register),0x0f00|u16::from(value)]
+    let immediate=modified_immediate(value);
+    [0xf010|((immediate>>11)<<10)|u16::from(register),0x0f00|((immediate>>8&7)<<12)|(immediate&255)]
 }
 fn it_ne()->u16 { 0xbf18 }
 fn sub_register(dst:u8,lhs:u8,rhs:u8)->u16 {
@@ -99,7 +100,7 @@ fn bx(register:u8)->u16 {
     0x4700|(u16::from(register)<<3)
 }
 #[derive(Clone,Copy)]
-enum Condition { Eq=0, Ne=1, Hs=2, Lo=3, Mi=4, Pl=5, Hi=8, Ge=10 }
+enum Condition { Eq=0, Ne=1, Hs=2, Lo=3, Mi=4, Pl=5, Hi=8, Ls=9, Ge=10, Lt=11, Gt=12, Le=13 }
 #[derive(Clone,Copy)]
 enum ItBlock { One, Then, Else, ThenThen, ElseElse, ThenThenThen, ThenElseElse }
 fn it(condition:Condition,block:ItBlock)->u16 {
@@ -202,15 +203,75 @@ fn alu_immediate_w(op:Alu,dst:u8,src:u8,value:u8)->[u16;2] {
         Alu::Add=>0xf100, Alu::Adc=>0xf140, Alu::Sbc=>0xf160, Alu::Sub=>0xf1a0 };
     [opcode|u16::from(src),(u16::from(dst)<<8)|u16::from(value)]
 }
-fn mov_immediate_w(dst:u8,value:u16)->[u16;2] {
+fn modified_immediate(value:u32)->u16 {
+    for immediate in 0u16..4096 {
+        let byte=u32::from(immediate&255);
+        let expanded=if immediate>>10==0 {
+            match immediate>>8 {
+                0=>byte,
+                1 if byte!=0=>(byte<<16)|byte,
+                2 if byte!=0=>(byte<<24)|(byte<<8),
+                3 if byte!=0=>byte*0x01010101,
+                _=>continue,
+            }
+        } else {
+            (0x80|u32::from(immediate&127)).rotate_right(u32::from(immediate>>7))
+        };
+        if expanded==value { return immediate; }
+    }
+    panic!("unencodable Thumb immediate {value:#x}");
+}
+fn mov_immediate_w(dst:u8,value:u32)->[u16;2] {
     assert!(dst<13);
-    let immediate=if value<256 {value} else {
-        assert!(value.is_power_of_two());
-        let rotation=39-value.trailing_zeros() as u16;
-        assert!((8..=31).contains(&rotation));
-        rotation<<7
-    };
+    let immediate=modified_immediate(value);
     [0xf04f|((immediate>>11)<<10),((immediate>>8&7)<<12)|(u16::from(dst)<<8)|(immediate&255)]
+}
+fn alu_immediate_flags_w(op:Alu,set_flags:bool,dst:u8,src:u8,value:u32)->[u16;2] {
+    assert!(dst<13 && src<13);
+    let immediate=modified_immediate(value);
+    let mut words=alu_immediate_w(op,dst,src,(immediate&255) as u8);
+    words[0]|=(u16::from(set_flags)<<4)|((immediate>>11)<<10);
+    words[1]|=(immediate>>8&7)<<12;
+    words
+}
+fn cmp_immediate_w(src:u8,value:u8)->[u16;2] {
+    assert!(src<13);
+    [0xf1b0|u16::from(src),0x0f00|u16::from(value)]
+}
+fn lsls_immediate_w(dst:u8,src:u8,amount:u8)->[u16;2] {
+    assert!(dst<13 && src<13 && amount<32);
+    [0xea5f,(u16::from(amount>>2)<<12)|(u16::from(dst)<<8)|(u16::from(amount&3)<<6)|u16::from(src)]
+}
+fn memory_postindexed(load:bool,width:u8,register:u8,base:u8,offset:u8)->[u16;2] {
+    assert!(matches!(width,1|2|4) && register<15 && base<15 && register!=base);
+    assert!(width==4 || register!=13);
+    let size=match width {1=>0,2=>0x20,4=>0x40,_=>unreachable!()};
+    [0xf800|size|(u16::from(load)<<4)|u16::from(base),(u16::from(register)<<12)|0x0b00|u16::from(offset)]
+}
+fn stm_w(base:u8,registers:u16)->[u16;2] {
+    assert!(base<15 && registers.count_ones()>=2 && registers&0xa000==0);
+    assert!(registers&(1u16<<base)==0);
+    [0xe8a0|u16::from(base),registers]
+}
+fn load_byte(dst:u8,base:u8,offset:u8)->u16 {
+    assert!(dst<8 && base<8 && offset<32);
+    0x7800|(u16::from(offset)<<6)|(u16::from(base)<<3)|u16::from(dst)
+}
+fn load_byte_register_w(dst:u8,base:u8,index:u8)->[u16;2] {
+    assert!(dst<13 && base<15 && index<13);
+    [0xf810|u16::from(base),(u16::from(dst)<<12)|u16::from(index)]
+}
+fn subs_small(dst:u8,src:u8,value:u8)->u16 {
+    assert!(dst<8 && src<8 && value<8);
+    0x1e00|(u16::from(value)<<6)|(u16::from(src)<<3)|u16::from(dst)
+}
+fn adds_register(dst:u8,lhs:u8,rhs:u8)->u16 {
+    assert!(dst<8 && lhs<8 && rhs<8);
+    0x1800|(u16::from(rhs)<<6)|(u16::from(lhs)<<3)|u16::from(dst)
+}
+fn bics(dst:u8,src:u8)->u16 {
+    assert!(dst<8 && src<8);
+    0x4380|(u16::from(src)<<3)|u16::from(dst)
 }
 fn rsb_immediate_w(dst:u8,src:u8,value:u8)->[u16;2] {
     assert!(dst<13 && src<13);
@@ -658,6 +719,278 @@ fn arithmetic_and_formatter()->Vec<u8> {
     out
 }
 
+fn runtime_memory_and_formatter()->Vec<u8> {
+    let mut out=Vec::with_capacity(726);
+    macro_rules! h { ($at:expr,$word:expr) => {{ assert_eq!(0x728+out.len(),$at); push16(&mut out,$word); }}; }
+    macro_rules! w { ($at:expr,$words:expr) => {{ assert_eq!(0x728+out.len(),$at); push32(&mut out,$words); }}; }
+    h!(0x728,push(0x4010));
+    h!(0x72a,movs_immediate(0,0));
+    w!(0x72c,bl(0x72c,0x9a0));
+    w!(0x730,bl(0x730,0x48e));
+    w!(0x734,stack_registers_w(true,0x4010));
+    h!(0x738,movs_immediate(0,1));
+    w!(0x73a,b_w(0x73a,0x2b24));
+    h!(0x73e,push(0x4010));
+    h!(0x740,adds_small(3,0,1));
+    h!(0x742,b(0x742,0x74a));
+    w!(0x744,memory_postindexed(true,1,1,0,1));
+    h!(0x748,cbz(1,0x748,0x768));
+    h!(0x74a,lsls_immediate(1,0,30));
+    h!(0x74c,b_cond(Condition::Ne,0x74c,0x744));
+    w!(0x74e,mov_immediate_w(2,0x01010101));
+    h!(0x752,ldm(0,2));
+    h!(0x754,sub_register(4,1,2));
+    h!(0x756,bics(4,1));
+    w!(0x758,alu_w(Alu::And,true,1,4,2,Shift::Lsl,7));
+    h!(0x75c,b_cond(Condition::Eq,0x75c,0x752));
+    h!(0x75e,sub_register(0,0,3));
+    h!(0x760,lsls_immediate(2,1,24));
+    h!(0x762,b_cond(Condition::Eq,0x762,0x76c));
+    h!(0x764,subs_small(0,0,3));
+    h!(0x766,pop(0x8010));
+    h!(0x768,sub_register(0,0,3));
+    h!(0x76a,pop(0x8010));
+    h!(0x76c,lsls_immediate(2,1,16));
+    h!(0x76e,b_cond(Condition::Eq,0x76e,0x774));
+    h!(0x770,subs_small(0,0,2));
+    h!(0x772,pop(0x8010));
+    h!(0x774,lsls_immediate(1,1,8));
+    h!(0x776,b_cond(Condition::Eq,0x776,0x772));
+    h!(0x778,subs_small(0,0,1));
+    h!(0x77a,pop(0x8010));
+    h!(0x77c,cmp_immediate(2,3));
+    w!(0x77e,b_cond_w(Condition::Ls,0x77e,0x7e2));
+    w!(0x782,alu_immediate_flags_w(Alu::And,true,12,0,3));
+    w!(0x786,b_cond_w(Condition::Eq,0x786,0x7b4));
+    w!(0x78a,memory_postindexed(true,1,3,1,1));
+    w!(0x78e,cmp_immediate_w(12,2));
+    h!(0x792,add_register(2,12));
+    h!(0x794,it(Condition::Ls,ItBlock::One));
+    w!(0x796,memory_postindexed(true,1,12,1,1));
+    w!(0x79a,memory_postindexed(false,1,3,0,1));
+    h!(0x79e,it(Condition::Lo,ItBlock::One));
+    w!(0x7a0,memory_postindexed(true,1,3,1,1));
+    w!(0x7a4,sub_immediate_w(2,2,4));
+    h!(0x7a8,it(Condition::Ls,ItBlock::One));
+    w!(0x7aa,memory_postindexed(false,1,12,0,1));
+    h!(0x7ae,it(Condition::Lo,ItBlock::One));
+    w!(0x7b0,memory_postindexed(false,1,3,0,1));
+    w!(0x7b4,alu_immediate_flags_w(Alu::And,true,3,1,3));
+    w!(0x7b8,b_cond_w(Condition::Eq,0x7b8,0x806));
+    h!(0x7bc,subs_immediate(2,8));
+    w!(0x7be,b_cond_w(Condition::Lo,0x7be,0x7d2));
+    w!(0x7c2,load_postindexed(3,1,4));
+    h!(0x7c6,subs_immediate(2,8));
+    w!(0x7c8,load_postindexed(12,1,4));
+    w!(0x7cc,stm_w(0,0x1008));
+    h!(0x7d0,b(0x7d0,0x7be));
+    h!(0x7d2,adds_small(2,2,4));
+    h!(0x7d4,it(Condition::Pl,ItBlock::Then));
+    w!(0x7d6,load_postindexed(3,1,4));
+    w!(0x7da,memory_postindexed(false,4,3,0,4));
+    w!(0x7de,nop_w());
+    h!(0x7e2,lsls_immediate(2,2,31));
+    h!(0x7e4,it(Condition::Hs,ItBlock::Then));
+    w!(0x7e6,memory_postindexed(true,1,3,1,1));
+    w!(0x7ea,memory_postindexed(true,1,12,1,1));
+    h!(0x7ee,it(Condition::Mi,ItBlock::One));
+    w!(0x7f0,memory_postindexed(true,1,2,1,1));
+    h!(0x7f4,it(Condition::Hs,ItBlock::Then));
+    w!(0x7f6,memory_postindexed(false,1,3,0,1));
+    w!(0x7fa,memory_postindexed(false,1,12,0,1));
+    h!(0x7fe,it(Condition::Mi,ItBlock::One));
+    w!(0x800,memory_postindexed(false,1,2,0,1));
+    h!(0x804,bx(14));
+    h!(0x806,push(0x4010));
+    h!(0x808,subs_immediate(2,32));
+    w!(0x80a,b_cond_w(Condition::Lo,0x80a,0x824));
+    w!(0x80e,ldm_w(1,0x5018,true));
+    h!(0x812,subs_immediate(2,32));
+    w!(0x814,stm_w(0,0x5018));
+    w!(0x818,ldm_w(1,0x5018,true));
+    w!(0x81c,stm_w(0,0x5018));
+    w!(0x820,b_cond_w(Condition::Hs,0x820,0x80e));
+    w!(0x824,lsls_immediate_w(12,2,28));
+    h!(0x828,it(Condition::Hs,ItBlock::Then));
+    w!(0x82a,ldm_w(1,0x5018,true));
+    w!(0x82e,stm_w(0,0x5018));
+    h!(0x832,it(Condition::Mi,ItBlock::Then));
+    h!(0x834,ldm(1,0x18));
+    h!(0x836,stm(0,0x18));
+    w!(0x838,stack_registers_w(true,0x4010));
+    w!(0x83c,lsls_immediate_w(12,2,30));
+    h!(0x840,it(Condition::Hs,ItBlock::Then));
+    w!(0x842,load_postindexed(3,1,4));
+    w!(0x846,memory_postindexed(false,4,3,0,4));
+    h!(0x84a,it(Condition::Eq,ItBlock::One));
+    h!(0x84c,bx(14));
+    h!(0x84e,lsls_immediate(2,2,31));
+    h!(0x850,it(Condition::Hs,ItBlock::One));
+    w!(0x852,memory_postindexed(true,2,3,1,2));
+    h!(0x856,it(Condition::Mi,ItBlock::One));
+    w!(0x858,memory_postindexed(true,1,2,1,1));
+    h!(0x85c,it(Condition::Hs,ItBlock::One));
+    w!(0x85e,memory_postindexed(false,2,3,0,2));
+    h!(0x862,it(Condition::Mi,ItBlock::One));
+    w!(0x864,memory_postindexed(false,1,2,0,1));
+    h!(0x868,bx(14));
+    w!(0x86a,alu_immediate_w(Alu::And,3,2,255));
+    w!(0x86e,alu_w(Alu::Orr,false,2,3,3,Shift::Lsl,8));
+    w!(0x872,alu_w(Alu::Orr,false,2,2,2,Shift::Lsl,16));
+    w!(0x876,b_w(0x876,0x9b2));
+    w!(0x87a,mov_immediate_w(2,0));
+    h!(0x87e,push(0x4000));
+    h!(0x880,mov_register(3,2));
+    h!(0x882,mov_register(12,2));
+    h!(0x884,mov_register(14,2));
+    h!(0x886,subs_immediate(1,32));
+    h!(0x888,it(Condition::Hs,ItBlock::ThenThen));
+    w!(0x88a,stm_w(0,0x500c));
+    w!(0x88e,stm_w(0,0x500c));
+    w!(0x892,alu_immediate_flags_w(Alu::Sub,true,1,1,32));
+    w!(0x896,b_cond_w(Condition::Hs,0x896,0x888));
+    h!(0x89a,lsls_immediate(1,1,28));
+    h!(0x89c,it(Condition::Hs,ItBlock::One));
+    w!(0x89e,stm_w(0,0x500c));
+    h!(0x8a2,it(Condition::Mi,ItBlock::One));
+    h!(0x8a4,stm(0,12));
+    w!(0x8a6,load_postindexed(14,13,4));
+    h!(0x8aa,lsls_immediate(1,1,2));
+    h!(0x8ac,it(Condition::Hs,ItBlock::One));
+    w!(0x8ae,memory_postindexed(false,4,2,0,4));
+    h!(0x8b2,it(Condition::Eq,ItBlock::One));
+    h!(0x8b4,bx(14));
+    h!(0x8b6,it(Condition::Mi,ItBlock::One));
+    w!(0x8b8,memory_postindexed(false,2,2,0,2));
+    w!(0x8bc,tst_immediate_w(1,0x40000000));
+    h!(0x8c0,it(Condition::Ne,ItBlock::One));
+    w!(0x8c2,memory_postindexed(false,1,2,0,1));
+    h!(0x8c6,bx(14));
+    h!(0x8c8,bx(14));
+    w!(0x8ca,stack_registers_w(false,0x47f0));
+    h!(0x8ce,mov_register(5,1));
+    h!(0x8d0,mov_register(9,3));
+    h!(0x8d2,mov_register(10,2));
+    h!(0x8d4,mov_register(4,0));
+    w!(0x8d6,add_immediate_w(8,0,36));
+    h!(0x8da,ldr_word(1,0,0));
+    h!(0x8dc,lsls_immediate(0,1,26));
+    h!(0x8de,b_cond(Condition::Pl,0x8de,0x8ea));
+    h!(0x8e0,ldr_word(0,4,28));
+    w!(0x8e2,alu_immediate_w(Alu::Bic,1,1,16));
+    h!(0x8e6,str_word(1,4,0));
+    h!(0x8e8,b(0x8e8,0x8ec));
+    h!(0x8ea,movs_immediate(0,1));
+    h!(0x8ec,cmp_register_low(0,5));
+    h!(0x8ee,b_cond(Condition::Le,0x8ee,0x8f4));
+    h!(0x8f0,sub_register(7,0,5));
+    h!(0x8f2,b(0x8f2,0x8f6));
+    h!(0x8f4,movs_immediate(7,0));
+    h!(0x8f6,ldr_word(1,4,24));
+    h!(0x8f8,adds_register(2,7,5));
+    w!(0x8fa,alu_w(Alu::Add,false,0,2,9,Shift::Lsl,0));
+    h!(0x8fe,sub_register(0,1,0));
+    h!(0x900,str_word(0,4,24));
+    h!(0x902,load_byte(0,4,0));
+    h!(0x904,lsls_immediate(0,0,27));
+    h!(0x906,b_cond(Condition::Mi,0x906,0x90e));
+    h!(0x908,mov_register(0,4));
+    w!(0x90a,nop_w());
+    h!(0x90e,movs_immediate(6,0));
+    h!(0x910,b(0x910,0x924));
+    w!(0x912,load_pair(2,1,4,4));
+    w!(0x916,load_byte_register_w(0,10,6));
+    h!(0x91a,blx(2));
+    h!(0x91c,ldr_word(0,4,32));
+    h!(0x91e,adds_small(0,0,1));
+    h!(0x920,adds_small(6,6,1));
+    h!(0x922,str_word(0,4,32));
+    h!(0x924,cmp_register(6,9));
+    h!(0x926,b_cond(Condition::Lt,0x926,0x912));
+    h!(0x928,load_byte(0,4,0));
+    h!(0x92a,lsls_immediate(0,0,27));
+    h!(0x92c,b_cond(Condition::Pl,0x92c,0x944));
+    h!(0x92e,mov_register(0,4));
+    w!(0x930,nop_w());
+    h!(0x934,b(0x934,0x944));
+    w!(0x936,load_pair(2,1,4,4));
+    h!(0x93a,movs_immediate(0,b'0'));
+    h!(0x93c,blx(2));
+    h!(0x93e,ldr_word(0,4,32));
+    h!(0x940,adds_small(0,0,1));
+    h!(0x942,str_word(0,4,32));
+    h!(0x944,subs_small(0,7,0));
+    w!(0x946,sub_immediate_w(7,7,1));
+    h!(0x94a,b_cond(Condition::Gt,0x94a,0x936));
+    h!(0x94c,b(0x94c,0x95e));
+    w!(0x94e,load_pair(2,1,4,4));
+    w!(0x952,load_byte_register_w(0,8,5));
+    h!(0x956,blx(2));
+    h!(0x958,ldr_word(0,4,32));
+    h!(0x95a,adds_small(0,0,1));
+    h!(0x95c,str_word(0,4,32));
+    h!(0x95e,subs_small(0,5,0));
+    w!(0x960,sub_immediate_w(5,5,1));
+    h!(0x964,b_cond(Condition::Gt,0x964,0x94e));
+    h!(0x966,mov_register(0,4));
+    w!(0x968,nop_w());
+    h!(0x96c,load_byte(0,4,0));
+    h!(0x96e,lsls_immediate(0,0,24));
+    h!(0x970,b_cond(Condition::Pl,0x970,0x978));
+    h!(0x972,movs_immediate(0,2));
+    w!(0x974,stack_registers_w(true,0x87f0));
+    h!(0x978,movs_immediate(0,1));
+    h!(0x97a,b(0x97a,0x974));
+    h!(0x97c,ldr_literal(3,0x99c-0x980));
+    h!(0x97e,push(0x4070));
+    h!(0x980,mov_register(5,1));
+    h!(0x982,add_register(3,15));
+    w!(0x984,bl(0x984,0x9fe));
+    h!(0x988,mov_register(4,0));
+    h!(0x98a,mov_register(0,5));
+    w!(0x98c,bl(0x98c,0xa24));
+    h!(0x990,cbz(0,0x990,0x998));
+    w!(0x992,mov_immediate_w(0,u32::MAX));
+    h!(0x996,pop(0x8070));
+    h!(0x998,mov_register(0,4));
+    h!(0x99a,pop(0x8070));
+    assert_eq!(out.len(),0x99c-0x728);
+    out.extend_from_slice(&0x2213u32.to_le_bytes());
+    h!(0x9a0,push(0x4010));
+    w!(0x9a2,bl(0x9a2,0xb70));
+    w!(0x9a6,stack_registers_w(true,0x4010));
+    w!(0x9aa,b_w(0x9aa,0xb64));
+    w!(0x9ae,mov_immediate_w(2,0));
+    h!(0x9b2,cmp_immediate(1,4));
+    w!(0x9b4,b_cond_w(Condition::Lo,0x9b4,0x9dc));
+    w!(0x9b8,alu_immediate_flags_w(Alu::And,true,12,0,3));
+    w!(0x9bc,b_cond_w(Condition::Eq,0x9bc,0x87e));
+    w!(0x9c0,rsb_immediate_w(12,12,4));
+    w!(0x9c4,cmp_immediate_w(12,2));
+    h!(0x9c8,it(Condition::Ne,ItBlock::One));
+    w!(0x9ca,memory_postindexed(false,1,2,0,1));
+    h!(0x9ce,it(Condition::Ge,ItBlock::One));
+    w!(0x9d0,memory_postindexed(false,2,2,0,2));
+    w!(0x9d4,alu_w(Alu::Sub,false,1,1,12,Shift::Lsl,0));
+    w!(0x9d8,b_w(0x9d8,0x87e));
+    w!(0x9dc,lsls_immediate_w(12,1,31));
+    h!(0x9e0,it(Condition::Hs,ItBlock::Then));
+    w!(0x9e2,memory_postindexed(false,1,2,0,1));
+    w!(0x9e6,memory_postindexed(false,1,2,0,1));
+    h!(0x9ea,it(Condition::Mi,ItBlock::One));
+    w!(0x9ec,memory_postindexed(false,1,2,0,1));
+    h!(0x9f0,bx(14));
+    assert_eq!(out.len(),0x9f2-0x728);
+    out.resize(out.len()+2,0);
+    h!(0x9f4,ldr_word(1,0,16));
+    h!(0x9f6,adds_small(2,1,1));
+    h!(0x9f8,str_word(2,0,16));
+    h!(0x9fa,load_byte(0,1,0));
+    h!(0x9fc,bx(14));
+    assert_eq!(out.len(),726);
+    out
+}
+
 fn header(address:u32,size:u32)->Vec<u8> {
     let mut out=Vec::with_capacity(16);
     for word in [address,size,LOAD_MARKER,LOAD_MARKER] {
@@ -681,6 +1014,8 @@ pub fn spans()->Vec<Span> {
                 assert_eq!(offset+data.len(),0x2e2);
                 data.extend_from_slice(&arithmetic_and_formatter());
                 assert_eq!(offset+data.len(),0x4c8);
+                data.extend_from_slice(&runtime_memory_and_formatter());
+                assert_eq!(offset+data.len(),0x79e);
             },
             _=>{},
         }
@@ -717,8 +1052,8 @@ mod tests {
         assert_eq!(first_two_blocks().len(),400);
         assert_eq!(startup().len(),204);
         assert_eq!(spans()[2].offset+16,416);
-        assert_eq!(spans()[2].data.len(),824);
-        assert_eq!(MODELLED_BYTES,1288);
+        assert_eq!(spans()[2].data.len(),1550);
+        assert_eq!(MODELLED_BYTES,2014);
     }
 
     #[test]
@@ -740,7 +1075,7 @@ mod tests {
         assert_eq!(startup()[0x56..0x58],[0,0]);
         assert_eq!(0x400+startup().len(),0x4cc);
         assert_eq!(spans()[2].offset+16+startup().len(),0x26c);
-        assert_eq!(spans()[2].offset+spans()[2].data.len(),0x4c8);
+        assert_eq!(spans()[2].offset+spans()[2].data.len(),0x79e);
         for encode in [
             || { b_cond(Condition::Hi,1,4); },
             || { b_cond(Condition::Hi,0,260); },
@@ -802,7 +1137,7 @@ mod tests {
         assert_eq!(span.offset+16,0x1a0);
         assert_eq!(&span.data[16..16+STARTUP_BYTES],startup());
         assert_eq!(&span.data[0x26c-span.offset..0x2e2-span.offset],extension);
-        assert_eq!(plan.iter().map(|span|span.data.len()).sum::<usize>(),684+118+486);
+        assert_eq!(plan.iter().map(|span|span.data.len()).sum::<usize>(),684+118+486+726);
         for encode in [
             || { cmp_register_low(8,0); },
             || { cmp_register_low(0,8); },
@@ -854,8 +1189,8 @@ mod tests {
         assert_eq!(multiply_accumulate(true,0,2,12,0),[0xfb02,0x001c]);
         let plan=spans();
         let span=&plan[2];
-        assert_eq!(&span.data[0x2e2-span.offset..],extension);
-        assert_eq!(span.offset+span.data.len(),0x4c8);
+        assert_eq!(&span.data[0x2e2-span.offset..0x4c8-span.offset],extension);
+        assert_eq!(span.offset+span.data.len(),0x79e);
         for encode in [
             || { alu_w(Alu::Orr,false,13,0,0,Shift::Lsl,0); },
             || { alu_w(Alu::Add,true,0,0,0,Shift::Lsl,32); },
@@ -880,6 +1215,74 @@ mod tests {
             || { load_postindexed(1,1,4); },
             || { negate(8,0); },
             || { store_byte_register(0,0,8); },
+        ] {
+            assert!(std::panic::catch_unwind(encode).is_err());
+        }
+    }
+
+    #[test]
+    fn runtime_memory_formatter_structure_and_operands() {
+        let extension=runtime_memory_and_formatter();
+        let at=|start:usize,end:usize| &extension[start-0x728..end-0x728];
+        let code=[(0x728,0x73e),(0x73e,0x77c),(0x77c,0x86a),
+                  (0x86a,0x87a),(0x87a,0x8c8),(0x8c8,0x8ca),
+                  (0x8ca,0x97c),(0x97c,0x99c),(0x9a0,0x9ae),
+                  (0x9ae,0x9f2),(0x9f4,0x9fe)];
+        assert_eq!(code.iter().map(|(start,end)|end-start).sum::<usize>(),720);
+        let mut occupied=vec![false;726];
+        for (start,end) in code.into_iter().chain([(0x99c,0x9a0),(0x9f2,0x9f4)]) {
+            assert_eq!(start%2,0);
+            assert_eq!(end%2,0);
+            for byte in &mut occupied[start-0x728..end-0x728] {
+                assert!(!*byte);
+                *byte=true;
+            }
+        }
+        assert!(occupied.into_iter().all(|byte|byte));
+        assert_eq!(extension.len(),720+4+2);
+        assert_eq!(at(0x99c,0x9a0),0x2213u32.to_le_bytes());
+        assert_eq!(0x982+4+u32::from_le_bytes(at(0x99c,0x9a0).try_into().unwrap()),0x2b99);
+        assert_eq!(at(0x9f2,0x9f4),[0,0]);
+        for address in [0x7de,0x90a,0x930,0x968] {
+            assert_eq!(at(address,address+4),[0xaf,0xf3,0,0x80]);
+        }
+        assert_eq!(at(0x8c8,0x8ca),bx(14).to_le_bytes());
+        assert_eq!(modified_immediate(0x01010101),0x301);
+        assert_eq!(modified_immediate(u32::MAX),0x3ff);
+        assert_eq!(modified_immediate(0x40000000),0x480);
+        assert_eq!(tst_immediate_w(1,0x40000000),[0xf011,0x4f80]);
+        assert_eq!(alu_immediate_flags_w(Alu::Sub,true,1,1,32),[0xf1b1,0x0120]);
+        assert_eq!(stm_w(0,0x5018),[0xe8a0,0x5018]);
+        assert_eq!(stm_w(0,0x500c),[0xe8a0,0x500c]);
+        assert_eq!(load_byte_register_w(0,10,6),[0xf81a,6]);
+        assert_eq!(memory_postindexed(true,2,3,1,2),[0xf831,0x3b02]);
+        assert_eq!(memory_postindexed(false,1,2,0,1),[0xf800,0x2b01]);
+        let plan=spans();
+        let span=&plan[2];
+        assert_eq!(&span.data[0x4c8-span.offset..0x79e-span.offset],extension);
+        assert_eq!(plan.iter().map(|span|span.data.len()).sum::<usize>(),2014);
+        for encode in [
+            || { modified_immediate(0x12345678); },
+            || { alu_immediate_flags_w(Alu::Sub,true,13,1,32); },
+            || { cmp_immediate_w(13,2); },
+            || { lsls_immediate_w(12,2,32); },
+            || { memory_postindexed(true,3,0,1,1); },
+            || { memory_postindexed(true,1,1,1,1); },
+            || { memory_postindexed(false,4,15,0,4); },
+            || { memory_postindexed(true,1,13,0,1); },
+            || { memory_postindexed(false,1,13,0,1); },
+            || { memory_postindexed(true,2,13,0,2); },
+            || { memory_postindexed(false,2,13,0,2); },
+            || { stm_w(0,0x500d); },
+            || { stm_w(0,0xa00c); },
+            || { stm_w(15,0x500c); },
+            || { load_byte(0,0,32); },
+            || { load_byte_register_w(0,15,0); },
+            || { load_byte_register_w(0,0,13); },
+            || { subs_small(0,0,8); },
+            || { adds_register(0,8,0); },
+            || { bics(8,0); },
+            || { add_register(0,16); },
         ] {
             assert!(std::panic::catch_unwind(encode).is_err());
         }

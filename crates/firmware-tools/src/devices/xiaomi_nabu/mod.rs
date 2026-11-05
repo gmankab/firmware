@@ -122,6 +122,8 @@ pub mod venus_vspap_lifecycle;
 pub mod venus_vspap_process;
 #[path = "venus/upper/venus_worker_extra_data.rs"]
 pub mod venus_worker_extra_data;
+#[path = "venus/upper/venus_worker_process.rs"]
+pub mod venus_worker_process;
 #[path = "venus/upper/venus_vppsg_lifecycle.rs"]
 pub mod venus_vppsg_lifecycle;
 #[path = "venus/upper/venus_vppsg_object_transform.rs"]

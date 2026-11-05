@@ -87,6 +87,7 @@ pub fn full_file() -> Result<ImagePlan, String> {
     use super::{venus_descriptor_state_writer, venus_descriptor_context_writer, venus_descriptor_argument_writer, venus_descriptor_flag_writer};
     use super::{venus_descriptor_paired_variants, venus_descriptor_multi_record, venus_descriptor_offset_variants, venus_descriptor_dispatch_tail};
     use super::{venus_vppsg_process, venus_vspap_lifecycle, venus_vspap_process, venus_worker_extra_data};
+    use super::venus_worker_process;
     let size = crate::firmware_manifest_identity::canonical_image("venus.mbn")?.size;
     let mut plan = ImagePlan::new(size)?;
     plan.place("venus_boot", venus_boot::FILE_OFFSET, &venus_boot::first_page()?)?;
@@ -178,6 +179,7 @@ pub fn full_file() -> Result<ImagePlan, String> {
     place!(venus_vspap_lifecycle, venus_vspap_lifecycle::START);
     place!(venus_vspap_process, venus_vspap_process::START);
     place!(venus_worker_extra_data, venus_worker_extra_data::START);
+    place!(venus_worker_process, venus_worker_process::START);
     plan.place("venus_vspap_lifecycle_helpers", FILE_BASE + venus_vspap_lifecycle::LIFECYCLE_START, &venus_vspap_lifecycle::lifecycle_fragment()?)?;
     place!(venus_vppsg_lifecycle, venus_vppsg_lifecycle::START);
     place!(venus_vppsg_object_transform, venus_vppsg_object_transform::START);
@@ -224,7 +226,7 @@ mod tests {
             actual[span].fill(true);
         }
         let credit = field(record, "credit_bytes").unwrap().parse::<usize>().unwrap();
-        assert_eq!(credit, 609212);
+        assert_eq!(credit, 620480);
         assert_eq!(expected.iter().filter(|&&filled| filled).count(), credit);
 
         assert_eq!(actual.iter().zip(&expected).position(|(a, b)| a != b), None);
