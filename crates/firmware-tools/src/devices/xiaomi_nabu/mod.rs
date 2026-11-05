@@ -114,6 +114,14 @@ pub mod venus_descriptor_multi_record;
 pub mod venus_descriptor_offset_variants;
 #[path = "venus/upper/venus_descriptor_dispatch_tail.rs"]
 pub mod venus_descriptor_dispatch_tail;
+#[path = "venus/upper/venus_vppsg_process.rs"]
+pub mod venus_vppsg_process;
+#[path = "venus/upper/venus_vspap_lifecycle.rs"]
+pub mod venus_vspap_lifecycle;
+#[path = "venus/upper/venus_vspap_process.rs"]
+pub mod venus_vspap_process;
+#[path = "venus/upper/venus_worker_extra_data.rs"]
+pub mod venus_worker_extra_data;
 #[path = "venus/upper/venus_vppsg_lifecycle.rs"]
 pub mod venus_vppsg_lifecycle;
 #[path = "venus/upper/venus_vppsg_object_transform.rs"]

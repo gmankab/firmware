@@ -32,7 +32,7 @@ external_authentication_bytes = 6400
 name = "venus.mbn"
 size = 1159200
 sha256 = "9d4af65d7ede845e900f1b29ff425b7a8e2947056e695e246e58a2091445a085"
-credit_bytes = 601912
+credit_bytes = 609212
 credit_kind = "reported_source_and_literal_data"
 
 [images.executable_load]
@@ -113,7 +113,7 @@ label = "controller update and indexed transitions"
 
 [[images.regions]]
 start = 0x710c0
-end = 0x73e10
+end = 0x74ab0
 provenance = "reported_reconstructed"
 label = "upper fragment C"
 
@@ -125,9 +125,9 @@ label = "VPPSG lifecycle and object transforms"
 
 [[images.regions]]
 start = 0x753f4
-end = 0x7562c
+end = 0x76610
 provenance = "reported_reconstructed"
-label = "VSP task generation"
+label = "VSP task generation, VSPAP processing and worker setup"
 
 [[images.regions]]
 start = 0xa8000
