@@ -138,6 +138,14 @@ pub mod venus_h264_header_writer;
 pub mod venus_h264_parameter_writer;
 #[path = "venus/upper/venus_h264_auxiliary_writers.rs"]
 pub mod venus_h264_auxiliary_writers;
+#[path = "venus/upper/venus_hevc_state_writers.rs"]
+pub mod venus_hevc_state_writers;
+#[path = "venus/upper/venus_hevc_reference_sets.rs"]
+pub mod venus_hevc_reference_sets;
+#[path = "venus/upper/venus_hevc_parameter_records.rs"]
+pub mod venus_hevc_parameter_records;
+#[path = "venus/upper/venus_hevc_header_writers.rs"]
+pub mod venus_hevc_header_writers;
 #[path = "venus/upper/venus_vppsg_lifecycle.rs"]
 pub mod venus_vppsg_lifecycle;
 #[path = "venus/upper/venus_vppsg_object_transform.rs"]

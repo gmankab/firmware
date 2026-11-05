@@ -89,6 +89,7 @@ pub fn full_file() -> Result<ImagePlan, String> {
     use super::{venus_vppsg_process, venus_vspap_lifecycle, venus_vspap_process, venus_worker_extra_data};
     use super::venus_worker_process;
     use super::{venus_worker_continuation, venus_bitstream_primitives, venus_bitstream_selectors, venus_bitstream_writer, venus_h264_header_writer, venus_h264_parameter_writer, venus_h264_auxiliary_writers};
+    use super::{venus_hevc_state_writers, venus_hevc_reference_sets, venus_hevc_parameter_records, venus_hevc_header_writers};
     let size = crate::firmware_manifest_identity::canonical_image("venus.mbn")?.size;
     let mut plan = ImagePlan::new(size)?;
     plan.place("venus_boot", venus_boot::FILE_OFFSET, &venus_boot::first_page()?)?;
@@ -188,6 +189,10 @@ pub fn full_file() -> Result<ImagePlan, String> {
     place!(venus_h264_header_writer, venus_h264_header_writer::START);
     place!(venus_h264_parameter_writer, venus_h264_parameter_writer::START);
     place!(venus_h264_auxiliary_writers, venus_h264_auxiliary_writers::START);
+    place!(venus_hevc_state_writers, venus_hevc_state_writers::START);
+    place!(venus_hevc_reference_sets, venus_hevc_reference_sets::START);
+    place!(venus_hevc_parameter_records, venus_hevc_parameter_records::START);
+    place!(venus_hevc_header_writers, venus_hevc_header_writers::START);
     plan.place("venus_vspap_lifecycle_helpers", FILE_BASE + venus_vspap_lifecycle::LIFECYCLE_START, &venus_vspap_lifecycle::lifecycle_fragment()?)?;
     place!(venus_vppsg_lifecycle, venus_vppsg_lifecycle::START);
     place!(venus_vppsg_object_transform, venus_vppsg_object_transform::START);
@@ -234,7 +239,7 @@ mod tests {
             actual[span].fill(true);
         }
         let credit = field(record, "credit_bytes").unwrap().parse::<usize>().unwrap();
-        assert_eq!(credit, 629768);
+        assert_eq!(credit, 637604);
         assert_eq!(expected.iter().filter(|&&filled| filled).count(), credit);
 
         assert_eq!(actual.iter().zip(&expected).position(|(a, b)| a != b), None);
