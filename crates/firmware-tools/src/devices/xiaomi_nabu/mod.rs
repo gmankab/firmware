@@ -202,6 +202,10 @@ pub mod venus_arm_registry_mmio;
 pub mod venus_arm_handle_formatting;
 #[path = "venus/upper/venus_arm_state_initialization.rs"]
 pub mod venus_arm_state_initialization;
+#[path = "venus/upper/venus_arm_list_management.rs"]
+pub mod venus_arm_list_management;
+#[path = "venus/upper/venus_arm_callback_dispatch.rs"]
+pub mod venus_arm_callback_dispatch;
 #[path = "venus/upper/venus_vppsg_lifecycle.rs"]
 pub mod venus_vppsg_lifecycle;
 #[path = "venus/upper/venus_vppsg_object_transform.rs"]
