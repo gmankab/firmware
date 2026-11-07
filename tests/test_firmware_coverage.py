@@ -62,12 +62,12 @@ class FirmwareCoverageTests(unittest.TestCase):
     def test_pinned_revision_records(self):
         self.assertEqual(len(self.data['images']),19)
         self.assertEqual(sum(i['size'] for i in self.data['images']),35409209)
-        self.assertEqual(sum(i['credit_bytes'] for i in self.data['images']),974269)
+        self.assertEqual(sum(i['credit_bytes'] for i in self.data['images']),974585)
 
     def test_gmu_reset_prefix_is_not_entire_firmware(self):
         image=next(x for x in self.data['images'] if x['name']=='a640_gmu.bin')
-        self.assertEqual(image['credit_bytes'],4312)
-        self.assertEqual(image['external_gmu_payload_bytes'],33368)
+        self.assertEqual(image['credit_bytes'],4628)
+        self.assertEqual(image['external_gmu_payload_bytes'],33052)
         self.assertEqual(image['credit_bytes']+image['external_gmu_payload_bytes'],image['size'])
         self.assertFalse(image.get('complete_source',False))
 
