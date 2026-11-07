@@ -13,8 +13,9 @@ PUBLIC = {
 
 class PublicToolEntrypointsTests(unittest.TestCase):
     def test_only_public_entrypoints_live_at_tools_root(self):
+        support = {'Containerfile', 'unblob-exclude.txt'}
         actual = {p.name for p in TOOLS.iterdir() if p.is_file()}
-        self.assertEqual(actual, PUBLIC)
+        self.assertEqual(actual, PUBLIC | support)
 
     def test_device_tool_dependencies_are_colocated(self):
         required = {
