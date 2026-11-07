@@ -178,6 +178,10 @@ pub mod venus_arithmetic_wrappers;
 pub mod venus_thumb_normalization;
 #[path = "venus/upper/venus_thumb_binary64_add.rs"]
 pub mod venus_thumb_binary64_add;
+#[path = "venus/upper/venus_thumb_binary32_add.rs"]
+pub mod venus_thumb_binary32_add;
+#[path = "venus/upper/venus_thumb_float_compare.rs"]
+pub mod venus_thumb_float_compare;
 #[path = "venus/upper/venus_vppsg_lifecycle.rs"]
 pub mod venus_vppsg_lifecycle;
 #[path = "venus/upper/venus_vppsg_object_transform.rs"]

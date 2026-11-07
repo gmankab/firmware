@@ -9,7 +9,7 @@ Generated from `reference/xiaomi-nabu/coverage.toml` by `python3 tools/firmware.
 | `modemuw.jsn` | 713 | 713 | 0 |
 | `firmware-5.bin` | 60 | 60 | 0 |
 | `a640_zap.mbn` | 14,256 | 7,856 | 6,400 |
-| `venus.mbn` | 1,159,200 | 661,000 | 498,200 |
+| `venus.mbn` | 1,159,200 | 662,356 | 496,844 |
 | `adsp.mbn` | 14,430,684 | 31,608 | 14,399,076 |
 | `cdsp.mbn` | 9,455,252 | 11,964 | 9,443,288 |
 | `modem.mbn` | 5,101,612 | 19,528 | 5,082,084 |
@@ -25,15 +25,15 @@ Generated from `reference/xiaomi-nabu/coverage.toml` by `python3 tools/firmware.
 | `board-2.bin` | 461,060 | 1,508 | 459,552 |
 | `crbtfw32.tlv` | 127,544 | 28 | 127,516 |
 | `crnv32.bin` | 5,504 | 744 | 4,760 |
-| **Total** | **35,409,209** | **972,913** | **34,436,296** |
+| **Total** | **35,409,209** | **974,269** | **34,434,940** |
 
 ## Venus first executable segment
 
-Reported source/layout: **661,000 / 1,059,316 bytes**; uncovered: **398,316 bytes**.
+Reported source/layout: **662,356 / 1,059,316 bytes**; uncovered: **396,960 bytes**.
 
 | Uncovered ARM runtime addresses | Bytes |
 | --- | ---: |
-| `0x81e64–0xa8000` | 156,060 |
+| `0x823b0–0xa8000` | 154,704 |
 | `0xc77a4–0x1029f4` | 242,256 |
 
 ## Important limits
