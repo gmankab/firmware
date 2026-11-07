@@ -92,7 +92,7 @@ pub fn full_file() -> Result<ImagePlan, String> {
     use super::{venus_hevc_state_writers, venus_hevc_reference_sets, venus_hevc_parameter_records, venus_hevc_header_writers};
     use super::{venus_hevc_hdr_metadata, venus_vpx_header_tables, venus_vpx_header_commit};
     use super::{venus_vbuffer_manager, venus_vbuffer_release_queries, venus_vbuffer_external_attach, venus_vbuffer_array_attach};
-    use super::{venus_arithmetic_wrappers, venus_thumb_normalization, venus_thumb_binary64_add, venus_thumb_binary32_add, venus_thumb_float_compare, venus_thumb_binary64_divide, venus_thumb_binary32_divide, venus_thumb_numeric_conversions, venus_thumb_binary64_multiply};
+    use super::{venus_arithmetic_wrappers, venus_thumb_normalization, venus_thumb_binary64_add, venus_thumb_binary32_add, venus_thumb_float_compare, venus_thumb_binary64_divide, venus_thumb_binary32_divide, venus_thumb_numeric_conversions, venus_thumb_binary64_multiply, venus_thumb_binary32_multiply};
     use super::{venus_vbuffer_acquire, venus_vbuffer_accessors, venus_dispatch_allocator, venus_runtime_utilities, venus_vpx_probability_init, venus_vpx_context_tail};
     let size = crate::firmware_manifest_identity::canonical_image("venus.mbn")?.size;
     let mut plan = ImagePlan::new(size)?;
@@ -217,6 +217,7 @@ pub fn full_file() -> Result<ImagePlan, String> {
     place!(venus_thumb_binary32_divide, venus_thumb_binary32_divide::START);
     place!(venus_thumb_numeric_conversions, venus_thumb_numeric_conversions::START);
     place!(venus_thumb_binary64_multiply, venus_thumb_binary64_multiply::START);
+    place!(venus_thumb_binary32_multiply, venus_thumb_binary32_multiply::START);
     place!(venus_vpx_probability_init, venus_vpx_probability_init::START);
     place!(venus_vpx_context_tail, venus_vpx_context_tail::START);
     plan.place("venus_vspap_lifecycle_helpers", FILE_BASE + venus_vspap_lifecycle::LIFECYCLE_START, &venus_vspap_lifecycle::lifecycle_fragment()?)?;
@@ -265,7 +266,7 @@ mod tests {
             actual[span].fill(true);
         }
         let credit = field(record, "credit_bytes").unwrap().parse::<usize>().unwrap();
-        assert_eq!(credit, 667052);
+        assert_eq!(credit, 667540);
         assert_eq!(expected.iter().filter(|&&filled| filled).count(), credit);
 
         assert_eq!(actual.iter().zip(&expected).position(|(a, b)| a != b), None);

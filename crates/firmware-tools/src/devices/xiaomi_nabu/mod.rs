@@ -190,6 +190,8 @@ pub mod venus_thumb_binary32_divide;
 pub mod venus_thumb_numeric_conversions;
 #[path = "venus/upper/venus_thumb_binary64_multiply.rs"]
 pub mod venus_thumb_binary64_multiply;
+#[path = "venus/upper/venus_thumb_binary32_multiply.rs"]
+pub mod venus_thumb_binary32_multiply;
 #[path = "venus/upper/venus_vppsg_lifecycle.rs"]
 pub mod venus_vppsg_lifecycle;
 #[path = "venus/upper/venus_vppsg_object_transform.rs"]
