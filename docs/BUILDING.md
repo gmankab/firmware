@@ -2,6 +2,8 @@
 
 ## Development environment
 
+Run Maki, MCP servers, and the commands below directly inside the Fedora container. See [the decompilation handbook](DECOMPILATION.md#1-prepare-an-isolated-repeatable-environment) for build and analysis dependency installation.
+
 Install Rust 1.99.1 or newer, Cargo, Python 3, GNU coreutils, Git, and OpenSSL 3.x for cryptographic verification. `rustfmt` is recommended for formatting checks. The current workspace has **no third-party Cargo dependencies** and can be built offline once the Rust standard library is present.
 
 ```sh

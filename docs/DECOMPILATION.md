@@ -10,11 +10,12 @@ Fedora dependencies:
 
 ```sh
 sudo dnf install -y \
-  binutils xxd gcc gcc-c++ make pkgconf-pkg-config zstd \
+  git ca-certificates curl file binutils xxd gcc gcc-c++ make pkgconf-pkg-config zstd xz \
   cmake meson ninja-build flex bison expat-devel libdrm-devel \
-  rust cargo rustfmt java-latest-openjdk-devel \
-  nodejs binwalk uv python3-devel \
-  e2fsprogs squashfs-tools lzop
+  rust cargo rustfmt clippy java-latest-openjdk-devel \
+  nodejs npm binwalk uv python3-devel python3-capstone capstone capstone-devel \
+  llvm rizin \
+  e2fsprogs squashfs-tools lzop openssl unzip
 ```
 
 Debian/Ubuntu dependencies:
@@ -30,7 +31,8 @@ sudo apt-get install -y \
 Install unblob via uv
 
 ```sh
-uv tool install unblob
+uv tool install --python /usr/bin/python3 unblob
+sudo ln -sfn "$HOME/.local/bin/unblob" /usr/local/bin/unblob
 ```
 
 Install a Rust toolchain (`rustc`, `cargo` and optionally `rustfmt`) matching `rust-toolchain.toml`. For headless Ghidra, use the latest JDK and check its compatibility against the installed Ghidra release's requirements. Use the newest system Python for Unblob; fall back only after observing a specific incompatibility.
@@ -56,7 +58,9 @@ xxd -l 128 /path/to/original-firmware
 
 [REA](https://github.com/morluto/rea) exposes local analysis tools through MCP. It helps inspect firmware regions, extract containers and investigate supported native executables with Ghidra
 
-The MCP configuration uses default toolbox, without a Fedora release pin. Run the installation commands below inside it (`toolbox enter` from the host). Toolbox shares your home directory with the host; `/usr` and `/opt` below belong to the container.
+Run Maki and all installation, build, and analysis commands directly inside the Fedora container. The MCP server inherits that environment; `/usr` and `/opt` below belong to the container. No host-side command wrapper is required.
+
+Check `npm view rea-agents@latest engines` before installing. The Fedora default Node.js can be older than REA's minimum supported patch release. If necessary, install a supported current Node.js release from its official distribution, verify its release checksum, and make its `node` and `npm` available on `PATH`; do not bypass engine validation.
 
 Acquire REA from a trusted directory outside the target repository:
 
@@ -65,7 +69,7 @@ cd /tmp
 sudo npm install --global rea-agents@latest
 ```
 
-Install Ghidra from the [official releases](https://github.com/NationalSecurityAgency/ghidra/releases), verify its release checksum, and extract it inside toolbox. Give the installed directory a stable alias; substitute the actual extracted path:
+Install Ghidra from the [official releases](https://github.com/NationalSecurityAgency/ghidra/releases), verify its release checksum, and extract it inside the container. Give the installed directory a stable alias; substitute the actual extracted path:
 
 ```sh
 sudo ln -sfn /absolute/path/to/extracted-ghidra /opt/ghidra
@@ -77,11 +81,13 @@ env \
 
 When upgrading Ghidra, repoint `/opt/ghidra`; no repository edits are needed. `/usr/lib/jvm/java` follows Fedora's selected JDK. Update REA with `sudo npm install --global rea-agents@latest` and Unblob with `uv tool upgrade unblob`.
 
+The container setup verified on 2026-11-07 uses Rust/Cargo 1.99.1, Python 3.15.0, Node.js 26.13.0, REA 6.8.0, Ghidra 12.1.4, and Fedora's OpenJDK 27 early-access build. REA's scoped Ghidra doctor check passes with this combination. Ghidra 12.2 was checksum-verified but rejected by REA 6.8.0's supported-version check; `/opt/ghidra` therefore points to 12.1.4. Missing optional providers or a REA agent skill can still make the doctor's global `environment_healthy` field false even when the explicit Ghidra scope is healthy.
+
 Latest releases are a preference, not a compatibility guarantee. REA can explicitly reject a newer Ghidra or Node.js release, and Ghidra can impose Java requirements. Run the scoped doctor check after updates. If it reports an incompatibility, update REA first; if unresolved, report the error before selecting a supported fallback. Do not disable version validation. Record exact tool versions in analysis evidence rather than hardcoding them into the setup.
 
 ### Enable REA MCP for maki
 
-See `.maki/mcp.toml` in the repository root. It launches `rea` on the default toolbox's `PATH`, uses the stable Ghidra and Java aliases above, and resolves Unblob from `$HOME/.local/bin/unblob`. No user-name substitution is required. Trust the project folder, restart Maki and open `/mcp` to check REA's connection. If you also have a global `~/.config/maki/mcp.toml`, remove or synchronize its REA entry to avoid conflicting configurations.
+See `.maki/mcp.toml` in the repository root. It launches `rea` directly on the container's `PATH`, uses the stable Ghidra and Java aliases above, and resolves Unblob from `PATH` through the `/usr/local/bin/unblob` alias. It uses `env` to set process variables without a shell or variable expansion. No user-name substitution is required. Trust the project folder, restart Maki and open `/mcp` to check REA's connection. If you also have a global `~/.config/maki/mcp.toml`, remove or synchronize its REA entry to avoid conflicting configurations.
 
 ## 2. Acquire and verify the exact reference revision
 

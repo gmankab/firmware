@@ -1,4 +1,4 @@
 [mcp.rea]
-command = ["toolbox", "run", "sh", "-c", 'export GHIDRA_INSTALL_DIR=/opt/ghidra JAVA_HOME=/usr/lib/jvm/java REA_ANALYSIS_PROVIDER=ghidra REA_BINWALK_COMMAND=/usr/bin/binwalk REA_UNBLOB_COMMAND="$HOME/.local/bin/unblob"; exec rea mcp']
+command = ["env", "GHIDRA_INSTALL_DIR=/opt/ghidra", "JAVA_HOME=/usr/lib/jvm/java", "REA_ANALYSIS_PROVIDER=ghidra", "REA_BINWALK_COMMAND=/usr/bin/binwalk", "REA_UNBLOB_COMMAND=unblob", "rea", "mcp"]
 timeout = 300000
 enabled = true
