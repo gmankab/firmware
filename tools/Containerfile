@@ -1,0 +1,41 @@
+FROM quay.io/fedora/fedora-toolbox:45
+
+ENV GHIDRA_INSTALL_DIR=/opt/ghidra \
+    JAVA_HOME=/usr/lib/jvm/java \
+    REA_ANALYSIS_PROVIDER=ghidra \
+    REA_BINWALK_COMMAND=/usr/bin/binwalk \
+    REA_UNBLOB_COMMAND=unblob
+
+RUN --mount=type=cache,target=/var/cache \
+  dnf -y --enablerepo=updates-testing install \
+    ripgrep git ca-certificates curl file binutils xxd \
+    gcc gcc-c++ make pkgconf-pkg-config zstd xz tar unzip bsdtar \
+    cmake meson ninja-build flex bison expat-devel libdrm-devel \
+    rust cargo rustfmt clippy java-latest-openjdk-devel \
+    binwalk uv python3-devel python3-capstone capstone capstone-devel \
+    python3-pyyaml python3-lz4 python3-zstandard \
+    llvm rizin e2fsprogs squashfs-tools lzop openssl \
+    nodejs26 nodejs26-npm nodejs26-bin nodejs26-npm-bin gh
+
+RUN --mount=type=cache,target=/root/.cache/uv \
+  --mount=type=bind,source=unblob-exclude.txt,target=unblob-exclude.txt \
+  uv pip install --python /usr/bin/python3 --system --break-system-packages \
+    --excludes unblob-exclude.txt unblob==26.6.4
+
+RUN gh release download \
+    --repo tontinton/maki \
+    --pattern "maki-*-$(uname -m)-unknown-linux-musl.tar.gz" \
+    --output - | tar -C /usr/bin -xzf -
+
+RUN gh release download Ghidra_12.1.4_build --repo NationalSecurityAgency/ghidra \
+    --pattern 'ghidra_*_PUBLIC_*.zip' --output - \
+    | bsdtar -C /opt -xf -
+
+RUN ln -s /opt/ghidra_12.1.4_PUBLIC /opt/ghidra && \
+  chmod +x /opt/ghidra/support/analyzeHeadless /opt/ghidra/support/launch.sh \
+    /opt/ghidra/Ghidra/Features/Decompiler/os/linux_x86_64/decompile \
+    /opt/ghidra/Ghidra/Features/Decompiler/os/linux_x86_64/sleigh
+RUN npm install --global --prefix /usr/local --engine-strict --omit=optional rea-agents@6.8.0
+RUN rea doctor --provider ghidra --json
+
+ENTRYPOINT ["/usr/bin/maki"]
