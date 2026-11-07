@@ -437,10 +437,15 @@ pub fn signed_multiply_bottom_halves(condition: Condition, rd: Register,
 /// destination as the first multiplicand are enforced.
 pub fn multiply_register(condition: Condition, rd: Register,
                          rm: Register, rs: Register) -> Result<u32, String> {
+    multiply_register_with_flags(condition, rd, rm, rs, false)
+}
+
+pub fn multiply_register_with_flags(condition: Condition, rd: Register,
+                                    rm: Register, rs: Register, set_flags: bool) -> Result<u32, String> {
     if [rd, rm, rs].contains(&Register::PC) || rd == rm {
         return Err("invalid ARM32 MUL register operands".into());
     }
-    Ok(cond(condition) | 0x0000_0090
+    Ok(cond(condition) | 0x0000_0090 | ((set_flags as u32) << 20)
         | (rd.number() << 16) | (rs.number() << 8) | rm.number())
 }
 
@@ -870,6 +875,12 @@ mod tests {
         assert_eq!(multiply_register(Condition::Al, r3, Register::R1, Register::R12).unwrap(), 0xe003_0c91);
         assert_eq!(multiply_register(Condition::Al, r5, Register::R2, r4).unwrap(), 0xe005_0492);
         assert!(multiply_register(Condition::Al, r3, r3, Register::R1).is_err());
+        assert_eq!(multiply_register_with_flags(Condition::Al, Register::R2,
+            Register::R0, Register::R2, true).unwrap(), 0xe012_0290);
+        assert_eq!(multiply_register_with_flags(Condition::Ne, r3,
+            Register::R1, Register::R12, true).unwrap(), 0x1013_0c91);
+        assert!(multiply_register_with_flags(Condition::Al, Register::PC,
+            Register::R0, Register::R2, true).is_err());
     }
     #[test]
     fn compare_negative_immediate() {

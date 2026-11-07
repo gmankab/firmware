@@ -172,6 +172,12 @@ pub mod venus_runtime_utilities;
 pub mod venus_vpx_probability_init;
 #[path = "venus/upper/venus_vpx_context_tail.rs"]
 pub mod venus_vpx_context_tail;
+#[path = "venus/upper/venus_arithmetic_wrappers.rs"]
+pub mod venus_arithmetic_wrappers;
+#[path = "venus/upper/venus_thumb_normalization.rs"]
+pub mod venus_thumb_normalization;
+#[path = "venus/upper/venus_thumb_binary64_add.rs"]
+pub mod venus_thumb_binary64_add;
 #[path = "venus/upper/venus_vppsg_lifecycle.rs"]
 pub mod venus_vppsg_lifecycle;
 #[path = "venus/upper/venus_vppsg_object_transform.rs"]

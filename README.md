@@ -107,9 +107,9 @@ checks the patch framing. No partial output is intended for installation.
 Cortex-M Thumb reset bootstrap, and a 320-byte exception vector table.
 The first two complete blocks form a **400-byte contiguous prefix**, which can
 be emitted with `firmware-tools emit-gmu-first-two-blocks OUTPUT`.
-`verify-gmu-framing ORIGINAL` checks all 3,544 modeled bytes, including the
+`verify-gmu-framing ORIGINAL` checks all 4,312 modeled bytes, including the
 startup, PendSV handler, arithmetic, memory, formatting, stream and allocator routines.
-The remaining 34,136 bytes,
+The remaining 33,368 bytes,
 including GMU executable code, are not reconstructed.
 
 ### Venus upper-controller dispatch (partial A32)
