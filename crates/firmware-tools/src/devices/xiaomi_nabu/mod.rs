@@ -194,6 +194,14 @@ pub mod venus_thumb_binary64_multiply;
 pub mod venus_thumb_binary32_multiply;
 #[path = "venus/upper/venus_thumb_integer_division.rs"]
 pub mod venus_thumb_integer_division;
+#[path = "venus/upper/venus_arm_runtime_services.rs"]
+pub mod venus_arm_runtime_services;
+#[path = "venus/upper/venus_arm_registry_mmio.rs"]
+pub mod venus_arm_registry_mmio;
+#[path = "venus/upper/venus_arm_handle_formatting.rs"]
+pub mod venus_arm_handle_formatting;
+#[path = "venus/upper/venus_arm_state_initialization.rs"]
+pub mod venus_arm_state_initialization;
 #[path = "venus/upper/venus_vppsg_lifecycle.rs"]
 pub mod venus_vppsg_lifecycle;
 #[path = "venus/upper/venus_vppsg_object_transform.rs"]
